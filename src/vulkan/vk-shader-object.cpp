@@ -304,12 +304,6 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->descriptorSets = m_allocator->allocate<VkDescriptorSet>(totalDescriptorSetCount);
     m_bindingData->descriptorSetCount = 0;
 
-    m_pushConstantRanges = specializedLayout->getAllPushConstantRanges();
-
-    m_bindingData->pushConstantRanges = m_allocator->allocate<VkPushConstantRange>(m_pushConstantRanges.size());
-    m_bindingData->pushConstantData = m_allocator->allocate<void*>(m_pushConstantRanges.size());
-    m_bindingData->pushConstantCount = 0;
-
     // Allocate entry point data storage for ray tracing SBT.
     size_t entryPointCount = specializedLayout->m_entryPoints.size();
     m_bindingData->entryPointCount = (uint32_t)entryPointCount;
@@ -371,6 +365,7 @@ Result BindingDataBuilder::bindAsRoot(
             m_device->m_bindlessDescriptorSet->m_descriptorSet;
     }
 
+    SLANG_RETURN_ON_FAIL(resolvePushConstants(specializedLayout->getAllPushConstantRanges()));
     outBindingData = m_bindingData;
 
     return SLANG_OK;
@@ -414,23 +409,12 @@ Result BindingDataBuilder::bindAsPushConstantBuffer(
 
     if (shaderObject->m_data.size())
     {
-        // The offset identifies a range in the flattened pipeline layout. Increment it
-        // before recursing so any push constants nested in this object's contents use
-        // the following ranges.
-        const auto pushConstantRangeIndex = offset.pushConstantRange++;
-        SLANG_RHI_ASSERT(pushConstantRangeIndex < m_pushConstantRanges.size());
-        const auto& pushConstantRange = m_pushConstantRanges[pushConstantRangeIndex];
-        SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
-
-        const uint32_t index = m_bindingData->pushConstantCount++;
-        SLANG_RHI_ASSERT(index < m_pushConstantRanges.size());
-        m_bindingData->pushConstantRanges[index] = pushConstantRange;
-        m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
-        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(
-            m_bindingData->pushConstantData[index],
-            pushConstantRange.size,
-            specializedLayout
-        ));
+        PushConstantBinding binding;
+        binding.rangeIndex = offset.pushConstantRange++;
+        binding.size = uint32_t(shaderObject->m_data.size());
+        binding.data = m_allocator->allocate(binding.size);
+        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(binding.data, binding.size, specializedLayout));
+        m_pushConstants.push_back(binding);
     }
 
     // Resources and nested parameter blocks in the push-constant element type still
@@ -440,6 +424,23 @@ Result BindingDataBuilder::bindAsPushConstantBuffer(
     return SLANG_OK;
 }
 
+
+Result BindingDataBuilder::resolvePushConstants(std::span<const VkPushConstantRange> ranges)
+{
+    // Only the assembled root knows the pipeline's absolute offsets and stage masks.
+    m_bindingData->pushConstantCount = uint32_t(m_pushConstants.size());
+    m_bindingData->pushConstantRanges = m_allocator->allocate<VkPushConstantRange>(m_pushConstants.size());
+    m_bindingData->pushConstantData = m_allocator->allocate<void*>(m_pushConstants.size());
+    for (uint32_t i = 0; i < m_pushConstants.size(); ++i)
+    {
+        const auto& binding = m_pushConstants[i];
+        if (binding.rangeIndex >= ranges.size() || ranges[binding.rangeIndex].size != binding.size)
+            return SLANG_E_INVALID_ARG;
+        m_bindingData->pushConstantRanges[i] = ranges[binding.rangeIndex];
+        m_bindingData->pushConstantData[i] = binding.data;
+    }
+    return SLANG_OK;
+}
 
 Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     ShaderObject* shaderObject,
@@ -786,12 +787,24 @@ Result BindingDataBuilder::bindAsParameterBlock(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
-    // Push-constant placement depends on the enclosing root layout. Keep that uncommon
-    // case on the normal assembly path; finalized uniform buffers are still reused.
-    if (!shaderObject->isFinalized() || specializedLayout->getTotalPushConstantRangeCount())
+    if (!shaderObject->isFinalized())
         return bindAsParameterBlockImpl(shaderObject, inOffset, specializedLayout);
+    const ParameterBlockBindingData* data;
+    SLANG_RETURN_ON_FAIL(prepareParameterBlock(shaderObject, specializedLayout, data));
+    composeParameterBlock(*data, inOffset);
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareParameterBlock(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    const ParameterBlockBindingData*& outData
+)
+{
     struct PreparedParameterBlock : PreparedBindingData
-    {};
+    {
+        ParameterBlockBindingData block;
+    };
     PreparedParameterBlock* data;
     SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedParameterBlock>(
         specializedLayout,
@@ -805,28 +818,43 @@ Result BindingDataBuilder::bindAsParameterBlock(
             builder.m_bindingCache = &data->bindingCache;
             builder.m_descriptorSetAllocator = &m_device->descriptorSetAllocator;
             builder.m_persistentDescriptorSets = &data->descriptorSets;
-            data->bindingData = data->allocator.allocate<BindingDataImpl>();
-            auto& bindings = *data->bindingData;
-            bindings = {};
+            builder.m_pushConstants.clear();
+            BindingDataImpl bindings = {};
             bindings.bufferStateCapacity = bindings.textureStateCapacity = 16;
             bindings.bufferStates = data->allocator.allocate<BindingDataImpl::BufferState>(16);
             bindings.textureStates = data->allocator.allocate<BindingDataImpl::TextureState>(16);
             bindings.descriptorSets =
                 data->allocator.allocate<VkDescriptorSet>(specializedLayout->getTotalDescriptorSetCount());
             builder.m_bindingData = &bindings;
-            return builder.bindAsParameterBlockImpl(shaderObject, BindingOffset{}, specializedLayout);
+            SLANG_RETURN_ON_FAIL(builder.bindAsParameterBlockImpl(shaderObject, BindingOffset{}, specializedLayout));
+            auto pushConstants = data->allocator.allocate<PushConstantBinding>(builder.m_pushConstants.size());
+            std::copy(builder.m_pushConstants.begin(), builder.m_pushConstants.end(), pushConstants);
+            data->block.descriptorSets = {bindings.descriptorSets, bindings.descriptorSetCount};
+            data->block.pushConstants = {pushConstants, builder.m_pushConstants.size()};
+            data->block.bufferStates = {bindings.bufferStates, bindings.bufferStateCount};
+            data->block.textureStates = {bindings.textureStates, bindings.textureStateCount};
+            return SLANG_OK;
         },
         data
     ));
     m_resources->insert(data);
-    const auto& bindings = *data->bindingData;
-    for (uint32_t i = 0; i < bindings.descriptorSetCount; ++i)
-        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = bindings.descriptorSets[i];
-    for (uint32_t i = 0; i < bindings.bufferStateCount; ++i)
-        writeBufferState(this, bindings.bufferStates[i].buffer, bindings.bufferStates[i].state);
-    for (uint32_t i = 0; i < bindings.textureStateCount; ++i)
-        writeTextureState(this, bindings.textureStates[i].textureView, bindings.textureStates[i].state);
+    outData = &data->block;
     return SLANG_OK;
+}
+
+void BindingDataBuilder::composeParameterBlock(const ParameterBlockBindingData& data, const BindingOffset& offset)
+{
+    for (auto set : data.descriptorSets)
+        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = set;
+    for (auto binding : data.pushConstants)
+    {
+        binding.rangeIndex += offset.pushConstantRange;
+        m_pushConstants.push_back(binding);
+    }
+    for (const auto& state : data.bufferStates)
+        writeBufferState(this, state.buffer, state.state);
+    for (const auto& state : data.textureStates)
+        writeTextureState(this, state.textureView, state.state);
 }
 
 Result BindingDataBuilder::bindAsParameterBlockImpl(

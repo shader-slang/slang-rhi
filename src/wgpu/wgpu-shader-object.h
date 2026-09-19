@@ -8,6 +8,11 @@
 
 namespace rhi::wgpu {
 
+struct ParameterBlockBindingData
+{
+    std::span<const WGPUBindGroup> bindGroups;
+};
+
 struct BindingDataBuilder
 {
     std::set<RefPtr<RefObject>>* m_resources = nullptr;
@@ -19,12 +24,14 @@ struct BindingDataBuilder
     CommandList* m_commandList;
     ConstantBufferPool* m_constantBufferPool;
 
-    std::span<WGPUBindGroupLayout> m_bindGroupLayouts;
-
-    /// The bind group entries for every descriptor set
-    std::vector<std::vector<WGPUBindGroupEntry>> m_entries;
-    std::vector<WGPUBindGroup> m_existingBindGroups;
-    RootShaderObjectLayoutImpl* m_rootLayout = nullptr;
+    /// A group is either assembled from entries or supplied by a prepared block.
+    struct BindGroup
+    {
+        WGPUBindGroupLayout layout = nullptr;
+        std::vector<WGPUBindGroupEntry> entries;
+        WGPUBindGroup existing = nullptr;
+    };
+    std::vector<BindGroup> m_bindGroups;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(
@@ -66,6 +73,13 @@ struct BindingDataBuilder
         const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
     );
+
+    Result prepareParameterBlock(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        const ParameterBlockBindingData*& outData
+    );
+    void composeParameterBlock(const ParameterBlockBindingData& data);
 
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(

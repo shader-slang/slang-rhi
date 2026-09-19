@@ -19,6 +19,8 @@ struct DescriptorSet
 };
 
 
+struct ParameterBlockBindingData;
+
 struct BindingDataBuilder
 {
     std::set<RefPtr<RefObject>>* m_resources = nullptr;
@@ -77,6 +79,18 @@ struct BindingDataBuilder
         const BindingOffset& offset,
         uint32_t& rootParamIndex,
         ShaderObjectLayoutImpl* specializedLayout
+    );
+
+    /// Prepare bindings in block-relative coordinates, independently of a root signature position.
+    Result prepareParameterBlock(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        const ParameterBlockBindingData*& outData
+    );
+    void composeParameterBlock(
+        const ParameterBlockBindingData& data,
+        const BindingOffset& offset,
+        uint32_t& rootParamIndex
     );
 
     Result bindAsValue(
@@ -138,6 +152,16 @@ public:
     /// Root parameters.
     RootParameter* rootParameters;
     uint32_t rootParameterCount;
+};
+
+/// Root descriptors and descriptor tables occupy separate ranges in the enclosing root signature.
+/// Each span uses indices relative to its own range; composition supplies their absolute bases.
+struct ParameterBlockBindingData
+{
+    std::span<const BindingDataImpl::RootParameter> rootDescriptors;
+    std::span<const BindingDataImpl::RootParameter> descriptorTables;
+    std::span<const BindingDataImpl::BufferState> bufferStates;
+    std::span<const BindingDataImpl::TextureState> textureStates;
 };
 
 struct BindingCache

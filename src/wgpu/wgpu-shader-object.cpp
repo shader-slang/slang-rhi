@@ -21,8 +21,9 @@ struct PreparedBindingData : PreparedShaderObject
 
 inline void writeDescriptor(BindingDataBuilder& builder, uint32_t bindingSet, const WGPUBindGroupEntry& write)
 {
-    SLANG_RHI_ASSERT(bindingSet < builder.m_entries.size());
-    builder.m_entries[bindingSet].push_back(write);
+    SLANG_RHI_ASSERT(bindingSet < builder.m_bindGroups.size());
+    SLANG_RHI_ASSERT(!builder.m_bindGroups[bindingSet].existing);
+    builder.m_bindGroups[bindingSet].entries.push_back(write);
 }
 
 inline void writeBufferDescriptor(
@@ -134,9 +135,6 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData = bindingData;
     m_bindingCache->bindingData.push_back(bindingData);
 
-    m_rootLayout = specializedLayout;
-    m_bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
-
     BindingOffset offset = {};
 
     // Note: the operations here are quite similar to what `bindAsParameterBlock` does.
@@ -193,32 +191,33 @@ Result BindingDataBuilder::allocateDescriptorSets(
     const auto& descriptorSets = specializedLayout->getOwnDescriptorSets();
     for (size_t i = 0; i < descriptorSets.size(); ++i)
     {
-        m_entries.push_back(std::vector<WGPUBindGroupEntry>());
-        m_existingBindGroups.push_back(nullptr);
-        auto& newEntries = m_entries.back();
-        newEntries.reserve(descriptorSets[i].entries.size());
+        auto& group = m_bindGroups.emplace_back();
+        // Pipeline layout composition uses this same block-owned native layout.
+        group.layout = descriptorSets[i].bindGroupLayout;
+        group.entries.reserve(descriptorSets[i].entries.size());
     }
     return SLANG_OK;
 }
 
 Result BindingDataBuilder::createBindGroups()
 {
-    m_bindingData->bindGroupCount = m_entries.size();
+    m_bindingData->bindGroupCount = m_bindGroups.size();
     m_bindingData->bindGroups = m_allocator->allocate<WGPUBindGroup>(m_bindingData->bindGroupCount);
     std::fill_n(m_bindingData->bindGroups, m_bindingData->bindGroupCount, nullptr);
 
-    for (size_t i = 0; i < m_entries.size(); ++i)
+    for (size_t i = 0; i < m_bindGroups.size(); ++i)
     {
-        if (m_existingBindGroups[i])
+        const auto& group = m_bindGroups[i];
+        if (group.existing)
         {
-            m_device->m_ctx.api.wgpuBindGroupAddRef(m_existingBindGroups[i]);
-            m_bindingData->bindGroups[i] = m_existingBindGroups[i];
+            m_device->m_ctx.api.wgpuBindGroupAddRef(group.existing);
+            m_bindingData->bindGroups[i] = group.existing;
             continue;
         }
         WGPUBindGroupDescriptor desc = {};
-        desc.layout = m_bindGroupLayouts[i];
-        desc.entries = m_entries[i].data();
-        desc.entryCount = (uint32_t)m_entries[i].size();
+        desc.layout = group.layout;
+        desc.entries = group.entries.data();
+        desc.entryCount = (uint32_t)group.entries.size();
         WGPUBindGroup bindGroup = m_device->m_ctx.api.wgpuDeviceCreateBindGroup(m_device->m_ctx.device, &desc);
         if (!bindGroup)
         {
@@ -396,43 +395,56 @@ Result BindingDataBuilder::bindAsParameterBlock(
 {
     if (!shaderObject->isFinalized())
         return bindAsParameterBlockImpl(shaderObject, inOffset, specializedLayout);
+    const ParameterBlockBindingData* data;
+    SLANG_RETURN_ON_FAIL(prepareParameterBlock(shaderObject, specializedLayout, data));
+    composeParameterBlock(*data);
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareParameterBlock(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    const ParameterBlockBindingData*& outData
+)
+{
     struct PreparedParameterBlock : PreparedBindingData
     {
-        RefPtr<RootShaderObjectLayoutImpl> rootLayout;
+        ParameterBlockBindingData block;
     };
     PreparedParameterBlock* data;
-    size_t firstSet = m_entries.size();
     SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedParameterBlock>(
         specializedLayout,
-        {uint64_t(m_rootLayout), firstSet, uint64_t(m_bindGroupLayouts.data())},
+        {},
         [&](PreparedParameterBlock* data)
         {
             data->device = m_device;
-            data->rootLayout = m_rootLayout;
             BindingDataBuilder builder = *this;
             builder.m_allocator = &data->allocator;
             builder.m_resources = &data->resources;
             builder.m_bindingCache = &data->bindingCache;
-            builder.m_entries.clear();
-            builder.m_existingBindGroups.clear();
-            builder.m_bindGroupLayouts =
-                m_bindGroupLayouts.subspan(firstSet, specializedLayout->getTotalDescriptorSetCount());
+            builder.m_bindGroups.clear();
             data->bindingData = data->allocator.allocate<BindingDataImpl>();
             *data->bindingData = {};
             data->bindingCache.bindingData.push_back(data->bindingData);
             builder.m_bindingData = data->bindingData;
             SLANG_RETURN_ON_FAIL(builder.bindAsParameterBlockImpl(shaderObject, BindingOffset{}, specializedLayout));
-            return builder.createBindGroups();
+            SLANG_RETURN_ON_FAIL(builder.createBindGroups());
+            data->block.bindGroups = {data->bindingData->bindGroups, data->bindingData->bindGroupCount};
+            return SLANG_OK;
         },
         data
     ));
     m_resources->insert(data);
-    for (size_t i = 0; i < data->bindingData->bindGroupCount; ++i)
-    {
-        m_entries.emplace_back();
-        m_existingBindGroups.push_back(data->bindingData->bindGroups[i]);
-    }
+    outData = &data->block;
     return SLANG_OK;
+}
+
+void BindingDataBuilder::composeParameterBlock(const ParameterBlockBindingData& data)
+{
+    for (auto bindGroup : data.bindGroups)
+    {
+        m_bindGroups.emplace_back().existing = bindGroup;
+    }
 }
 
 Result BindingDataBuilder::bindAsParameterBlockImpl(
@@ -447,7 +459,7 @@ Result BindingDataBuilder::bindAsParameterBlockImpl(
     // not the sets for any parent object(s).
     //
     BindingOffset offset = inOffset;
-    offset.bindingSet = (uint32_t)m_entries.size();
+    offset.bindingSet = (uint32_t)m_bindGroups.size();
     offset.binding = 0;
 
     // Note: Pending data layout functionality has been removed.
@@ -458,7 +470,7 @@ Result BindingDataBuilder::bindAsParameterBlockImpl(
     //
     SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
 
-    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)m_entries.size());
+    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)m_bindGroups.size());
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, offset, specializedLayout));
 
     return SLANG_OK;

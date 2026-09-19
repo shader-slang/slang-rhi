@@ -24,17 +24,19 @@ The contents of bound buffers and textures can still change. Finalization freeze
 
 ## Implementation
 
-Each finalized object owns immutable preparation records keyed by the effective specialized layout and any backend placement context. Preparation is lazy: the first use pays for native allocation and serialization. A per-object lock serializes concurrent first use, and a failed preparation is not published. Specialized layouts, specialization arguments, and the resource ownership graph are also retained for reuse.
+Each finalized object owns immutable preparation records keyed by the effective specialized layout and the kind of prepared data, with storage-specific context where needed. Preparation is lazy: the first use pays for native allocation and serialization. A per-object lock serializes concurrent first use, and a failed preparation is not published. Specialized layouts, specialization arguments, and the resource ownership graph are also retained for reuse.
+
+Block preparation and root assembly are separate operations. `prepareParameterBlock()` produces immutable bindings in block-relative coordinates. `composeParameterBlock()` places those bindings into the enclosing root or block. D3D11 uses the analogous constant-buffer operations. Changing a block's root position does not add a preparation-cache entry for the same effective layout. Native layout compatibility still comes from that effective layout; distinct layouts may require separate prepared records.
 
 Command buffers retain preparation records independently of the original shader objects. Records own their native allocations and retain referenced resources and child records, so releasing the shader objects after recording does not invalidate submitted work. Native allocations are reclaimed when both shader-object and command-buffer references are gone, using the existing command-buffer retirement mechanism.
 
 | Backend | Persistent root data | Reuse inside mutable roots |
 | --- | --- | --- |
-| D3D12 | Root parameters, GPU descriptor ranges, constant buffers, resource-use records | Parameter-block descriptor tables and constant buffers; placement included in the cache key |
-| Vulkan | Descriptor sets, uniform buffers, push-constant data, resource-use records | Parameter-block descriptor sets and uniform buffers |
-| WebGPU | Bind groups and uniform buffers | Parameter-block bind groups, keyed by enclosing layout and placement |
+| D3D12 | Root parameters, GPU descriptor ranges, constant buffers, resource-use records | Compact block-relative root-descriptor and descriptor-table ranges, plus constant buffers |
+| Vulkan | Descriptor sets, uniform buffers, push-constant data, resource-use records | Parameter-block descriptor sets, uniform buffers, and relative push-constant bindings |
+| WebGPU | Bind groups and uniform buffers | Parameter-block bind groups using their effective layout's native bind-group layouts |
 | Metal | Binding arrays, constant/argument buffers, residency records | Argument buffers and ordinary-data buffers |
-| D3D11 | Binding arrays and constant buffers | Constant/parameter-block binding arrays, keyed by register offsets |
+| D3D11 | Binding arrays and constant buffers | Constant/parameter-block binding arrays rebased during composition |
 | CPU | Serialized parameter graphs | Serialized constant/parameter-block subgraphs |
 | CUDA | Serialized host/device parameter graphs | Persistent device parameter-block storage |
 
@@ -42,7 +44,9 @@ D3D12 allocations use the existing device descriptor heaps with persistent owner
 
 D3D12 and Vulkan process resource uses even when binding-data pointers match the previous command. A cache hit can suppress redundant native bindings without suppressing required synchronization.
 
-Vulkan parameter blocks containing push-constant ranges conservatively use normal descriptor assembly because their push-constant placement depends on the enclosing root. Their finalized uniform buffers are still reused; fully finalized roots cache the complete binding data. CUDA retains the existing per-launch update of module-global parameters.
+Vulkan prepares push-constant bytes with relative range indices. Composition adjusts those indices; the completed root resolves the pipeline's byte offsets and stage visibility. Blocks containing push constants can therefore use persistent descriptor preparation. CUDA retains the existing per-launch update of module-global parameters.
+
+Allocation ownership remains in the existing backend builders and preparation records. The separation of preparation and composition does not introduce a transient/persistent storage-context abstraction; that is a separate refactor.
 
 Persistent storage trades memory and first-use cost for lower repeated CPU cost. Uniform storage currently uses individual buffers per object/layout, and preparation records remain until the object and recorded commands release them. There is no cache budget or eviction policy. Uniform-buffer suballocation, automatic revision caching for mutable objects, and dynamic-offset bindings are possible follow-ups.
 
@@ -78,8 +82,10 @@ For 1,000 dispatches per command buffer:
 
 Full-root reuse removes most binding construction in this workload. Nested-block gains are smaller because mutable root data still needs preparation. CUDA submission dominates its total, and WebGPU's changing-root case showed essentially no total CPU improvement in this run. Timing thresholds are deliberately not enforced by tests.
 
+The preparation/composition refactor was checked against a saved Release benchmark baseline. In the 1,000-dispatch finalized-block case, encoding cost was 520.8 -> 520.8 ns on D3D11, 1272.9 -> 1275.0 ns on D3D12, and 544.3 -> 536.0 ns on Vulkan. WebGPU varied between runs: the initial after measurement was 3126.5 ns, while an isolated repeat measured 2383.7 ns against the 2594.9 ns baseline. These samples support retaining the existing performance characteristics; they do not establish a new performance guarantee. All six backend benchmark cases verified their shader outputs.
+
 ## Correctness coverage
 
-`tests/test-finalized-shader-object.cpp` covers recursive immutability, changing roots and entry points with frozen children, shared blocks at different binding positions, changing resource contents, command-buffer recycling, releasing shader objects before submission, alternating specialized pipelines, and concurrent first use on CPU, D3D12, Vulkan, and WebGPU. Benchmark samples also verify results.
+`tests/test-finalized-shader-object.cpp` covers recursive immutability, changing roots and entry points with frozen children, shared blocks at different binding positions and across different root layouts, D3D12 root-descriptor rebasing, Vulkan push constants inside finalized blocks, changing resource contents, command-buffer recycling, releasing shader objects before submission, alternating specialized pipelines, and concurrent first use on CPU, D3D12, Vulkan, and WebGPU. Benchmark samples also verify results.
 
 The implementation was built and exercised on CPU, CUDA, D3D11, D3D12, Vulkan, and WebGPU. Metal changes require compilation and validation on macOS.

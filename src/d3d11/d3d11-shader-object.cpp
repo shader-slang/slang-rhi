@@ -104,6 +104,18 @@ Result BindingDataBuilder::bindAsConstantBuffer(
 {
     if (!shaderObject->isFinalized())
         return bindAsConstantBufferImpl(shaderObject, inOffset, specializedLayout);
+    const BindingDataImpl* data;
+    SLANG_RETURN_ON_FAIL(prepareConstantBuffer(shaderObject, specializedLayout, data));
+    composeConstantBuffer(*data, inOffset);
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareConstantBuffer(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    const BindingDataImpl*& outData
+)
+{
     struct PreparedConstantBuffer : PreparedShaderObject
     {
         BindingDataImpl bindings = {};
@@ -111,41 +123,53 @@ Result BindingDataBuilder::bindAsConstantBuffer(
     PreparedConstantBuffer* data;
     SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedConstantBuffer>(
         specializedLayout,
-        {inOffset.cbv, inOffset.srv, inOffset.uav, inOffset.sampler},
+        {},
         [&](PreparedConstantBuffer* data)
         {
             BindingDataBuilder builder = *this;
             builder.m_allocator = &data->allocator;
             builder.m_resources = &data->resources;
             builder.m_bindingData = &data->bindings;
-            return builder.bindAsConstantBufferImpl(shaderObject, inOffset, specializedLayout);
+            return builder.bindAsConstantBufferImpl(shaderObject, BindingOffset{}, specializedLayout);
         },
         data
     ));
     m_resources->insert(data);
-    const auto& bindings = data->bindings;
-    for (uint32_t i = inOffset.cbv; i < bindings.cbvCount; ++i)
+    outData = &data->bindings;
+    return SLANG_OK;
+}
+
+void BindingDataBuilder::composeConstantBuffer(const BindingDataImpl& bindings, const BindingOffset& offset)
+{
+    SLANG_RHI_ASSERT(offset.cbv + bindings.cbvCount <= D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
+    SLANG_RHI_ASSERT(offset.srv + bindings.srvCount <= D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
+    SLANG_RHI_ASSERT(offset.uav + bindings.uavCount <= D3D11_PS_CS_UAV_REGISTER_COUNT);
+    SLANG_RHI_ASSERT(offset.sampler + bindings.samplerCount <= D3D11_COMMONSHADER_SAMPLER_REGISTER_COUNT);
+    for (uint32_t i = 0; i < bindings.cbvCount; ++i)
     {
         if (!bindings.cbvsBuffer[i])
             continue;
-        m_bindingData->cbvsBuffer[i] = bindings.cbvsBuffer[i];
-        m_bindingData->cbvsFirst[i] = bindings.cbvsFirst[i];
-        m_bindingData->cbvsCount[i] = bindings.cbvsCount[i];
+        m_bindingData->cbvsBuffer[offset.cbv + i] = bindings.cbvsBuffer[i];
+        m_bindingData->cbvsFirst[offset.cbv + i] = bindings.cbvsFirst[i];
+        m_bindingData->cbvsCount[offset.cbv + i] = bindings.cbvsCount[i];
     }
-    for (uint32_t i = inOffset.srv; i < bindings.srvCount; ++i)
+    for (uint32_t i = 0; i < bindings.srvCount; ++i)
         if (bindings.srvs[i])
-            m_bindingData->srvs[i] = bindings.srvs[i];
-    for (uint32_t i = inOffset.uav; i < bindings.uavCount; ++i)
+            m_bindingData->srvs[offset.srv + i] = bindings.srvs[i];
+    for (uint32_t i = 0; i < bindings.uavCount; ++i)
         if (bindings.uavs[i])
-            m_bindingData->uavs[i] = bindings.uavs[i];
-    for (uint32_t i = inOffset.sampler; i < bindings.samplerCount; ++i)
+            m_bindingData->uavs[offset.uav + i] = bindings.uavs[i];
+    for (uint32_t i = 0; i < bindings.samplerCount; ++i)
         if (bindings.samplers[i])
-            m_bindingData->samplers[i] = bindings.samplers[i];
-    m_bindingData->cbvCount = max(m_bindingData->cbvCount, bindings.cbvCount);
-    m_bindingData->srvCount = max(m_bindingData->srvCount, bindings.srvCount);
-    m_bindingData->uavCount = max(m_bindingData->uavCount, bindings.uavCount);
-    m_bindingData->samplerCount = max(m_bindingData->samplerCount, bindings.samplerCount);
-    return SLANG_OK;
+            m_bindingData->samplers[offset.sampler + i] = bindings.samplers[i];
+    if (bindings.cbvCount)
+        m_bindingData->cbvCount = max(m_bindingData->cbvCount, offset.cbv + bindings.cbvCount);
+    if (bindings.srvCount)
+        m_bindingData->srvCount = max(m_bindingData->srvCount, offset.srv + bindings.srvCount);
+    if (bindings.uavCount)
+        m_bindingData->uavCount = max(m_bindingData->uavCount, offset.uav + bindings.uavCount);
+    if (bindings.samplerCount)
+        m_bindingData->samplerCount = max(m_bindingData->samplerCount, offset.sampler + bindings.samplerCount);
 }
 
 Result BindingDataBuilder::bindAsConstantBufferImpl(

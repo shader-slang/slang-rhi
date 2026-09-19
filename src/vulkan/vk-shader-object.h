@@ -10,6 +10,17 @@
 
 namespace rhi::vk {
 
+/// Uniform bytes with a block-relative push-constant range index. Root assembly resolves
+/// the pipeline's byte offset and stage visibility after all blocks have been composed.
+struct PushConstantBinding
+{
+    uint32_t rangeIndex;
+    uint32_t size;
+    void* data;
+};
+
+struct ParameterBlockBindingData;
+
 struct BindingDataBuilder
 {
     std::set<RefPtr<RefObject>>* m_resources = nullptr;
@@ -22,8 +33,7 @@ struct BindingDataBuilder
     TransientBufferArena* m_constantBufferArena;
     DescriptorSetAllocator* m_descriptorSetAllocator;
 
-    // TODO remove
-    std::span<const VkPushConstantRange> m_pushConstantRanges;
+    short_vector<PushConstantBinding> m_pushConstants;
 
 
     /// Bind this object as a root shader object
@@ -87,6 +97,14 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout
     );
 
+    Result prepareParameterBlock(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        const ParameterBlockBindingData*& outData
+    );
+    void composeParameterBlock(const ParameterBlockBindingData& data, const BindingOffset& offset);
+    Result resolvePushConstants(std::span<const VkPushConstantRange> ranges);
+
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
         ShaderObject* shaderObject,
@@ -141,6 +159,14 @@ public:
     /// Entry point data (for ray tracing SBT).
     EntryPointData* entryPointData;
     uint32_t entryPointCount;
+};
+
+struct ParameterBlockBindingData
+{
+    std::span<const VkDescriptorSet> descriptorSets;
+    std::span<const PushConstantBinding> pushConstants;
+    std::span<const BindingDataImpl::BufferState> bufferStates;
+    std::span<const BindingDataImpl::TextureState> textureStates;
 };
 
 struct BindingCache

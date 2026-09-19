@@ -35,6 +35,13 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout
     );
 
+    Result prepareConstantBuffer(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        const BindingDataImpl*& outData
+    );
+    void composeConstantBuffer(const BindingDataImpl& data, const BindingOffset& offset);
+
     /// Bind this object as a value that appears in the body of another object.
     ///
     /// This case is directly used when binding an object for an interface-type

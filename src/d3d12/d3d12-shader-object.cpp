@@ -281,14 +281,39 @@ Result BindingDataBuilder::bindAsParameterBlock(
 {
     if (!shaderObject->isFinalized())
         return bindAsParameterBlockImpl(shaderObject, offset, rootParamIndex, specializedLayout);
+    const ParameterBlockBindingData* data;
+    SLANG_RETURN_ON_FAIL(prepareParameterBlock(shaderObject, specializedLayout, data));
+    composeParameterBlock(*data, offset, rootParamIndex);
+    return SLANG_OK;
+}
+
+static uint32_t getRootDescriptorCount(ShaderObjectLayoutImpl* layout)
+{
+    uint32_t count = layout->getOwnUserRootParameterCount();
+    for (const auto& range : layout->m_subObjectRanges)
+    {
+        auto type = layout->m_bindingRanges[range.bindingRangeIndex].bindingType;
+        if (range.layout && (type == slang::BindingType::ConstantBuffer || type == slang::BindingType::ParameterBlock ||
+                             type == slang::BindingType::ExistentialValue))
+            count += layout->m_bindingRanges[range.bindingRangeIndex].count * getRootDescriptorCount(range.layout);
+    }
+    return count;
+}
+
+Result BindingDataBuilder::prepareParameterBlock(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    const ParameterBlockBindingData*& outData
+)
+{
     struct PreparedParameterBlock : PreparedBindingData
     {
-        uint32_t nextRootParameter = 0;
+        ParameterBlockBindingData block;
     };
     PreparedParameterBlock* data;
     SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedParameterBlock>(
         specializedLayout,
-        {offset.rootParam, rootParamIndex, m_bindingData->rootParameterCount},
+        {},
         [&](PreparedParameterBlock* data)
         {
             SLANG_RETURN_ON_FAIL(data->resourceDescriptors.init(m_device->m_gpuCbvSrvUavHeap, 1));
@@ -299,37 +324,68 @@ Result BindingDataBuilder::bindAsParameterBlock(
             builder.m_bindingCache = &data->bindingCache;
             builder.m_cbvSrvUavArena = &data->resourceDescriptors;
             builder.m_samplerArena = &data->samplerDescriptors;
-            data->bindingData = data->allocator.allocate<BindingDataImpl>();
-            auto& bindings = *data->bindingData;
-            bindings = {};
+            BindingDataImpl bindings = {};
             bindings.bufferStateCapacity = bindings.textureStateCapacity = 16;
             bindings.bufferStates = data->allocator.allocate<BindingDataImpl::BufferState>(16);
             bindings.textureStates = data->allocator.allocate<BindingDataImpl::TextureState>(16);
-            bindings.rootParameterCount = m_bindingData->rootParameterCount;
+            uint32_t descriptorCount = getRootDescriptorCount(specializedLayout);
+            uint32_t tableCount = specializedLayout->getTotalRootTableParameterCount();
+            bindings.rootParameterCount = descriptorCount + tableCount;
             bindings.rootParameters =
                 data->allocator.allocate<BindingDataImpl::RootParameter>(bindings.rootParameterCount);
-            for (uint32_t i = 0; i < bindings.rootParameterCount; ++i)
+            // Unbound user root descriptors are left untouched by bindAsValue.
+            for (uint32_t i = 0; i < descriptorCount; ++i)
                 bindings.rootParameters[i].index = UINT32_MAX;
             builder.m_bindingData = &bindings;
-            data->nextRootParameter = rootParamIndex;
-            return builder.bindAsParameterBlockImpl(shaderObject, offset, data->nextRootParameter, specializedLayout);
+            BindingOffset localOffset;
+            localOffset.rootParam = descriptorCount;
+            uint32_t rootDescriptorIndex = 0;
+            SLANG_RETURN_ON_FAIL(
+                builder.bindAsParameterBlockImpl(shaderObject, localOffset, rootDescriptorIndex, specializedLayout)
+            );
+            SLANG_RHI_ASSERT(rootDescriptorIndex == descriptorCount);
+            // Native tables are built after the block's root descriptors. Publish each
+            // range with its own zero-based indices so neither depends on root placement.
+            for (uint32_t i = descriptorCount; i < bindings.rootParameterCount; ++i)
+                bindings.rootParameters[i].index -= descriptorCount;
+            data->block.rootDescriptors = {bindings.rootParameters, descriptorCount};
+            data->block.descriptorTables = {bindings.rootParameters + descriptorCount, tableCount};
+            data->block.bufferStates = {bindings.bufferStates, bindings.bufferStateCount};
+            data->block.textureStates = {bindings.textureStates, bindings.textureStateCount};
+            return SLANG_OK;
         },
         data
     ));
     m_resources->insert(data);
-    const auto& bindings = *data->bindingData;
-    for (uint32_t i = 0; i < bindings.rootParameterCount; ++i)
-    {
-        const auto& parameter = bindings.rootParameters[i];
-        if (parameter.index != UINT32_MAX)
-            m_bindingData->rootParameters[i] = parameter;
-    }
-    for (uint32_t i = 0; i < bindings.bufferStateCount; ++i)
-        writeBufferState(this, bindings.bufferStates[i].buffer, bindings.bufferStates[i].state);
-    for (uint32_t i = 0; i < bindings.textureStateCount; ++i)
-        writeTextureState(this, bindings.textureStates[i].textureView, bindings.textureStates[i].state);
-    rootParamIndex = data->nextRootParameter;
+    outData = &data->block;
     return SLANG_OK;
+}
+
+void BindingDataBuilder::composeParameterBlock(
+    const ParameterBlockBindingData& data,
+    const BindingOffset& offset,
+    uint32_t& rootParamIndex
+)
+{
+    for (auto parameter : data.rootDescriptors)
+    {
+        if (parameter.index == UINT32_MAX)
+            continue;
+        parameter.index += rootParamIndex;
+        SLANG_RHI_ASSERT(parameter.index < m_bindingData->rootParameterCount);
+        m_bindingData->rootParameters[parameter.index] = parameter;
+    }
+    rootParamIndex += uint32_t(data.rootDescriptors.size());
+    for (auto parameter : data.descriptorTables)
+    {
+        parameter.index += offset.rootParam;
+        SLANG_RHI_ASSERT(parameter.index < m_bindingData->rootParameterCount);
+        m_bindingData->rootParameters[parameter.index] = parameter;
+    }
+    for (const auto& state : data.bufferStates)
+        writeBufferState(this, state.buffer, state.state);
+    for (const auto& state : data.textureStates)
+        writeTextureState(this, state.textureView, state.state);
 }
 
 Result BindingDataBuilder::bindAsParameterBlockImpl(

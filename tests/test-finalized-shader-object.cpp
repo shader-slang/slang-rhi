@@ -185,13 +185,17 @@ GPU_TEST_CASE_EX("finalized-shader-object-immutability", ALL, DebugLayerOptions{
     }
 }
 
-GPU_TEST_CASE("finalized-shader-object-shared-block", ALL)
+static void testSharedBlock(IDevice* device, bool rootDescriptors)
 {
-    if (!device->hasFeature(Feature::ParameterBlock))
-        SKIP("no support for parameter blocks");
     std::string source = kSource;
     source.insert(source.find("RWStructuredBuffer<uint> output;"), "ParameterBlock<Settings> other;\n");
     source.insert(source.find("settings.a[0]"), "other.a[0] + other.bias + ");
+    if (rootDescriptors)
+    {
+        source.insert(source.find("StructuredBuffer<uint> a;"), "[root] ");
+        source.insert(source.find("RWStructuredBuffer<uint> output;"), "[root] ");
+        source.insert(0, "[__AttributeUsage(_AttributeTargets.Var)] struct rootAttribute {};\n");
+    }
     Fixture fixture;
     fixture.init(device, source.c_str());
     auto rootA = fixture.createRoot(device);
@@ -226,6 +230,158 @@ GPU_TEST_CASE("finalized-shader-object-shared-block", ALL)
     queue->submit(commands);
     queue->waitOnHost();
     compareComputeResult(device, fixture.output, makeArray<uint32_t>(expected));
+}
+
+GPU_TEST_CASE("finalized-shader-object-shared-block", ALL)
+{
+    if (!device->hasFeature(Feature::ParameterBlock))
+        SKIP("no support for parameter blocks");
+    testSharedBlock(device, false);
+}
+
+GPU_TEST_CASE("finalized-shader-object-shared-root-descriptors", D3D12)
+{
+    testSharedBlock(device, true);
+}
+
+GPU_TEST_CASE("finalized-shader-object-block-composition", ALL)
+{
+    if (!device->hasFeature(Feature::ParameterBlock))
+        SKIP("no support for parameter blocks");
+    const char* source = R"(
+        [__AttributeUsage(_AttributeTargets.Var)] struct rootAttribute {};
+        struct Leaf { [root] StructuredBuffer<uint> input; uint bias; uint padding0, padding1, padding2; };
+        struct Block { StructuredBuffer<uint> input; ParameterBlock<Leaf> leaf; uint bias; uint padding0, padding1, padding2; };
+        [shader("compute")] [numthreads(1, 1, 1)]
+        void first(uniform ParameterBlock<Block> shared, uniform RWStructuredBuffer<uint> output)
+        {
+            output[0] += shared.input[0] + shared.bias + shared.leaf.input[0] + shared.leaf.bias;
+        }
+        [shader("compute")] [numthreads(1, 1, 1)]
+        void second(uniform ParameterBlock<Leaf> prefix, uniform ParameterBlock<Block> shared,
+                    uniform RWStructuredBuffer<uint> output)
+        {
+            output[0] += prefix.input[0] + prefix.bias;
+            output[0] += shared.input[0] + shared.bias + shared.leaf.input[0] + shared.leaf.bias;
+        }
+    )";
+    auto session = device->getSlangSession();
+    ComPtr<slang::IBlob> diagnostics;
+    auto module =
+        session->loadModuleFromSourceString("finalized_block_composition", nullptr, source, diagnostics.writeRef());
+    diagnoseIfNeeded(diagnostics);
+    REQUIRE(module);
+    ComPtr<IShaderProgram> programs[2];
+    ComPtr<IComputePipeline> pipelines[2];
+    ComPtr<IShaderObject> roots[2];
+    const char* entries[] = {"first", "second"};
+    BufferDesc desc;
+    desc.size = desc.elementSize = sizeof(uint32_t);
+    desc.usage = BufferUsage::ShaderResource;
+    desc.defaultState = ResourceState::ShaderResource;
+    uint32_t one = 1;
+    auto input = device->createBuffer(desc, &one);
+    REQUIRE(input);
+    desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource | BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::UnorderedAccess;
+    uint32_t zero = 0;
+    auto output = device->createBuffer(desc, &zero);
+    REQUIRE(output);
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        REQUIRE_CALL(loadAndLinkProgram(device, "finalized_block_composition", entries[i], programs[i].writeRef()));
+        ComputePipelineDesc pipelineDesc;
+        pipelineDesc.program = programs[i];
+        pipelines[i] = device->createComputePipeline(pipelineDesc);
+        REQUIRE(pipelines[i]);
+        roots[i] = device->createRootShaderObject(programs[i]);
+        REQUIRE(roots[i]);
+        REQUIRE_CALL(ShaderCursor(roots[i]->getEntryPoint(0))["output"].setBinding(output));
+    }
+    auto entryA = roots[0]->getEntryPoint(0);
+    auto shared = entryA->getObject(ShaderCursor(entryA)["shared"].m_offset);
+    REQUIRE(shared);
+    REQUIRE_CALL(ShaderCursor(shared)["input"].setBinding(input));
+    REQUIRE_CALL(ShaderCursor(shared)["bias"].setData(2u));
+    REQUIRE_CALL(ShaderCursor(shared)["leaf"]["input"].setBinding(input));
+    REQUIRE_CALL(ShaderCursor(shared)["leaf"]["bias"].setData(3u));
+    REQUIRE_CALL(shared->finalize());
+    auto entryB = roots[1]->getEntryPoint(0);
+    REQUIRE_CALL(ShaderCursor(entryB)["shared"].setObject(shared));
+    REQUIRE_CALL(ShaderCursor(entryB)["prefix"]["input"].setBinding(input));
+    REQUIRE_CALL(roots[0]->finalize());
+    auto queue = device->getQueue(QueueType::Graphics);
+    for (uint32_t batch = 0; batch < 2; ++batch)
+    {
+        auto encoder = queue->createCommandEncoder();
+        REQUIRE_CALL(encoder->uploadBufferData(output, 0, sizeof(zero), &zero));
+        auto pass = encoder->beginComputePass();
+        uint32_t expected = 0;
+        for (uint32_t i = 0; i < 8; ++i)
+        {
+            REQUIRE_CALL(ShaderCursor(entryB)["prefix"]["bias"].setData(i));
+            pass->bindPipeline(pipelines[0], roots[0]);
+            pass->dispatchCompute(1, 1, 1);
+            pass->bindPipeline(pipelines[1], roots[1]);
+            pass->dispatchCompute(1, 1, 1);
+            expected += 15 + i;
+        }
+        pass->end();
+        auto commands = encoder->finish();
+        REQUIRE(commands);
+        if (batch == 1)
+        {
+            entryA = entryB = shared = nullptr;
+            roots[0] = roots[1] = nullptr;
+            input = nullptr;
+            encoder = nullptr;
+        }
+        queue->submit(commands);
+        queue->waitOnHost();
+        compareComputeResult(device, output, makeArray<uint32_t>(expected));
+    }
+}
+
+GPU_TEST_CASE("finalized-shader-object-block-push-constant", Vulkan)
+{
+    const char* source = R"(
+        struct Values { uint value; };
+        struct Block {
+            StructuredBuffer<uint> input;
+            [[vk::push_constant]] ConstantBuffer<Values> values;
+        };
+        ParameterBlock<Block> block;
+        RWStructuredBuffer<uint> output;
+        [shader("compute")] [numthreads(1, 1, 1)]
+        void computeMain() { output[0] += block.input[0] + block.values.value; }
+    )";
+    Fixture fixture;
+    fixture.init(device, source);
+    auto root = device->createRootShaderObject(fixture.program);
+    REQUIRE(root);
+    REQUIRE_CALL(ShaderCursor(root)["output"].setBinding(fixture.output));
+    REQUIRE_CALL(ShaderCursor(root)["block"]["input"].setBinding(fixture.input));
+    REQUIRE_CALL(ShaderCursor(root)["block"]["values"]["value"].setData(7u));
+    auto block = root->getObject(ShaderCursor(root)["block"].m_offset);
+    REQUIRE(block);
+    REQUIRE_CALL(block->finalize());
+    auto queue = device->getQueue(QueueType::Graphics);
+    for (uint32_t batch = 0; batch < 2; ++batch)
+    {
+        if (batch)
+            REQUIRE_CALL(root->finalize());
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        pass->bindPipeline(fixture.pipeline, root);
+        for (uint32_t i = 0; i < 4; ++i)
+            pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        auto commands = encoder->finish();
+        REQUIRE(commands);
+        queue->submit(commands);
+        queue->waitOnHost();
+        compareComputeResult(device, fixture.output, makeArray<uint32_t>(32u * (batch + 1)));
+    }
 }
 
 GPU_TEST_CASE("finalized-shader-object-concurrent-recording", D3D12 | Vulkan | CPU | WGPU)
