@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../binding-data-storage.h"
+
 #include "metal-base.h"
 #include "metal-shader-object-layout.h"
 
@@ -7,14 +9,37 @@
 
 namespace rhi::metal {
 
+struct PreparedBindingData;
+
+/// Borrows allocations and resource lifetimes from a command buffer or prepared record.
+class BindingDataStorage : public rhi::BindingDataStorage
+{
+public:
+    explicit BindingDataStorage(CommandBufferImpl& commandBuffer);
+    BindingDataStorage(DeviceImpl* device, PreparedBindingData& prepared);
+    DeviceImpl* getDevice() const { return m_device; }
+    Result writeOrdinaryData(ShaderObject* object, ShaderObjectLayout* layout, Size size, BufferImpl*& outBuffer);
+    Result allocateBuffer(Size size, BufferImpl*& outBuffer);
+    void retainBuffer(BufferImpl* buffer);
+
+private:
+    DeviceImpl* m_device;
+    BindingCache& m_bindingCache;
+};
+
 struct BindingDataBuilder
 {
-    std::set<RefPtr<RefObject>>* m_resources = nullptr;
-    bool m_buildingRoot = false;
-    DeviceImpl* m_device;
-    ArenaAllocator* m_allocator;
-    BindingCache* m_bindingCache;
-    BindingDataImpl* m_bindingData;
+    explicit BindingDataBuilder(BindingDataStorage& storage)
+        : m_storage(storage)
+        , m_device(storage.getDevice())
+    {
+    }
+    BindingDataBuilder(const BindingDataBuilder&) = delete;
+    BindingDataBuilder& operator=(const BindingDataBuilder&) = delete;
+
+    BindingDataStorage& m_storage;
+    DeviceImpl* const m_device;
+    BindingDataImpl* m_bindingData = nullptr;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(
@@ -80,6 +105,13 @@ struct BindingDataBuilder
     );
 
     Result resolvePointerFieldResidency(ShaderObject* shaderObject, ShaderObjectLayoutImpl* specializedLayout);
+
+private:
+    Result bindAsRootImpl(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
+    );
 };
 
 struct BindingDataImpl : BindingData
@@ -115,6 +147,13 @@ struct BindingCache
     std::vector<RefPtr<BufferImpl>> buffers;
 
     void reset() { buffers.clear(); }
+};
+
+/// Keeps native allocations alive through preparation failure and recorded command retirement.
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
 };
 
 } // namespace rhi::metal

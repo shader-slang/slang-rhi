@@ -1366,74 +1366,12 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
-/// Track resources for CUDA backend, skipping device-local buffers.
-/// Device-local buffers rely on CUDA stream FIFO ordering for safe reuse.
-/// We still track textures, upload/readback buffers, and other resources.
-static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
-{
-    if (shaderObject->isFinalized())
-    {
-        shaderObject->trackResources(resources);
-        return;
-    }
-    // Track slot resources, but skip device-local buffers
-    for (const auto& slot : shaderObject->m_slots)
-    {
-        if (slot.resource)
-        {
-            // Check if this is a device-local buffer we can skip
-            if (Buffer* buffer = dynamic_cast<Buffer*>(slot.resource.get()))
-            {
-                // Only skip DeviceLocal buffers - these benefit from same-stream reuse
-                // Keep tracking Upload/ReadBack buffers as CPU may access them
-                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal)
-                {
-                    continue; // Skip tracking - CUDA stream ordering provides safety
-                }
-            }
-            resources.insert(slot.resource);
-        }
-        if (slot.resource2)
-        {
-            // resource2 is typically a sampler or counter buffer, always track
-            resources.insert(slot.resource2);
-        }
-    }
-
-    // Recursively track sub-objects
-    for (const auto& object : shaderObject->m_objects)
-    {
-        if (object)
-        {
-            trackResourcesForCUDA(object, resources);
-        }
-    }
-}
-
-static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<RefPtr<RefObject>>& resources)
-{
-    trackResourcesForCUDA(rootObject, resources);
-    for (const auto& entryPoint : rootObject->m_entryPoints)
-    {
-        if (entryPoint)
-        {
-            trackResourcesForCUDA(entryPoint, resources);
-        }
-    }
-}
-
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
+    BindingDataStorage storage(*m_commandBuffer);
     if (!rootObject->isFinalized())
-        trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
-
-    BindingDataBuilder builder;
-    builder.m_resources = &m_commandBuffer->m_trackedObjects;
-    builder.m_device = getDevice<DeviceImpl>();
-    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    builder.m_allocator = &m_commandBuffer->m_allocator;
-    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+        storage.trackResources(rootObject);
+    BindingDataBuilder builder(storage);
     ShaderObjectLayout* specializedLayout = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
     return builder.bindAsRoot(

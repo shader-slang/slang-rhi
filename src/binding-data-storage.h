@@ -23,7 +23,7 @@ public:
     void* allocate(size_t size) { return m_allocator.allocate(size); }
     void retain(RefObject* object) { m_resources.insert(object); }
     void trackResources(ShaderObject* object) { object->trackResources(m_resources); }
-    bool isPersistent() const { return m_constantBufferArena == nullptr; }
+    bool isPersistent() const { return m_persistent; }
 
     struct UniformData
     {
@@ -42,6 +42,13 @@ public:
     );
 
 protected:
+    /// Transient storage for backends with their own uniform pools or host parameter data.
+    BindingDataStorage(ArenaAllocator& allocator, std::set<RefPtr<RefObject>>& resources)
+        : m_allocator(allocator)
+        , m_resources(resources)
+    {
+    }
+
     BindingDataStorage(
         ArenaAllocator& allocator,
         std::set<RefPtr<RefObject>>& resources,
@@ -56,6 +63,7 @@ protected:
     explicit BindingDataStorage(PreparedShaderObject& owner)
         : m_allocator(owner.allocator)
         , m_resources(owner.resources)
+        , m_persistent(true)
     {
     }
 
@@ -65,6 +73,7 @@ private:
     ArenaAllocator& m_allocator;
     std::set<RefPtr<RefObject>>& m_resources;
     TransientBufferArena* m_constantBufferArena = nullptr;
+    bool m_persistent = false;
 };
 
 } // namespace rhi

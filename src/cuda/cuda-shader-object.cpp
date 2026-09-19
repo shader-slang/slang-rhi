@@ -1,4 +1,5 @@
 #include "cuda-shader-object.h"
+#include "cuda-command.h"
 #include "cuda-utils.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-device.h"
@@ -6,10 +7,116 @@
 
 namespace rhi::cuda {
 
+BindingDataStorage::BindingDataStorage(CommandBufferImpl& commandBuffer)
+    : rhi::BindingDataStorage(commandBuffer.m_allocator, commandBuffer.m_trackedObjects)
+    , m_device(commandBuffer.getDevice<DeviceImpl>())
+    , m_constantBufferPool(&commandBuffer.m_constantBufferPool)
+{
+}
+
+BindingDataStorage::BindingDataStorage(DeviceImpl* device, PreparedShaderObject& prepared)
+    : rhi::BindingDataStorage(prepared)
+    , m_device(device)
+{
+}
+
+void BindingDataStorage::trackResources(ShaderObject* shaderObject)
+{
+    if (shaderObject->isFinalized())
+    {
+        rhi::BindingDataStorage::trackResources(shaderObject);
+        return;
+    }
+    // Track slot resources, but skip device-local buffers
+    for (const auto& slot : shaderObject->m_slots)
+    {
+        if (slot.resource)
+        {
+            // Check if this is a device-local buffer we can skip
+            if (Buffer* buffer = dynamic_cast<Buffer*>(slot.resource.get()))
+            {
+                // Only skip DeviceLocal buffers - these benefit from same-stream reuse
+                // Keep tracking Upload/ReadBack buffers as CPU may access them
+                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal)
+                {
+                    continue; // Skip tracking - CUDA stream ordering provides safety
+                }
+            }
+            retain(slot.resource);
+        }
+        if (slot.resource2)
+        {
+            // resource2 is typically a sampler or counter buffer, always track
+            retain(slot.resource2);
+        }
+    }
+
+    // Recursively track sub-objects
+    for (const auto& object : shaderObject->m_objects)
+    {
+        if (object)
+        {
+            trackResources(object.get());
+        }
+    }
+}
+
+void BindingDataStorage::trackResources(RootShaderObject* rootObject)
+{
+    trackResources(static_cast<ShaderObject*>(rootObject));
+    for (const auto& entryPoint : rootObject->m_entryPoints)
+    {
+        if (entryPoint)
+        {
+            trackResources(entryPoint.get());
+        }
+    }
+}
+
+Result BindingDataStorage::allocateObjectData(
+    ShaderObject* object,
+    size_t size,
+    ConstantBufferMemType memType,
+    ConstantBufferPool::Allocation& allocation
+)
+{
+    allocation = {};
+    if (isPersistent())
+    {
+        if (!object->isFinalized())
+            return SLANG_E_INVALID_ARG;
+        allocation.hostData = size ? allocate(size) : nullptr;
+        return SLANG_OK;
+    }
+    return m_constantBufferPool->allocate(size, memType, allocation);
+}
+
+Result BindingDataStorage::finishObjectData(
+    size_t size,
+    ConstantBufferMemType memType,
+    ConstantBufferPool::Allocation& allocation
+)
+{
+    if (isPersistent() && memType == ConstantBufferMemType::Global && size)
+    {
+        BufferDesc desc;
+        desc.size = size;
+        desc.usage = BufferUsage::ConstantBuffer;
+        desc.defaultState = ResourceState::ConstantBuffer;
+        desc.memoryType = MemoryType::DeviceLocal;
+        ComPtr<IBuffer> buffer;
+        // Initialization completes before the prepared graph's device pointer is published.
+        SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, allocation.hostData, buffer.writeRef()));
+        auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+        allocation.deviceData = bufferImpl->getDeviceAddress();
+        retain(bufferImpl);
+    }
+    return SLANG_OK;
+}
+
 struct PreparedBindingData : PreparedShaderObject
 {
     BindingDataImpl* bindingData = nullptr;
-    BindingCache bindingCache;
 };
 
 void shaderObjectSetBinding(
@@ -98,7 +205,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    if (shaderObject->isFinalized() && !m_buildingRoot)
+    if (shaderObject->isFinalized())
     {
         PreparedBindingData* data;
         SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
@@ -106,22 +213,28 @@ Result BindingDataBuilder::bindAsRoot(
             {},
             [&](PreparedBindingData* data)
             {
-                BindingDataBuilder builder = *this;
-                builder.m_buildingRoot = true;
-                builder.m_allocator = &data->allocator;
-                builder.m_resources = &data->resources;
-                builder.m_bindingCache = &data->bindingCache;
-                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+                BindingDataStorage storage(m_device, *data);
+                BindingDataBuilder builder(storage);
+                return builder.bindAsRootImpl(shaderObject, specializedLayout, data->bindingData);
             },
             data
         ));
-        m_resources->insert(data);
+        m_storage.retain(data);
         outBindingData = data->bindingData;
         return SLANG_OK;
     }
 
+    return bindAsRootImpl(shaderObject, specializedLayout, outBindingData);
+}
+
+Result BindingDataBuilder::bindAsRootImpl(
+    RootShaderObject* shaderObject,
+    RootShaderObjectLayoutImpl* specializedLayout,
+    BindingDataImpl*& outBindingData
+)
+{
     // Create a new set of binding data to populate.
-    m_bindingData = m_allocator->allocate<BindingDataImpl>();
+    m_bindingData = m_storage.allocate<BindingDataImpl>();
 
     // Write global parameters
     {
@@ -133,7 +246,7 @@ Result BindingDataBuilder::bindAsRoot(
 
     // Write entry point parameters
     m_bindingData->entryPointCount = shaderObject->m_entryPoints.size();
-    m_bindingData->entryPoints = m_allocator->allocate<BindingDataImpl::EntryPointData>(m_bindingData->entryPointCount);
+    m_bindingData->entryPoints = m_storage.allocate<BindingDataImpl::EntryPointData>(m_bindingData->entryPointCount);
 
     for (size_t i = 0; i < shaderObject->m_entryPoints.size(); ++i)
     {
@@ -175,15 +288,13 @@ Result BindingDataBuilder::writeObjectData(
         {uint64_t(memType)},
         [&](PreparedObjectData* data)
         {
-            BindingDataBuilder builder = *this;
-            builder.m_allocator = &data->allocator;
-            builder.m_resources = &data->resources;
-            builder.m_persistentObjectData = true;
+            BindingDataStorage storage(m_device, *data);
+            BindingDataBuilder builder(storage);
             return builder.writeObjectDataImpl(shaderObject, specializedLayout, memType, data->data);
         },
         data
     ));
-    m_resources->insert(data);
+    m_storage.retain(data);
     outData = data->data;
     return SLANG_OK;
 }
@@ -198,10 +309,7 @@ Result BindingDataBuilder::writeObjectDataImpl(
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
 
     ConstantBufferPool::Allocation allocation = {};
-    if (m_persistentObjectData)
-        allocation.hostData = size ? m_allocator->allocate(size) : nullptr;
-    else
-        SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, allocation));
+    SLANG_RETURN_ON_FAIL(m_storage.allocateObjectData(shaderObject, size, memType, allocation));
 
     ObjectData objectData = {};
     objectData.size = size;
@@ -308,20 +416,8 @@ Result BindingDataBuilder::writeObjectDataImpl(
         }
     }
 
-    if (m_persistentObjectData && memType == ConstantBufferMemType::Global && size)
-    {
-        BufferDesc desc;
-        desc.size = size;
-        desc.usage = BufferUsage::ConstantBuffer;
-        desc.defaultState = ResourceState::ConstantBuffer;
-        desc.memoryType = MemoryType::DeviceLocal;
-        ComPtr<IBuffer> buffer;
-        // createBuffer completes initialization before the cached pointer is published.
-        SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, objectData.host, buffer.writeRef()));
-        auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
-        objectData.device = bufferImpl->getDeviceAddress();
-        m_resources->insert(bufferImpl);
-    }
+    SLANG_RETURN_ON_FAIL(m_storage.finishObjectData(size, memType, allocation));
+    objectData.device = allocation.deviceData;
     outData = objectData;
 
     return SLANG_OK;

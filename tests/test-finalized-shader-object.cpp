@@ -9,6 +9,32 @@
 #include "../src/vulkan/vk-shader-object.h"
 #endif
 
+#if SLANG_RHI_ENABLE_CPU
+#include "../src/cpu/cpu-device.h"
+#include "../src/cpu/cpu-shader-object.h"
+#endif
+
+#if SLANG_RHI_ENABLE_CUDA
+#include "../src/cuda/cuda-device.h"
+#include "../src/cuda/cuda-shader-object.h"
+#endif
+
+#if SLANG_RHI_ENABLE_D3D11
+#include "../src/d3d11/d3d11-device.h"
+#include "../src/d3d11/d3d11-shader-object.h"
+#endif
+
+#if SLANG_RHI_ENABLE_METAL
+#include "../src/metal/metal-buffer.h"
+#include "../src/metal/metal-device.h"
+#include "../src/metal/metal-shader-object.h"
+#endif
+
+#if SLANG_RHI_ENABLE_WGPU
+#include "../src/wgpu/wgpu-device.h"
+#include "../src/wgpu/wgpu-shader-object.h"
+#endif
+
 #include <algorithm>
 #include <barrier>
 #include <chrono>
@@ -100,8 +126,8 @@ struct TrackedPreparation : Prepared
     }
 };
 
-template<typename Prepared, typename Storage, typename Initialize, typename AllocateDescriptors>
-void testBindingStorage(IDevice* device, Initialize initialize, AllocateDescriptors allocateDescriptors)
+template<typename Prepared, typename MakeStorage, typename WriteData>
+void testBindingStorage(IDevice* device, MakeStorage makeStorage, WriteData writeData)
 {
     uint32_t destructions = 0;
     Fixture fixture;
@@ -116,11 +142,9 @@ void testBindingStorage(IDevice* device, Initialize initialize, AllocateDescript
     // A persistent destination must reject mutable uniform data before it can retain a snapshot.
     {
         Prepared owner;
-        initialize(owner);
-        Storage storage(owner);
-        BindingDataStorage::UniformData uniform;
-        CHECK(storage.writeOrdinaryData(object, layout, 4, 256, uniform) == SLANG_E_INVALID_ARG);
-        CHECK(uniform.buffer == nullptr);
+        auto storage = makeStorage(owner);
+        CHECK(storage.isPersistent());
+        CHECK(writeData(storage, object, layout) == SLANG_E_INVALID_ARG);
     }
     REQUIRE_CALL(settings->finalize());
 
@@ -132,17 +156,12 @@ void testBindingStorage(IDevice* device, Initialize initialize, AllocateDescript
     {
         ++attempts;
         record->destructions = &destructions;
-        initialize(*record);
         {
-            Storage storage(*record);
+            auto storage = makeStorage(*record);
             storage.retain(resource);
             record->bytes = storage.template allocate<uint32_t>();
             *record->bytes = 42;
-            allocateDescriptors(storage, layout);
-            BindingDataStorage::UniformData uniform;
-            SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), 256, uniform));
-            CHECK(uniform.buffer != nullptr);
-            CHECK(uniform.offset == 0);
+            SLANG_RETURN_ON_FAIL(writeData(storage, object, layout));
         }
         // Destroying the borrowed view must preserve its owner's allocations and references.
         CHECK(*record->bytes == 42);
@@ -176,22 +195,27 @@ void testBindingStorage(IDevice* device, Initialize initialize, AllocateDescript
 
 } // namespace
 
-GPU_TEST_CASE("finalized-shader-object-storage-lifetime", D3D12 | Vulkan)
+GPU_TEST_CASE("finalized-shader-object-storage-lifetime", ALL)
 {
 #if SLANG_RHI_ENABLE_D3D12
     if (device->getDeviceType() == DeviceType::D3D12)
     {
         auto nativeDevice = static_cast<d3d12::DeviceImpl*>(getUnderlyingDevice(device.get()));
-        testBindingStorage<d3d12::PreparedBindingData, d3d12::BindingDataStorage>(
+        testBindingStorage<d3d12::PreparedBindingData>(
             device,
             [&](auto& owner)
             {
                 REQUIRE_CALL(owner.init(nativeDevice));
+                return d3d12::BindingDataStorage(owner);
             },
-            [](auto& storage, ShaderObjectLayout*)
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
             {
+                BindingDataStorage::UniformData uniform;
+                SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), 256, uniform));
+                CHECK(uniform.buffer != nullptr);
                 CHECK(storage.allocateResourceDescriptors(4).isValid());
                 CHECK(storage.allocateSamplerDescriptors(1).isValid());
+                return SLANG_OK;
             }
         );
     }
@@ -200,14 +224,18 @@ GPU_TEST_CASE("finalized-shader-object-storage-lifetime", D3D12 | Vulkan)
     if (device->getDeviceType() == DeviceType::Vulkan)
     {
         auto nativeDevice = static_cast<vk::DeviceImpl*>(getUnderlyingDevice(device.get()));
-        testBindingStorage<vk::PreparedBindingData, vk::BindingDataStorage>(
+        testBindingStorage<vk::PreparedBindingData>(
             device,
             [&](auto& owner)
             {
                 owner.init(nativeDevice);
+                return vk::BindingDataStorage(owner);
             },
-            [](auto& storage, ShaderObjectLayout* layout)
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
             {
+                BindingDataStorage::UniformData uniform;
+                SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), 256, uniform));
+                CHECK(uniform.buffer != nullptr);
                 auto nativeLayout = static_cast<vk::ShaderObjectLayoutImpl*>(layout);
                 REQUIRE(!nativeLayout->getOwnDescriptorSets().empty());
                 for (auto& set : nativeLayout->getOwnDescriptorSets())
@@ -216,6 +244,138 @@ GPU_TEST_CASE("finalized-shader-object-storage-lifetime", D3D12 | Vulkan)
                     REQUIRE_CALL(storage.allocateDescriptorSet(set.descriptorSetLayout, descriptorSet));
                     CHECK(descriptorSet != VK_NULL_HANDLE);
                 }
+                return SLANG_OK;
+            }
+        );
+    }
+#endif
+#if SLANG_RHI_ENABLE_CPU
+    if (device->getDeviceType() == DeviceType::CPU)
+    {
+        auto nativeDevice = static_cast<cpu::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<PreparedShaderObject>(
+            device,
+            [&](auto& owner)
+            {
+                return cpu::BindingDataStorage(nativeDevice, owner);
+            },
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
+            {
+                cpu::BindingDataBuilder builder(storage);
+                cpu::BindingDataBuilder::ObjectData data;
+                SLANG_RETURN_ON_FAIL(
+                    builder.writeObjectDataImpl(object, static_cast<cpu::ShaderObjectLayoutImpl*>(layout), data)
+                );
+                CHECK(data.data != nullptr);
+                CHECK(data.size == object->getSize());
+                return SLANG_OK;
+            }
+        );
+    }
+#endif
+#if SLANG_RHI_ENABLE_CUDA
+    if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        auto nativeDevice = static_cast<cuda::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<PreparedShaderObject>(
+            device,
+            [&](auto& owner)
+            {
+                return cuda::BindingDataStorage(nativeDevice, owner);
+            },
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
+            {
+                cuda::BindingDataBuilder builder(storage);
+                cuda::BindingDataBuilder::ObjectData data;
+                SLANG_RETURN_ON_FAIL(builder.writeObjectDataImpl(
+                    object,
+                    static_cast<cuda::ShaderObjectLayoutImpl*>(layout),
+                    cuda::ConstantBufferMemType::Global,
+                    data
+                ));
+                CHECK(data.host != nullptr);
+                CHECK(data.device != 0);
+                return SLANG_OK;
+            }
+        );
+    }
+#endif
+#if SLANG_RHI_ENABLE_D3D11
+    if (device->getDeviceType() == DeviceType::D3D11)
+    {
+        auto nativeDevice = static_cast<d3d11::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<PreparedShaderObject>(
+            device,
+            [&](auto& owner)
+            {
+                return d3d11::BindingDataStorage(nativeDevice, owner);
+            },
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
+            {
+                BindingDataStorage::UniformData uniform;
+                SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), uniform));
+                CHECK(uniform.buffer != nullptr);
+                CHECK(uniform.offset == 0);
+                return SLANG_OK;
+            }
+        );
+    }
+#endif
+#if SLANG_RHI_ENABLE_METAL
+    if (device->getDeviceType() == DeviceType::Metal)
+    {
+        auto nativeDevice = static_cast<metal::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<metal::PreparedBindingData>(
+            device,
+            [&](auto& owner)
+            {
+                return metal::BindingDataStorage(nativeDevice, owner);
+            },
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
+            {
+                metal::BufferImpl* buffer = nullptr;
+                SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), buffer));
+                CHECK(buffer != nullptr);
+                // Argument buffers use the owner's native buffer cache as well.
+                REQUIRE_CALL(storage.allocateBuffer(256, buffer));
+                CHECK(buffer != nullptr);
+                return SLANG_OK;
+            }
+        );
+    }
+#endif
+#if SLANG_RHI_ENABLE_WGPU
+    if (device->getDeviceType() == DeviceType::WGPU)
+    {
+        auto nativeDevice = static_cast<wgpu::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<wgpu::PreparedBindingData>(
+            device,
+            [&](auto& owner)
+            {
+                return wgpu::BindingDataStorage(nativeDevice, owner);
+            },
+            [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
+            {
+                BindingDataStorage::UniformData uniform;
+                SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), uniform));
+                CHECK(uniform.buffer != nullptr);
+                // An empty group exercises native ownership and retaining an existing group.
+                WGPUBindGroupLayoutDescriptor layoutDesc = {};
+                auto native = storage.getDevice();
+                auto groupLayout = native->m_ctx.api.wgpuDeviceCreateBindGroupLayout(native->m_ctx.device, &layoutDesc);
+                REQUIRE(groupLayout);
+                auto data = storage.allocateBindingData();
+                data->bindGroupCount = 2;
+                data->bindGroups = storage.template allocate<WGPUBindGroup>(2);
+                std::fill_n(data->bindGroups, 2, nullptr);
+                WGPUBindGroupDescriptor desc = {};
+                desc.layout = groupLayout;
+                Result result = storage.createBindGroup(*data, 0, desc, nullptr);
+                native->m_ctx.api.wgpuBindGroupLayoutRelease(groupLayout);
+                SLANG_RETURN_ON_FAIL(result);
+                SLANG_RETURN_ON_FAIL(storage.createBindGroup(*data, 1, desc, data->bindGroups[0]));
+                CHECK(data->bindGroups[0] == data->bindGroups[1]);
+                return SLANG_OK;
             }
         );
     }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../binding-data-storage.h"
+
 #include "cuda-base.h"
 #include "cuda-buffer.h"
 #include "cuda-texture.h"
@@ -15,16 +17,44 @@ void shaderObjectSetBinding(
     slang::BindingType bindingType
 );
 
+struct PreparedBindingData;
+
+/// Borrows allocations and resource lifetimes from a command buffer or prepared record.
+class BindingDataStorage : public rhi::BindingDataStorage
+{
+public:
+    explicit BindingDataStorage(CommandBufferImpl& commandBuffer);
+    BindingDataStorage(DeviceImpl* device, PreparedShaderObject& prepared);
+    DeviceImpl* getDevice() const { return m_device; }
+    /// Preserve CUDA stream-ordered retention for mutable roots. Prepared graphs retain all resources.
+    void trackResources(RootShaderObject* rootObject);
+    void trackResources(ShaderObject* shaderObject);
+    Result allocateObjectData(
+        ShaderObject* object,
+        size_t size,
+        ConstantBufferMemType memType,
+        ConstantBufferPool::Allocation& allocation
+    );
+    Result finishObjectData(size_t size, ConstantBufferMemType memType, ConstantBufferPool::Allocation& allocation);
+
+private:
+    DeviceImpl* m_device;
+    ConstantBufferPool* m_constantBufferPool = nullptr;
+};
+
 struct BindingDataBuilder
 {
-    std::set<RefPtr<RefObject>>* m_resources = nullptr;
-    bool m_buildingRoot = false;
-    bool m_persistentObjectData = false;
-    DeviceImpl* m_device;
-    BindingCache* m_bindingCache;
-    BindingDataImpl* m_bindingData;
-    ConstantBufferPool* m_constantBufferPool;
-    ArenaAllocator* m_allocator;
+    explicit BindingDataBuilder(BindingDataStorage& storage)
+        : m_storage(storage)
+        , m_device(storage.getDevice())
+    {
+    }
+    BindingDataBuilder(const BindingDataBuilder&) = delete;
+    BindingDataBuilder& operator=(const BindingDataBuilder&) = delete;
+
+    BindingDataStorage& m_storage;
+    DeviceImpl* const m_device;
+    BindingDataImpl* m_bindingData = nullptr;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(
@@ -51,6 +81,13 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout,
         ConstantBufferMemType memType,
         ObjectData& outData
+    );
+
+private:
+    Result bindAsRootImpl(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
     );
 };
 

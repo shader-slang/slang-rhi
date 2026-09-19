@@ -1,3 +1,5 @@
+#pragma once
+
 // Based on https://github.com/sebbbi/OffsetAllocator
 
 // (C) Sebastian Aaltonen 2023

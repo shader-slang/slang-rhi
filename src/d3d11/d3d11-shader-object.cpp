@@ -1,4 +1,5 @@
 #include "d3d11-shader-object.h"
+#include "d3d11-command.h"
 #include "d3d11-device.h"
 #include "d3d11-buffer.h"
 #include "d3d11-texture.h"
@@ -6,10 +7,23 @@
 
 namespace rhi::d3d11 {
 
+BindingDataStorage::BindingDataStorage(CommandBufferImpl& commandBuffer)
+    : rhi::BindingDataStorage(commandBuffer.m_allocator, commandBuffer.m_trackedObjects)
+    , m_device(commandBuffer.getDevice<DeviceImpl>())
+    , m_constantBufferPool(&commandBuffer.m_constantBufferPool)
+{
+}
+
+BindingDataStorage::BindingDataStorage(DeviceImpl* device, PreparedShaderObject& prepared)
+    : rhi::BindingDataStorage(prepared)
+    , m_device(device)
+{
+}
+
+
 struct PreparedBindingData : PreparedShaderObject
 {
     BindingDataImpl* bindingData = nullptr;
-    BindingCache bindingCache;
 };
 
 Result BindingDataBuilder::bindAsRoot(
@@ -18,7 +32,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    if (shaderObject->isFinalized() && !m_buildingRoot)
+    if (shaderObject->isFinalized())
     {
         PreparedBindingData* data;
         SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
@@ -26,22 +40,28 @@ Result BindingDataBuilder::bindAsRoot(
             {},
             [&](PreparedBindingData* data)
             {
-                BindingDataBuilder builder = *this;
-                builder.m_buildingRoot = true;
-                builder.m_allocator = &data->allocator;
-                builder.m_resources = &data->resources;
-                builder.m_bindingCache = &data->bindingCache;
-                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+                BindingDataStorage storage(m_device, *data);
+                BindingDataBuilder builder(storage);
+                return builder.bindAsRootImpl(shaderObject, specializedLayout, data->bindingData);
             },
             data
         ));
-        m_resources->insert(data);
+        m_storage.retain(data);
         outBindingData = data->bindingData;
         return SLANG_OK;
     }
 
+    return bindAsRootImpl(shaderObject, specializedLayout, outBindingData);
+}
+
+Result BindingDataBuilder::bindAsRootImpl(
+    RootShaderObject* shaderObject,
+    RootShaderObjectLayoutImpl* specializedLayout,
+    BindingDataImpl*& outBindingData
+)
+{
     // Create a new set of binding data to populate.
-    BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
+    BindingDataImpl* bindingData = m_storage.allocate<BindingDataImpl>();
     m_bindingData = bindingData;
     ::memset(bindingData, 0, sizeof(BindingDataImpl));
 
@@ -126,15 +146,14 @@ Result BindingDataBuilder::prepareConstantBuffer(
         {},
         [&](PreparedConstantBuffer* data)
         {
-            BindingDataBuilder builder = *this;
-            builder.m_allocator = &data->allocator;
-            builder.m_resources = &data->resources;
+            BindingDataStorage storage(m_device, *data);
+            BindingDataBuilder builder(storage);
             builder.m_bindingData = &data->bindings;
             return builder.bindAsConstantBufferImpl(shaderObject, BindingOffset{}, specializedLayout);
         },
         data
     ));
-    m_resources->insert(data);
+    m_storage.retain(data);
     outData = &data->bindings;
     return SLANG_OK;
 }
@@ -373,25 +392,11 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     if (size == 0)
         return SLANG_OK;
 
-    ConstantBufferPool::Allocation allocation;
-    if (shaderObject->isFinalized())
-    {
-        Buffer* buffer;
-        SLANG_RETURN_ON_FAIL(
-            shaderObject->getOrdinaryDataBuffer(specializedLayout, ((size + 255) / 256) * 256, buffer)
-        );
-        allocation.buffer = checked_cast<BufferImpl*>(buffer);
-        allocation.offset = 0;
-        m_resources->insert(buffer);
-    }
-    else
-    {
-        SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
-        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
-    }
+    BindingDataStorage::UniformData allocation;
+    SLANG_RETURN_ON_FAIL(m_storage.writeOrdinaryData(shaderObject, specializedLayout, size, allocation));
 
     SLANG_RHI_ASSERT(ioOffset.cbv < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
-    m_bindingData->cbvsBuffer[ioOffset.cbv] = allocation.buffer->m_buffer;
+    m_bindingData->cbvsBuffer[ioOffset.cbv] = checked_cast<BufferImpl*>(allocation.buffer)->m_buffer;
     m_bindingData->cbvsFirst[ioOffset.cbv] = allocation.offset / 16;
     m_bindingData->cbvsCount[ioOffset.cbv] = ((size + 15) / 16) * 16;
     m_bindingData->cbvCount = max(m_bindingData->cbvCount, ioOffset.cbv + 1);

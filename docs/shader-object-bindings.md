@@ -46,9 +46,20 @@ D3D12 and Vulkan process resource uses even when binding-data pointers match the
 
 Vulkan prepares push-constant bytes with relative range indices. Composition adjusts those indices; the completed root resolves the pipeline's byte offsets and stage visibility. Blocks containing push constants can therefore use persistent descriptor preparation. CUDA retains the existing per-launch update of module-global parameters.
 
-D3D12 and Vulkan builders take an explicit `BindingDataStorage` context. The shared context handles CPU allocations, resource retention, and uniform storage; backend extensions handle native descriptors. Each context borrows storage from either a command buffer or a prepared record. Destroying the context releases nothing: the owner keeps the allocations alive until command-buffer retirement or the last prepared-record reference is released. Failed preparations release their partially allocated records without publishing a cache entry.
+All backend builders take an explicit `BindingDataStorage` context. The shared context handles CPU allocations and resource retention; backend extensions handle uniform storage and native bindings. Each context borrows storage from either a command buffer or a prepared record. Destroying the context releases nothing: the owner keeps the allocations alive until command-buffer retirement or the last prepared-record reference is released. Failed preparations release their partially allocated records without publishing a cache entry.
 
-Mutable uniforms use the command buffer's transient arena. Finalized uniforms reuse the existing object/layout buffer cache and are retained by the destination owner. Persistent contexts reject mutable uniform snapshots. Preparation creates a fresh builder with the prepared record's context instead of copying a builder and replacing allocator pointers. This first stage migrates D3D12 and Vulkan only; the remaining backend migrations and persistent allocator optimizations are separate steps.
+Transient and persistent lifetimes are explicit, including on backends that do not use the shared uniform arena. Persistent contexts reject mutable uniform snapshots. Preparation creates a fresh builder with the prepared record's context instead of copying a builder and replacing allocator pointers. Allocation sizes, alignment, memory types, upload timing, and retirement policies remain unchanged.
+
+| Backend | Storage context responsibilities |
+| --- | --- |
+| D3D12 / Vulkan | Existing transient uniform arenas, finalized uniform buffers, and native descriptor allocations |
+| D3D11 | Existing transient constant-buffer pool and finalized constant buffers |
+| WebGPU | Existing constant-buffer pool, finalized uniform buffers, and ownership of new or reused bind groups, including partial preparation cleanup |
+| Metal | Ordinary and argument buffers, plus retention of buffers resolved for pointer residency |
+| CPU | Host parameter allocations and retention of prepared subgraphs |
+| CUDA | Existing transient parameter pool, persistent host/device parameter storage, and stream-ordered resource tracking for mutable roots |
+
+CUDA still uploads transient parameters through the command buffer's pool and updates module globals during submission. Persistent device parameter buffers are initialized after their host graph is assembled, before the cache publishes them. Metal still uses its existing buffer cache and residency declarations. Persistent allocator optimizations remain a separate step.
 
 Persistent storage trades memory and first-use cost for lower repeated CPU cost. Uniform storage currently uses individual buffers per object/layout, and preparation records remain until the object and recorded commands release them. There is no cache budget or eviction policy. Uniform-buffer suballocation, automatic revision caching for mutable objects, and dynamic-offset bindings are possible follow-ups.
 
@@ -99,10 +110,21 @@ The first storage-context stage was also compared with a saved Release baseline 
 
 These samples show no material encoding regression. Costs also fell for mutable bindings and command-buffer finishing, so the observed reductions should not be attributed to the abstraction alone. This stage preserves allocation policy and is intended as preparation for later allocator changes. Both backend benchmarks passed all output checks (1,069 assertions).
 
+The remaining migrations were compared with an isolated build of the pre-migration revision, using the same Release flags and dependency binaries. Three runs per binary alternated execution order; the following values are medians of the reported seven-sample medians for 1,000 dispatches:
+
+| Backend | Mutable encode before / after (ns) | Finalized block before / after (ns) | Finalized root before / after (ns) | Changing root + block before / after (ns) |
+| --- | ---: | ---: | ---: | ---: |
+| CPU | 219.2 / 208.0 | 188.3 / 185.1 | 109.4 / 107.1 | 188.9 / 199.5 |
+| CUDA | 370.1 / 345.4 | 229.9 / 222.3 | 94.3 / 90.2 | 243.4 / 235.9 |
+| WebGPU | 4044.9 / 3430.1 | 3061.0 / 3007.4 | 123.4 / 122.5 | 3095.4 / 3093.1 |
+| D3D11 (same CPU core) | 651.2 / 616.7 | 501.0 / 507.4 | 133.4 / 128.0 | 517.0 / 514.8 |
+
+D3D11 initially showed encoding overhead from the extracted uniform-storage helper. Keeping that helper inline restored comparable encoding costs. Its final comparison pinned both processes to the same available CPU core and used high process priority to reduce scheduling variation; these settings were not used for the other rows. Total CPU time in that D3D11 comparison varied by +0.3% to +4.2% across modes. CPU's changing-root/block case was about 11 ns slower in the alternating comparison. CUDA submission times and WebGPU mutable timings varied substantially across runs, so these measurements do not establish a new speedup. Every benchmark sample verified its output. Metal performance still needs measurement on macOS.
+
 ## Correctness coverage
 
 `tests/test-finalized-shader-object.cpp` covers recursive immutability, changing roots and entry points with frozen children, shared blocks at different binding positions and across different root layouts, D3D12 root-descriptor rebasing, Vulkan push constants inside finalized blocks, changing resource contents, command-buffer recycling, releasing shader objects before submission, alternating specialized pipelines, and concurrent first use on CPU, D3D12, Vulkan, and WebGPU. Benchmark samples also verify results.
 
-The D3D12/Vulkan storage-lifetime cases allocate native descriptors and uniform data, inject a preparation failure, and check cleanup and successful retry. They also check that destroying the borrowed context or original shader object preserves allocations retained by the prepared record, that the last record reference releases retained resources, and that persistent storage rejects mutable uniforms.
+Storage-lifetime cases cover every backend: they allocate backend binding storage, inject a preparation failure, and check cleanup and successful retry. They also check that destroying the borrowed context or original shader object preserves allocations retained by the prepared record, that the last record reference releases retained resources, and that persistent storage rejects mutable uniforms. WebGPU also exercises native bind-group creation and retaining an existing group; CPU and CUDA exercise serialized parameter storage. The Metal case includes native buffer-cache ownership.
 
 The implementation was built and exercised on CPU, CUDA, D3D11, D3D12, Vulkan, and WebGPU. Metal changes require compilation and validation on macOS.

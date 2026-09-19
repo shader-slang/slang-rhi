@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../binding-data-storage.h"
+
 #include "wgpu-base.h"
 #include "wgpu-shader-object-layout.h"
 #include "wgpu-constant-buffer-pool.h"
@@ -13,16 +15,43 @@ struct ParameterBlockBindingData
     std::span<const WGPUBindGroup> bindGroups;
 };
 
+struct PreparedBindingData;
+
+/// Borrows allocations and resource lifetimes from a command buffer or prepared record.
+class BindingDataStorage : public rhi::BindingDataStorage
+{
+public:
+    explicit BindingDataStorage(CommandBufferImpl& commandBuffer);
+    BindingDataStorage(DeviceImpl* device, PreparedBindingData& prepared);
+    DeviceImpl* getDevice() const { return m_device; }
+    Result writeOrdinaryData(ShaderObject* object, ShaderObjectLayout* layout, Size size, UniformData& outData);
+    BindingDataImpl* allocateBindingData();
+    Result createBindGroup(
+        BindingDataImpl& data,
+        size_t index,
+        const WGPUBindGroupDescriptor& desc,
+        WGPUBindGroup existing
+    );
+
+private:
+    DeviceImpl* m_device;
+    ConstantBufferPool* m_constantBufferPool = nullptr;
+    BindingCache& m_bindingCache;
+};
+
 struct BindingDataBuilder
 {
-    std::set<RefPtr<RefObject>>* m_resources = nullptr;
-    bool m_buildingRoot = false;
-    DeviceImpl* m_device;
-    ArenaAllocator* m_allocator;
-    BindingCache* m_bindingCache;
-    BindingDataImpl* m_bindingData;
-    CommandList* m_commandList;
-    ConstantBufferPool* m_constantBufferPool;
+    explicit BindingDataBuilder(BindingDataStorage& storage)
+        : m_storage(storage)
+        , m_device(storage.getDevice())
+    {
+    }
+    BindingDataBuilder(const BindingDataBuilder&) = delete;
+    BindingDataBuilder& operator=(const BindingDataBuilder&) = delete;
+
+    BindingDataStorage& m_storage;
+    DeviceImpl* const m_device;
+    BindingDataImpl* m_bindingData = nullptr;
 
     /// A group is either assembled from entries or supplied by a prepared block.
     struct BindGroup
@@ -101,6 +130,13 @@ struct BindingDataBuilder
         const BindingOffset& offset,
         EntryPointLayout* specializedLayout
     );
+
+private:
+    Result bindAsRootImpl(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
+    );
 };
 
 struct BindingDataImpl : BindingData
@@ -116,6 +152,15 @@ struct BindingCache
     std::vector<BindingDataImpl*> bindingData;
 
     void reset(DeviceImpl* device);
+};
+
+/// Keeps native allocations alive through preparation failure and recorded command retirement.
+struct PreparedBindingData : PreparedShaderObject
+{
+    ~PreparedBindingData();
+    DeviceImpl* device = nullptr;
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
 };
 
 } // namespace rhi::wgpu

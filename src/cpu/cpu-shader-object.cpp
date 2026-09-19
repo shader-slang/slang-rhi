@@ -1,4 +1,5 @@
 #include "cpu-shader-object.h"
+#include "cpu-command.h"
 #include "cpu-device.h"
 #include "cpu-buffer.h"
 #include "cpu-texture.h"
@@ -6,10 +7,21 @@
 
 namespace rhi::cpu {
 
+BindingDataStorage::BindingDataStorage(CommandBufferImpl& commandBuffer)
+    : rhi::BindingDataStorage(commandBuffer.m_allocator, commandBuffer.m_trackedObjects)
+    , m_device(commandBuffer.getDevice<DeviceImpl>())
+{
+}
+
+BindingDataStorage::BindingDataStorage(DeviceImpl* device, PreparedShaderObject& prepared)
+    : rhi::BindingDataStorage(prepared)
+    , m_device(device)
+{
+}
+
 struct PreparedBindingData : PreparedShaderObject
 {
     BindingDataImpl* bindingData = nullptr;
-    BindingCache bindingCache;
 };
 
 void shaderObjectSetBinding(
@@ -56,7 +68,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    if (shaderObject->isFinalized() && !m_buildingRoot)
+    if (shaderObject->isFinalized())
     {
         PreparedBindingData* data;
         SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
@@ -64,22 +76,28 @@ Result BindingDataBuilder::bindAsRoot(
             {},
             [&](PreparedBindingData* data)
             {
-                BindingDataBuilder builder = *this;
-                builder.m_buildingRoot = true;
-                builder.m_allocator = &data->allocator;
-                builder.m_resources = &data->resources;
-                builder.m_bindingCache = &data->bindingCache;
-                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+                BindingDataStorage storage(m_device, *data);
+                BindingDataBuilder builder(storage);
+                return builder.bindAsRootImpl(shaderObject, specializedLayout, data->bindingData);
             },
             data
         ));
-        m_resources->insert(data);
+        m_storage.retain(data);
         outBindingData = data->bindingData;
         return SLANG_OK;
     }
 
+    return bindAsRootImpl(shaderObject, specializedLayout, outBindingData);
+}
+
+Result BindingDataBuilder::bindAsRootImpl(
+    RootShaderObject* shaderObject,
+    RootShaderObjectLayoutImpl* specializedLayout,
+    BindingDataImpl*& outBindingData
+)
+{
     // Create a new set of binding data to populate.
-    m_bindingData = m_allocator->allocate<BindingDataImpl>();
+    m_bindingData = m_storage.allocate<BindingDataImpl>();
 
     // Write global parameters
     {
@@ -90,7 +108,7 @@ Result BindingDataBuilder::bindAsRoot(
 
     // Write entry point parameters
     m_bindingData->entryPointCount = shaderObject->m_entryPoints.size();
-    m_bindingData->entryPoints = m_allocator->allocate<BindingDataImpl::EntryPointData>(m_bindingData->entryPointCount);
+    m_bindingData->entryPoints = m_storage.allocate<BindingDataImpl::EntryPointData>(m_bindingData->entryPointCount);
 
     for (size_t i = 0; i < shaderObject->m_entryPoints.size(); ++i)
     {
@@ -127,14 +145,13 @@ Result BindingDataBuilder::writeObjectData(
         {},
         [&](PreparedObjectData* data)
         {
-            BindingDataBuilder builder = *this;
-            builder.m_allocator = &data->allocator;
-            builder.m_resources = &data->resources;
+            BindingDataStorage storage(m_device, *data);
+            BindingDataBuilder builder(storage);
             return builder.writeObjectDataImpl(shaderObject, specializedLayout, data->data);
         },
         data
     ));
-    m_resources->insert(data);
+    m_storage.retain(data);
     outData = data->data;
     return SLANG_OK;
 }
@@ -145,10 +162,12 @@ Result BindingDataBuilder::writeObjectDataImpl(
     ObjectData& outData
 )
 {
+    if (m_storage.isPersistent() && !shaderObject->isFinalized())
+        return SLANG_E_INVALID_ARG;
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
 
     ObjectData objectData = {};
-    objectData.data = m_allocator->allocate(size);
+    objectData.data = m_storage.allocate(size);
     objectData.size = size;
     uint8_t* dst = (uint8_t*)objectData.data;
 

@@ -25,7 +25,7 @@ Result BindingDataStorage::writeOrdinaryData(
     }
 
     // A persistent record must never capture a mutable object's transient uniform allocation.
-    if (isPersistent())
+    if (isPersistent() || !m_constantBufferArena)
         return SLANG_E_INVALID_ARG;
 
     TransientBufferArena::Allocation allocation;

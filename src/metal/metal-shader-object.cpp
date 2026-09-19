@@ -1,4 +1,5 @@
 #include "metal-shader-object.h"
+#include "metal-command.h"
 #include "metal-device.h"
 #include "metal-acceleration-structure.h"
 #include "metal-buffer.h"
@@ -8,11 +9,65 @@
 
 namespace rhi::metal {
 
-struct PreparedBindingData : PreparedShaderObject
+BindingDataStorage::BindingDataStorage(CommandBufferImpl& commandBuffer)
+    : rhi::BindingDataStorage(commandBuffer.m_allocator, commandBuffer.m_trackedObjects)
+    , m_device(commandBuffer.getDevice<DeviceImpl>())
+    , m_bindingCache(commandBuffer.m_bindingCache)
 {
-    BindingDataImpl* bindingData = nullptr;
-    BindingCache bindingCache;
-};
+}
+
+BindingDataStorage::BindingDataStorage(DeviceImpl* device, PreparedBindingData& prepared)
+    : rhi::BindingDataStorage(prepared)
+    , m_device(device)
+    , m_bindingCache(prepared.bindingCache)
+{
+}
+
+void BindingDataStorage::retainBuffer(BufferImpl* buffer)
+{
+    m_bindingCache.buffers.push_back(buffer);
+}
+
+Result BindingDataStorage::allocateBuffer(Size size, BufferImpl*& outBuffer)
+{
+    outBuffer = nullptr;
+    ComPtr<IBuffer> buffer;
+    BufferDesc desc = {};
+    desc.size = size;
+    desc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::ConstantBuffer;
+    desc.memoryType = MemoryType::Upload;
+    SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, nullptr, buffer.writeRef()));
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+    retainBuffer(bufferImpl);
+    outBuffer = bufferImpl;
+    return SLANG_OK;
+}
+
+Result BindingDataStorage::writeOrdinaryData(
+    ShaderObject* object,
+    ShaderObjectLayout* layout,
+    Size size,
+    BufferImpl*& outBuffer
+)
+{
+    outBuffer = nullptr;
+    if (object->isFinalized())
+    {
+        Buffer* buffer;
+        SLANG_RETURN_ON_FAIL(object->getOrdinaryDataBuffer(layout, size, buffer));
+        retain(buffer);
+        outBuffer = checked_cast<BufferImpl*>(buffer);
+        return SLANG_OK;
+    }
+    if (isPersistent())
+        return SLANG_E_INVALID_ARG;
+    BufferImpl* buffer;
+    SLANG_RETURN_ON_FAIL(allocateBuffer(size, buffer));
+    SLANG_RETURN_ON_FAIL(object->writeOrdinaryData(buffer->m_buffer->contents(), size, layout));
+    outBuffer = buffer;
+    return SLANG_OK;
+}
 
 inline Result setBuffer(BindingDataImpl* bindingData, uint32_t index, MTL::Buffer* buffer, NS::UInteger offset = 0)
 {
@@ -63,7 +118,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    if (shaderObject->isFinalized() && !m_buildingRoot)
+    if (shaderObject->isFinalized())
     {
         PreparedBindingData* data;
         SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
@@ -71,22 +126,28 @@ Result BindingDataBuilder::bindAsRoot(
             {},
             [&](PreparedBindingData* data)
             {
-                BindingDataBuilder builder = *this;
-                builder.m_buildingRoot = true;
-                builder.m_allocator = &data->allocator;
-                builder.m_resources = &data->resources;
-                builder.m_bindingCache = &data->bindingCache;
-                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+                BindingDataStorage storage(m_device, *data);
+                BindingDataBuilder builder(storage);
+                return builder.bindAsRootImpl(shaderObject, specializedLayout, data->bindingData);
             },
             data
         ));
-        m_resources->insert(data);
+        m_storage.retain(data);
         outBindingData = data->bindingData;
         return SLANG_OK;
     }
 
+    return bindAsRootImpl(shaderObject, specializedLayout, outBindingData);
+}
+
+Result BindingDataBuilder::bindAsRootImpl(
+    RootShaderObject* shaderObject,
+    RootShaderObjectLayoutImpl* specializedLayout,
+    BindingDataImpl*& outBindingData
+)
+{
     // Create a new set of binding data to populate.
-    BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
+    BindingDataImpl* bindingData = m_storage.allocate<BindingDataImpl>();
     m_bindingData = bindingData;
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
@@ -94,18 +155,18 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->bufferCapacity = 256;
     m_bindingData->textureCapacity = 256;
     m_bindingData->bufferCount = 0;
-    m_bindingData->buffers = m_allocator->allocate<MTL::Buffer*>(m_bindingData->bufferCapacity);
+    m_bindingData->buffers = m_storage.allocate<MTL::Buffer*>(m_bindingData->bufferCapacity);
     ::memset(m_bindingData->buffers, 0, sizeof(MTL::Buffer*) * m_bindingData->bufferCapacity);
-    m_bindingData->bufferOffsets = m_allocator->allocate<NS::UInteger>(m_bindingData->bufferCapacity);
+    m_bindingData->bufferOffsets = m_storage.allocate<NS::UInteger>(m_bindingData->bufferCapacity);
     ::memset(m_bindingData->bufferOffsets, 0, sizeof(NS::UInteger) * m_bindingData->bufferCapacity);
 
     m_bindingData->textureCount = 0;
-    m_bindingData->textures = m_allocator->allocate<MTL::Texture*>(m_bindingData->textureCapacity);
+    m_bindingData->textures = m_storage.allocate<MTL::Texture*>(m_bindingData->textureCapacity);
     ::memset(m_bindingData->textures, 0, sizeof(MTL::Texture*) * m_bindingData->textureCapacity);
 
     uint32_t samplerCount = specializedLayout->getTotalSamplerCount();
     m_bindingData->samplerCount = samplerCount;
-    m_bindingData->samplers = m_allocator->allocate<MTL::SamplerState*>(samplerCount);
+    m_bindingData->samplers = m_storage.allocate<MTL::SamplerState*>(samplerCount);
     ::memset(m_bindingData->samplers, 0, sizeof(MTL::SamplerState*) * samplerCount);
 
     if (!m_device->m_hasResidencySet)
@@ -113,9 +174,9 @@ Result BindingDataBuilder::bindAsRoot(
         m_bindingData->usedResourceCapacity = 256;
         m_bindingData->usedRWResourceCapacity = 256;
         m_bindingData->usedResourceCount = 0;
-        m_bindingData->usedResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedResourceCapacity);
+        m_bindingData->usedResources = m_storage.allocate<MTL::Resource*>(m_bindingData->usedResourceCapacity);
         m_bindingData->usedRWResourceCount = 0;
-        m_bindingData->usedRWResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedRWResourceCapacity);
+        m_bindingData->usedRWResources = m_storage.allocate<MTL::Resource*>(m_bindingData->usedRWResourceCapacity);
     }
     else
     {
@@ -130,9 +191,9 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->rootAccelerationStructureCapacity = 16;
     m_bindingData->rootAccelerationStructureCount = 0;
     m_bindingData->rootAccelerationStructures =
-        m_allocator->allocate<MTL::AccelerationStructure*>(m_bindingData->rootAccelerationStructureCapacity);
+        m_storage.allocate<MTL::AccelerationStructure*>(m_bindingData->rootAccelerationStructureCapacity);
     m_bindingData->rootAccelerationStructureSlots =
-        m_allocator->allocate<NS::UInteger>(m_bindingData->rootAccelerationStructureCapacity);
+        m_storage.allocate<NS::UInteger>(m_bindingData->rootAccelerationStructureCapacity);
 
     // Initialize binding offset for shader parameters.
     //
@@ -312,8 +373,8 @@ Result BindingDataBuilder::bindAsValue(
                     if (newCapacity == 0)
                         newCapacity = 16;
 
-                    auto newStructures = m_allocator->allocate<MTL::AccelerationStructure*>(newCapacity);
-                    auto newSlots = m_allocator->allocate<NS::UInteger>(newCapacity);
+                    auto newStructures = m_storage.allocate<MTL::AccelerationStructure*>(newCapacity);
+                    auto newSlots = m_storage.allocate<NS::UInteger>(newCapacity);
 
                     ::memcpy(
                         newStructures,
@@ -444,46 +505,10 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     if (size == 0)
         return SLANG_OK;
 
-    if (shaderObject->isFinalized())
-    {
-        Buffer* buffer;
-        SLANG_RETURN_ON_FAIL(shaderObject->getOrdinaryDataBuffer(specializedLayout, size, buffer));
-        auto bufferImpl = checked_cast<BufferImpl*>(buffer);
-        m_resources->insert(bufferImpl);
-        SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer++, bufferImpl->m_buffer.get()));
-        return resolvePointerFieldResidency(shaderObject, specializedLayout);
-    }
-
-    ComPtr<IBuffer> buffer;
-    BufferDesc bufferDesc = {};
-    bufferDesc.size = size;
-    bufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
-    bufferDesc.defaultState = ResourceState::ConstantBuffer;
-    bufferDesc.memoryType = MemoryType::Upload;
-    SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-    auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
-
-    // Once the buffer is allocated, we can use `_writeOrdinaryData` to fill it in.
-    //
-    // Note that `_writeOrdinaryData` is potentially recursive in the case
-    // where this object contains interface/existential-type fields, so we
-    // don't need or want to inline it into this call site.
-    //
-    void* ordinaryData = bufferImpl->m_buffer->contents();
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(ordinaryData, size, specializedLayout));
-
-    // If we did indeed need/create a buffer, then we must bind it
-    // into root binding state.
-    //
-    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get()));
-    ioOffset.buffer++;
-
-    // Pass ownership of the buffer to the binding cache.
-    m_bindingCache->buffers.push_back(bufferImpl);
-
-    SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
-
-    return SLANG_OK;
+    BufferImpl* buffer = nullptr;
+    SLANG_RETURN_ON_FAIL(m_storage.writeOrdinaryData(shaderObject, specializedLayout, size, buffer));
+    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer++, buffer->m_buffer.get()));
+    return resolvePointerFieldResidency(shaderObject, specializedLayout);
 }
 
 Result BindingDataBuilder::writeArgumentBuffer(
@@ -494,9 +519,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
 {
     if (!shaderObject->isFinalized())
         return writeArgumentBufferImpl(shaderObject, specializedLayout, outArgumentBuffer);
-    struct PreparedArgumentBuffer : PreparedShaderObject
+    struct PreparedArgumentBuffer : PreparedBindingData
     {
-        BindingCache bindingCache;
         BindingDataImpl uses = {};
         BufferImpl* buffer = nullptr;
     };
@@ -506,20 +530,18 @@ Result BindingDataBuilder::writeArgumentBuffer(
         {},
         [&](PreparedArgumentBuffer* data)
         {
-            BindingDataBuilder builder = *this;
-            builder.m_allocator = &data->allocator;
-            builder.m_resources = &data->resources;
-            builder.m_bindingCache = &data->bindingCache;
+            BindingDataStorage storage(m_device, *data);
+            BindingDataBuilder builder(storage);
             builder.m_bindingData = &data->uses;
             data->uses.usedResourceCapacity = 256;
             data->uses.usedRWResourceCapacity = 256;
-            data->uses.usedResources = data->allocator.allocate<MTL::Resource*>(256);
-            data->uses.usedRWResources = data->allocator.allocate<MTL::Resource*>(256);
+            data->uses.usedResources = storage.allocate<MTL::Resource*>(256);
+            data->uses.usedRWResources = storage.allocate<MTL::Resource*>(256);
             return builder.writeArgumentBufferImpl(shaderObject, specializedLayout, data->buffer);
         },
         data
     ));
-    m_resources->insert(data);
+    m_storage.retain(data);
     for (uint32_t i = 0; i < data->uses.usedResourceCount; ++i)
         SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, data->uses.usedResources[i]));
     for (uint32_t i = 0; i < data->uses.usedRWResourceCount; ++i)
@@ -544,14 +566,10 @@ Result BindingDataBuilder::writeArgumentBufferImpl(
         return SLANG_OK;
     }
 
-    ComPtr<IBuffer> argumentBuffer;
-    BufferDesc argumentBufferDesc = {};
-    argumentBufferDesc.size = argumentBufferTypeLayout->getSize();
-    argumentBufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
-    argumentBufferDesc.defaultState = ResourceState::ConstantBuffer;
-    argumentBufferDesc.memoryType = MemoryType::Upload;
-    SLANG_RETURN_ON_FAIL(m_device->createBuffer(argumentBufferDesc, nullptr, argumentBuffer.writeRef()));
-    auto argumentBufferImpl = checked_cast<BufferImpl*>(argumentBuffer.get());
+    if (m_storage.isPersistent() && !shaderObject->isFinalized())
+        return SLANG_E_INVALID_ARG;
+    BufferImpl* argumentBufferImpl = nullptr;
+    SLANG_RETURN_ON_FAIL(m_storage.allocateBuffer(argumentBufferTypeLayout->getSize(), argumentBufferImpl));
 
     memcpy(argumentBufferImpl->m_buffer->contents(), shaderObject->m_data.data(), shaderObject->m_data.size());
 
@@ -726,9 +744,6 @@ Result BindingDataBuilder::writeArgumentBufferImpl(
 
     SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
 
-    // Pass ownership of the buffer to the binding cache.
-    m_bindingCache->buffers.push_back(argumentBufferImpl);
-
     outArgumentBuffer = argumentBufferImpl;
     return SLANG_OK;
 }
@@ -814,7 +829,7 @@ Result BindingDataBuilder::resolvePointerFieldResidency(
         if (resolved)
         {
             SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, resolved->m_buffer.get()));
-            m_bindingCache->buffers.push_back(resolved);
+            m_storage.retainBuffer(resolved);
         }
         else
         {
