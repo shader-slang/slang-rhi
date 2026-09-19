@@ -104,6 +104,8 @@
 
 ## `IShaderObject` interface
 
+See [finalized shader object bindings](shader-object-bindings.md) for binding reuse, lifetime rules, and benchmarks.
+
 | API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
 | `getElementTypeLayout`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |

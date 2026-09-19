@@ -6,6 +6,12 @@
 
 namespace rhi::cpu {
 
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+};
+
 void shaderObjectSetBinding(
     ShaderObject* shaderObject,
     const ShaderOffset& offset,
@@ -50,9 +56,29 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
+    if (shaderObject->isFinalized() && !m_buildingRoot)
+    {
+        PreparedBindingData* data;
+        SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
+            specializedLayout,
+            {},
+            [&](PreparedBindingData* data)
+            {
+                BindingDataBuilder builder = *this;
+                builder.m_buildingRoot = true;
+                builder.m_allocator = &data->allocator;
+                builder.m_resources = &data->resources;
+                builder.m_bindingCache = &data->bindingCache;
+                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+            },
+            data
+        ));
+        m_resources->insert(data);
+        outBindingData = data->bindingData;
+        return SLANG_OK;
+    }
+
     // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
     m_bindingData = m_allocator->allocate<BindingDataImpl>();
 
     // Write global parameters
@@ -89,6 +115,36 @@ Result BindingDataBuilder::writeObjectData(
     ObjectData& outData
 )
 {
+    if (!shaderObject->isFinalized())
+        return writeObjectDataImpl(shaderObject, specializedLayout, outData);
+    struct PreparedObjectData : PreparedShaderObject
+    {
+        ObjectData data = {};
+    };
+    PreparedObjectData* data;
+    SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedObjectData>(
+        specializedLayout,
+        {},
+        [&](PreparedObjectData* data)
+        {
+            BindingDataBuilder builder = *this;
+            builder.m_allocator = &data->allocator;
+            builder.m_resources = &data->resources;
+            return builder.writeObjectDataImpl(shaderObject, specializedLayout, data->data);
+        },
+        data
+    ));
+    m_resources->insert(data);
+    outData = data->data;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::writeObjectDataImpl(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    ObjectData& outData
+)
+{
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
 
     ObjectData objectData = {};
@@ -96,7 +152,7 @@ Result BindingDataBuilder::writeObjectData(
     objectData.size = size;
     uint8_t* dst = (uint8_t*)objectData.data;
 
-    shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout);
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout));
 
     // Bindings are currently written in shaderObjectSetBinding() because
     // the layout does currently only provide uniformOffset but no uniformStride.

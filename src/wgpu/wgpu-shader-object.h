@@ -10,6 +10,8 @@ namespace rhi::wgpu {
 
 struct BindingDataBuilder
 {
+    std::set<RefPtr<RefObject>>* m_resources = nullptr;
+    bool m_buildingRoot = false;
     DeviceImpl* m_device;
     ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
@@ -21,6 +23,8 @@ struct BindingDataBuilder
 
     /// The bind group entries for every descriptor set
     std::vector<std::vector<WGPUBindGroupEntry>> m_entries;
+    std::vector<WGPUBindGroup> m_existingBindGroups;
+    RootShaderObjectLayoutImpl* m_rootLayout = nullptr;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(
@@ -53,6 +57,11 @@ struct BindingDataBuilder
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+    Result bindAsParameterBlockImpl(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout

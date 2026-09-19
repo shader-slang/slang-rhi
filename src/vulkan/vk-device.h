@@ -292,6 +292,7 @@ public:
     std::vector<CooperativeMatrixFlexibleProperty> m_cooperativeMatrixFlexibleProperties;
     RefPtr<CommandQueueImpl> m_queue;
 
+    std::mutex m_persistentDescriptorMutex;
     DescriptorSetAllocator descriptorSetAllocator;
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
 

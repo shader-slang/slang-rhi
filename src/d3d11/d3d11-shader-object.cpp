@@ -6,15 +6,41 @@
 
 namespace rhi::d3d11 {
 
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+};
+
 Result BindingDataBuilder::bindAsRoot(
     RootShaderObject* shaderObject,
     RootShaderObjectLayoutImpl* specializedLayout,
     BindingDataImpl*& outBindingData
 )
 {
+    if (shaderObject->isFinalized() && !m_buildingRoot)
+    {
+        PreparedBindingData* data;
+        SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
+            specializedLayout,
+            {},
+            [&](PreparedBindingData* data)
+            {
+                BindingDataBuilder builder = *this;
+                builder.m_buildingRoot = true;
+                builder.m_allocator = &data->allocator;
+                builder.m_resources = &data->resources;
+                builder.m_bindingCache = &data->bindingCache;
+                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+            },
+            data
+        ));
+        m_resources->insert(data);
+        outBindingData = data->bindingData;
+        return SLANG_OK;
+    }
+
     // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingData = bindingData;
     ::memset(bindingData, 0, sizeof(BindingDataImpl));
@@ -71,6 +97,58 @@ Result BindingDataBuilder::bindAsRoot(
 }
 
 Result BindingDataBuilder::bindAsConstantBuffer(
+    ShaderObject* shaderObject,
+    const BindingOffset& inOffset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (!shaderObject->isFinalized())
+        return bindAsConstantBufferImpl(shaderObject, inOffset, specializedLayout);
+    struct PreparedConstantBuffer : PreparedShaderObject
+    {
+        BindingDataImpl bindings = {};
+    };
+    PreparedConstantBuffer* data;
+    SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedConstantBuffer>(
+        specializedLayout,
+        {inOffset.cbv, inOffset.srv, inOffset.uav, inOffset.sampler},
+        [&](PreparedConstantBuffer* data)
+        {
+            BindingDataBuilder builder = *this;
+            builder.m_allocator = &data->allocator;
+            builder.m_resources = &data->resources;
+            builder.m_bindingData = &data->bindings;
+            return builder.bindAsConstantBufferImpl(shaderObject, inOffset, specializedLayout);
+        },
+        data
+    ));
+    m_resources->insert(data);
+    const auto& bindings = data->bindings;
+    for (uint32_t i = inOffset.cbv; i < bindings.cbvCount; ++i)
+    {
+        if (!bindings.cbvsBuffer[i])
+            continue;
+        m_bindingData->cbvsBuffer[i] = bindings.cbvsBuffer[i];
+        m_bindingData->cbvsFirst[i] = bindings.cbvsFirst[i];
+        m_bindingData->cbvsCount[i] = bindings.cbvsCount[i];
+    }
+    for (uint32_t i = inOffset.srv; i < bindings.srvCount; ++i)
+        if (bindings.srvs[i])
+            m_bindingData->srvs[i] = bindings.srvs[i];
+    for (uint32_t i = inOffset.uav; i < bindings.uavCount; ++i)
+        if (bindings.uavs[i])
+            m_bindingData->uavs[i] = bindings.uavs[i];
+    for (uint32_t i = inOffset.sampler; i < bindings.samplerCount; ++i)
+        if (bindings.samplers[i])
+            m_bindingData->samplers[i] = bindings.samplers[i];
+    m_bindingData->cbvCount = max(m_bindingData->cbvCount, bindings.cbvCount);
+    m_bindingData->srvCount = max(m_bindingData->srvCount, bindings.srvCount);
+    m_bindingData->uavCount = max(m_bindingData->uavCount, bindings.uavCount);
+    m_bindingData->samplerCount = max(m_bindingData->samplerCount, bindings.samplerCount);
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindAsConstantBufferImpl(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
@@ -272,8 +350,21 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         return SLANG_OK;
 
     ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    if (shaderObject->isFinalized())
+    {
+        Buffer* buffer;
+        SLANG_RETURN_ON_FAIL(
+            shaderObject->getOrdinaryDataBuffer(specializedLayout, ((size + 255) / 256) * 256, buffer)
+        );
+        allocation.buffer = checked_cast<BufferImpl*>(buffer);
+        allocation.offset = 0;
+        m_resources->insert(buffer);
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
+        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    }
 
     SLANG_RHI_ASSERT(ioOffset.cbv < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
     m_bindingData->cbvsBuffer[ioOffset.cbv] = allocation.buffer->m_buffer;

@@ -17,6 +17,9 @@ void shaderObjectSetBinding(
 
 struct BindingDataBuilder
 {
+    std::set<RefPtr<RefObject>>* m_resources = nullptr;
+    bool m_buildingRoot = false;
+    bool m_persistentObjectData = false;
     DeviceImpl* m_device;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
@@ -38,6 +41,12 @@ struct BindingDataBuilder
     };
 
     Result writeObjectData(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        ConstantBufferMemType memType,
+        ObjectData& outData
+    );
+    Result writeObjectDataImpl(
         ShaderObject* shaderObject,
         ShaderObjectLayoutImpl* specializedLayout,
         ConstantBufferMemType memType,

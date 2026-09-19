@@ -7,6 +7,18 @@
 
 namespace rhi::wgpu {
 
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+    DeviceImpl* device = nullptr;
+    ~PreparedBindingData()
+    {
+        if (device)
+            bindingCache.reset(device);
+    }
+};
+
 inline void writeDescriptor(BindingDataBuilder& builder, uint32_t bindingSet, const WGPUBindGroupEntry& write)
 {
     SLANG_RHI_ASSERT(bindingSet < builder.m_entries.size());
@@ -93,13 +105,36 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
+    if (shaderObject->isFinalized() && !m_buildingRoot)
+    {
+        PreparedBindingData* data;
+        SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
+            specializedLayout,
+            {},
+            [&](PreparedBindingData* data)
+            {
+                BindingDataBuilder builder = *this;
+                builder.m_buildingRoot = true;
+                builder.m_allocator = &data->allocator;
+                builder.m_resources = &data->resources;
+                builder.m_bindingCache = &data->bindingCache;
+                data->device = m_device;
+                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+            },
+            data
+        ));
+        m_resources->insert(data);
+        outBindingData = data->bindingData;
+        return SLANG_OK;
+    }
+
     // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
+    *bindingData = {};
     m_bindingData = bindingData;
     m_bindingCache->bindingData.push_back(bindingData);
 
+    m_rootLayout = specializedLayout;
     m_bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
 
     BindingOffset offset = {};
@@ -159,6 +194,7 @@ Result BindingDataBuilder::allocateDescriptorSets(
     for (size_t i = 0; i < descriptorSets.size(); ++i)
     {
         m_entries.push_back(std::vector<WGPUBindGroupEntry>());
+        m_existingBindGroups.push_back(nullptr);
         auto& newEntries = m_entries.back();
         newEntries.reserve(descriptorSets[i].entries.size());
     }
@@ -169,9 +205,16 @@ Result BindingDataBuilder::createBindGroups()
 {
     m_bindingData->bindGroupCount = m_entries.size();
     m_bindingData->bindGroups = m_allocator->allocate<WGPUBindGroup>(m_bindingData->bindGroupCount);
+    std::fill_n(m_bindingData->bindGroups, m_bindingData->bindGroupCount, nullptr);
 
     for (size_t i = 0; i < m_entries.size(); ++i)
     {
+        if (m_existingBindGroups[i])
+        {
+            m_device->m_ctx.api.wgpuBindGroupAddRef(m_existingBindGroups[i]);
+            m_bindingData->bindGroups[i] = m_existingBindGroups[i];
+            continue;
+        }
         WGPUBindGroupDescriptor desc = {};
         desc.layout = m_bindGroupLayouts[i];
         desc.entries = m_entries[i].data();
@@ -351,6 +394,53 @@ Result BindingDataBuilder::bindAsParameterBlock(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
+    if (!shaderObject->isFinalized())
+        return bindAsParameterBlockImpl(shaderObject, inOffset, specializedLayout);
+    struct PreparedParameterBlock : PreparedBindingData
+    {
+        RefPtr<RootShaderObjectLayoutImpl> rootLayout;
+    };
+    PreparedParameterBlock* data;
+    size_t firstSet = m_entries.size();
+    SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedParameterBlock>(
+        specializedLayout,
+        {uint64_t(m_rootLayout), firstSet, uint64_t(m_bindGroupLayouts.data())},
+        [&](PreparedParameterBlock* data)
+        {
+            data->device = m_device;
+            data->rootLayout = m_rootLayout;
+            BindingDataBuilder builder = *this;
+            builder.m_allocator = &data->allocator;
+            builder.m_resources = &data->resources;
+            builder.m_bindingCache = &data->bindingCache;
+            builder.m_entries.clear();
+            builder.m_existingBindGroups.clear();
+            builder.m_bindGroupLayouts =
+                m_bindGroupLayouts.subspan(firstSet, specializedLayout->getTotalDescriptorSetCount());
+            data->bindingData = data->allocator.allocate<BindingDataImpl>();
+            *data->bindingData = {};
+            data->bindingCache.bindingData.push_back(data->bindingData);
+            builder.m_bindingData = data->bindingData;
+            SLANG_RETURN_ON_FAIL(builder.bindAsParameterBlockImpl(shaderObject, BindingOffset{}, specializedLayout));
+            return builder.createBindGroups();
+        },
+        data
+    ));
+    m_resources->insert(data);
+    for (size_t i = 0; i < data->bindingData->bindGroupCount; ++i)
+    {
+        m_entries.emplace_back();
+        m_existingBindGroups.push_back(data->bindingData->bindGroups[i]);
+    }
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindAsParameterBlockImpl(
+    ShaderObject* shaderObject,
+    const BindingOffset& inOffset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
     // Because we are binding into a nested parameter block,
     // any texture/buffer/sampler bindings will now want to
     // write into the sets we allocate for this object and
@@ -385,8 +475,24 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         return SLANG_OK;
 
     ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(bufferSize, allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, bufferSize, specializedLayout));
+    if (shaderObject->isFinalized())
+    {
+        Buffer* buffer;
+        SLANG_RETURN_ON_FAIL(shaderObject->getOrdinaryDataBuffer(
+            specializedLayout,
+            ((bufferSize + 15) / 16) * 16,
+            buffer,
+            MemoryType::DeviceLocal
+        ));
+        allocation.buffer = checked_cast<BufferImpl*>(buffer);
+        allocation.offset = 0;
+        m_resources->insert(buffer);
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(bufferSize, allocation));
+        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, bufferSize, specializedLayout));
+    }
 
     writeBufferDescriptor(*this, ioOffset, allocation.buffer, allocation.offset, bufferSize);
     ioOffset.binding++;
@@ -443,7 +549,8 @@ void BindingDataImpl::release(DeviceImpl* device)
 {
     for (size_t i = 0; i < bindGroupCount; ++i)
     {
-        device->m_ctx.api.wgpuBindGroupRelease(bindGroups[i]);
+        if (bindGroups[i])
+            device->m_ctx.api.wgpuBindGroupRelease(bindGroups[i]);
     }
 }
 
@@ -453,6 +560,7 @@ void BindingCache::reset(DeviceImpl* device)
     {
         data->release(device);
     }
+    bindingData.clear();
 }
 
 } // namespace rhi::wgpu

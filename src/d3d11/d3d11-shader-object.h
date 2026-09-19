@@ -8,6 +8,8 @@ namespace rhi::d3d11 {
 
 struct BindingDataBuilder
 {
+    std::set<RefPtr<RefObject>>* m_resources = nullptr;
+    bool m_buildingRoot = false;
     DeviceImpl* m_device;
     ConstantBufferPool* m_constantBufferPool;
     ArenaAllocator* m_allocator;
@@ -23,6 +25,11 @@ struct BindingDataBuilder
 
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
     Result bindAsConstantBuffer(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+    Result bindAsConstantBufferImpl(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout

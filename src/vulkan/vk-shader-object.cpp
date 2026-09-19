@@ -13,6 +13,23 @@
 
 namespace rhi::vk {
 
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+    DeviceImpl* device = nullptr;
+    std::vector<VulkanDescriptorSet> descriptorSets;
+    ~PreparedBindingData()
+    {
+        if (device)
+        {
+            std::lock_guard<std::mutex> lock(device->m_persistentDescriptorMutex);
+            for (auto set : descriptorSets)
+                device->descriptorSetAllocator.free(set);
+        }
+    }
+};
+
 inline void writeDescriptor(DeviceImpl* device, const VkWriteDescriptorSet& write)
 {
     device->m_api.vkUpdateDescriptorSets(device->m_device, 1, &write, 0, nullptr);
@@ -235,9 +252,32 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
+    if (shaderObject->isFinalized() && !m_buildingRoot)
+    {
+        PreparedBindingData* data;
+        SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
+            specializedLayout,
+            {},
+            [&](PreparedBindingData* data)
+            {
+                BindingDataBuilder builder = *this;
+                builder.m_buildingRoot = true;
+                builder.m_allocator = &data->allocator;
+                builder.m_resources = &data->resources;
+                builder.m_bindingCache = &data->bindingCache;
+                data->device = m_device;
+                builder.m_descriptorSetAllocator = &m_device->descriptorSetAllocator;
+                builder.m_persistentDescriptorSets = &data->descriptorSets;
+                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+            },
+            data
+        ));
+        m_resources->insert(data);
+        outBindingData = data->bindingData;
+        return SLANG_OK;
+    }
+
     // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
     m_bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingCache->bindingData.push_back(m_bindingData);
 
@@ -414,8 +454,17 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     }
 
     TransientBufferArena::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(size, &allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    if (shaderObject->isFinalized())
+    {
+        SLANG_RETURN_ON_FAIL(shaderObject->getOrdinaryDataBuffer(specializedLayout, size, allocation.buffer));
+        allocation.offset = 0;
+        m_resources->insert(allocation.buffer);
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(size, &allocation));
+        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    }
 
     // If we did indeed need/create a buffer, then we must bind it into
     // the given `descriptorSet` and update the base range index for
@@ -706,7 +755,18 @@ Result BindingDataBuilder::allocateDescriptorSets(
     //
     for (auto descriptorSetInfo : specializedLayout->getOwnDescriptorSets())
     {
-        auto descriptorSetHandle = m_descriptorSetAllocator->allocate(descriptorSetInfo.descriptorSetLayout).handle;
+        VkDescriptorSet descriptorSetHandle;
+        if (m_persistentDescriptorSets)
+        {
+            std::lock_guard<std::mutex> lock(m_device->m_persistentDescriptorMutex);
+            auto allocation = m_descriptorSetAllocator->allocate(descriptorSetInfo.descriptorSetLayout);
+            m_persistentDescriptorSets->push_back(allocation);
+            descriptorSetHandle = allocation.handle;
+        }
+        else
+        {
+            descriptorSetHandle = m_descriptorSetAllocator->allocate(descriptorSetInfo.descriptorSetLayout).handle;
+        }
 
         // For each set, we need to write it into the set of descriptor sets
         // being used for binding. This is done both so that other steps
@@ -721,6 +781,55 @@ Result BindingDataBuilder::allocateDescriptorSets(
 }
 
 Result BindingDataBuilder::bindAsParameterBlock(
+    ShaderObject* shaderObject,
+    const BindingOffset& inOffset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    // Push-constant placement depends on the enclosing root layout. Keep that uncommon
+    // case on the normal assembly path; finalized uniform buffers are still reused.
+    if (!shaderObject->isFinalized() || specializedLayout->getTotalPushConstantRangeCount())
+        return bindAsParameterBlockImpl(shaderObject, inOffset, specializedLayout);
+    struct PreparedParameterBlock : PreparedBindingData
+    {};
+    PreparedParameterBlock* data;
+    SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedParameterBlock>(
+        specializedLayout,
+        {},
+        [&](PreparedParameterBlock* data)
+        {
+            data->device = m_device;
+            BindingDataBuilder builder = *this;
+            builder.m_allocator = &data->allocator;
+            builder.m_resources = &data->resources;
+            builder.m_bindingCache = &data->bindingCache;
+            builder.m_descriptorSetAllocator = &m_device->descriptorSetAllocator;
+            builder.m_persistentDescriptorSets = &data->descriptorSets;
+            data->bindingData = data->allocator.allocate<BindingDataImpl>();
+            auto& bindings = *data->bindingData;
+            bindings = {};
+            bindings.bufferStateCapacity = bindings.textureStateCapacity = 16;
+            bindings.bufferStates = data->allocator.allocate<BindingDataImpl::BufferState>(16);
+            bindings.textureStates = data->allocator.allocate<BindingDataImpl::TextureState>(16);
+            bindings.descriptorSets =
+                data->allocator.allocate<VkDescriptorSet>(specializedLayout->getTotalDescriptorSetCount());
+            builder.m_bindingData = &bindings;
+            return builder.bindAsParameterBlockImpl(shaderObject, BindingOffset{}, specializedLayout);
+        },
+        data
+    ));
+    m_resources->insert(data);
+    const auto& bindings = *data->bindingData;
+    for (uint32_t i = 0; i < bindings.descriptorSetCount; ++i)
+        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = bindings.descriptorSets[i];
+    for (uint32_t i = 0; i < bindings.bufferStateCount; ++i)
+        writeBufferState(this, bindings.bufferStates[i].buffer, bindings.bufferStates[i].state);
+    for (uint32_t i = 0; i < bindings.textureStateCount; ++i)
+        writeTextureState(this, bindings.textureStates[i].textureView, bindings.textureStates[i].state);
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindAsParameterBlockImpl(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout

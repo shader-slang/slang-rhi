@@ -21,6 +21,8 @@ struct DescriptorSet
 
 struct BindingDataBuilder
 {
+    std::set<RefPtr<RefObject>>* m_resources = nullptr;
+    bool m_buildingRoot = false;
     DeviceImpl* m_device;
     ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
@@ -65,6 +67,12 @@ struct BindingDataBuilder
 
     /// Bind this object as a `ParameterBlock<X>`
     Result bindAsParameterBlock(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        uint32_t& rootParamIndex,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+    Result bindAsParameterBlockImpl(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
         uint32_t& rootParamIndex,

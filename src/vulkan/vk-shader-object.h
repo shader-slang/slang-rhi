@@ -12,6 +12,9 @@ namespace rhi::vk {
 
 struct BindingDataBuilder
 {
+    std::set<RefPtr<RefObject>>* m_resources = nullptr;
+    bool m_buildingRoot = false;
+    std::vector<VulkanDescriptorSet>* m_persistentDescriptorSets = nullptr;
     DeviceImpl* m_device;
     ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
@@ -74,6 +77,11 @@ struct BindingDataBuilder
 
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
+        ShaderObject* shaderObject,
+        const BindingOffset& inOffset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+    Result bindAsParameterBlockImpl(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
         ShaderObjectLayoutImpl* specializedLayout

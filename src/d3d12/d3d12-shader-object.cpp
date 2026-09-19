@@ -9,6 +9,14 @@
 
 namespace rhi::d3d12 {
 
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+    GPUDescriptorArena resourceDescriptors;
+    GPUDescriptorArena samplerDescriptors;
+};
+
 inline BindingDataImpl::RootParameter createRootDescriptorTable(UINT index, D3D12_GPU_DESCRIPTOR_HANDLE baseDescriptor)
 {
     BindingDataImpl::RootParameter result;
@@ -78,9 +86,33 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
+    if (shaderObject->isFinalized() && !m_buildingRoot)
+    {
+        PreparedBindingData* data;
+        SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
+            specializedLayout,
+            {},
+            [&](PreparedBindingData* data)
+            {
+                BindingDataBuilder builder = *this;
+                builder.m_buildingRoot = true;
+                builder.m_allocator = &data->allocator;
+                builder.m_resources = &data->resources;
+                builder.m_bindingCache = &data->bindingCache;
+                SLANG_RETURN_ON_FAIL(data->resourceDescriptors.init(m_device->m_gpuCbvSrvUavHeap, 1));
+                SLANG_RETURN_ON_FAIL(data->samplerDescriptors.init(m_device->m_gpuSamplerHeap, 1));
+                builder.m_cbvSrvUavArena = &data->resourceDescriptors;
+                builder.m_samplerArena = &data->samplerDescriptors;
+                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+            },
+            data
+        ));
+        m_resources->insert(data);
+        outBindingData = data->bindingData;
+        return SLANG_OK;
+    }
+
     // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingData = bindingData;
 
@@ -241,6 +273,66 @@ Result BindingDataBuilder::bindAsConstantBuffer(
 
 /// Bind this object as a `ParameterBlock<X>`
 Result BindingDataBuilder::bindAsParameterBlock(
+    ShaderObject* shaderObject,
+    const BindingOffset& offset,
+    uint32_t& rootParamIndex,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (!shaderObject->isFinalized())
+        return bindAsParameterBlockImpl(shaderObject, offset, rootParamIndex, specializedLayout);
+    struct PreparedParameterBlock : PreparedBindingData
+    {
+        uint32_t nextRootParameter = 0;
+    };
+    PreparedParameterBlock* data;
+    SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedParameterBlock>(
+        specializedLayout,
+        {offset.rootParam, rootParamIndex, m_bindingData->rootParameterCount},
+        [&](PreparedParameterBlock* data)
+        {
+            SLANG_RETURN_ON_FAIL(data->resourceDescriptors.init(m_device->m_gpuCbvSrvUavHeap, 1));
+            SLANG_RETURN_ON_FAIL(data->samplerDescriptors.init(m_device->m_gpuSamplerHeap, 1));
+            BindingDataBuilder builder = *this;
+            builder.m_allocator = &data->allocator;
+            builder.m_resources = &data->resources;
+            builder.m_bindingCache = &data->bindingCache;
+            builder.m_cbvSrvUavArena = &data->resourceDescriptors;
+            builder.m_samplerArena = &data->samplerDescriptors;
+            data->bindingData = data->allocator.allocate<BindingDataImpl>();
+            auto& bindings = *data->bindingData;
+            bindings = {};
+            bindings.bufferStateCapacity = bindings.textureStateCapacity = 16;
+            bindings.bufferStates = data->allocator.allocate<BindingDataImpl::BufferState>(16);
+            bindings.textureStates = data->allocator.allocate<BindingDataImpl::TextureState>(16);
+            bindings.rootParameterCount = m_bindingData->rootParameterCount;
+            bindings.rootParameters =
+                data->allocator.allocate<BindingDataImpl::RootParameter>(bindings.rootParameterCount);
+            for (uint32_t i = 0; i < bindings.rootParameterCount; ++i)
+                bindings.rootParameters[i].index = UINT32_MAX;
+            builder.m_bindingData = &bindings;
+            data->nextRootParameter = rootParamIndex;
+            return builder.bindAsParameterBlockImpl(shaderObject, offset, data->nextRootParameter, specializedLayout);
+        },
+        data
+    ));
+    m_resources->insert(data);
+    const auto& bindings = *data->bindingData;
+    for (uint32_t i = 0; i < bindings.rootParameterCount; ++i)
+    {
+        const auto& parameter = bindings.rootParameters[i];
+        if (parameter.index != UINT32_MAX)
+            m_bindingData->rootParameters[i] = parameter;
+    }
+    for (uint32_t i = 0; i < bindings.bufferStateCount; ++i)
+        writeBufferState(this, bindings.bufferStates[i].buffer, bindings.bufferStates[i].state);
+    for (uint32_t i = 0; i < bindings.textureStateCount; ++i)
+        writeTextureState(this, bindings.textureStates[i].textureView, bindings.textureStates[i].state);
+    rootParamIndex = data->nextRootParameter;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindAsParameterBlockImpl(
     ShaderObject* shaderObject,
     const BindingOffset& offset,
     uint32_t& rootParamIndex,
@@ -646,8 +738,17 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     uint32_t alignedSize = math::calcAligned2(size, 256);
 
     TransientBufferArena::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(alignedSize, &allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    if (shaderObject->isFinalized())
+    {
+        SLANG_RETURN_ON_FAIL(shaderObject->getOrdinaryDataBuffer(specializedLayout, alignedSize, allocation.buffer));
+        allocation.offset = 0;
+        m_resources->insert(allocation.buffer);
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(alignedSize, &allocation));
+        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    }
 
     // We also create and store a descriptor for our root constant buffer
     // into the descriptor table allocation that was reserved for them.

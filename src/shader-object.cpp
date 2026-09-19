@@ -404,6 +404,9 @@ Result ShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+    incrementVersion();
+
     // If the shader object is a container, delegate the processing to
     // `setSpecializationArgsForContainerElements`.
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
@@ -462,6 +465,61 @@ Result ShaderObject::finalize()
             SLANG_RETURN_ON_FAIL(object->finalize());
     }
 
+    RefPtr<ExtendedShaderObjectTypeListObject> args = new ExtendedShaderObjectTypeListObject();
+    SLANG_RETURN_ON_FAIL(collectSpecializationArgs(*args));
+    RefPtr<ShaderObjectResources> resources = new ShaderObjectResources();
+    trackResources(resources->resources);
+    m_finalizedSpecializationArgs = args;
+    m_finalizedResources = resources;
+    m_finalized = true;
+    return SLANG_OK;
+}
+
+Result RootShaderObject::finalize()
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+    for (const auto& entryPoint : m_entryPoints)
+    {
+        if (entryPoint && !entryPoint->isFinalized())
+            SLANG_RETURN_ON_FAIL(entryPoint->finalize());
+    }
+    return ShaderObject::finalize();
+}
+
+Result ShaderObject::getOrdinaryDataBuffer(
+    ShaderObjectLayout* layout,
+    Size size,
+    Buffer*& outBuffer,
+    MemoryType memoryType
+)
+{
+    struct OrdinaryData : PreparedShaderObject
+    {
+        RefPtr<Buffer> buffer;
+    };
+    OrdinaryData* data;
+    SLANG_RETURN_ON_FAIL(
+        getPreparedData<OrdinaryData>(
+            layout,
+            {size, uint64_t(memoryType)},
+            [&](OrdinaryData* data)
+            {
+                std::vector<uint8_t> bytes(size, 0);
+                SLANG_RETURN_ON_FAIL(writeOrdinaryData(bytes.data(), size, layout));
+                BufferDesc desc;
+                desc.size = size;
+                desc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
+                desc.defaultState = ResourceState::ConstantBuffer;
+                desc.memoryType = memoryType;
+                ComPtr<IBuffer> buffer;
+                SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, bytes.data(), buffer.writeRef()));
+                data->buffer = checked_cast<Buffer*>(buffer.get());
+                return SLANG_OK;
+            },
+            data
+        )
+    );
+    outBuffer = data->buffer;
     return SLANG_OK;
 }
 
@@ -552,6 +610,11 @@ Result ShaderObject::init(Device* device, ShaderObjectLayout* layout)
 
 Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& args)
 {
+    if (m_finalizedSpecializationArgs)
+    {
+        args.addRange(*m_finalizedSpecializationArgs);
+        return SLANG_OK;
+    }
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
     {
         args.addRange(m_structuredBufferSpecializationArgs);
@@ -674,6 +737,11 @@ Result ShaderObject::writeStructuredBuffer(
 
 void ShaderObject::trackResources(std::set<RefPtr<RefObject>>& resources)
 {
+    if (m_finalizedResources)
+    {
+        resources.insert(m_finalizedResources);
+        return;
+    }
     for (const auto& slot : m_slots)
     {
         if (slot.resource)
@@ -866,6 +934,16 @@ Result RootShaderObject::getSpecializedLayout(
 
 Result RootShaderObject::getSpecializedLayout(ShaderObjectLayout*& outSpecializedLayout)
 {
+    std::unique_lock<std::recursive_mutex> lock(m_preparedMutex, std::defer_lock);
+    if (m_finalized)
+    {
+        lock.lock();
+        if (m_specializedLayout)
+        {
+            outSpecializedLayout = m_specializedLayout;
+            return SLANG_OK;
+        }
+    }
     // Note: There is an important policy decision being made here that we need
     // to approach carefully.
     //
@@ -911,11 +989,18 @@ Result RootShaderObject::getSpecializedLayout(ShaderObjectLayout*& outSpecialize
         SLANG_RETURN_ON_FAIL(collectSpecializationArgs(args));
         SLANG_RETURN_ON_FAIL(getSpecializedLayout(args, outSpecializedLayout));
     }
+    if (m_finalized)
+        m_specializedLayout = outSpecializedLayout;
     return SLANG_OK;
 }
 
 Result RootShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& args)
 {
+    if (m_finalizedSpecializationArgs)
+    {
+        args.addRange(*m_finalizedSpecializationArgs);
+        return SLANG_OK;
+    }
     SLANG_RETURN_ON_FAIL(ShaderObject::collectSpecializationArgs(args));
     for (auto& entryPoint : m_entryPoints)
     {
@@ -927,6 +1012,8 @@ Result RootShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList&
 void RootShaderObject::trackResources(std::set<RefPtr<RefObject>>& resources)
 {
     ShaderObject::trackResources(resources);
+    if (m_finalizedResources)
+        return;
     for (const auto& entryPoint : m_entryPoints)
     {
         if (entryPoint)

@@ -702,8 +702,6 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
 {
     const RenderState& state = cmd.state;
 
-    bool updateBindings = !m_preparedRenderStateValid || cmd.bindingData != m_preparedRenderBindingData;
-
     bool updateVertexBuffers = !m_preparedRenderStateValid || !arraysEqual(
                                                                   state.vertexBufferCount,
                                                                   m_renderState.vertexBufferCount,
@@ -713,11 +711,8 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
     bool updateIndexBuffer = !m_preparedRenderStateValid || state.indexFormat != m_renderState.indexFormat ||
                              state.indexBuffer != m_renderState.indexBuffer;
 
-    if (updateBindings)
-    {
-        m_preparedRenderBindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_preparedRenderBindingData);
-    }
+    m_preparedRenderBindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+    requireBindingStates(m_preparedRenderBindingData);
 
     if (updateVertexBuffers)
     {
@@ -1021,10 +1016,10 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline->m_pipeline);
     }
 
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_bindingData);
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
 
@@ -1084,10 +1079,10 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rayTracingPipeline->m_pipeline);
     }
 
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_bindingData);
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
 
@@ -2215,8 +2210,10 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    if (!rootObject->isFinalized())
+        rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
+    builder.m_resources = &m_commandBuffer->m_trackedObjects;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;

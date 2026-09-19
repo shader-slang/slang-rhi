@@ -1371,6 +1371,11 @@ Result CommandEncoderImpl::init()
 /// We still track textures, upload/readback buffers, and other resources.
 static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
 {
+    if (shaderObject->isFinalized())
+    {
+        shaderObject->trackResources(resources);
+        return;
+    }
     // Track slot resources, but skip device-local buffers
     for (const auto& slot : shaderObject->m_slots)
     {
@@ -1420,9 +1425,11 @@ static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<Ref
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
-    trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
+    if (!rootObject->isFinalized())
+        trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
     BindingDataBuilder builder;
+    builder.m_resources = &m_commandBuffer->m_trackedObjects;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     builder.m_allocator = &m_commandBuffer->m_allocator;

@@ -1089,6 +1089,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
+        tests/test-finalized-shader-object.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp
         tests/test-imported-constant-buffer.cpp

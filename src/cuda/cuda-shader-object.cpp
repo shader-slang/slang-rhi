@@ -6,6 +6,12 @@
 
 namespace rhi::cuda {
 
+struct PreparedBindingData : PreparedShaderObject
+{
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+};
+
 void shaderObjectSetBinding(
     ShaderObject* shaderObject,
     const ShaderOffset& offset,
@@ -92,9 +98,29 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
+    if (shaderObject->isFinalized() && !m_buildingRoot)
+    {
+        PreparedBindingData* data;
+        SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedBindingData>(
+            specializedLayout,
+            {},
+            [&](PreparedBindingData* data)
+            {
+                BindingDataBuilder builder = *this;
+                builder.m_buildingRoot = true;
+                builder.m_allocator = &data->allocator;
+                builder.m_resources = &data->resources;
+                builder.m_bindingCache = &data->bindingCache;
+                return builder.bindAsRoot(shaderObject, specializedLayout, data->bindingData);
+            },
+            data
+        ));
+        m_resources->insert(data);
+        outBindingData = data->bindingData;
+        return SLANG_OK;
+    }
+
     // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
     m_bindingData = m_allocator->allocate<BindingDataImpl>();
 
     // Write global parameters
@@ -137,10 +163,45 @@ Result BindingDataBuilder::writeObjectData(
     ObjectData& outData
 )
 {
+    if (!shaderObject->isFinalized())
+        return writeObjectDataImpl(shaderObject, specializedLayout, memType, outData);
+    struct PreparedObjectData : PreparedShaderObject
+    {
+        ObjectData data = {};
+    };
+    PreparedObjectData* data;
+    SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedObjectData>(
+        specializedLayout,
+        {uint64_t(memType)},
+        [&](PreparedObjectData* data)
+        {
+            BindingDataBuilder builder = *this;
+            builder.m_allocator = &data->allocator;
+            builder.m_resources = &data->resources;
+            builder.m_persistentObjectData = true;
+            return builder.writeObjectDataImpl(shaderObject, specializedLayout, memType, data->data);
+        },
+        data
+    ));
+    m_resources->insert(data);
+    outData = data->data;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::writeObjectDataImpl(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    ConstantBufferMemType memType,
+    ObjectData& outData
+)
+{
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
 
-    ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, allocation));
+    ConstantBufferPool::Allocation allocation = {};
+    if (m_persistentObjectData)
+        allocation.hostData = size ? m_allocator->allocate(size) : nullptr;
+    else
+        SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, allocation));
 
     ObjectData objectData = {};
     objectData.size = size;
@@ -148,7 +209,7 @@ Result BindingDataBuilder::writeObjectData(
     objectData.device = allocation.deviceData;
     uint8_t* dst = (uint8_t*)objectData.host;
 
-    shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout);
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout));
 
     // Bindings are currently written in shaderObjectSetBinding() because
     // the layout does currently only provide uniformOffset but no uniformStride.
@@ -247,6 +308,20 @@ Result BindingDataBuilder::writeObjectData(
         }
     }
 
+    if (m_persistentObjectData && memType == ConstantBufferMemType::Global && size)
+    {
+        BufferDesc desc;
+        desc.size = size;
+        desc.usage = BufferUsage::ConstantBuffer;
+        desc.defaultState = ResourceState::ConstantBuffer;
+        desc.memoryType = MemoryType::DeviceLocal;
+        ComPtr<IBuffer> buffer;
+        // createBuffer completes initialization before the cached pointer is published.
+        SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, objectData.host, buffer.writeRef()));
+        auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+        objectData.device = bufferImpl->getDeviceAddress();
+        m_resources->insert(bufferImpl);
+    }
     outData = objectData;
 
     return SLANG_OK;

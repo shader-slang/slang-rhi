@@ -9,6 +9,8 @@ namespace rhi::metal {
 
 struct BindingDataBuilder
 {
+    std::set<RefPtr<RefObject>>* m_resources = nullptr;
+    bool m_buildingRoot = false;
     DeviceImpl* m_device;
     ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
@@ -60,6 +62,11 @@ struct BindingDataBuilder
     );
 
     Result writeArgumentBuffer(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        BufferImpl*& outArgumentBuffer
+    );
+    Result writeArgumentBufferImpl(
         ShaderObject* shaderObject,
         ShaderObjectLayoutImpl* specializedLayout,
         BufferImpl*& outArgumentBuffer

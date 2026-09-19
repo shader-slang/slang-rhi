@@ -940,6 +940,12 @@ Result CommandEncoder::getPipelineSpecializationArgs(
     if (checked_cast<ShaderProgram*>(pipeline->getProgram())->isSpecializable())
     {
         RootShaderObject* rootObject = checked_cast<RootShaderObject*>(object);
+        if (rootObject->m_finalizedSpecializationArgs)
+        {
+            m_pipelineSpecializationArgs.push_back(rootObject->m_finalizedSpecializationArgs);
+            outSpecializationArgs = rootObject->m_finalizedSpecializationArgs;
+            return SLANG_OK;
+        }
         RefPtr<ExtendedShaderObjectTypeListObject> specializationArgs = new ExtendedShaderObjectTypeListObject();
         rootObject->collectSpecializationArgs(*specializationArgs);
         m_pipelineSpecializationArgs.push_back(specializationArgs);

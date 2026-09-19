@@ -125,6 +125,7 @@ public:
         RayTracing,
     };
 
+    void requireBindingStates(BindingDataImpl* bindingData);
     void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
@@ -865,6 +866,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_cmdList->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
     }
 
+    // Resource uses (including UAV barriers) must be processed even on a binding cache hit.
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
@@ -1081,6 +1084,8 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         m_cmdList->SetPipelineState(m_computePipeline->m_pipelineState);
     }
 
+    // Resource uses (including UAV barriers) must be processed even on a binding cache hit.
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
@@ -1149,6 +1154,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         m_cmdList4->SetPipelineState1(m_rayTracingPipeline->m_stateObject);
     }
 
+    // Resource uses (including UAV barriers) must be processed even on a binding cache hit.
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
@@ -1690,7 +1697,7 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     m_bindingData = nullptr;
 }
 
-void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
 {
     // First, we transition all resources to the required states.
     for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
@@ -1710,7 +1717,10 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
 
     // We need barriers to be committed before setting root parameters.
     commitBarriers();
+}
 
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+{
     // Then we bind the root parameters.
     if (bindMode == BindMode::Graphics)
     {
@@ -2227,8 +2237,10 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    if (!rootObject->isFinalized())
+        rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
+    builder.m_resources = &m_commandBuffer->m_trackedObjects;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;

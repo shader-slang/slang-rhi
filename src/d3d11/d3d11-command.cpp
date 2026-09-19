@@ -1076,8 +1076,10 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    if (!rootObject->isFinalized())
+        rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
+    builder.m_resources = &m_commandBuffer->m_trackedObjects;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
     builder.m_allocator = &m_commandBuffer->m_allocator;

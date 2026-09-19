@@ -5,6 +5,7 @@
 #include "core/common.h"
 #include "core/short_vector.h"
 #include "core/block-allocator.h"
+#include "core/arena-allocator.h"
 
 #include "reference.h"
 
@@ -13,6 +14,8 @@
 #include "rhi-shared-fwd.h"
 
 #include <set>
+#include <mutex>
+#include <algorithm>
 
 namespace rhi {
 
@@ -205,6 +208,22 @@ using ShaderObjectSetBindingHook = void (*)(
     slang::BindingType bindingType
 );
 
+/// Immutable backend data. Recorded commands retain this independently of the shader object.
+/// The layout and resources must outlive all native allocations and pointers in derived classes.
+struct PreparedShaderObject : RefObject
+{
+    RefPtr<ShaderObjectLayout> layout;
+    std::set<RefPtr<RefObject>> resources;
+    ArenaAllocator allocator{4096};
+    const void* kind = nullptr;
+    std::vector<uint64_t> context;
+};
+
+struct ShaderObjectResources : RefObject
+{
+    std::set<RefPtr<RefObject>> resources;
+};
+
 class ShaderObject : public IShaderObject, public ComObject
 {
     SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ShaderObject, 4 * 1024)
@@ -245,6 +264,51 @@ public:
     ExtendedShaderObjectType m_shaderObjectType = {nullptr, kInvalidComponentID};
 
     ShaderObjectSetBindingHook m_setBindingHook = nullptr;
+
+    // Recursive because preparing a root can also prepare its ordinary data.
+    std::recursive_mutex m_preparedMutex;
+    std::vector<RefPtr<PreparedShaderObject>> m_preparedData;
+    RefPtr<ExtendedShaderObjectTypeListObject> m_finalizedSpecializationArgs;
+    RefPtr<ShaderObjectResources> m_finalizedResources;
+
+    template<typename T, typename F>
+    Result getPreparedData(
+        ShaderObjectLayout* layout,
+        std::initializer_list<uint64_t> context,
+        F&& prepare,
+        T*& outData
+    )
+    {
+        SLANG_RHI_ASSERT(m_finalized);
+        static const char kind = 0;
+        std::lock_guard<std::recursive_mutex> lock(m_preparedMutex);
+        for (const auto& data : m_preparedData)
+        {
+            if (data->kind == &kind && data->layout.get() == layout && data->context.size() == context.size() &&
+                std::equal(data->context.begin(), data->context.end(), context.begin()))
+            {
+                outData = static_cast<T*>(data.get());
+                return SLANG_OK;
+            }
+        }
+        RefPtr<T> data = new T();
+        data->kind = &kind;
+        data->layout = layout;
+        data->context.assign(context.begin(), context.end());
+        trackResources(data->resources);
+        SLANG_RETURN_ON_FAIL(prepare(data.get()));
+        outData = data.get();
+        m_preparedData.push_back(data);
+        return SLANG_OK;
+    }
+
+    /// Get persistent uniform storage for a finalized object.
+    Result getOrdinaryDataBuffer(
+        ShaderObjectLayout* layout,
+        Size size,
+        Buffer*& outBuffer,
+        MemoryType memoryType = MemoryType::Upload
+    );
 
 public:
     void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
@@ -299,7 +363,7 @@ public:
         IBuffer** buffer
     );
 
-    void trackResources(std::set<RefPtr<RefObject>>& resources);
+    virtual void trackResources(std::set<RefPtr<RefObject>>& resources);
 
 protected:
     inline void incrementVersion() { m_version++; }
@@ -341,6 +405,7 @@ public:
     // IShaderObject implementation
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override;
 
 public:
     static Result create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject);
@@ -354,7 +419,7 @@ public:
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
-    void trackResources(std::set<RefPtr<RefObject>>& resources);
+    virtual void trackResources(std::set<RefPtr<RefObject>>& resources) override;
 };
 
 bool _doesValueFitInExistentialPayload(
