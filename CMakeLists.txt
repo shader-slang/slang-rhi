@@ -793,6 +793,7 @@ endif()
 
 target_sources(slang-rhi PRIVATE
     src/aftermath.cpp
+    src/binding-data-storage.cpp
     src/command-buffer.cpp
     src/command-list.cpp
     src/cuda-driver-api.cpp
@@ -1168,6 +1169,12 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    if(SLANG_RHI_ENABLE_D3D12)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-d3d12ma)
+        if(SLANG_RHI_ENABLE_NVAPI)
+            target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-nvapi)
+        endif()
+    endif()
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
     endif()

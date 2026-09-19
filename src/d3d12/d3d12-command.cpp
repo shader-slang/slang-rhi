@@ -2237,16 +2237,10 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
+    BindingDataStorage storage(*m_commandBuffer);
     if (!rootObject->isFinalized())
-        rootObject->trackResources(m_commandBuffer->m_trackedObjects);
-    BindingDataBuilder builder;
-    builder.m_resources = &m_commandBuffer->m_trackedObjects;
-    builder.m_device = getDevice<DeviceImpl>();
-    builder.m_allocator = &m_commandBuffer->m_allocator;
-    builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    builder.m_constantBufferArena = &m_commandBuffer->m_constantBufferArena;
-    builder.m_cbvSrvUavArena = &m_commandBuffer->m_cbvSrvUavArena;
-    builder.m_samplerArena = &m_commandBuffer->m_samplerArena;
+        storage.trackResources(rootObject);
+    BindingDataBuilder builder(storage);
     ShaderObjectLayout* specializedLayout = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
     return builder.bindAsRoot(

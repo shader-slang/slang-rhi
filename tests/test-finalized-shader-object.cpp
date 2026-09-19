@@ -1,5 +1,13 @@
 #include "testing.h"
 #include "../src/debug-layer/debug-shader-object.h"
+#if SLANG_RHI_ENABLE_D3D12
+#include "../src/d3d12/d3d12-device.h"
+#include "../src/d3d12/d3d12-shader-object.h"
+#endif
+#if SLANG_RHI_ENABLE_VULKAN
+#include "../src/vulkan/vk-device.h"
+#include "../src/vulkan/vk-shader-object.h"
+#endif
 
 #include <algorithm>
 #include <barrier>
@@ -77,6 +85,142 @@ struct Fixture
 };
 
 } // namespace
+
+namespace {
+
+template<typename Prepared>
+struct TrackedPreparation : Prepared
+{
+    uint32_t* destructions = nullptr;
+    uint32_t* bytes = nullptr;
+    ~TrackedPreparation()
+    {
+        if (destructions)
+            ++*destructions;
+    }
+};
+
+template<typename Prepared, typename Storage, typename Initialize, typename AllocateDescriptors>
+void testBindingStorage(IDevice* device, Initialize initialize, AllocateDescriptors allocateDescriptors)
+{
+    uint32_t destructions = 0;
+    Fixture fixture;
+    fixture.init(device);
+    auto root = fixture.createRoot(device);
+    auto settings = root->getObject(ShaderCursor(root)["settings"].m_offset);
+    if (auto wrapper = dynamic_cast<rhi::debug::DebugShaderObject*>(settings.get()))
+        settings = wrapper->baseObject;
+    auto object = static_cast<ShaderObject*>(settings.get());
+    auto layout = object->m_layout.get();
+
+    // A persistent destination must reject mutable uniform data before it can retain a snapshot.
+    {
+        Prepared owner;
+        initialize(owner);
+        Storage storage(owner);
+        BindingDataStorage::UniformData uniform;
+        CHECK(storage.writeOrdinaryData(object, layout, 4, 256, uniform) == SLANG_E_INVALID_ARG);
+        CHECK(uniform.buffer == nullptr);
+    }
+    REQUIRE_CALL(settings->finalize());
+
+    using Record = TrackedPreparation<Prepared>;
+    uint32_t attempts = 0;
+    RefPtr<RefObject> resource = new RefObject();
+    // Use one factory for the failed attempt, successful retry, and subsequent cache hit.
+    auto prepare = [&](Record* record) -> Result
+    {
+        ++attempts;
+        record->destructions = &destructions;
+        initialize(*record);
+        {
+            Storage storage(*record);
+            storage.retain(resource);
+            record->bytes = storage.template allocate<uint32_t>();
+            *record->bytes = 42;
+            allocateDescriptors(storage, layout);
+            BindingDataStorage::UniformData uniform;
+            SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), 256, uniform));
+            CHECK(uniform.buffer != nullptr);
+            CHECK(uniform.offset == 0);
+        }
+        // Destroying the borrowed view must preserve its owner's allocations and references.
+        CHECK(*record->bytes == 42);
+        CHECK(resource->getReferenceCount() == 2);
+        return attempts == 1 ? SLANG_FAIL : SLANG_OK;
+    };
+
+    Record* record = nullptr;
+    CHECK(SLANG_FAILED(object->getPreparedData<Record>(layout, {}, prepare, record)));
+    CHECK(record == nullptr);
+    CHECK(destructions == 1);
+    CHECK(resource->getReferenceCount() == 1);
+    REQUIRE_CALL(object->getPreparedData<Record>(layout, {}, prepare, record));
+    REQUIRE(record);
+    Record* cached = nullptr;
+    REQUIRE_CALL(object->getPreparedData<Record>(layout, {}, prepare, cached));
+    CHECK(cached == record);
+    CHECK(attempts == 2);
+
+    // Recorded work can retain the preparation independently of both view and shader object.
+    RefPtr<Record> recorded = record;
+    settings = nullptr;
+    root = nullptr;
+    CHECK(destructions == 1);
+    CHECK(*recorded->bytes == 42);
+    CHECK(resource->getReferenceCount() == 2);
+    recorded = nullptr;
+    CHECK(destructions == 2);
+    CHECK(resource->getReferenceCount() == 1);
+}
+
+} // namespace
+
+GPU_TEST_CASE("finalized-shader-object-storage-lifetime", D3D12 | Vulkan)
+{
+#if SLANG_RHI_ENABLE_D3D12
+    if (device->getDeviceType() == DeviceType::D3D12)
+    {
+        auto nativeDevice = static_cast<d3d12::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<d3d12::PreparedBindingData, d3d12::BindingDataStorage>(
+            device,
+            [&](auto& owner)
+            {
+                REQUIRE_CALL(owner.init(nativeDevice));
+            },
+            [](auto& storage, ShaderObjectLayout*)
+            {
+                CHECK(storage.allocateResourceDescriptors(4).isValid());
+                CHECK(storage.allocateSamplerDescriptors(1).isValid());
+            }
+        );
+    }
+#endif
+#if SLANG_RHI_ENABLE_VULKAN
+    if (device->getDeviceType() == DeviceType::Vulkan)
+    {
+        auto nativeDevice = static_cast<vk::DeviceImpl*>(getUnderlyingDevice(device.get()));
+        testBindingStorage<vk::PreparedBindingData, vk::BindingDataStorage>(
+            device,
+            [&](auto& owner)
+            {
+                owner.init(nativeDevice);
+            },
+            [](auto& storage, ShaderObjectLayout* layout)
+            {
+                auto nativeLayout = static_cast<vk::ShaderObjectLayoutImpl*>(layout);
+                REQUIRE(!nativeLayout->getOwnDescriptorSets().empty());
+                for (auto& set : nativeLayout->getOwnDescriptorSets())
+                {
+                    VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+                    REQUIRE_CALL(storage.allocateDescriptorSet(set.descriptorSetLayout, descriptorSet));
+                    CHECK(descriptorSet != VK_NULL_HANDLE);
+                }
+            }
+        );
+    }
+#endif
+}
 
 GPU_TEST_CASE("finalized-shader-object", ALL)
 {

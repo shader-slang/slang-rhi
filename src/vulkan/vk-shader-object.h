@@ -2,7 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-shader-object-layout.h"
-#include "../transient-buffer-heap.h"
+#include "../binding-data-storage.h"
 
 #include "core/short_vector.h"
 
@@ -20,18 +20,40 @@ struct PushConstantBinding
 };
 
 struct ParameterBlockBindingData;
+struct PreparedBindingData;
+
+/// Transient sets belong to the command-buffer pool; persistent sets are returned individually
+/// to the device allocator when their prepared owner is retired.
+class BindingDataStorage : public rhi::BindingDataStorage
+{
+public:
+    explicit BindingDataStorage(CommandBufferImpl& commandBuffer);
+    explicit BindingDataStorage(PreparedBindingData& prepared);
+
+    DeviceImpl* getDevice() const { return m_device; }
+    BindingDataImpl* allocateBindingData();
+    Result allocateDescriptorSet(VkDescriptorSetLayout layout, VkDescriptorSet& outSet);
+
+private:
+    DeviceImpl* m_device;
+    BindingCache& m_bindingCache;
+    DescriptorSetAllocator& m_descriptorSetAllocator;
+    std::vector<VulkanDescriptorSet>* m_persistentDescriptorSets = nullptr;
+};
 
 struct BindingDataBuilder
 {
-    std::set<RefPtr<RefObject>>* m_resources = nullptr;
-    bool m_buildingRoot = false;
-    std::vector<VulkanDescriptorSet>* m_persistentDescriptorSets = nullptr;
-    DeviceImpl* m_device;
-    ArenaAllocator* m_allocator;
-    BindingCache* m_bindingCache;
-    BindingDataImpl* m_bindingData;
-    TransientBufferArena* m_constantBufferArena;
-    DescriptorSetAllocator* m_descriptorSetAllocator;
+    explicit BindingDataBuilder(BindingDataStorage& storage)
+        : m_storage(storage)
+        , m_device(storage.getDevice())
+    {
+    }
+    BindingDataBuilder(const BindingDataBuilder&) = delete;
+    BindingDataBuilder& operator=(const BindingDataBuilder&) = delete;
+
+    BindingDataStorage& m_storage;
+    DeviceImpl* const m_device;
+    BindingDataImpl* m_bindingData = nullptr;
 
     short_vector<PushConstantBinding> m_pushConstants;
 
@@ -111,6 +133,13 @@ struct BindingDataBuilder
         const BindingOffset& inOffset,
         ShaderObjectLayoutImpl* specializedLayout
     );
+
+private:
+    Result bindAsRootImpl(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
+    );
 };
 
 struct BindingDataImpl : BindingData
@@ -174,6 +203,18 @@ struct BindingCache
     std::vector<BindingDataImpl*> bindingData;
 
     void reset() { bindingData.clear(); }
+};
+
+/// Owns persistent allocations, including partially built data on preparation failure.
+struct PreparedBindingData : PreparedShaderObject
+{
+    ~PreparedBindingData();
+    void init(DeviceImpl* deviceImpl) { device = deviceImpl; }
+
+    DeviceImpl* device = nullptr;
+    BindingDataImpl* bindingData = nullptr;
+    BindingCache bindingCache;
+    std::vector<VulkanDescriptorSet> descriptorSets;
 };
 
 } // namespace rhi::vk

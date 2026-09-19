@@ -2,7 +2,7 @@
 
 #include "d3d12-base.h"
 #include "d3d12-shader-object-layout.h"
-#include "../transient-buffer-heap.h"
+#include "../binding-data-storage.h"
 
 #include "core/short_vector.h"
 
@@ -20,18 +20,38 @@ struct DescriptorSet
 
 
 struct ParameterBlockBindingData;
+struct PreparedBindingData;
+
+/// Descriptor destinations borrow the same command-buffer or prepared-object lifetime as CPU data.
+class BindingDataStorage : public rhi::BindingDataStorage
+{
+public:
+    explicit BindingDataStorage(CommandBufferImpl& commandBuffer);
+    explicit BindingDataStorage(PreparedBindingData& prepared);
+
+    DeviceImpl* getDevice() const { return m_device; }
+    GPUDescriptorRange allocateResourceDescriptors(uint32_t count);
+    GPUDescriptorRange allocateSamplerDescriptors(uint32_t count);
+
+private:
+    DeviceImpl* m_device;
+    GPUDescriptorArena& m_resourceDescriptors;
+    GPUDescriptorArena& m_samplerDescriptors;
+};
 
 struct BindingDataBuilder
 {
-    std::set<RefPtr<RefObject>>* m_resources = nullptr;
-    bool m_buildingRoot = false;
-    DeviceImpl* m_device;
-    ArenaAllocator* m_allocator;
-    BindingCache* m_bindingCache;
-    BindingDataImpl* m_bindingData;
-    TransientBufferArena* m_constantBufferArena;
-    GPUDescriptorArena* m_cbvSrvUavArena;
-    GPUDescriptorArena* m_samplerArena;
+    explicit BindingDataBuilder(BindingDataStorage& storage)
+        : m_storage(storage)
+        , m_device(storage.getDevice())
+    {
+    }
+    BindingDataBuilder(const BindingDataBuilder&) = delete;
+    BindingDataBuilder& operator=(const BindingDataBuilder&) = delete;
+
+    BindingDataStorage& m_storage;
+    DeviceImpl* const m_device;
+    BindingDataImpl* m_bindingData = nullptr;
 
     Result bindAsRoot(
         RootShaderObject* shaderObject,
@@ -107,6 +127,13 @@ struct BindingDataBuilder
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
     );
+
+private:
+    Result bindAsRootImpl(
+        RootShaderObject* shaderObject,
+        RootShaderObjectLayoutImpl* specializedLayout,
+        BindingDataImpl*& outBindingData
+    );
 };
 
 struct BindingDataImpl : BindingData
@@ -167,6 +194,17 @@ struct ParameterBlockBindingData
 struct BindingCache
 {
     void reset() {}
+};
+
+/// Owns persistent allocations, including partially built data on preparation failure.
+struct PreparedBindingData : PreparedShaderObject
+{
+    Result init(DeviceImpl* deviceImpl);
+
+    DeviceImpl* device = nullptr;
+    BindingDataImpl* bindingData = nullptr;
+    GPUDescriptorArena resourceDescriptors;
+    GPUDescriptorArena samplerDescriptors;
 };
 
 } // namespace rhi::d3d12
