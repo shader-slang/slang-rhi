@@ -8,6 +8,7 @@
 #include "core/short_vector.h"
 
 #include "staging-heap.h"
+#include "persistent-buffer-pool.h"
 
 #include "rhi.h"
 #include "rhi-shared-fwd.h"
@@ -501,6 +502,7 @@ public:
 
     StagingHeap m_uploadHeap;
     StagingHeap m_readbackHeap;
+    PersistentBufferPool m_persistentUniformPool;
 
     ComPtr<IPersistentCache> m_persistentShaderCache;
     ComPtr<IPersistentCache> m_persistentPipelineCache;

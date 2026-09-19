@@ -17,10 +17,10 @@ Result BindingDataStorage::writeOrdinaryData(
 
     if (object->isFinalized())
     {
-        Buffer* buffer;
-        SLANG_RETURN_ON_FAIL(object->getOrdinaryDataBuffer(layout, allocationSize, buffer));
-        retain(buffer);
-        outData.buffer = buffer;
+        PersistentBufferPool::Allocation* allocation;
+        SLANG_RETURN_ON_FAIL(object->getOrdinaryDataAllocation(layout, allocationSize, allocation));
+        retain(allocation);
+        outData = {allocation->getBuffer(), allocation->getOffset()};
         return SLANG_OK;
     }
 

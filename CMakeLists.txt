@@ -802,6 +802,7 @@ target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
     src/format-conversion.cpp
     src/heap.cpp
+    src/persistent-buffer-pool.cpp
     src/pipeline.cpp
     src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
@@ -1106,6 +1107,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
         tests/test-parallel-pipeline-creation.cpp
+        tests/test-persistent-buffer-pool.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp

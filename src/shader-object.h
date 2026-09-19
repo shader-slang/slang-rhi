@@ -1,4 +1,5 @@
 #pragma once
+#include "persistent-buffer-pool.h"
 
 #include <slang-rhi.h>
 
@@ -302,7 +303,10 @@ public:
         return SLANG_OK;
     }
 
-    /// Get persistent uniform storage for a finalized object.
+    /// Get a reference-counted slice of persistent uniform storage for a finalized object.
+    Result getOrdinaryDataAllocation(ShaderObjectLayout* layout, Size size, PersistentBufferPool::Allocation*& outData);
+
+    /// Get dedicated uniform storage on backends that cannot use persistently mapped pages.
     Result getOrdinaryDataBuffer(
         ShaderObjectLayout* layout,
         Size size,

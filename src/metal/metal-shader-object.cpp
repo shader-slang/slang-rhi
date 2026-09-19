@@ -28,9 +28,19 @@ void BindingDataStorage::retainBuffer(BufferImpl* buffer)
     m_bindingCache.buffers.push_back(buffer);
 }
 
-Result BindingDataStorage::allocateBuffer(Size size, BufferImpl*& outBuffer)
+Result BindingDataStorage::allocateBuffer(Size size, BufferData& outData)
 {
-    outBuffer = nullptr;
+    outData = {};
+    if (isPersistent())
+    {
+        RefPtr<PersistentBufferPool::Allocation> allocation;
+        SLANG_RETURN_ON_FAIL(m_device->m_persistentUniformPool.allocate(size, allocation));
+        retain(allocation);
+        outData =
+            {checked_cast<BufferImpl*>(allocation->getBuffer()), allocation->getOffset(), allocation->getMappedData()};
+        std::memset(outData.mappedData, 0, allocation->getSize());
+        return SLANG_OK;
+    }
     ComPtr<IBuffer> buffer;
     BufferDesc desc = {};
     desc.size = size;
@@ -40,7 +50,7 @@ Result BindingDataStorage::allocateBuffer(Size size, BufferImpl*& outBuffer)
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(desc, nullptr, buffer.writeRef()));
     auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
     retainBuffer(bufferImpl);
-    outBuffer = bufferImpl;
+    outData = {bufferImpl, 0, bufferImpl->m_buffer->contents()};
     return SLANG_OK;
 }
 
@@ -48,25 +58,23 @@ Result BindingDataStorage::writeOrdinaryData(
     ShaderObject* object,
     ShaderObjectLayout* layout,
     Size size,
-    BufferImpl*& outBuffer
+    BufferData& outData
 )
 {
-    outBuffer = nullptr;
+    outData = {};
     if (object->isFinalized())
     {
-        Buffer* buffer;
-        SLANG_RETURN_ON_FAIL(object->getOrdinaryDataBuffer(layout, size, buffer));
-        retain(buffer);
-        outBuffer = checked_cast<BufferImpl*>(buffer);
+        PersistentBufferPool::Allocation* allocation;
+        SLANG_RETURN_ON_FAIL(object->getOrdinaryDataAllocation(layout, size, allocation));
+        retain(allocation);
+        outData =
+            {checked_cast<BufferImpl*>(allocation->getBuffer()), allocation->getOffset(), allocation->getMappedData()};
         return SLANG_OK;
     }
     if (isPersistent())
         return SLANG_E_INVALID_ARG;
-    BufferImpl* buffer;
-    SLANG_RETURN_ON_FAIL(allocateBuffer(size, buffer));
-    SLANG_RETURN_ON_FAIL(object->writeOrdinaryData(buffer->m_buffer->contents(), size, layout));
-    outBuffer = buffer;
-    return SLANG_OK;
+    SLANG_RETURN_ON_FAIL(allocateBuffer(size, outData));
+    return object->writeOrdinaryData(outData.mappedData, size, layout);
 }
 
 inline Result setBuffer(BindingDataImpl* bindingData, uint32_t index, MTL::Buffer* buffer, NS::UInteger offset = 0)
@@ -285,12 +293,14 @@ Result BindingDataBuilder::bindAsParameterBlock(
     if (!m_device->m_hasArgumentBufferTier2)
         return SLANG_FAIL;
 
-    BufferImpl* argumentBuffer = nullptr;
+    BufferData argumentBuffer;
     SLANG_RETURN_ON_FAIL(writeArgumentBuffer(shaderObject, specializedLayout, argumentBuffer));
 
-    if (argumentBuffer)
+    if (argumentBuffer.buffer)
     {
-        SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
+        SLANG_RETURN_ON_FAIL(
+            setBuffer(m_bindingData, inOffset.buffer, argumentBuffer.buffer->m_buffer.get(), argumentBuffer.offset)
+        );
     }
 
     return SLANG_OK;
@@ -505,16 +515,16 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     if (size == 0)
         return SLANG_OK;
 
-    BufferImpl* buffer = nullptr;
+    BufferData buffer;
     SLANG_RETURN_ON_FAIL(m_storage.writeOrdinaryData(shaderObject, specializedLayout, size, buffer));
-    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer++, buffer->m_buffer.get()));
+    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer++, buffer.buffer->m_buffer.get(), buffer.offset));
     return resolvePointerFieldResidency(shaderObject, specializedLayout);
 }
 
 Result BindingDataBuilder::writeArgumentBuffer(
     ShaderObject* shaderObject,
     ShaderObjectLayoutImpl* specializedLayout,
-    BufferImpl*& outArgumentBuffer
+    BufferData& outArgumentBuffer
 )
 {
     if (!shaderObject->isFinalized())
@@ -522,7 +532,7 @@ Result BindingDataBuilder::writeArgumentBuffer(
     struct PreparedArgumentBuffer : PreparedBindingData
     {
         BindingDataImpl uses = {};
-        BufferImpl* buffer = nullptr;
+        BufferData buffer;
     };
     PreparedArgumentBuffer* data;
     SLANG_RETURN_ON_FAIL(shaderObject->getPreparedData<PreparedArgumentBuffer>(
@@ -553,7 +563,7 @@ Result BindingDataBuilder::writeArgumentBuffer(
 Result BindingDataBuilder::writeArgumentBufferImpl(
     ShaderObject* shaderObject,
     ShaderObjectLayoutImpl* specializedLayout,
-    BufferImpl*& outArgumentBuffer
+    BufferData& outArgumentBuffer
 )
 {
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
@@ -562,22 +572,22 @@ Result BindingDataBuilder::writeArgumentBufferImpl(
     // empty struct type in AST. We need to handle this correctly.
     if (argumentBufferTypeLayout->getFieldCount() == 0)
     {
-        outArgumentBuffer = nullptr;
+        outArgumentBuffer = {};
         return SLANG_OK;
     }
 
     if (m_storage.isPersistent() && !shaderObject->isFinalized())
         return SLANG_E_INVALID_ARG;
-    BufferImpl* argumentBufferImpl = nullptr;
-    SLANG_RETURN_ON_FAIL(m_storage.allocateBuffer(argumentBufferTypeLayout->getSize(), argumentBufferImpl));
+    BufferData argumentBuffer;
+    SLANG_RETURN_ON_FAIL(m_storage.allocateBuffer(argumentBufferTypeLayout->getSize(), argumentBuffer));
 
-    memcpy(argumentBufferImpl->m_buffer->contents(), shaderObject->m_data.data(), shaderObject->m_data.size());
+    memcpy(argumentBuffer.mappedData, shaderObject->m_data.data(), shaderObject->m_data.size());
 
     // Once the buffer is allocated, we can fill it in with the uniform data
     // and resource bindings we have tracked, using `argumentBufferTypeLayout` to obtain
     // the offsets for each field.
     //
-    uint8_t* argumentData = (uint8_t*)argumentBufferImpl->m_buffer->contents();
+    uint8_t* argumentData = (uint8_t*)argumentBuffer.mappedData;
 
     // Write all ordinary data early to prevent overwriting gpu-addresses
     // we write below.
@@ -726,13 +736,15 @@ Result BindingDataBuilder::writeArgumentBufferImpl(
             for (uint32_t i = 0; i < count; ++i)
             {
                 auto subObject = shaderObject->m_objects[subObjectIndex + i];
-                BufferImpl* subArgumentBuffer = nullptr;
+                BufferData subArgumentBuffer;
                 SLANG_RETURN_ON_FAIL(writeArgumentBuffer(subObject, subObjectLayout, subArgumentBuffer));
-                DeviceAddress bufferPtr = subArgumentBuffer->m_buffer->gpuAddress();
+                DeviceAddress bufferPtr = subArgumentBuffer.buffer ? subArgumentBuffer.buffer->m_buffer->gpuAddress() +
+                                                                         subArgumentBuffer.offset
+                                                                   : 0;
                 memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
-                if (!m_device->m_hasResidencySet)
+                if (!m_device->m_hasResidencySet && subArgumentBuffer.buffer)
                 {
-                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, subArgumentBuffer->m_buffer.get()));
+                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, subArgumentBuffer.buffer->m_buffer.get()));
                 }
             }
             break;
@@ -744,7 +756,7 @@ Result BindingDataBuilder::writeArgumentBufferImpl(
 
     SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
 
-    outArgumentBuffer = argumentBufferImpl;
+    outArgumentBuffer = argumentBuffer;
     return SLANG_OK;
 }
 

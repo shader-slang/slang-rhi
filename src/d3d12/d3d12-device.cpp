@@ -1246,6 +1246,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     SLANG_RETURN_ON_FAIL(m_queue->init(0));
+    m_persistentUniformPool.initialize(this, 256);
     m_queue->setInternalReferenceCount(1);
 
     // Retrieve timestamp frequency.
@@ -2293,6 +2294,7 @@ DeviceImpl::~DeviceImpl()
 
     m_uploadHeap.release();
     m_readbackHeap.release();
+    m_persistentUniformPool.release();
 
     if (m_queue)
     {

@@ -333,12 +333,12 @@ GPU_TEST_CASE("finalized-shader-object-storage-lifetime", ALL)
             },
             [](auto& storage, ShaderObject* object, ShaderObjectLayout* layout) -> Result
             {
-                metal::BufferImpl* buffer = nullptr;
+                metal::BufferData buffer;
                 SLANG_RETURN_ON_FAIL(storage.writeOrdinaryData(object, layout, object->getSize(), buffer));
-                CHECK(buffer != nullptr);
-                // Argument buffers use the owner's native buffer cache as well.
+                CHECK(buffer.buffer != nullptr);
+                // Argument-buffer slices must also remain owned by the prepared record.
                 REQUIRE_CALL(storage.allocateBuffer(256, buffer));
-                CHECK(buffer != nullptr);
+                CHECK(buffer.buffer != nullptr);
                 return SLANG_OK;
             }
         );
@@ -801,6 +801,113 @@ GPU_TEST_CASE("finalized-shader-object-specialization", ALL)
         queue->submit(commands);
         queue->waitOnHost();
         compareComputeResult(device, buffer, makeArray<float>(16.f, 20.f, 24.f, 28.f));
+    }
+}
+
+GPU_TEST_CASE("finalized-shader-object-pooled-uniform-lifetime", D3D12 | Vulkan | Metal | DontCacheDevice)
+{
+    if (!device->hasFeature(Feature::ParameterBlock))
+        SKIP("no support for parameter blocks");
+    Fixture fixture;
+    fixture.init(device);
+    auto queue = device->getQueue(QueueType::Graphics);
+    constexpr uint32_t kCount = 128;
+    ComPtr<ICommandBuffer> commands[2];
+    for (uint32_t batch = 0; batch < 2; ++batch)
+    {
+        auto encoder = queue->createCommandEncoder();
+        uint32_t zero = 0;
+        REQUIRE_CALL(encoder->uploadBufferData(fixture.output, 0, sizeof(zero), &zero));
+        auto pass = encoder->beginComputePass();
+        for (uint32_t i = 0; i < kCount; ++i)
+        {
+            auto root = fixture.createRoot(device);
+            REQUIRE_CALL(ShaderCursor(root)["iteration"].setData(batch + i));
+            REQUIRE_CALL(ShaderCursor(root)["settings"]["bias"].setData(1 + 3 * i));
+            REQUIRE_CALL(ShaderCursor(root->getEntryPoint(0))["entryBias"].setData(2 * i));
+            REQUIRE_CALL(root->finalize());
+            pass->bindPipeline(fixture.pipeline, root);
+            pass->dispatchCompute(1, 1, 1);
+        }
+        pass->end();
+        commands[batch] = encoder->finish();
+        REQUIRE(commands[batch]);
+    }
+    // Both batches outlive their shader objects and span shared pages. Recording the second
+    // must not recycle slices from the first, even when commands are submitted in reverse order.
+    for (uint32_t index = 0; index < 2; ++index)
+    {
+        uint32_t batch = 1 - index;
+        queue->submit(commands[batch]);
+        queue->waitOnHost();
+        compareComputeResult(
+            device,
+            fixture.output,
+            makeArray<uint32_t>((5 + batch) * kCount + 3 * kCount * (kCount - 1))
+        );
+        commands[batch] = nullptr;
+    }
+}
+
+// First use of many distinct finalized roots exposes allocation cost hidden by the reuse benchmark.
+GPU_TEST_CASE_EX("benchmark-finalized-shader-object-first-use", ALL | DontCacheDevice, DebugLayerOptions{})
+{
+    if (!device->hasFeature(Feature::ParameterBlock))
+        SKIP("no support for parameter blocks");
+    Fixture fixture;
+    fixture.init(device);
+    auto queue = device->getQueue(QueueType::Graphics);
+    using Clock = std::chrono::steady_clock;
+    const uint64_t initialResources = gResourceCount.load();
+    for (uint32_t count : {64u, 1024u})
+    {
+        std::vector<double> times;
+        std::vector<uint64_t> resources;
+        for (uint32_t sample = 0; sample < 8; ++sample)
+        {
+            std::vector<ComPtr<IShaderObject>> roots;
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                auto root = fixture.createRoot(device);
+                REQUIRE_CALL(ShaderCursor(root)["iteration"].setData(i));
+                REQUIRE_CALL(root->finalize());
+                roots.push_back(root);
+            }
+            auto encoder = queue->createCommandEncoder();
+            uint32_t zero = 0;
+            REQUIRE_CALL(encoder->uploadBufferData(fixture.output, 0, sizeof(zero), &zero));
+            auto pass = encoder->beginComputePass();
+            auto start = Clock::now();
+            for (auto& root : roots)
+            {
+                pass->bindPipeline(fixture.pipeline, root);
+                pass->dispatchCompute(1, 1, 1);
+            }
+            auto end = Clock::now();
+            uint64_t peakResources = gResourceCount.load() - initialResources;
+            pass->end();
+            auto commands = encoder->finish();
+            REQUIRE(commands);
+            roots.clear();
+            encoder = nullptr;
+            queue->submit(commands);
+            queue->waitOnHost();
+            compareComputeResult(device, fixture.output, makeArray<uint32_t>(5 * count + count * (count - 1) / 2));
+            if (sample)
+            {
+                times.push_back(std::chrono::duration<double, std::nano>(end - start).count() / count);
+                resources.push_back(peakResources);
+            }
+        }
+        std::sort(times.begin(), times.end());
+        std::sort(resources.begin(), resources.end());
+        std::printf(
+            "binding-first-use,%s,objects=%u,encode-ns=%.1f,peak-extra-resources=%llu\n",
+            deviceTypeToString(device->getDeviceType()),
+            count,
+            times[times.size() / 2],
+            (unsigned long long)resources[resources.size() / 2]
+        );
     }
 }
 

@@ -162,6 +162,7 @@ DeviceImpl::~DeviceImpl()
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
+    m_persistentUniformPool.release();
 
     m_bindlessDescriptorSet.setNull();
 
@@ -1910,6 +1911,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
+    m_persistentUniformPool.initialize(this, max<Size>(256, m_api.m_deviceProperties.limits.minUniformBufferOffsetAlignment));
     m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));

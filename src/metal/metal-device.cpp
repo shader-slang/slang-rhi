@@ -35,6 +35,7 @@ DeviceImpl::~DeviceImpl()
 
     m_uploadHeap.release();
     m_readbackHeap.release();
+    m_persistentUniformPool.release();
 
     if (m_queue)
     {
@@ -149,6 +150,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_commandQueue);
+    m_persistentUniformPool.initialize(this, 256);
     m_queue->setInternalReferenceCount(1);
 
     // Setup capture manager.

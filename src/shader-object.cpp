@@ -486,6 +486,35 @@ Result RootShaderObject::finalize()
     return ShaderObject::finalize();
 }
 
+Result ShaderObject::getOrdinaryDataAllocation(
+    ShaderObjectLayout* layout,
+    Size size,
+    PersistentBufferPool::Allocation*& outData
+)
+{
+    struct OrdinaryData : PreparedShaderObject
+    {
+        RefPtr<PersistentBufferPool::Allocation> allocation;
+    };
+    OrdinaryData* data;
+    SLANG_RETURN_ON_FAIL(
+        getPreparedData<OrdinaryData>(
+            layout,
+            {size},
+            [&](OrdinaryData* data)
+            {
+                SLANG_RETURN_ON_FAIL(m_device->m_persistentUniformPool.allocate(size, data->allocation));
+                auto allocation = data->allocation.get();
+                std::memset(allocation->getMappedData(), 0, allocation->getSize());
+                return writeOrdinaryData(allocation->getMappedData(), size, layout);
+            },
+            data
+        )
+    );
+    outData = data->allocation;
+    return SLANG_OK;
+}
+
 Result ShaderObject::getOrdinaryDataBuffer(
     ShaderObjectLayout* layout,
     Size size,

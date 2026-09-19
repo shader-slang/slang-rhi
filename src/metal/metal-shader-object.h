@@ -11,6 +11,13 @@ namespace rhi::metal {
 
 struct PreparedBindingData;
 
+struct BufferData
+{
+    BufferImpl* buffer = nullptr;
+    Offset offset = 0;
+    void* mappedData = nullptr;
+};
+
 /// Borrows allocations and resource lifetimes from a command buffer or prepared record.
 class BindingDataStorage : public rhi::BindingDataStorage
 {
@@ -18,8 +25,8 @@ public:
     explicit BindingDataStorage(CommandBufferImpl& commandBuffer);
     BindingDataStorage(DeviceImpl* device, PreparedBindingData& prepared);
     DeviceImpl* getDevice() const { return m_device; }
-    Result writeOrdinaryData(ShaderObject* object, ShaderObjectLayout* layout, Size size, BufferImpl*& outBuffer);
-    Result allocateBuffer(Size size, BufferImpl*& outBuffer);
+    Result writeOrdinaryData(ShaderObject* object, ShaderObjectLayout* layout, Size size, BufferData& outData);
+    Result allocateBuffer(Size size, BufferData& outData);
     void retainBuffer(BufferImpl* buffer);
 
 private:
@@ -89,12 +96,12 @@ struct BindingDataBuilder
     Result writeArgumentBuffer(
         ShaderObject* shaderObject,
         ShaderObjectLayoutImpl* specializedLayout,
-        BufferImpl*& outArgumentBuffer
+        BufferData& outArgumentBuffer
     );
     Result writeArgumentBufferImpl(
         ShaderObject* shaderObject,
         ShaderObjectLayoutImpl* specializedLayout,
-        BufferImpl*& outArgumentBuffer
+        BufferData& outArgumentBuffer
     );
 
     Result writeOrdinaryDataIntoArgumentBuffer(
