@@ -35,7 +35,10 @@ Result DebugDevice::getCUDACompilerInfo(CUDACompilerInfo* outInfo)
 {
     SLANG_RHI_DEBUG_API(IDevice, getCUDACompilerInfo);
     if (!outInfo)
+    {
+        RHI_VALIDATION_ERROR("'outInfo' must not be null.");
         return SLANG_E_INVALID_ARG;
+    }
     return baseObject->getCUDACompilerInfo(outInfo);
 }
 

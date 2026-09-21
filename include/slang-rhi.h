@@ -3572,12 +3572,6 @@ public:
 
     inline DeviceType getDeviceType() const { return getInfo().deviceType; }
 
-    /// Lazily query the NVRTC used by this device's Slang global session.
-    /// Returns NOT_AVAILABLE on non-CUDA devices; on CUDA, preserves Slang path-query
-    /// errors (including NOT_FOUND and NOT_AVAILABLE) and fails if NVRTC queries fail.
-    /// Configure the global session's compiler before first access or compilation.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCUDACompilerInfo(CUDACompilerInfo* outInfo) = 0;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 
     /// Returns a list of features supported by the device.
@@ -4022,6 +4016,12 @@ public:
     /// Pop the CUDA context from the current thread's context stack.
     /// For non-CUDA devices, this is a no-op.
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
+
+    /// Lazily query the NVRTC used by this device's Slang global session.
+    /// Returns NOT_AVAILABLE on non-CUDA devices; on CUDA, preserves Slang path-query
+    /// errors (including NOT_FOUND and NOT_AVAILABLE) and fails if NVRTC queries fail.
+    /// Configure the global session's compiler before first access or compilation.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCUDACompilerInfo(CUDACompilerInfo* outInfo) = 0;
 };
 
 /// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.

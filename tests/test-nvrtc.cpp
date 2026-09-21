@@ -4,6 +4,7 @@
 
 #include "cuda/cuda-nvrtc.h"
 #include "cuda/cuda-api.h"
+#include "debug-layer/debug-device.h"
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -99,7 +100,18 @@ GPU_TEST_CASE("cuda-compiler-info", CUDA)
     REQUIRE(device->getCUDACompilerInfo(&repeated) == SLANG_OK);
     CHECK(info.path == repeated.path);
     CHECK(info.supportedArchitectures == repeated.supportedArchitectures);
-    CHECK(device->getCUDACompilerInfo(nullptr) == SLANG_E_INVALID_ARG);
+    struct Callback : IDebugCallback
+    {
+        bool reportedError = false;
+        void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+        {
+            reportedError = type == DebugMessageType::Error && source == DebugMessageSource::Layer &&
+                            std::strstr(message, "'outInfo' must not be null.");
+        }
+    } callback;
+    debug::DebugDevice debugDevice(DeviceType::CUDA, &callback);
+    CHECK(debugDevice.getCUDACompilerInfo(nullptr) == SLANG_E_INVALID_ARG);
+    CHECK(callback.reportedError);
 }
 
 TEST_CASE("nvrtc")
