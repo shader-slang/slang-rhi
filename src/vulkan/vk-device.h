@@ -267,14 +267,26 @@ public:
     // driven entirely by the app's existing calls: released to EXTERNAL on waitOnHost(), and
     // reclaimed by the producer before its next access (its next submit(), or a readBuffer). The
     // external consumer accesses the memory only after that host wait returns. Register/unregister
-    // track the live shared resources; the release/acquire helpers record the QFOT barriers for
-    // every registered resource in the matching state.
+    // track the live shared resources.
+    //
+    // Release is coarse: waitOnHost() releases every producer-owned shared resource, because it does
+    // not know which the external consumer will touch. Acquire is precise: readBuffer reclaims only
+    // the one buffer it reads, and a submit reclaims only the shared resources referenced by the
+    // submitted command buffers' tracked objects. That precise acquire is complete because a Shared
+    // resource cannot reach a submit untracked: the two paths that would bypass the tracked-object
+    // scan -- taking a device address (BufferImpl::getDeviceAddress) or a bindless descriptor handle
+    // (BindlessDescriptorSet::alloc*) -- are errors for Shared resources on Vulkan.
     void registerSharedBuffer(BufferImpl* buffer);
     void unregisterSharedBuffer(BufferImpl* buffer);
     void registerSharedTexture(TextureImpl* texture);
     void unregisterSharedTexture(TextureImpl* texture);
     void releaseSharedToExternal();
-    void acquireSharedFromExternal();
+    // Reacquire just the given buffer if it is currently released to EXTERNAL (used by readBuffer,
+    // whose readback is a producer access on a single buffer that bypasses submit()).
+    void acquireSharedFromExternal(BufferImpl* buffer);
+    // Reacquire the shared resources a submit references via its command buffers' tracked objects.
+    // No-op when nothing is released.
+    void acquireSharedForSubmit(ICommandBuffer* const* commandBuffers, uint32_t commandBufferCount);
 
 public:
     DeviceNativeHandles m_existingDeviceHandles;

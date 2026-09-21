@@ -184,7 +184,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
         geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
         geometry.geometry.instances.arrayOfPointers = 0;
-        geometry.geometry.instances.data.deviceAddress = instances.instanceBuffer.getDeviceAddress();
+        geometry.geometry.instances.data.deviceAddress = getBufferDeviceAddress(instances.instanceBuffer);
 
         primitiveCounts[0] = instances.instanceCount;
 
@@ -219,14 +219,14 @@ Result AccelerationStructureBuildDescConverter::convert(
             geometry.flags = translateGeometryFlags(triangles.flags);
             geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
             geometry.geometry.triangles.vertexFormat = getVkFormat(triangles.vertexFormat);
-            geometry.geometry.triangles.vertexData.deviceAddress = triangles.vertexBuffers[0].getDeviceAddress();
+            geometry.geometry.triangles.vertexData.deviceAddress = getBufferDeviceAddress(triangles.vertexBuffers[0]);
             geometry.geometry.triangles.vertexStride = triangles.vertexStride;
             geometry.geometry.triangles.maxVertex = triangles.vertexCount - 1;
             if (triangles.indexBuffer)
             {
                 geometry.geometry.triangles.indexType =
                     triangles.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
-                geometry.geometry.triangles.indexData.deviceAddress = triangles.indexBuffer.getDeviceAddress();
+                geometry.geometry.triangles.indexData.deviceAddress = getBufferDeviceAddress(triangles.indexBuffer);
             }
             else
             {
@@ -234,14 +234,14 @@ Result AccelerationStructureBuildDescConverter::convert(
                 geometry.geometry.triangles.indexData.deviceAddress = 0;
             }
             geometry.geometry.triangles.transformData.deviceAddress =
-                triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
+                getBufferDeviceAddress(triangles.preTransformBuffer);
 
             if (useMotion)
             {
                 VkAccelerationStructureGeometryMotionTrianglesDataNV& motionData = motionTrianglesDatas[i];
                 motionData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_MOTION_TRIANGLES_DATA_NV;
                 motionData.pNext = nullptr;
-                motionData.vertexData.deviceAddress = triangles.vertexBuffers[1].getDeviceAddress();
+                motionData.vertexData.deviceAddress = getBufferDeviceAddress(triangles.vertexBuffers[1]);
 
                 geometry.geometry.triangles.pNext = &motionData;
             }
@@ -271,7 +271,7 @@ Result AccelerationStructureBuildDescConverter::convert(
                         ommData.indexType = VK_INDEX_TYPE_UINT32;
                     else
                         return SLANG_E_INVALID_ARG;
-                    ommData.indexBuffer.deviceAddress = ommDesc->link.indexBuffer.getDeviceAddress();
+                    ommData.indexBuffer.deviceAddress = getBufferDeviceAddress(ommDesc->link.indexBuffer);
                     ommData.indexStride = ommDesc->link.indexStride;
                 }
                 else
@@ -313,7 +313,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
             geometry.flags = translateGeometryFlags(proceduralPrimitives.flags);
             geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
-            geometry.geometry.aabbs.data.deviceAddress = proceduralPrimitives.aabbBuffers[0].getDeviceAddress();
+            geometry.geometry.aabbs.data.deviceAddress = getBufferDeviceAddress(proceduralPrimitives.aabbBuffers[0]);
             geometry.geometry.aabbs.stride = proceduralPrimitives.aabbStride;
 
             primitiveCounts[i] = proceduralPrimitives.primitiveCount;
@@ -343,16 +343,16 @@ Result AccelerationStructureBuildDescConverter::convert(
             spheresData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_SPHERES_DATA_NV;
 
             spheresData.vertexFormat = getVkFormat(spheres.vertexPositionFormat);
-            spheresData.vertexData.deviceAddress = spheres.vertexPositionBuffers[0].getDeviceAddress();
+            spheresData.vertexData.deviceAddress = getBufferDeviceAddress(spheres.vertexPositionBuffers[0]);
             spheresData.vertexStride = spheres.vertexPositionStride;
             spheresData.radiusFormat = getVkFormat(spheres.vertexRadiusFormat);
-            spheresData.radiusData.deviceAddress = spheres.vertexRadiusBuffers[0].getDeviceAddress();
+            spheresData.radiusData.deviceAddress = getBufferDeviceAddress(spheres.vertexRadiusBuffers[0]);
             spheresData.radiusStride = spheres.vertexRadiusStride;
             if (spheres.indexBuffer)
             {
                 spheresData.indexType =
                     spheres.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
-                spheresData.indexData.deviceAddress = spheres.indexBuffer.getDeviceAddress();
+                spheresData.indexData.deviceAddress = getBufferDeviceAddress(spheres.indexBuffer);
                 spheresData.indexStride = spheres.indexFormat == IndexFormat::Uint32 ? 4 : 2;
             }
             else
@@ -395,16 +395,16 @@ Result AccelerationStructureBuildDescConverter::convert(
             lssData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_LINEAR_SWEPT_SPHERES_DATA_NV;
 
             lssData.vertexFormat = getVkFormat(lss.vertexPositionFormat);
-            lssData.vertexData.deviceAddress = lss.vertexPositionBuffers[0].getDeviceAddress();
+            lssData.vertexData.deviceAddress = getBufferDeviceAddress(lss.vertexPositionBuffers[0]);
             lssData.vertexStride = lss.vertexPositionStride;
             lssData.radiusFormat = getVkFormat(lss.vertexRadiusFormat);
-            lssData.radiusData.deviceAddress = lss.vertexRadiusBuffers[0].getDeviceAddress();
+            lssData.radiusData.deviceAddress = getBufferDeviceAddress(lss.vertexRadiusBuffers[0]);
             lssData.radiusStride = lss.vertexRadiusStride;
             if (lss.indexBuffer)
             {
                 lssData.indexType =
                     lss.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
-                lssData.indexData.deviceAddress = lss.indexBuffer.getDeviceAddress();
+                lssData.indexData.deviceAddress = getBufferDeviceAddress(lss.indexBuffer);
                 lssData.indexStride = lss.indexFormat == IndexFormat::Uint32 ? 4 : 2;
             }
             else
@@ -452,8 +452,8 @@ Result MicromapBuildDescConverter::convert(const MicromapBuildDesc& desc)
     buildInfo.mode = VK_BUILD_MICROMAP_MODE_BUILD_EXT;
     buildInfo.usageCountsCount = (uint32_t)usageCounts.size();
     buildInfo.pUsageCounts = usageCounts.data();
-    buildInfo.data.deviceAddress = desc.dataBuffer.getDeviceAddress();
-    buildInfo.triangleArray.deviceAddress = desc.descriptorBuffer.getDeviceAddress();
+    buildInfo.data.deviceAddress = getBufferDeviceAddress(desc.dataBuffer);
+    buildInfo.triangleArray.deviceAddress = getBufferDeviceAddress(desc.descriptorBuffer);
     buildInfo.triangleArrayStride = desc.descriptorStride;
     return SLANG_OK;
 }

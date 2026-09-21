@@ -247,6 +247,23 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
+    // A device address can be baked into a shader and used without ever binding this buffer, so a
+    // submit's tracked-object scan can never see it and cannot know to reacquire it from
+    // VK_QUEUE_FAMILY_EXTERNAL; we forbid the public entry rather than track it approximately.
+    // Internal command recording uses getDeviceAddressUnchecked() instead, where the operand buffer
+    // is retained by the recording command buffer and so is tracked and reacquired.
+    if (is_set(m_desc.usage, BufferUsage::Shared))
+    {
+        getDevice<DeviceImpl>()->printError(
+            "Cannot take a device address of a buffer created with BufferUsage::Shared on Vulkan."
+        );
+        return 0;
+    }
+    return getDeviceAddressUnchecked();
+}
+
+DeviceAddress BufferImpl::getDeviceAddressUnchecked()
+{
     if (m_deviceAddress != 0)
     {
         return m_deviceAddress;
@@ -260,13 +277,10 @@ DeviceAddress BufferImpl::getDeviceAddress()
         return 0;
     }
 
-    if (!m_deviceAddress)
-    {
-        VkBufferDeviceAddressInfo info = {};
-        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-        info.buffer = m_buffer.m_buffer;
-        m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
-    }
+    VkBufferDeviceAddressInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    info.buffer = m_buffer.m_buffer;
+    m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
 
     return m_deviceAddress;
 }
@@ -288,17 +302,18 @@ Result BufferImpl::getDescriptorHandle(
     range = resolveBufferRange(range);
 
     DescriptorHandleKey key = {access, format, range};
-    DescriptorHandle& handle = m_descriptorHandles[key];
-    if (handle)
+    auto it = m_descriptorHandles.find(key);
+    if (it != m_descriptorHandles.end())
     {
-        *outHandle = handle;
+        *outHandle = it->second;
         return SLANG_OK;
     }
 
-    if (!handle)
-    {
-        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle));
-    }
+    // Allocate into a local first so a failed allocation (e.g. a Shared buffer, which allocBufferHandle
+    // rejects on Vulkan) does not leave an empty cache entry behind.
+    DescriptorHandle handle;
+    SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle));
+    m_descriptorHandles[key] = handle;
 
     *outHandle = handle;
     return SLANG_OK;
