@@ -23,6 +23,7 @@ ShaderProgram::ShaderProgram(Device* device, const ShaderProgramDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_descHolder.holdString(m_desc.cacheKeySalt);
     m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
 
     m_id = device->m_nextShaderProgramID.fetch_add(1);
@@ -135,6 +136,28 @@ Result ShaderProgram::compileShaders(Device* device)
     return SLANG_OK;
 }
 
+ComPtr<ISlangBlob> ShaderProgram::getEntryPointCacheKey(
+    slang::IComponentType* componentType,
+    uint32_t entryPointIndex,
+    uint32_t targetIndex
+)
+{
+    ComPtr<ISlangBlob> key;
+    componentType->getEntryPointHash(entryPointIndex, targetIndex, key.writeRef());
+    if (key && m_desc.cacheKeySalt && m_desc.cacheKeySalt[0])
+    {
+        // Slang may omit link-time options: https://github.com/shader-slang/slang/issues/13197.
+        // Keep the supplemented key shared by cache lookups, writes and compilation reports.
+        SHA1 hash;
+        hash.update(std::string_view("rhi-shader-cache-salt-v1"));
+        hash.update(key->getBufferPointer(), key->getBufferSize());
+        hash.update(std::string_view(m_desc.cacheKeySalt));
+        auto digest = hash.getDigest();
+        key = OwnedBlob::create(digest.data(), digest.size());
+    }
+    return key;
+}
+
 Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints)
 {
     outEntryPoints.clear();
@@ -156,7 +179,7 @@ Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<C
         entryPoint.name = string::from_cstr(reflection->getNameOverride());
         if (device->m_persistentShaderCache)
         {
-            componentType->getEntryPointHash(entryPointIndex, 0, entryPoint.cacheKey.writeRef());
+            entryPoint.cacheKey = getEntryPointCacheKey(componentType, entryPointIndex, 0);
         }
         outEntryPoints.push_back(std::move(entryPoint));
         return SLANG_OK;

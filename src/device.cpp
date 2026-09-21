@@ -406,7 +406,6 @@ Result Device::getEntryPointCodeFromShaderCache(
     TimePoint startTime = Timer::now();
     ComPtr<ISlangBlob> codeBlob;
     ComPtr<ISlangBlob> hashBlob(cacheKey);
-    SLANG_UNUSED(program);
     SLANG_UNUSED(entryPointName);
 
     if (outStats)
@@ -420,7 +419,7 @@ Result Device::getEntryPointCodeFromShaderCache(
         // Hash all relevant state for generating the entry point shader code to use as a key
         // for the shader cache.
         if (!hashBlob)
-            componentType->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
+            hashBlob = program->getEntryPointCacheKey(componentType, entryPointIndex, targetIndex);
 
         // Query the shader cache.
         Result cacheResult = m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef());

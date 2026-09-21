@@ -107,6 +107,12 @@ public:
 
     Result compileShaders(Device* device);
 
+    ComPtr<ISlangBlob> getEntryPointCacheKey(
+        slang::IComponentType* componentType,
+        uint32_t entryPointIndex,
+        uint32_t targetIndex
+    );
+
     /// Must be called while holding m_compileMutex. Performs only front-end/reflection work.
     Result prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints);
 

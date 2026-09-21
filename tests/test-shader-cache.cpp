@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "core/sha1.h"
 
 #include <filesystem>
 #include <fstream>
@@ -43,6 +44,12 @@ public:
         return m_stats;
     }
 
+    Key getLastQueryKey() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_lastQueryKey;
+    }
+
     void setMaxEntryCount(uint32_t maxEntryCount)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -84,6 +91,7 @@ public:
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
         );
         std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastQueryKey = key;
         auto it = m_entries.find(key);
         if (it == m_entries.end())
         {
@@ -124,6 +132,7 @@ private:
     mutable std::mutex m_mutex;
     std::map<Key, Entry> m_entries;
     Stats m_stats;
+    Key m_lastQueryKey;
     uint32_t m_maxEntryCount = 1024;
     uint32_t m_ticketCounter = 0;
 };
@@ -138,6 +147,7 @@ struct ShaderCacheTest
 {
     GpuTestContext* ctx;
     std::filesystem::path tempDirectory;
+    bool enableCompilationReports = false;
 
     ComPtr<IDevice> device;
     ComPtr<IComputePipeline> computePipeline;
@@ -207,6 +217,7 @@ struct ShaderCacheTest
         deviceDesc.slang.searchPaths = searchPaths.data();
         deviceDesc.slang.searchPathCount = searchPaths.size();
         deviceDesc.persistentShaderCache = &shaderCache;
+        deviceDesc.enableCompilationReports = enableCompilationReports;
 
         std::vector<slang::CompilerOptionEntry> entries;
         slang::CompilerOptionEntry emitSpirvDirectlyEntry;
@@ -531,6 +542,7 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
 struct ShaderCacheTestSpecialization : ShaderCacheTest
 {
     slang::ProgramLayout* slangReflection = nullptr;
+    const char* cacheKeySalt = nullptr;
 
     void createComputePipeline()
     {
@@ -543,6 +555,15 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
             shaderProgram.writeRef(),
             &slangReflection
         ));
+
+        if (cacheKeySalt)
+        {
+            auto desc = shaderProgram->getDesc();
+            desc.cacheKeySalt = cacheKeySalt;
+            ComPtr<IShaderProgram> saltedProgram;
+            REQUIRE_CALL(device->createShaderProgram(desc, saltedProgram.writeRef()));
+            shaderProgram = saltedProgram;
+        }
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -604,6 +625,87 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
+    }
+};
+
+struct ShaderCacheTestSalt : ShaderCacheTest
+{
+    VirtualShaderCache::Key compile(const char* salt, bool expectHit, bool mutateCallerString = false)
+    {
+        createDevice();
+        ComPtr<IShaderProgram> original;
+        REQUIRE_CALL(loadAndLinkProgram(device, "shader-cache-salt", "main", original.writeRef()));
+        auto desc = original->getDesc();
+        ComPtr<ISlangBlob> originalKey;
+        desc.slangGlobalScope->getEntryPointHash(0, 0, originalKey.writeRef());
+        REQUIRE(originalKey);
+
+        ComPtr<IShaderProgram> program;
+        {
+            std::string callerSalt = salt ? salt : "";
+            desc.cacheKeySalt = salt ? callerSalt.c_str() : nullptr;
+            REQUIRE_CALL(device->createShaderProgram(desc, program.writeRef()));
+            if (mutateCallerString)
+                callerSalt.assign(callerSalt.size(), 'x');
+        }
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, computePipeline.writeRef()));
+        createComputeResources();
+        dispatchComputePipeline();
+        CHECK(checkOutput({1.f, 2.f, 3.f, 4.f}));
+
+        auto key = shaderCache.getLastQueryKey();
+        REQUIRE(!key.empty());
+        if (!salt || !salt[0])
+        {
+            REQUIRE(key.size() == originalKey->getBufferSize());
+            CHECK(std::memcmp(key.data(), originalKey->getBufferPointer(), key.size()) == 0);
+        }
+        ComPtr<ISlangBlob> reportBlob;
+        REQUIRE_CALL(program->getCompilationReport(reportBlob.writeRef()));
+        auto report = static_cast<const CompilationReport*>(reportBlob->getBufferPointer());
+        REQUIRE(report->entryPointReportCount == 1);
+        const auto& entry = report->entryPointReports[0];
+        CHECK(entry.isCached == expectHit);
+        CHECK(entry.cacheKey.type == CompilationReport::CacheKeyDigest::Type::SHA1);
+        auto digest = SHA1(key.data(), key.size()).getDigest();
+        CHECK(std::memcmp(entry.cacheKey.bytes, digest.data(), digest.size()) == 0);
+        freeComputeResources();
+        return key;
+    }
+
+    void runTests() override
+    {
+        enableCompilationReports = true;
+        writeShader(computeShaderA, "shader-cache-salt.slang");
+        auto original = compile(nullptr, false);
+        CHECK(compile("", true) == original);
+        auto keyA = compile("target-a", false, true);
+        auto keyB = compile("target-b", false);
+        CHECK(keyA != original);
+        CHECK(keyB != original);
+        CHECK(keyA != keyB);
+        CHECK(compile("target-a", true) == keyA);
+        CHECK(compile("target-b", true) == keyB);
+        CHECK(getStats().missCount == 3);
+        CHECK(getStats().hitCount == 3);
+    }
+};
+
+struct ShaderCacheTestSaltSpecialization : ShaderCacheTestSpecialization
+{
+    void runTests() override
+    {
+        for (const char* salt : {"target-a", "target-b", "target-a", "target-b"})
+        {
+            cacheKeySalt = salt;
+            createDevice();
+            runComputePipeline("AddTransformer", {5.f, 6.f, 7.f, 8.f});
+        }
+        CHECK(getStats().missCount == 2);
+        CHECK(getStats().hitCount == 2);
+        CHECK(getStats().entryCount == 2);
     }
 };
 
@@ -943,6 +1045,16 @@ GPU_TEST_CASE("shader-cache-import-include", D3D12 | Vulkan | DontCreateDevice)
 GPU_TEST_CASE("shader-cache-specialization", D3D12 | Vulkan | DontCreateDevice)
 {
     runTest<ShaderCacheTestSpecialization>(ctx);
+}
+
+GPU_TEST_CASE("shader-cache-salt", D3D12 | Vulkan | DontCreateDevice)
+{
+    runTest<ShaderCacheTestSalt>(ctx);
+}
+
+GPU_TEST_CASE("shader-cache-salt-specialization", D3D12 | Vulkan | DontCreateDevice)
+{
+    runTest<ShaderCacheTestSaltSpecialization>(ctx);
 }
 
 GPU_TEST_CASE("shader-cache-eviction", D3D12 | Vulkan | DontCreateDevice)

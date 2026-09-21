@@ -321,6 +321,11 @@ struct ShaderProgramDesc
     uint32_t slangEntryPointCount = 0;
 
     const char* label = nullptr;
+
+    /// Optional application data mixed into each persistent shader-cache key, in addition to Slang's hash.
+    /// Use for code-generation settings not represented by Slang. Null or empty preserves the original key.
+    /// The string is copied during program creation and inherited by specialized programs.
+    const char* cacheKeySalt = nullptr;
 };
 
 class IShaderProgram : public ISlangUnknown
