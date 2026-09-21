@@ -18,6 +18,48 @@
 
 namespace rhi::cuda {
 
+Result DeviceImpl::getCUDACompilerInfo(CUDACompilerInfo* outInfo)
+{
+    if (!outInfo)
+        return SLANG_E_INVALID_ARG;
+    *outInfo = {};
+    std::lock_guard lock(m_cudaCompilerInfoMutex);
+    if (!m_cudaCompilerInfoInitialized)
+    {
+        ComPtr<ISlangBlob> path;
+        Result result =
+            m_slangContext.globalSession->getDownstreamCompilerPath(SLANG_PASS_THROUGH_NVRTC, path.writeRef());
+        if (SLANG_FAILED(result))
+        {
+            handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Cannot query Slang's NVRTC library path."
+            );
+            return result;
+        }
+        m_cudaCompilerPath = static_cast<const char*>(path->getBufferPointer());
+        // Function pointers only live during discovery; Slang retains its own library handle.
+        NVRTC compiler;
+        result = compiler.initializeQuery(m_cudaCompilerPath.c_str());
+        if (SLANG_SUCCEEDED(result))
+            result = compiler.queryCompilerInfo(m_cudaCompilerInfo, m_cudaCompilerArchitectures);
+        if (SLANG_FAILED(result))
+        {
+            handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Cannot query Slang's NVRTC capabilities."
+            );
+            return result;
+        }
+        m_cudaCompilerInfo.path = m_cudaCompilerPath.c_str();
+        m_cudaCompilerInfoInitialized = true;
+    }
+    *outInfo = m_cudaCompilerInfo;
+    return SLANG_OK;
+}
+
 struct ComputeCapabilityInfo
 {
     int major;
@@ -220,6 +262,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         cuDeviceGetAttribute(&computeCapabilityMinor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
         this
     );
+
+    m_info.cudaComputeCapability = uint32_t(computeCapabilityMajor * 10 + computeCapabilityMinor);
 
     auto hasComputeCapability = [&](int major, int minor = 0) -> bool
     {

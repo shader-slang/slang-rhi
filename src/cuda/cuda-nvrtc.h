@@ -25,6 +25,8 @@ typedef void* nvrtcProgram;
 
 typedef const char*(nvrtcGetErrorStringFunc)(nvrtcResult result);
 typedef nvrtcResult(nvrtcVersionFunc)(int* major, int* minor);
+typedef nvrtcResult(nvrtcGetNumSupportedArchsFunc)(int* count);
+typedef nvrtcResult(nvrtcGetSupportedArchsFunc)(int* architectures);
 typedef nvrtcResult(nvrtcCreateProgramFunc)(
     nvrtcProgram* prog,
     const char* src,
@@ -49,6 +51,11 @@ public:
 
     Result initialize(IDebugCallback* debugCallback = nullptr);
 
+    /// Load query symbols from exactly this library, without finding CUDA headers.
+    Result initializeQuery(const char* path);
+    /// Query identity and the full architecture list. Output pointers borrow architectures.
+    Result queryCompilerInfo(CUDACompilerInfo& info, std::vector<uint32_t>& architectures);
+
     struct CompileResult
     {
         nvrtcResult result;
@@ -61,6 +68,8 @@ public:
     // Raw NVRTC API
     nvrtcGetErrorStringFunc* nvrtcGetErrorString = nullptr;
     nvrtcVersionFunc* nvrtcVersion = nullptr;
+    nvrtcGetNumSupportedArchsFunc* nvrtcGetNumSupportedArchs = nullptr;
+    nvrtcGetSupportedArchsFunc* nvrtcGetSupportedArchs = nullptr;
     nvrtcCreateProgramFunc* nvrtcCreateProgram = nullptr;
     nvrtcDestroyProgramFunc* nvrtcDestroyProgram = nullptr;
     nvrtcCompileProgramFunc* nvrtcCompileProgram = nullptr;

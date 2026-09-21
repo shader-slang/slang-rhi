@@ -3344,6 +3344,20 @@ struct DeviceLimits
     uint32_t maxShaderVisibleSamplers;
 };
 
+/// Information queried from the NVRTC selected by this device's Slang global session.
+/// Pointers borrow immutable storage valid until the device is released.
+struct CUDACompilerInfo
+{
+    const char* path = nullptr;
+    uint32_t versionMajor = 0;
+    uint32_t versionMinor = 0;
+    /// False means the loaded compiler has no architecture-query API.
+    bool architectureQueryAvailable = false;
+    uint32_t supportedArchitectureCount = 0;
+    /// Complete NVRTC architecture list, encoded as major * 10 + minor.
+    const uint32_t* supportedArchitectures = nullptr;
+};
+
 struct DeviceInfo
 {
     DeviceType deviceType;
@@ -3369,6 +3383,8 @@ struct DeviceInfo
     /// The version of OptiX used by the device (0 if OptiX is not supported).
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t optixVersion = 0;
+    /// Exact driver-reported compute capability, major * 10 + minor; zero on non-CUDA devices.
+    uint32_t cudaComputeCapability = 0;
 };
 
 enum class DebugMessageType
@@ -3555,6 +3571,12 @@ public:
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getInfo() const = 0;
 
     inline DeviceType getDeviceType() const { return getInfo().deviceType; }
+
+    /// Lazily query the NVRTC used by this device's Slang global session.
+    /// Returns NOT_AVAILABLE on non-CUDA devices; on CUDA, preserves Slang path-query
+    /// errors (including NOT_FOUND and NOT_AVAILABLE) and fails if NVRTC queries fail.
+    /// Configure the global session's compiler before first access or compilation.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCUDACompilerInfo(CUDACompilerInfo* outInfo) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 

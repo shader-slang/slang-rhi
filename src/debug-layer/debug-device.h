@@ -24,6 +24,7 @@ public:
 
 public:
     // IDevice implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCUDACompilerInfo(CUDACompilerInfo* outInfo) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;

@@ -31,6 +31,14 @@ Result DebugDevice::queryInterface(const SlangUUID& uuid, void** outObject) noex
     return baseObject->queryInterface(uuid, outObject);
 }
 
+Result DebugDevice::getCUDACompilerInfo(CUDACompilerInfo* outInfo)
+{
+    SLANG_RHI_DEBUG_API(IDevice, getCUDACompilerInfo);
+    if (!outInfo)
+        return SLANG_E_INVALID_ARG;
+    return baseObject->getCUDACompilerInfo(outInfo);
+}
+
 Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     SLANG_RHI_DEBUG_API(IDevice, getNativeDeviceHandles);

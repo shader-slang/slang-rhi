@@ -6,6 +6,7 @@
 |------------------------------------|---------|------|-------|-------|--------|---------|------|
 | `getNativeDeviceHandles`           | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getInfo`                          | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `getCUDACompilerInfo`              | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `hasFeature`                       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getFeatures`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getCapabilities`                  | yes     | yes  | yes   | yes   | yes    | yes     | yes  |

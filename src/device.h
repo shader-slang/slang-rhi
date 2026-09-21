@@ -175,6 +175,7 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getInfo() const override { return m_info; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCUDACompilerInfo(CUDACompilerInfo* outInfo) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;

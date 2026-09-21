@@ -9,6 +9,17 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+GPU_TEST_CASE("device-cuda-info-backend", ALL)
+{
+    if (device->getDeviceType() != DeviceType::CUDA)
+    {
+        CUDACompilerInfo info;
+        CHECK(device->getCUDACompilerInfo(&info) == SLANG_E_NOT_AVAILABLE);
+        CHECK(device->getInfo().cudaComputeCapability == 0);
+        CHECK(info.path == nullptr);
+    }
+}
+
 GPU_TEST_CASE("device-wave-size-limits", ALL)
 {
     REQUIRE(device);

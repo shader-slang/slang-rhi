@@ -190,6 +190,48 @@ NVRTC::~NVRTC()
     delete m_impl;
 }
 
+Result NVRTC::initializeQuery(const char* path)
+{
+    if (!path || !*path || m_impl->nvrtcLibrary)
+        return SLANG_E_INVALID_ARG;
+    SLANG_RETURN_ON_FAIL(loadSharedLibrary(path, m_impl->nvrtcLibrary));
+    nvrtcVersion = (nvrtcVersionFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcVersion");
+    nvrtcGetNumSupportedArchs =
+        (nvrtcGetNumSupportedArchsFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetNumSupportedArchs");
+    nvrtcGetSupportedArchs =
+        (nvrtcGetSupportedArchsFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetSupportedArchs");
+    return nvrtcVersion ? SLANG_OK : SLANG_FAIL;
+}
+
+Result NVRTC::queryCompilerInfo(CUDACompilerInfo& info, std::vector<uint32_t>& architectures)
+{
+    info = {};
+    architectures.clear();
+    int major = 0, minor = 0;
+    if (!nvrtcVersion || nvrtcVersion(&major, &minor) != NVRTC_SUCCESS || major < 0 || minor < 0)
+        return SLANG_FAIL;
+    info.versionMajor = uint32_t(major);
+    info.versionMinor = uint32_t(minor);
+    if (!nvrtcGetNumSupportedArchs || !nvrtcGetSupportedArchs)
+        return SLANG_OK;
+    int count = 0;
+    if (nvrtcGetNumSupportedArchs(&count) != NVRTC_SUCCESS || count < 0)
+        return SLANG_FAIL;
+    std::vector<int> values(count);
+    if (count && nvrtcGetSupportedArchs(values.data()) != NVRTC_SUCCESS)
+        return SLANG_FAIL;
+    for (int value : values)
+    {
+        if (value <= 0)
+            return SLANG_FAIL;
+        architectures.push_back(uint32_t(value));
+    }
+    info.architectureQueryAvailable = true;
+    info.supportedArchitectureCount = uint32_t(architectures.size());
+    info.supportedArchitectures = architectures.data();
+    return SLANG_OK;
+}
+
 Result NVRTC::initialize(IDebugCallback* debugCallback)
 {
     // Try to find & load NVRTC library.

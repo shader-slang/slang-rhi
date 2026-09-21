@@ -2,6 +2,7 @@
 
 #include "cuda-base.h"
 #include "cuda-clear-engine.h"
+#include "cuda-nvrtc.h"
 
 namespace rhi::cuda {
 
@@ -32,6 +33,11 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
+    std::mutex m_cudaCompilerInfoMutex;
+    bool m_cudaCompilerInfoInitialized = false;
+    CUDACompilerInfo m_cudaCompilerInfo;
+    std::string m_cudaCompilerPath;
+    std::vector<uint32_t> m_cudaCompilerArchitectures;
     RefPtr<HeapImpl> m_deviceMemHeap;
     RefPtr<HeapImpl> m_hostMemHeap;
 
@@ -42,6 +48,8 @@ public:
     ~DeviceImpl();
 
     Result initialize(const DeviceDesc& desc, BackendImpl* backend);
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCUDACompilerInfo(CUDACompilerInfo* outInfo) override;
 
     void deferDelete(Resource* resource);
 

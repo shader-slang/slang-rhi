@@ -533,6 +533,14 @@ std::vector<Capability> Device::getCapabilities()
     return capabilities;
 }
 
+Result Device::getCUDACompilerInfo(CUDACompilerInfo* outInfo)
+{
+    if (!outInfo)
+        return SLANG_E_INVALID_ARG;
+    *outInfo = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_E_NOT_AVAILABLE;
