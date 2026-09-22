@@ -249,7 +249,7 @@ DeviceAddress BufferImpl::getDeviceAddress()
 {
     // A device address can be baked into a shader and used without ever binding this buffer, so a
     // submit's tracked-object scan can never see it and cannot know to reacquire it from
-    // VK_QUEUE_FAMILY_EXTERNAL; we forbid the public entry rather than track it approximately.
+    // VK_QUEUE_FAMILY_EXTERNAL; taking one from a Shared buffer is therefore an error on Vulkan.
     // Internal command recording uses getDeviceAddressUnchecked() instead, where the operand buffer
     // is retained by the recording command buffer and so is tracked and reacquired.
     if (is_set(m_desc.usage, BufferUsage::Shared))

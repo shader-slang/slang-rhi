@@ -169,7 +169,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
     // A Vulkan shared resource ping-pongs queue-family ownership with VK_QUEUE_FAMILY_EXTERNAL, and
     // the producer reacquire is driven by the objects a submit references. A bindless handle is used
     // without binding the buffer, so that tracked-object scan can never see it and cannot know to
-    // reacquire it; rather than track it approximately, we forbid the combination on Vulkan.
+    // reacquire it; using a Shared buffer this way is therefore an error on Vulkan.
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (is_set(bufferImpl->m_desc.usage, BufferUsage::Shared))
     {
@@ -237,8 +237,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
     TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
 
     // A bindless handle is used without binding the texture, so a submit's tracked-object scan can
-    // never see it and cannot know to reacquire it from VK_QUEUE_FAMILY_EXTERNAL; we forbid the
-    // combination on Vulkan rather than track it approximately.
+    // never see it and cannot know to reacquire it from VK_QUEUE_FAMILY_EXTERNAL; using a Shared
+    // texture this way is therefore an error on Vulkan.
     if (TextureImpl* texture = textureViewImpl->m_texture)
     {
         if (is_set(texture->m_desc.usage, TextureUsage::Shared))
@@ -325,8 +325,8 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     SamplerImpl* samplerImpl = checked_cast<SamplerImpl*>(sampler);
 
     // A bindless handle is used without binding the texture, so a submit's tracked-object scan can
-    // never see it and cannot know to reacquire it from VK_QUEUE_FAMILY_EXTERNAL; we forbid the
-    // combination on Vulkan rather than track it approximately.
+    // never see it and cannot know to reacquire it from VK_QUEUE_FAMILY_EXTERNAL; using a Shared
+    // texture this way is therefore an error on Vulkan.
     if (TextureImpl* texture = textureViewImpl->m_texture)
     {
         if (is_set(texture->m_desc.usage, TextureUsage::Shared))

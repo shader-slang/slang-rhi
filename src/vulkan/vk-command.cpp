@@ -2041,9 +2041,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Reclaim ownership of the shared resources this submit uses that were previously released to
     // VK_QUEUE_FAMILY_EXTERNAL, so the user command buffers below observe the external (e.g. CUDA)
     // writes. Precise: only the shared resources referenced by these command buffers' tracked
-    // objects. This is complete because a Shared resource cannot reach a submit untracked -- taking
-    // its device address or a bindless handle is an error on Vulkan. Recorded as its own
-    // flushAndWait'd submission before the user work, in-order on the same VkQueue.
+    // objects. Through the supported RHI APIs this is complete -- taking a Shared resource's device
+    // address or a bindless handle is an error on Vulkan (getNativeHandle is out of contract).
+    // Recorded as its own flushAndWait'd submission before the user work, in-order on the same VkQueue.
     device->acquireSharedForSubmit(desc.commandBuffers, desc.commandBufferCount);
 
     // Increment last submitted ID which is used to track command buffer completion.

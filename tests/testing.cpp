@@ -637,6 +637,8 @@ ComPtr<IDevice> createTestingDevice(
 #ifdef SLANG_RHI_DEBUG
     deviceDesc.debugCallback = &sDebugCallback;
 #endif
+    if (extraOptions && extraOptions->debugCallback)
+        deviceDesc.debugCallback = extraOptions->debugCallback;
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
     std::vector<slang::CompilerOptionEntry> compilerOptions;

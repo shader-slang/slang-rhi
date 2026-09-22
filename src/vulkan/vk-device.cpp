@@ -2224,11 +2224,8 @@ void DeviceImpl::unregisterSharedTexture(TextureImpl* texture)
         m_sharedTextures.erase(it);
 }
 
-// --- Per-resource QFOT barrier core (shared by release-all, per-buffer acquire, and submit acquire) ---
-//
-// Each builder checks the resource is in the ownership state the transfer starts from, appends one
-// barrier for it, and flips its state. Callers collect the barriers for the resources they select
-// into one command buffer and issue a single flushSharedBarriers, so any batch is one submission.
+// A hand-off can transfer several shared resources at once; batching all their barriers into one
+// flushSharedBarriers keeps it to a single queue submission rather than one per resource.
 
 static void buildSharedReleaseBarrier(
     BufferImpl* buffer,
@@ -2447,10 +2444,10 @@ void DeviceImpl::acquireSharedForSubmit(ICommandBuffer* const* commandBuffers, u
     }
 
     // Acquire each released shared resource this submit references via a tracked object; the others
-    // stay released to EXTERNAL. This is complete because a Shared resource cannot be reached from a
-    // submit without being tracked: device-address and bindless-handle access -- the only paths that
-    // bypass the tracked-object scan -- are errors for Shared resources on Vulkan (see
-    // BufferImpl::getDeviceAddress and BindlessDescriptorSet::alloc*).
+    // stay released to EXTERNAL. Through the supported RHI APIs this is complete: device-address and
+    // bindless-handle access -- the paths that would otherwise reach a Shared resource without a
+    // tracked object -- are errors for Shared resources on Vulkan (see BufferImpl::getDeviceAddress
+    // and BindlessDescriptorSet::alloc*). getNativeHandle circumvents the RHI and is out of contract.
     short_vector<VkBufferMemoryBarrier> bufferBarriers;
     short_vector<VkImageMemoryBarrier> imageBarriers;
     for (BufferImpl* buffer : m_sharedBuffers)

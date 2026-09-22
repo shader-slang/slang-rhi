@@ -259,7 +259,7 @@ public:
 
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
-    // --- Shared-resource queue-family ownership ping-pong (no public API) ---
+    // Shared-resource queue-family ownership ping-pong (no public API).
     //
     // Vulkan shared resources are created VK_SHARING_MODE_EXCLUSIVE, so an external API (e.g. CUDA)
     // importing the underlying memory only observes the producer's writes after a queue-family
@@ -272,10 +272,11 @@ public:
     // Release is coarse: waitOnHost() releases every producer-owned shared resource, because it does
     // not know which the external consumer will touch. Acquire is precise: readBuffer reclaims only
     // the one buffer it reads, and a submit reclaims only the shared resources referenced by the
-    // submitted command buffers' tracked objects. That precise acquire is complete because a Shared
-    // resource cannot reach a submit untracked: the two paths that would bypass the tracked-object
-    // scan -- taking a device address (BufferImpl::getDeviceAddress) or a bindless descriptor handle
-    // (BindlessDescriptorSet::alloc*) -- are errors for Shared resources on Vulkan.
+    // submitted command buffers' tracked objects. Through the supported RHI APIs that precise
+    // acquire is complete: the two paths that would otherwise let a Shared resource reach a submit
+    // without a tracked object -- taking a device address (BufferImpl::getDeviceAddress) or a
+    // bindless descriptor handle (BindlessDescriptorSet::alloc*) -- are errors for Shared resources
+    // on Vulkan. (getNativeHandle lets an app reach around the RHI entirely; that is out of contract.)
     void registerSharedBuffer(BufferImpl* buffer);
     void unregisterSharedBuffer(BufferImpl* buffer);
     void registerSharedTexture(TextureImpl* texture);
