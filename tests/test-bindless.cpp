@@ -781,3 +781,105 @@ GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
         }
     );
 }
+
+namespace {
+// Captures device diagnostics so a test can trigger an expected error without the default
+// fail-on-error test callback failing the case, while still letting it assert the error fired.
+struct RejectionCaptureCallback : public IDebugCallback
+{
+    int errorCount = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource,
+        const char*
+    ) override
+    {
+        if (type == DebugMessageType::Error)
+            ++errorCount;
+    }
+};
+} // namespace
+
+// A shared buffer (BufferUsage::Shared) ping-pongs queue-family ownership with
+// VK_QUEUE_FAMILY_EXTERNAL, and the producer's reacquire on submit is driven by the submit's tracked
+// objects. A device address or a bindless handle would let a submit use the buffer without a tracked
+// object, so on Vulkan those entry points reject a shared buffer -- returning an error and reporting
+// a diagnostic.
+GPU_TEST_CASE("shared-buffer-rejection-vk", Vulkan | DontCreateDevice)
+{
+    RejectionCaptureCallback callback;
+    DeviceExtraOptions options = {};
+    options.debugCallback = &callback;
+    ComPtr<IDevice> testDevice = createTestingDevice(ctx, DeviceType::Vulkan, false, &options);
+    REQUIRE(testDevice != nullptr);
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = 256;
+    bufferDesc.format = Format::R32Float;
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::Shared;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    ComPtr<IBuffer> sharedBuffer;
+    if (SLANG_FAILED(testDevice->createBuffer(bufferDesc, nullptr, sharedBuffer.writeRef())))
+        SKIP("shared buffers not supported on this device");
+
+    // getDeviceAddress()'s only signal beyond the zero sentinel is the reported diagnostic, so assert
+    // both: the sentinel is returned and an error was reported.
+    int errors = callback.errorCount;
+    CHECK_EQ(sharedBuffer->getDeviceAddress(), DeviceAddress(0));
+    CHECK(callback.errorCount > errors);
+
+    // A non-zero offset must not turn the zero sentinel into a bogus valid-looking address.
+    CHECK_EQ(BufferOffsetPair(sharedBuffer, 16).getDeviceAddress(), DeviceAddress(0));
+
+    if (testDevice->hasFeature(Feature::Bindless))
+    {
+        errors = callback.errorCount;
+        DescriptorHandle bufferHandle = {};
+        CHECK(SLANG_FAILED(
+            sharedBuffer
+                ->getDescriptorHandle(DescriptorHandleAccess::Read, Format::R32Float, kEntireBuffer, &bufferHandle)
+        ));
+        CHECK(callback.errorCount > errors);
+    }
+}
+
+// As above for a shared texture: both the bindless texture handle and the combined texture/sampler
+// handle are rejected on Vulkan.
+GPU_TEST_CASE("shared-texture-rejection-vk", Vulkan | DontCreateDevice)
+{
+    RejectionCaptureCallback callback;
+    DeviceExtraOptions options = {};
+    options.debugCallback = &callback;
+    ComPtr<IDevice> testDevice = createTestingDevice(ctx, DeviceType::Vulkan, false, &options);
+    REQUIRE(testDevice != nullptr);
+
+    if (!testDevice->hasFeature(Feature::Bindless))
+        SKIP("bindless not supported on this device");
+
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2D;
+    textureDesc.size = {4, 4, 1};
+    textureDesc.format = Format::R32Float;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::Shared;
+    ComPtr<ITexture> sharedTexture;
+    if (SLANG_FAILED(testDevice->createTexture(textureDesc, nullptr, sharedTexture.writeRef())))
+        SKIP("shared textures not supported on this device");
+
+    ComPtr<ISampler> sampler;
+    REQUIRE_CALL(testDevice->createSampler({}, sampler.writeRef()));
+    TextureViewDesc viewDesc = {};
+    viewDesc.sampler = sampler;
+    ComPtr<ITextureView> sharedView;
+    REQUIRE_CALL(sharedTexture->createView(viewDesc, sharedView.writeRef()));
+
+    int errors = callback.errorCount;
+    DescriptorHandle textureHandle = {};
+    CHECK(SLANG_FAILED(sharedView->getDescriptorHandle(DescriptorHandleAccess::Read, &textureHandle)));
+    CHECK(callback.errorCount > errors);
+
+    errors = callback.errorCount;
+    DescriptorHandle combinedHandle = {};
+    CHECK(SLANG_FAILED(sharedView->getCombinedTextureSamplerDescriptorHandle(&combinedHandle)));
+    CHECK(callback.errorCount > errors);
+}

@@ -166,10 +166,21 @@ Result BindlessDescriptorSet::allocBufferHandle(
     DescriptorHandle* outHandle
 )
 {
+    // A Vulkan shared resource ping-pongs queue-family ownership with VK_QUEUE_FAMILY_EXTERNAL, and
+    // the producer reacquire is driven by the objects a submit references. A bindless handle is used
+    // without binding the buffer, so that tracked-object scan can never see it and cannot know to
+    // reacquire it; using a Shared buffer this way is therefore an error on Vulkan.
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (is_set(bufferImpl->m_desc.usage, BufferUsage::Shared))
+    {
+        m_device->printError(
+            "Cannot create a bindless descriptor handle for a buffer created with BufferUsage::Shared on Vulkan."
+        );
+        return SLANG_E_INVALID_ARG;
+    }
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
-
-    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;
@@ -223,10 +234,24 @@ Result BindlessDescriptorSet::allocTextureHandle(
     DescriptorHandle* outHandle
 )
 {
+    TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
+
+    // A bindless handle is used without binding the texture, so a submit's tracked-object scan can
+    // never see it and cannot know to reacquire it from VK_QUEUE_FAMILY_EXTERNAL; using a Shared
+    // texture this way is therefore an error on Vulkan.
+    if (TextureImpl* texture = textureViewImpl->m_texture)
+    {
+        if (is_set(texture->m_desc.usage, TextureUsage::Shared))
+        {
+            m_device->printError(
+                "Cannot create a bindless descriptor handle for a texture created with TextureUsage::Shared on Vulkan."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
-
-    TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;
@@ -296,11 +321,25 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     DescriptorHandle* outHandle
 )
 {
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_combinedTextureSamplerAllocator.allocate(&slot));
-
     TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
     SamplerImpl* samplerImpl = checked_cast<SamplerImpl*>(sampler);
+
+    // A bindless handle is used without binding the texture, so a submit's tracked-object scan can
+    // never see it and cannot know to reacquire it from VK_QUEUE_FAMILY_EXTERNAL; using a Shared
+    // texture this way is therefore an error on Vulkan.
+    if (TextureImpl* texture = textureViewImpl->m_texture)
+    {
+        if (is_set(texture->m_desc.usage, TextureUsage::Shared))
+        {
+            m_device->printError(
+                "Cannot create a bindless descriptor handle for a texture created with TextureUsage::Shared on Vulkan."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_combinedTextureSamplerAllocator.allocate(&slot));
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;

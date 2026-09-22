@@ -11,6 +11,14 @@
 
 namespace rhi::vk {
 
+/// Queue-family ownership state of a shared (Buffer/TextureUsage::Shared) resource in the
+/// producer <-> VK_QUEUE_FAMILY_EXTERNAL (e.g. CUDA) ping-pong tracked by DeviceImpl's registry.
+enum class SharedOwnershipState
+{
+    OwnedByProducer,
+    ReleasedToExternal,
+};
+
 class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;

@@ -343,6 +343,10 @@ struct DeviceExtraOptions
     bool enableAftermath = false;
 
     AftermathFlags aftermathFlags = AftermathFlags::Default;
+
+    // When set, overrides the default fail-on-error debug callback for this device. Used by tests
+    // that intentionally trigger an expected error diagnostic and must not fail on it.
+    IDebugCallback* debugCallback = nullptr;
 };
 
 ComPtr<IDevice> createTestingDevice(

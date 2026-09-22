@@ -767,6 +767,15 @@ enum class BufferUsage
     MicromapBuildInput = (1 << 10),
     MicromapStorage = (1 << 11),
     ShaderTable = (1 << 12),
+    /// The buffer's memory can be shared with another API (e.g. CUDA) via getSharedHandle().
+    /// Ownership ping-pongs between this producer device and the importing API: the producer keeps
+    /// the buffer after createBuffer(); the other API may access it only after the producer's
+    /// getQueue(...)->waitOnHost() releases every shared resource the producer still owns; the
+    /// producer then reclaims a resource on its next access to it -- a submit that uses it, or
+    /// reading it back -- which the caller must order after the external work with a host wait. On
+    /// Vulkan a shared buffer cannot be accessed through its device address (getDeviceAddress) or a
+    /// bindless descriptor handle (getDescriptorHandle): both bypass the ownership tracking, so they
+    /// are rejected.
     Shared = (1 << 13),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
@@ -841,6 +850,13 @@ enum class TextureUsage
     ResolveSource = (1 << 7),
     ResolveDestination = (1 << 8),
     Typeless = (1 << 9),
+    /// The texture's memory can be shared with another API (e.g. CUDA) via getSharedHandle().
+    /// Ownership ping-pongs as for BufferUsage::Shared: the producer keeps it after createTexture();
+    /// the other API may access it only after the producer's getQueue(...)->waitOnHost() releases
+    /// every shared resource the producer still owns; the producer then reclaims a resource on its
+    /// next access to it (a submit that uses it), ordered after the external work by a host wait. On
+    /// Vulkan a shared texture cannot be accessed through a bindless descriptor handle
+    /// (getDescriptorHandle), which bypasses the ownership tracking, so it is rejected.
     Shared = (1 << 10),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
@@ -1260,7 +1276,14 @@ struct BufferOffsetPair
     bool operator==(const BufferOffsetPair& rhs) const { return buffer == rhs.buffer && offset == rhs.offset; }
     bool operator!=(const BufferOffsetPair& rhs) const { return !(*this == rhs); }
 
-    DeviceAddress getDeviceAddress() const { return buffer->getDeviceAddress() + offset; }
+    DeviceAddress getDeviceAddress() const
+    {
+        // Preserve a zero result as a failure sentinel: getDeviceAddress() returns 0 when the
+        // address is unavailable (e.g. a Vulkan BufferUsage::Shared buffer, whose device address is
+        // rejected), and adding a nonzero offset to it would fabricate a bogus valid-looking address.
+        DeviceAddress base = buffer->getDeviceAddress();
+        return base ? base + offset : 0;
+    }
     size_t getSize() const { return buffer->getDesc().size - offset; }
 };
 
@@ -1791,6 +1814,8 @@ struct FenceDesc
     const void* next = nullptr;
 
     uint64_t initialValue = 0;
+    /// If true, the fence's underlying semaphore is exported (retrievable via getSharedHandle) so
+    /// another API can wait on and signal the same timeline for cross-API synchronization.
     bool isShared = false;
 
     const char* label = nullptr;

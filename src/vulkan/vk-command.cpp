@@ -1231,7 +1231,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
         converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
     requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
-    converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+    converter.buildInfo.scratchData.deviceAddress = getBufferDeviceAddress(cmd.scratchBuffer);
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
     {
@@ -1389,7 +1389,7 @@ void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
         return;
     commitBarriers();
     converter.buildInfo.dstMicromap = dst->m_vkHandle;
-    converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+    converter.buildInfo.scratchData.deviceAddress = getBufferDeviceAddress(cmd.scratchBuffer);
     m_device->m_api.vkCmdBuildMicromapsEXT(m_cmdBuffer, 1, &converter.buildInfo);
 }
 
@@ -1465,27 +1465,27 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     };
     commandsInfo.input =
         translateClusterOperationParams(desc.params, bottomLevelInput, triangleClusterInput, moveObjectsInput);
-    commandsInfo.scratchData = scratchBuffer->getDeviceAddress();
-    commandsInfo.dstImplicitData = desc.resultBuffer ? desc.resultBuffer.getDeviceAddress() : 0;
+    commandsInfo.scratchData = scratchBuffer->getDeviceAddressUnchecked();
+    commandsInfo.dstImplicitData = getBufferDeviceAddress(desc.resultBuffer);
     if (desc.addressesBuffer)
     {
-        commandsInfo.dstAddressesArray.deviceAddress = desc.addressesBuffer.getDeviceAddress();
+        commandsInfo.dstAddressesArray.deviceAddress = getBufferDeviceAddress(desc.addressesBuffer);
         commandsInfo.dstAddressesArray.size = desc.addressesBuffer.getSize();
         commandsInfo.dstAddressesArray.stride = desc.addressesBufferStride;
     }
     if (desc.sizesBuffer)
     {
-        commandsInfo.dstSizesArray.deviceAddress = desc.sizesBuffer.getDeviceAddress();
+        commandsInfo.dstSizesArray.deviceAddress = getBufferDeviceAddress(desc.sizesBuffer);
         commandsInfo.dstSizesArray.size = desc.sizesBuffer.getSize();
         commandsInfo.dstSizesArray.stride = desc.sizesBufferStride;
     }
     if (desc.argsBuffer)
     {
-        commandsInfo.srcInfosArray.deviceAddress = desc.argsBuffer.getDeviceAddress();
+        commandsInfo.srcInfosArray.deviceAddress = getBufferDeviceAddress(desc.argsBuffer);
         commandsInfo.srcInfosArray.size = desc.argsBuffer.getSize();
         commandsInfo.srcInfosArray.stride = desc.argsBufferStride;
     }
-    commandsInfo.srcInfosCount = desc.argCountBuffer ? desc.argCountBuffer.getDeviceAddress() : 0;
+    commandsInfo.srcInfosCount = getBufferDeviceAddress(desc.argCountBuffer);
     commandsInfo.addressResolutionFlags = VkClusterAccelerationStructureAddressResolutionFlagBitsNV(0);
 
     m_api.vkCmdBuildClusterAccelerationStructureIndirectNV(m_cmdBuffer, &commandsInfo);
@@ -1507,9 +1507,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
         const CooperativeVectorMatrixDesc& srcDesc = cmd.srcDescs[i];
         VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
         info.srcSize = srcDesc.size;
-        info.srcData.deviceAddress = srcBuffer->getDeviceAddress() + srcDesc.offset;
+        info.srcData.deviceAddress = srcBuffer->getDeviceAddressUnchecked() + srcDesc.offset;
         info.pDstSize = (size_t*)&dstDesc.size;
-        info.dstData.deviceAddress = dstBuffer->getDeviceAddress() + dstDesc.offset;
+        info.dstData.deviceAddress = dstBuffer->getDeviceAddressUnchecked() + dstDesc.offset;
         info.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
         info.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
         info.numRows = srcDesc.rowCount;
@@ -2036,6 +2036,16 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    // Reclaim ownership of the shared resources this submit uses that were previously released to
+    // VK_QUEUE_FAMILY_EXTERNAL, so the user command buffers below observe the external (e.g. CUDA)
+    // writes. Precise: only the shared resources referenced by these command buffers' tracked
+    // objects. Through the supported RHI APIs this is complete -- taking a Shared resource's device
+    // address or a bindless handle is an error on Vulkan (getNativeHandle is out of contract).
+    // Recorded as its own flushAndWait'd submission before the user work, in-order on the same VkQueue.
+    device->acquireSharedForSubmit(desc.commandBuffers, desc.commandBufferCount);
+
     // Increment last submitted ID which is used to track command buffer completion.
     ++m_lastSubmittedID;
 
@@ -2139,6 +2149,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+    // Release shared resources to VK_QUEUE_FAMILY_EXTERNAL before idling the queue, so that once
+    // this host wait returns an external API (e.g. CUDA) importing the memory may access them.
+    device->releaseSharedToExternal();
     auto& api = device->m_api;
     SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkQueueWaitIdle(m_queue), device);
     retireCommandBuffers();

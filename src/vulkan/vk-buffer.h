@@ -60,9 +60,21 @@ public:
         DescriptorHandle* outHandle
     ) override;
 
+    /// Returns the raw Vulkan device address without the BufferUsage::Shared guard that the public
+    /// getDeviceAddress() applies. Used by internal command recording (acceleration-structure and
+    /// micromap build inputs and scratch, cluster and cooperative-vector operands), where the operand
+    /// buffer is retained by the recording command buffer and is therefore tracked and reacquired.
+    /// The guard exists only for the public entry, which can hand an address to the application to
+    /// use untracked.
+    DeviceAddress getDeviceAddressUnchecked();
+
 public:
     VKBufferHandleRAII m_buffer;
     DeviceAddress m_deviceAddress = 0;
+
+    // Producer <-> VK_QUEUE_FAMILY_EXTERNAL ownership state; only meaningful for BufferUsage::Shared
+    // buffers, which are tracked in DeviceImpl's shared-resource registry.
+    SharedOwnershipState m_sharedOwnershipState = SharedOwnershipState::OwnedByProducer;
 
     struct ViewKey
     {
@@ -113,5 +125,16 @@ public:
 
     std::unordered_map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
 };
+
+/// Device address of a (buffer, offset) pair for internal command recording, bypassing the public
+/// getDeviceAddress() BufferUsage::Shared guard (see BufferImpl::getDeviceAddressUnchecked). A zero
+/// base is preserved as a failure sentinel rather than turned into base+offset.
+inline DeviceAddress getBufferDeviceAddress(const BufferOffsetPair& bufferOffset)
+{
+    if (!bufferOffset.buffer)
+        return 0;
+    DeviceAddress base = checked_cast<BufferImpl*>(bufferOffset.buffer)->getDeviceAddressUnchecked();
+    return base ? base + bufferOffset.offset : 0;
+}
 
 } // namespace rhi::vk
