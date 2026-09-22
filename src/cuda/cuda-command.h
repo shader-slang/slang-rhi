@@ -40,8 +40,8 @@ public:
     uint64_t m_submitsSinceEvent = 0;
 
     std::mutex m_mutex;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
     std::list<SubmitEvent> m_submitEvents;
 
     // Deferred delete queue for GPU resources.

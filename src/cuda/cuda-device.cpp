@@ -46,6 +46,14 @@ DeviceImpl::~DeviceImpl()
     {
         SLANG_CUDA_CTX_SCOPE(this);
 
+        // Wait for all commands to finish and retire any active command buffers. The command
+        // buffers hold staging-heap allocations, so this has to happen before the heaps are
+        // released.
+        if (m_queue)
+        {
+            m_queue->waitOnHost();
+        }
+
         m_shaderCache.free();
         m_uploadHeap.release();
         m_readbackHeap.release();

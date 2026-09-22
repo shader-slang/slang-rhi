@@ -109,9 +109,6 @@ public:
     Heap(Device* device, const HeapDesc& desc);
     virtual ~Heap();
 
-    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
-    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
-
     // Generally the allocate is common to all platforms, as it's the page allocation
     // that is platform specific. However freeing depends on pipeline state so is
     // platform specific.

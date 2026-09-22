@@ -94,8 +94,19 @@ public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
     // RefObject implementation
-    virtual void makeExternal() override { m_texture.establishStrongReference(); }
-    virtual void makeInternal() override { m_texture.breakStrongReference(); }
+    // A texture view holds a breakable reference to its texture in addition to the one to the
+    // device that `DeviceChild` manages, because a texture owns its default view; both cycles
+    // have to be broken once the view is only referenced internally.
+    virtual void makeExternal() override
+    {
+        DeviceChild::makeExternal();
+        m_texture.establishStrongReference();
+    }
+    virtual void makeInternal() override
+    {
+        DeviceChild::makeInternal();
+        m_texture.breakStrongReference();
+    }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }

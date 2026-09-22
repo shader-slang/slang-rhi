@@ -2289,6 +2289,13 @@ DeviceImpl::~DeviceImpl()
     }
 #endif
 
+    // Wait for all commands to finish and retire any active command buffers. The command buffers
+    // hold staging-heap allocations, so this has to happen before the heaps are released.
+    if (m_queue)
+    {
+        m_queue->waitOnHost();
+    }
+
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
 
     m_uploadHeap.release();
