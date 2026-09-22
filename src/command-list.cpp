@@ -3,9 +3,25 @@
 
 namespace rhi {
 
+void trackObject(TrackedObjectSet& trackedObjects, RefObject* object)
+{
+    if (!object)
+        return;
+    if (!trackedObjects.insert(object).second)
+        return;
+
+    // A texture view is a window onto a texture, and it holds that texture through a
+    // `BreakableReference` so that a texture can own its own default view without forming an
+    // unbreakable cycle. That reference is therefore not something we can lean on to keep the
+    // texture alive for the duration of GPU execution, so a command buffer that uses a view
+    // has to name the underlying texture as well.
+    if (TextureView* textureView = dynamicCast<TextureView>(object))
+        trackObject(trackedObjects, checked_cast<Texture*>(textureView->getTexture()));
+}
+
 CommandList::CommandList(
     ArenaAllocator& allocator,
-    std::set<RefPtr<RefObject>>& trackedObjects,
+    TrackedObjectSet& trackedObjects,
     std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
 )
     : m_allocator(allocator)

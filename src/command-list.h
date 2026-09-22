@@ -5,6 +5,8 @@
 #include "core/arena-allocator.h"
 #include "core/short_vector.h"
 
+#include "rhi-shared-fwd.h"
+
 #include <utility>
 #include <set>
 #include <cstring>
@@ -56,6 +58,11 @@
 
 
 namespace rhi {
+
+/// Record `object` as one of the objects a command buffer must keep alive until the GPU has
+/// finished executing its commands, following the links that a bare reference to `object` would
+/// not keep alive on its own.
+void trackObject(TrackedObjectSet& trackedObjects, RefObject* object);
 
 struct BindingData;
 class ExtendedShaderObjectTypeListObject;
@@ -416,7 +423,7 @@ public:
 
     CommandList(
         ArenaAllocator& allocator,
-        std::set<RefPtr<RefObject>>& trackedObjects,
+        TrackedObjectSet& trackedObjects,
         std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
     );
 
@@ -479,13 +486,7 @@ public:
         return *reinterpret_cast<const T*>(command->data);
     }
 
-    void retainResource(RefObject* resource)
-    {
-        if (resource)
-        {
-            m_trackedObjects.insert(resource);
-        }
-    }
+    void retainResource(RefObject* resource) { trackObject(m_trackedObjects, resource); }
 
     template<typename To, typename From>
     void retainResource(From* resource)
@@ -508,7 +509,7 @@ public:
 
 private:
     ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    TrackedObjectSet& m_trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer>& m_trackedExecuteCallbackObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;

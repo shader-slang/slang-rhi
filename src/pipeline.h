@@ -21,7 +21,7 @@ enum class PipelineType
 class Pipeline : public DeviceChild
 {
 public:
-    RefPtr<ShaderProgram> m_program;
+    InternalRefPtr<ShaderProgram> m_program;
 
     Pipeline(Device* device)
         : DeviceChild(device)

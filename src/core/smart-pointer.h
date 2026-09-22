@@ -128,6 +128,31 @@ public:
         return count - 1;
     }
 
+    // Add a reference that is owned by the RHI itself rather than by application code.
+    // Internal references keep the object alive, but do not make it externally referenced:
+    // the total and internal counts move together, so the object's classification is
+    // unchanged. We use this for ownership such as a command queue retaining the command
+    // buffers it has in flight, where the reference exists only to keep the object alive
+    // until the GPU is done with it, and therefore must not keep the device alive.
+    uint32_t addInternalReference()
+    {
+        // Raise the total count first so that no observer can ever see an internal count
+        // that exceeds the total count.
+        uint32_t count = referenceCount.fetch_add(1) + 1;
+        internalReferenceCount.fetch_add(1);
+        return count;
+    }
+
+    // Drop a reference previously taken with `addInternalReference()`.
+    uint32_t releaseInternalReference()
+    {
+        // Lower the internal count first, for the same reason `addInternalReference()`
+        // raises the total count first.
+        SLANG_RHI_ASSERT(internalReferenceCount.load() > 0);
+        internalReferenceCount.fetch_sub(1);
+        return releaseReference();
+    }
+
     // Set the number of references that are internal.
     // When the reference count becomes equal or smaller to this value,
     // the object is considered to be internally referenced and `makeInternal()` is called.
@@ -202,89 +227,120 @@ SLANG_FORCE_INLINE const T* as(const RefObject* obj)
     return dynamicCast<T>(obj);
 }
 
-// "Smart" pointer to a reference-counted object
-template<typename T>
-struct SLANG_RHI_API RefPtr
+// Ownership policies for `RefPtrBase`.
+//
+// `ExternalOwnership` is the ordinary reference an application (or any code that wants the
+// object to behave as if the application held it) takes. `InternalOwnership` is a reference
+// the RHI takes on its own behalf; it keeps the object alive without marking it externally
+// referenced, so ownership such as a command queue's in-flight list does not keep the device
+// alive. Spelling the distinction in the pointer type is what keeps the classification
+// correct as an object moves between containers.
+struct ExternalOwnership
 {
-    RefPtr()
+    static void add(RefObject* obj)
+    {
+        if (obj)
+            obj->addReference();
+    }
+    static void release(RefObject* obj)
+    {
+        if (obj)
+            obj->releaseReference();
+    }
+};
+
+struct InternalOwnership
+{
+    static void add(RefObject* obj)
+    {
+        if (obj)
+            obj->addInternalReference();
+    }
+    static void release(RefObject* obj)
+    {
+        if (obj)
+            obj->releaseInternalReference();
+    }
+};
+
+// "Smart" pointer to a reference-counted object
+template<typename T, typename Ownership>
+struct RefPtrBase
+{
+    RefPtrBase()
         : pointer(nullptr)
     {
     }
 
-    RefPtr(T* p)
+    RefPtrBase(T* p)
         : pointer(p)
     {
-        addReference(p);
+        Ownership::add(p);
     }
 
-    RefPtr(const RefPtr<T>& p)
+    RefPtrBase(const RefPtrBase& p)
         : pointer(p.pointer)
     {
-        addReference(p.pointer);
+        Ownership::add(p.pointer);
     }
 
-    RefPtr(RefPtr<T>&& p)
+    RefPtrBase(RefPtrBase&& p)
         : pointer(p.pointer)
     {
         p.pointer = nullptr;
     }
 
-    template<typename U>
-    RefPtr(const RefPtr<U>& p, typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0)
+    template<typename U, typename UOwnership>
+    RefPtrBase(
+        const RefPtrBase<U, UOwnership>& p,
+        typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0
+    )
         : pointer(static_cast<U*>(p))
     {
-        addReference(static_cast<U*>(p));
+        Ownership::add(static_cast<U*>(p));
     }
 
-#if 0
-        void operator=(T* p)
-        {
-            T* old = pointer;
-            addReference(p);
-            pointer = p;
-            releaseReference(old);
-        }
-#endif
-
-    void operator=(const RefPtr<T>& p)
+    void operator=(const RefPtrBase& p)
     {
         T* old = pointer;
-        addReference(p.pointer);
+        Ownership::add(p.pointer);
         pointer = p.pointer;
-        releaseReference(old);
+        Ownership::release(old);
     }
 
-    void operator=(RefPtr<T>&& p)
+    void operator=(RefPtrBase&& p)
     {
         T* old = pointer;
         pointer = p.pointer;
         p.pointer = old;
     }
 
-    template<typename U>
-    typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(const RefPtr<U>& p)
+    template<typename U, typename UOwnership>
+    typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(
+        const RefPtrBase<U, UOwnership>& p
+    )
     {
         T* old = pointer;
-        addReference(p.pointer);
+        Ownership::add(p.pointer);
         pointer = p.pointer;
-        releaseReference(old);
+        Ownership::release(old);
     }
 
     bool operator==(const T* ptr) const { return pointer == ptr; }
 
     bool operator!=(const T* ptr) const { return pointer != ptr; }
 
-    bool operator==(const RefPtr<T>& ptr) const { return pointer == ptr.pointer; }
+    bool operator==(const RefPtrBase& ptr) const { return pointer == ptr.pointer; }
 
-    bool operator!=(const RefPtr<T>& ptr) const { return pointer != ptr.pointer; }
+    bool operator!=(const RefPtrBase& ptr) const { return pointer != ptr.pointer; }
 
     template<typename U>
-    RefPtr<U> dynamicCast() const
+    RefPtrBase<U, Ownership> dynamicCast() const
     {
-        return RefPtr<U>(dynamic_cast<U>(pointer));
+        return RefPtrBase<U, Ownership>(dynamic_cast<U*>(pointer));
     }
 
-    ~RefPtr() { releaseReference(static_cast<RefObject*>(pointer)); }
+    ~RefPtrBase() { Ownership::release(static_cast<RefObject*>(pointer)); }
 
     T& operator*() const { return *pointer; }
 
@@ -298,7 +354,7 @@ struct SLANG_RHI_API RefPtr
     {
         T* old = pointer;
         pointer = p;
-        releaseReference(old);
+        Ownership::release(old);
     }
 
     T* detach()
@@ -308,7 +364,7 @@ struct SLANG_RHI_API RefPtr
         return rs;
     }
 
-    void swapWith(RefPtr<T>& rhs)
+    void swapWith(RefPtrBase& rhs)
     {
         auto rhsPtr = rhs.pointer;
         rhs.pointer = pointer;
@@ -317,14 +373,14 @@ struct SLANG_RHI_API RefPtr
 
     SLANG_FORCE_INLINE void setNull()
     {
-        releaseReference(pointer);
+        Ownership::release(pointer);
         pointer = nullptr;
     }
 
     /// Get ready for writing (nulls contents)
     SLANG_FORCE_INLINE T** writeRef()
     {
-        *this = nullptr;
+        *this = RefPtrBase();
         return &pointer;
     }
 
@@ -334,8 +390,14 @@ struct SLANG_RHI_API RefPtr
 private:
     T* pointer;
 
-    template<typename T2>
-    friend struct RefPtr;
+    template<typename T2, typename TOwnership2>
+    friend struct RefPtrBase;
 };
+
+template<typename T>
+using RefPtr = RefPtrBase<T, ExternalOwnership>;
+
+template<typename T>
+using InternalRefPtr = RefPtrBase<T, InternalOwnership>;
 
 } // namespace rhi

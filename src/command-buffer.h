@@ -40,9 +40,6 @@ public:
         m_type = type;
     }
 
-    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
-    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
-
     // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override
@@ -408,9 +405,6 @@ public:
     }
     virtual ~CommandBuffer();
 
-    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
-    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
-
     virtual Result reset();
 
     void setDesc(const CommandBufferDesc& desc)
@@ -427,7 +421,7 @@ public:
     CommandBufferDesc m_desc;
     StructHolder m_descHolder;
     ArenaAllocator m_allocator;
-    std::set<RefPtr<RefObject>> m_trackedObjects;
+    TrackedObjectSet m_trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer> m_trackedExecuteCallbackObjects;
     CommandList m_commandList;
 
