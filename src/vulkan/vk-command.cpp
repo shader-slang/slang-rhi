@@ -141,7 +141,12 @@ public:
 
     // Record a queue-family ownership transfer for each shared resource, moving ownership from
     // `srcQueueFamilyIndex` to `dstQueueFamilyIndex`. Buffers and textures may be mixed in one call;
-    // all barriers are submitted together. A no-op when the two families are equal.
+    // all barriers are submitted together. The equal-family case is a no-op, but an external transfer
+    // never hits it: handOffShared releases thisFamily -> VK_QUEUE_FAMILY_EXTERNAL and takeOverShared
+    // acquires VK_QUEUE_FAMILY_EXTERNAL -> thisFamily, and EXTERNAL never equals a real family index,
+    // so both ends of a producer<->consumer share always emit their barrier even when the two devices
+    // use the same family index. The guard only elides a redundant same-device same-family transfer
+    // (which needs no ownership transfer), and stays correct for a future family -> family transfer.
     void recordQueueFamilyOwnershipTransfer(
         uint32_t resourceCount,
         IResource* const* resources,
@@ -1772,11 +1777,11 @@ void CommandRecorder::recordQueueFamilyOwnershipTransfer(
         return;
 
     // This helper emits both the release (thisFamily -> EXTERNAL) and the acquire
-    // (EXTERNAL -> thisFamily). The access masks are intentionally the broadest MEMORY_READ|WRITE and
-    // the stages ALL_COMMANDS -> ALL_COMMANDS: a queue-family ownership transfer must round-trip the
-    // resource between two APIs whose exact access/stage usage is not known here (the external side is
-    // opaque), so the conservative full scope is the safe choice rather than a bug. This mirrors the
-    // existing shared-surface transfer in src/cuda/cuda-surface.cpp.
+    // (EXTERNAL -> thisFamily). The access masks are the broadest MEMORY_READ|WRITE and the stages
+    // ALL_COMMANDS -> ALL_COMMANDS because a queue-family ownership transfer round-trips the resource
+    // between two APIs whose exact access/stage usage is not known here (the external side is opaque),
+    // so the conservative full scope is required. This mirrors the existing shared-surface transfer in
+    // src/cuda/cuda-surface.cpp.
     short_vector<VkBufferMemoryBarrier, 16> bufferBarriers;
     short_vector<VkImageMemoryBarrier, 16> imageBarriers;
 

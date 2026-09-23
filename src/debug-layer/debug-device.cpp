@@ -347,7 +347,12 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         patchedDesc.label = label.c_str();
     }
 
-    return baseObject->createTexture(patchedDesc, initData, outTexture);
+    Result result = baseObject->createTexture(patchedDesc, initData, outTexture);
+    // A newly created shared texture mints a fresh handle, so drop any stale (recycled) tracker entry
+    // for it; see SharedResourceOwnershipTracker::resetForNewSharedResource.
+    if (SLANG_SUCCEEDED(result) && outTexture && *outTexture && is_set(desc.usage, TextureUsage::Shared))
+        SharedResourceOwnershipTracker::get().resetForNewSharedResource(*outTexture);
+    return result;
 }
 
 Result DebugDevice::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
@@ -428,7 +433,12 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         patchedDesc.label = label.c_str();
     }
 
-    return baseObject->createBuffer(patchedDesc, initData, outBuffer);
+    Result result = baseObject->createBuffer(patchedDesc, initData, outBuffer);
+    // A newly created shared buffer mints a fresh handle, so drop any stale (recycled) tracker entry
+    // for it; see SharedResourceOwnershipTracker::resetForNewSharedResource.
+    if (SLANG_SUCCEEDED(result) && outBuffer && *outBuffer && is_set(desc.usage, BufferUsage::Shared))
+        SharedResourceOwnershipTracker::get().resetForNewSharedResource(*outBuffer);
+    return result;
 }
 
 Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)

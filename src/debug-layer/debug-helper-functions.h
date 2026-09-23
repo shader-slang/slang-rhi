@@ -91,17 +91,20 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // handle) is tied to its key at import time.
 //
 // Misuse of the handOffShared/takeOverShared calls themselves - e.g. handing off a resource that is
-// already handed off - is an error on every backend. Using a resource that was explicitly handed off
-// is likewise an error. Using a resource that is merely owned by another queue is a warning, since
-// on a backend where the calls are no-ops it cannot be distinguished from legitimate use.
+// already handed off, or handing off a resource owned by another queue - is an error on every
+// backend. Using a resource that was explicitly handed off is likewise an error. Using a resource on
+// a queue that does not own it, without an intervening hand-off, is an error on Vulkan (the
+// queue-family transfer is real, so it is genuine misuse) and a warning on the no-op backends (where
+// it cannot be distinguished from legitimate use).
 //
-// This is a best-effort validation aid, not a source of truth: the debug layer does not wrap
-// buffers/textures and so cannot observe their destruction, so entries are never evicted. In a
-// long-running process that frees and recreates shared resources this can leak entries, and if the
-// OS recycles a handle value (or a resource address) a new resource may inherit a freed resource's
-// recorded state. Ownership is also updated at command-recording time rather than at submission, so
-// validation assumes encoders are submitted in the order recorded (the intended hand-off/take-over
-// usage). Hard eviction would require a resource-destruction hook the debug layer does not have.
+// This is a best-effort validation aid, not a source of truth. The debug layer does not wrap
+// buffers/textures and so cannot observe their destruction, so entries are never evicted; in a
+// long-running process that frees and recreates many shared resources the table grows unbounded.
+// Stale state from a destroyed resource does not, however, mislead a newly created one: creating a
+// producer shared resource resets any entry for its freshly minted handle (an existing entry for it
+// can only be a recycled, stale one) - see resetForNewSharedResource and the debug device's create
+// paths. Ownership is updated at command-recording time rather than at submission, so validation
+// assumes encoders are submitted in the order recorded (the intended hand-off/take-over usage).
 class SharedResourceOwnershipTracker
 {
 public:
@@ -123,6 +126,23 @@ public:
             return;
         std::lock_guard<std::mutex> lock(m_mutex);
         m_resourceKeys[resource] = Key{handle.type, handle.value};
+    }
+
+    // Reset any tracked state for a newly created producer shared resource. A producer mints a fresh
+    // shared handle at creation, so an existing entry for that handle can only be stale - left by a
+    // destroyed resource whose handle value the driver has since recycled - and inheriting it would
+    // misreport ownership; the entry is dropped so the new resource starts untracked. The pointer->key
+    // cache entry is dropped too, in case the resource's address was itself recycled. Import paths do
+    // not call this: an imported handle is the producer's live handle, whose ownership state must be
+    // preserved for the consumer's takeOverShared to validate against.
+    void resetForNewSharedResource(IResource* resource)
+    {
+        NativeHandle handle;
+        if (!getSharedHandleOf(resource, handle) || !handle)
+            return;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_resourceKeys.erase(resource);
+        m_entries.erase(Key{handle.type, handle.value});
     }
 
     // Whether `resource` has a shared handle, i.e. is a valid handOffShared/takeOverShared argument.
@@ -227,9 +247,12 @@ public:
             }
             else
             {
-                // Owned by a different queue without an intervening hand-off: cannot be attributed to
-                // the API, so a warning.
-                severity = Severity::Warning;
+                // Owned by a different queue without an intervening hand-off. On a backend where the
+                // transfer calls are no-ops this cannot be distinguished from legitimate use, so it is
+                // a warning; on Vulkan the queue-family ownership transfer is real, so using the
+                // resource on a non-owning queue without a takeOverShared is genuine misuse and an
+                // error.
+                severity = (ctx && ctx->deviceType == DeviceType::Vulkan) ? Severity::Error : Severity::Warning;
                 message = "a shared resource is used on a queue that does not currently own it.";
             }
         }

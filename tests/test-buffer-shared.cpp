@@ -39,8 +39,7 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     // the producer hands it off to the CUDA queue, and CUDA takes it over before accessing it. On
     // Vulkan this performs the queue-family ownership transfer to/from VK_QUEUE_FAMILY_EXTERNAL; on
     // D3D12/CUDA the calls are no-ops. The producer's waitOnHost after the hand-off also ensures the
-    // initial buffer fill (createBuffer initialData) has completed before CUDA reads - the guarantee
-    // the removed compareComputeResult(srcDevice, ...) used to provide.
+    // initial buffer fill (createBuffer initialData) has completed on the producer before CUDA reads.
     auto srcQueue = srcDevice->getQueue(QueueType::Graphics);
     auto dstQueue = dstDevice->getQueue(QueueType::Graphics);
     {

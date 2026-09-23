@@ -3,6 +3,22 @@
 
 namespace rhi::debug {
 
+namespace {
+
+// Cheap bind-time test for a Shared buffer binding: it checks only the Shared usage flag and never
+// exports a shared handle. Texture bindings arrive as an ITextureView, which is not an IBuffer, so
+// they are never treated as Shared here - matching the ownership tracker, which keys off a shared
+// handle a view does not expose.
+bool isSharedResourceBinding(IResource* resource)
+{
+    ComPtr<IBuffer> buffer;
+    if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
+        return is_set(buffer->getDesc().usage, BufferUsage::Shared);
+    return false;
+}
+
+} // namespace
+
 // ----------------------------------------------------------------------------
 // DebugShaderObject
 // ----------------------------------------------------------------------------
@@ -155,11 +171,30 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
     // m_bindings[ShaderOffsetKey{offset}] = binding;
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
 
-    // Shared-resource ownership is intentionally not validated at bind time: the queue that will
-    // submit the work is unknown here, and a resource may be legitimately bound while handed off if
-    // a takeOverShared is recorded before the dispatch that uses it. Ownership is checked at the
-    // actual command-use points instead, where the using queue is known.
+    // A Shared resource's ownership is not validated here: the submitting queue is unknown at bind
+    // time, and a resource may be legitimately bound while handed off as long as a takeOverShared is
+    // recorded before the draw/dispatch that uses it. Instead we record which bound resources are
+    // Shared and validate them at draw/dispatch, where the submitting queue is known (and only when a
+    // Shared resource is actually bound). Rebinding a slot to a non-Shared resource clears its entry.
+    ShaderOffsetKey key{offset};
+    if (binding.resource && isSharedResourceBinding(binding.resource.get()))
+        m_sharedBindings[key] = binding.resource;
+    else
+        m_sharedBindings.erase(key);
     return baseObject->setBinding(offset, binding);
+}
+
+void DebugShaderObject::collectSharedBindings(std::vector<IResource*>& out)
+{
+    for (const auto& kv : m_sharedBindings)
+        if (kv.second)
+            out.push_back(kv.second.get());
+    for (const auto& kv : m_objects)
+        if (kv.second)
+            kv.second->collectSharedBindings(out);
+    for (const auto& entryPoint : m_entryPoints)
+        if (entryPoint)
+            entryPoint->collectSharedBindings(out);
 }
 
 Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
@@ -290,6 +325,7 @@ void DebugRootShaderObject::reset()
 {
     m_entryPoints.clear();
     m_objects.clear();
+    m_sharedBindings.clear();
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_bindings.clear();
     baseObject.setNull();

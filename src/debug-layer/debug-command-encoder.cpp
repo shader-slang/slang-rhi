@@ -51,6 +51,21 @@ bool validateAccelerationStructureQueryDescs(
     return true;
 }
 
+// Validate ownership of any Shared resources bound on `rootObject` against the queue that will submit
+// this pass's work. Called at draw/dispatch, where the submitting queue is known; a no-op unless a
+// Shared resource is actually bound (see DebugShaderObject::m_sharedBindings). The pre-built-root
+// bindPipeline overload does not populate the encoder's root object, so bindings set that way are not
+// covered here - a best-effort gap, never a false positive.
+void checkSharedBindingOwnership(DebugContext* ctx, DebugShaderObject* rootObject, ICommandQueue* usingQueue)
+{
+    if (!rootObject || !usingQueue)
+        return;
+    std::vector<IResource*> sharedResources;
+    rootObject->collectSharedBindings(sharedResources);
+    for (IResource* resource : sharedResources)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, resource, usingQueue);
+}
+
 } // namespace
 
 // ----------------------------------------------------------------------------
@@ -168,6 +183,7 @@ void DebugRenderPassEncoder::draw(const DrawArguments& args)
         RHI_VALIDATION_WARNING("instanceCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->draw(args);
 }
 
@@ -193,6 +209,7 @@ void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
         RHI_VALIDATION_WARNING("instanceCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawIndexed(args);
 }
 
@@ -222,6 +239,7 @@ void DebugRenderPassEncoder::drawIndirect(
         RHI_VALIDATION_WARNING("maxDrawCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
@@ -256,6 +274,7 @@ void DebugRenderPassEncoder::drawIndexedIndirect(
         RHI_VALIDATION_WARNING("maxDrawCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
@@ -276,6 +295,7 @@ void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
         RHI_VALIDATION_WARNING("One or more dimensions are 0 (no-op dispatch).");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawMeshTasks(x, y, z);
 }
 
@@ -406,6 +426,7 @@ void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z
         RHI_VALIDATION_WARNING("One or more group dimensions is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->dispatchCompute(x, y, z);
 }
 
@@ -427,6 +448,7 @@ void DebugComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer
         return;
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->dispatchComputeIndirect(argBuffer);
 }
 
@@ -576,6 +598,7 @@ void DebugRayTracingPassEncoder::dispatchRays(
         RHI_VALIDATION_WARNING("One or more dispatch dimensions is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_rootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
 }
 

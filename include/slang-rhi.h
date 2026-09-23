@@ -2974,9 +2974,11 @@ public:
     /// not track queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is
     /// recorded on this encoder only and takes effect when the resulting command buffer is submitted -
     /// this call does not itself submit or wait. Every resource must have been created with
-    /// `BufferUsage::Shared` / `TextureUsage::Shared` on this encoder's device. Once the hand-off is
-    /// submitted, this queue must not use the resources again until a matching `takeOverShared`
-    /// reclaims them.
+    /// `BufferUsage::Shared` / `TextureUsage::Shared` on this encoder's device. On Vulkan a shared
+    /// texture must additionally have a default state that maps to the general image layout (e.g.
+    /// `ResourceState::General`), which is the layout external interop uses: the transfer changes only
+    /// queue-family ownership and keeps the image in that layout. Once the hand-off is submitted, this
+    /// queue must not use the resources again until a matching `takeOverShared` reclaims them.
     virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
         uint32_t resourceCount,
         IResource* const* resources,
