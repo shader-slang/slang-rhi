@@ -938,7 +938,8 @@ Result DebugDevice::createShaderObject(
     }
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef())
+    SLANG_RETURN_ON_FAIL(
+        baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef())
     );
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;

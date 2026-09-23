@@ -1019,7 +1019,8 @@ void DebugCommandEncoder::copyTexture(
         }
         if (dstSubresource.layer + dstSubresource.layerCount > dstDesc.getLayerCount())
         {
-            RHI_VALIDATION_ERROR("Destination layer range (layer + layerCount) exceeds destination texture layer count."
+            RHI_VALIDATION_ERROR(
+                "Destination layer range (layer + layerCount) exceeds destination texture layer count."
             );
             return;
         }
@@ -1070,7 +1071,8 @@ void DebugCommandEncoder::copyTexture(
     {
         if (srcOffset.x != dstOffset.x)
         {
-            RHI_VALIDATION_ERROR("Copying the remaining texture requires source and destination offset to be the same."
+            RHI_VALIDATION_ERROR(
+                "Copying the remaining texture requires source and destination offset to be the same."
             );
             return;
         }
@@ -1079,7 +1081,8 @@ void DebugCommandEncoder::copyTexture(
     {
         if (srcOffset.y != dstOffset.y)
         {
-            RHI_VALIDATION_ERROR("Copying the remaining texture requires source and destination offset to be the same."
+            RHI_VALIDATION_ERROR(
+                "Copying the remaining texture requires source and destination offset to be the same."
             );
             return;
         }
@@ -1088,7 +1091,8 @@ void DebugCommandEncoder::copyTexture(
     {
         if (srcOffset.z != dstOffset.z)
         {
-            RHI_VALIDATION_ERROR("Copying the remaining texture requires source and destination offset to be the same."
+            RHI_VALIDATION_ERROR(
+                "Copying the remaining texture requires source and destination offset to be the same."
             );
             return;
         }
@@ -1147,7 +1151,8 @@ Result DebugCommandEncoder::uploadTextureData(
         if (extent.width != kRemainingTextureSize || extent.height != kRemainingTextureSize ||
             extent.depth != kRemainingTextureSize)
         {
-            RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires extent to be Extent3D::kWholeTexture."
+            RHI_VALIDATION_ERROR(
+                "Uploading multiple mip levels at once requires extent to be Extent3D::kWholeTexture."
             );
             return SLANG_E_INVALID_ARG;
         }
@@ -1251,7 +1256,8 @@ void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange s
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     if (formatInfo.hasDepth || formatInfo.hasStencil)
     {
-        RHI_VALIDATION_ERROR("clearTextureUint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
+        RHI_VALIDATION_ERROR(
+            "clearTextureUint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
         );
         return;
     }
@@ -1290,7 +1296,8 @@ void DebugCommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange s
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     if (formatInfo.hasDepth || formatInfo.hasStencil)
     {
-        RHI_VALIDATION_ERROR("clearTextureSint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
+        RHI_VALIDATION_ERROR(
+            "clearTextureSint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
         );
         return;
     }
@@ -1428,7 +1435,8 @@ void DebugCommandEncoder::resolveQuery(
             buffer->getDesc().size
         ))
     {
-        RHI_VALIDATION_ERROR("Destination range out of bounds (offset + count * sizeof(uint64_t) exceeds buffer size)."
+        RHI_VALIDATION_ERROR(
+            "Destination range out of bounds (offset + count * sizeof(uint64_t) exceeds buffer size)."
         );
         return;
     }

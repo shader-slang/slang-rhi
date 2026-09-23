@@ -1046,8 +1046,8 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
 
     uint64_t gpuTimestamp = 0;
     hr = S_FALSE;
-    while ((hr = device->m_immediateContext->GetData(timestampQuery, &gpuTimestamp, sizeof(gpuTimestamp), 0)) == S_FALSE
-    )
+    while ((hr = device->m_immediateContext->GetData(timestampQuery, &gpuTimestamp, sizeof(gpuTimestamp), 0)) ==
+           S_FALSE)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

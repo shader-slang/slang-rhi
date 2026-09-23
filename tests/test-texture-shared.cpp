@@ -158,7 +158,7 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
         );
 
         // Round-trip ownership back to the producer: CUDA hands the texture off to the producer's
-        // queue (a no-op on CUDA), and the producer takes it over — on Vulkan this exercises the
+        // queue (a no-op on CUDA), and the producer takes it over - on Vulkan this exercises the
         // EXTERNAL -> thisFamily queue-family acquire, the reverse of the initial hand-off. The
         // producer then reads the texture back (unchanged, since CUDA only sampled it).
         {

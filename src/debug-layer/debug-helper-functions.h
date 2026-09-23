@@ -90,8 +90,8 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // imported resource that cannot re-export its handle (e.g. a CUDA buffer created from a shared
 // handle) is tied to its key at import time.
 //
-// Misuse of the handOffShared/takeOverShared calls themselves — e.g. handing off a resource that is
-// already handed off — is an error on every backend. Using a resource that was explicitly handed off
+// Misuse of the handOffShared/takeOverShared calls themselves - e.g. handing off a resource that is
+// already handed off - is an error on every backend. Using a resource that was explicitly handed off
 // is likewise an error. Using a resource that is merely owned by another queue is a warning, since
 // on a backend where the calls are no-ops it cannot be distinguished from legitimate use.
 //
@@ -130,10 +130,10 @@ public:
     }
 
     // Hand off ownership from `srcQueue` (this encoder's queue) to `destQueue`. Validates the
-    // transition (Unowned/Owned(srcQueue) → HandedOff); an invalid transition is an error on every
+    // transition (Unowned/Owned(srcQueue) -> HandedOff); an invalid transition is an error on every
     // backend, since the application is misusing the API. The recorded transition is applied
     // regardless of validity so the tracker follows the recorded command stream (the debug layer
-    // tracks, it does not gate — the real barrier is recorded either way); rejecting it would desync
+    // tracks, it does not gate - the real barrier is recorded either way); rejecting it would desync
     // the tracker and spuriously flag every later legitimate op.
     void handOff(DebugContext* ctx, IResource* resource, ICommandQueue* srcQueue, ICommandQueue* destQueue)
     {

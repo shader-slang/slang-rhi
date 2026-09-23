@@ -86,7 +86,7 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
 
     // Round-trip ownership back to the producer: CUDA hands the buffer off to the producer's queue
-    // (a no-op on CUDA), and the producer takes it over — on Vulkan this exercises the
+    // (a no-op on CUDA), and the producer takes it over - on Vulkan this exercises the
     // EXTERNAL -> thisFamily queue-family acquire, the reverse of the initial hand-off. The producer
     // then reads back what CUDA wrote, confirming the data survived the round-trip.
     {

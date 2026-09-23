@@ -63,8 +63,10 @@ public:
 public:
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject)
-        override;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IComputePipeline* pipeline,
+        IShaderObject* rootObject
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) override;
@@ -193,8 +195,12 @@ public:
         uint32_t subresourceDataCount
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(
+        IBuffer* dst,
+        Offset offset,
+        Size size,
+        const void* data
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range) override;
 
@@ -294,8 +300,10 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(

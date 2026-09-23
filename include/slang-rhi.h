@@ -1167,7 +1167,8 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
     ) = 0;
 };
 
@@ -2968,7 +2969,7 @@ public:
     /// queue-family ownership (Vulkan) this records a queue-family ownership-transfer release from
     /// this queue's family to the destination; it is a no-op on backends that do not track
     /// queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is recorded on this
-    /// encoder only and takes effect when the resulting command buffer is submitted — this call does
+    /// encoder only and takes effect when the resulting command buffer is submitted - this call does
     /// not itself submit or wait. Every resource must have been created with `BufferUsage::Shared` /
     /// `TextureUsage::Shared` on this encoder's device. Once the hand-off is submitted, this queue
     /// must not use the resources again until a matching `takeOverShared` reclaims them.
