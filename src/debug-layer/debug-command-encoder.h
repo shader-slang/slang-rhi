@@ -46,6 +46,12 @@ public:
 public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
+    // The debug root object whose Shared bindings are validated at draw/dispatch: m_rootObject for the
+    // convenience bindPipeline overload, or the caller's pre-built root for the two-argument overload.
+    // Held by RefPtr because the two-argument overload's root is owned by the caller (the underlying
+    // encoder retains only the inner object), so we keep it alive for the duration of the pass.
+    // Repointed on every bindPipeline so a later bind never validates a previous bind's stale bindings.
+    RefPtr<DebugShaderObject> m_boundRootObject;
     bool m_pipelineBound = false;
     bool m_indexBufferBound = false;
 };
@@ -82,6 +88,12 @@ public:
 public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
+    // The debug root object whose Shared bindings are validated at draw/dispatch: m_rootObject for the
+    // convenience bindPipeline overload, or the caller's pre-built root for the two-argument overload.
+    // Held by RefPtr because the two-argument overload's root is owned by the caller (the underlying
+    // encoder retains only the inner object), so we keep it alive for the duration of the pass.
+    // Repointed on every bindPipeline so a later bind never validates a previous bind's stale bindings.
+    RefPtr<DebugShaderObject> m_boundRootObject;
     bool m_pipelineBound = false;
 };
 
@@ -125,6 +137,12 @@ public:
 public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
+    // The debug root object whose Shared bindings are validated at draw/dispatch: m_rootObject for the
+    // convenience bindPipeline overload, or the caller's pre-built root for the two-argument overload.
+    // Held by RefPtr because the two-argument overload's root is owned by the caller (the underlying
+    // encoder retains only the inner object), so we keep it alive for the duration of the pass.
+    // Repointed on every bindPipeline so a later bind never validates a previous bind's stale bindings.
+    RefPtr<DebugShaderObject> m_boundRootObject;
     bool m_pipelineBound = false;
 };
 

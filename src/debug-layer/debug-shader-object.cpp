@@ -5,16 +5,27 @@ namespace rhi::debug {
 
 namespace {
 
-// Cheap bind-time test for a Shared buffer binding: it checks only the Shared usage flag and never
-// exports a shared handle. Texture bindings arrive as an ITextureView, which is not an IBuffer, so
-// they are never treated as Shared here - matching the ownership tracker, which keys off a shared
-// handle a view does not expose.
-bool isSharedResourceBinding(IResource* resource)
+// Returns the shared resource to track for one binding operand, or null if the operand is neither a
+// Shared buffer nor a view of a Shared texture. A texture binding arrives as an ITextureView, which
+// exposes no shared handle of its own, so we resolve it to its owning ITexture (getTexture), which
+// does. Only the Shared usage flag is checked here - no handle is exported at bind time.
+IResource* sharedResourceOfBinding(IResource* resource)
 {
+    if (!resource)
+        return nullptr;
     ComPtr<IBuffer> buffer;
     if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
-        return is_set(buffer->getDesc().usage, BufferUsage::Shared);
-    return false;
+        return is_set(buffer->getDesc().usage, BufferUsage::Shared) ? buffer.get() : nullptr;
+    ComPtr<ITextureView> view;
+    if (SLANG_SUCCEEDED(resource->queryInterface(ITextureView::getTypeGuid(), (void**)view.writeRef())))
+    {
+        ITexture* texture = view->getTexture();
+        return (texture && is_set(texture->getDesc().usage, TextureUsage::Shared)) ? texture : nullptr;
+    }
+    ComPtr<ITexture> texture;
+    if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
+        return is_set(texture->getDesc().usage, TextureUsage::Shared) ? texture.get() : nullptr;
+    return nullptr;
 }
 
 } // namespace
@@ -153,12 +164,16 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
     }
 
     auto objectImpl = getDebugObj(object);
-    m_objects[ShaderOffsetKey{offset}] = objectImpl;
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
     // objectImpl->checkCompleteness();
 
-    return baseObject->setObject(offset, getInnerObj(object));
+    Result result = baseObject->setObject(offset, getInnerObj(object));
+    // Track the child only once the base accepts it, so a rejected setObject does not leave a child
+    // whose Shared bindings would be validated at draw/dispatch though it was never bound.
+    if (SLANG_SUCCEEDED(result))
+        m_objects[ShaderOffsetKey{offset}] = objectImpl;
+    return result;
 }
 
 Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
@@ -175,20 +190,31 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
     // time, and a resource may be legitimately bound while handed off as long as a takeOverShared is
     // recorded before the draw/dispatch that uses it. Instead we record which bound resources are
     // Shared and validate them at draw/dispatch, where the submitting queue is known (and only when a
-    // Shared resource is actually bound). Rebinding a slot to a non-Shared resource clears its entry.
-    ShaderOffsetKey key{offset};
-    if (binding.resource && isSharedResourceBinding(binding.resource.get()))
-        m_sharedBindings[key] = binding.resource;
-    else
-        m_sharedBindings.erase(key);
-    return baseObject->setBinding(offset, binding);
+    // Shared resource is actually bound). Recording happens only after the base binding succeeds, so a
+    // rejected binding is not tracked; rebinding a slot with no Shared operand clears its entry.
+    Result result = baseObject->setBinding(offset, binding);
+    if (SLANG_SUCCEEDED(result))
+    {
+        ShaderOffsetKey key{offset};
+        std::vector<ComPtr<IResource>> shared;
+        if (IResource* r = sharedResourceOfBinding(binding.resource.get()))
+            shared.push_back(ComPtr<IResource>(r));
+        if (IResource* r = sharedResourceOfBinding(binding.resource2.get()))
+            shared.push_back(ComPtr<IResource>(r));
+        if (shared.empty())
+            m_sharedBindings.erase(key);
+        else
+            m_sharedBindings[key] = std::move(shared);
+    }
+    return result;
 }
 
 void DebugShaderObject::collectSharedBindings(std::vector<IResource*>& out)
 {
     for (const auto& kv : m_sharedBindings)
-        if (kv.second)
-            out.push_back(kv.second.get());
+        for (const auto& resource : kv.second)
+            if (resource)
+                out.push_back(resource.get());
     for (const auto& kv : m_objects)
         if (kv.second)
             kv.second->collectSharedBindings(out);

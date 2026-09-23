@@ -101,11 +101,11 @@ public:
     // std::set<SlangInt> m_initializedBindingRanges;
 
     // Shared resources bound on this object, keyed by binding offset so that rebinding a slot
-    // replaces rather than accumulates. Populated by setBinding only for a Shared buffer binding
-    // (texture bindings arrive as a view, which exposes no shared handle, so only buffers appear
-    // here). Their ownership is validated at draw/dispatch, where the submitting queue is known,
-    // rather than at bind time, where it is not.
-    std::unordered_map<ShaderOffsetKey, ComPtr<IResource>, ShaderOffsetKeyHasher> m_sharedBindings;
+    // replaces rather than accumulates. Populated by setBinding: a Shared buffer is recorded directly,
+    // a texture binding (an ITextureView) is resolved to its owning Shared texture, and a binding may
+    // contribute more than one (e.g. a buffer plus its counter). Their ownership is validated at
+    // draw/dispatch, where the submitting queue is known, rather than at bind time, where it is not.
+    std::unordered_map<ShaderOffsetKey, std::vector<ComPtr<IResource>>, ShaderOffsetKeyHasher> m_sharedBindings;
 
     // Append this object's Shared bindings, and those of its child objects and entry points, to `out`.
     void collectSharedBindings(std::vector<IResource*>& out);
