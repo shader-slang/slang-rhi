@@ -367,7 +367,10 @@ Result DebugDevice::createTextureFromSharedHandle(
         return SLANG_E_INVALID_ARG;
     }
 
-    return baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
+    Result result = baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
+    if (SLANG_SUCCEEDED(result) && outTexture && *outTexture)
+        SharedResourceOwnershipTracker::get().tieImportedResource(*outTexture, handle);
+    return result;
 }
 
 Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
@@ -440,7 +443,10 @@ Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const Buff
         return SLANG_E_INVALID_ARG;
     }
 
-    return baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
+    Result result = baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
+    if (SLANG_SUCCEEDED(result) && outBuffer && *outBuffer)
+        SharedResourceOwnershipTracker::get().tieImportedResource(*outBuffer, handle);
+    return result;
 }
 
 Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
@@ -482,6 +488,10 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
     default:
         break;
     }
+
+    ComPtr<ICommandQueue> ownerQueue;
+    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, ownerQueue.get());
 
 #if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
     {
@@ -928,8 +938,7 @@ Result DebugDevice::createShaderObject(
     }
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    SLANG_RETURN_ON_FAIL(
-        baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef())
+    SLANG_RETURN_ON_FAIL(baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef())
     );
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
@@ -1182,6 +1191,9 @@ Result DebugDevice::readTexture(
         return SLANG_E_INVALID_ARG;
     }
 
+    ComPtr<ICommandQueue> ownerQueue;
+    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, ownerQueue.get());
     return baseObject->readTexture(texture, layer, mip, layout, outData);
 }
 
@@ -1231,6 +1243,9 @@ Result DebugDevice::readTexture(
         break;
     }
 
+    ComPtr<ICommandQueue> ownerQueue;
+    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, ownerQueue.get());
     return baseObject->readTexture(texture, layer, mip, outBlob, outLayout);
 }
 
@@ -1261,6 +1276,9 @@ Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* 
         return SLANG_E_INVALID_ARG;
     }
 
+    ComPtr<ICommandQueue> ownerQueue;
+    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, ownerQueue.get());
     return baseObject->readBuffer(buffer, offset, size, outData);
 }
 
@@ -1291,6 +1309,9 @@ Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISla
         return SLANG_E_INVALID_ARG;
     }
 
+    ComPtr<ICommandQueue> ownerQueue;
+    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, ownerQueue.get());
     return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 

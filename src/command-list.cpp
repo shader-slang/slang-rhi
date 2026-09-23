@@ -422,6 +422,47 @@ void CommandList::write(commands::ExecuteCallback&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::HandOffShared&& cmd)
+{
+    if (cmd.resources && cmd.resourceCount > 0)
+    {
+        cmd.resources = (IResource* const*)writeData(cmd.resources, cmd.resourceCount * sizeof(IResource*));
+        for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+            retainSharedResource(cmd.resources[i]);
+    }
+    retainResource<CommandQueue>(cmd.destQueue);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::TakeOverShared&& cmd)
+{
+    if (cmd.resources && cmd.resourceCount > 0)
+    {
+        cmd.resources = (IResource* const*)writeData(cmd.resources, cmd.resourceCount * sizeof(IResource*));
+        for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+            retainSharedResource(cmd.resources[i]);
+    }
+    retainResource<CommandQueue>(cmd.srcQueue);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::retainSharedResource(IResource* resource)
+{
+    if (!resource)
+        return;
+    ComPtr<IBuffer> buffer;
+    if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
+    {
+        retainResource<Buffer>(buffer.get());
+        return;
+    }
+    ComPtr<ITexture> texture;
+    if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
+    {
+        retainResource<Texture>(texture.get());
+    }
+}
+
 void CommandList::trackQueryWrite(IQueryPool* queryPool, uint32_t index, uint32_t count)
 {
     if (!queryPool || count == 0)

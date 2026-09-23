@@ -25,6 +25,7 @@ Result DebugCommandQueue::createCommandEncoder(const CommandEncoderDesc& desc, I
     }
 
     RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder(ctx);
+    encoder->m_ownerQueue = baseObject.get();
     SLANG_RETURN_ON_FAIL(baseObject->createCommandEncoder(desc, encoder->baseObject.writeRef()));
 
     returnComPtr(outEncoder, encoder);

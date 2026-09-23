@@ -1167,8 +1167,7 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
-        DescriptorHandle* outHandle
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle
     ) = 0;
 };
 
@@ -2764,6 +2763,8 @@ struct ExecuteCallbackDesc
     Size userDataSize = 0;
 };
 
+class ICommandQueue;
+
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
@@ -2961,6 +2962,34 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    /// Hand off ownership of the given shared resources from this encoder's queue to `destQueue`, so
+    /// that a different queue or external API (e.g. CUDA) can access them. On backends with exclusive
+    /// queue-family ownership (Vulkan) this records a queue-family ownership-transfer release from
+    /// this queue's family to the destination; it is a no-op on backends that do not track
+    /// queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is recorded on this
+    /// encoder only and takes effect when the resulting command buffer is submitted — this call does
+    /// not itself submit or wait. Every resource must have been created with `BufferUsage::Shared` /
+    /// `TextureUsage::Shared` on this encoder's device. Once the hand-off is submitted, this queue
+    /// must not use the resources again until a matching `takeOverShared` reclaims them.
+    virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* destQueue
+    ) = 0;
+
+    /// Take ownership of the given shared resources from `srcQueue` back to this encoder's queue,
+    /// reversing a prior `handOffShared`. On Vulkan this records a queue-family ownership-transfer
+    /// acquire from the source to this queue's family; it is a no-op on backends that do not track
+    /// queue-family ownership. Recorded on this encoder only and takes effect on submit. The caller
+    /// must ensure the previous owner has finished using the resources before this acquire executes
+    /// (e.g. via `waitOnHost` after the previous owner's submit). Once submitted, this queue owns the
+    /// resources again and may use them.
+    virtual SLANG_NO_THROW Result SLANG_MCALL takeOverShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* srcQueue
+    ) = 0;
 };
 
 #if 0

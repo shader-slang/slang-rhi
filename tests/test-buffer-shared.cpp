@@ -35,10 +35,26 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
     ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
-    // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
-    // dstDevice
-    // TODO: Implement actual synchronization (and not this hacky solution)
-    compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
+    // Explicitly transfer ownership of the shared buffer from the producer (D3D12/Vulkan) to CUDA:
+    // the producer hands it off to the CUDA queue, and CUDA takes it over before accessing it. On
+    // Vulkan this performs the queue-family ownership transfer to/from VK_QUEUE_FAMILY_EXTERNAL; on
+    // D3D12/CUDA the calls are no-ops.
+    auto srcQueue = srcDevice->getQueue(QueueType::Graphics);
+    auto dstQueue = dstDevice->getQueue(QueueType::Graphics);
+    {
+        IResource* resources[] = {srcBuffer.get()};
+        auto handOffEncoder = srcQueue->createCommandEncoder();
+        REQUIRE_CALL(handOffEncoder->handOffShared(1, resources, dstQueue.get()));
+        srcQueue->submit(handOffEncoder->finish());
+        srcQueue->waitOnHost();
+    }
+    {
+        IResource* resources[] = {dstBuffer.get()};
+        auto takeOverEncoder = dstQueue->createCommandEncoder();
+        REQUIRE_CALL(takeOverEncoder->takeOverShared(1, resources, srcQueue.get()));
+        dstQueue->submit(takeOverEncoder->finish());
+        dstQueue->waitOnHost();
+    }
 
     const BufferDesc& testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc.elementSize, sizeof(float));
@@ -68,5 +84,25 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     }
 
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
+
+    // Round-trip ownership back to the producer: CUDA hands the buffer off to the producer's queue
+    // (a no-op on CUDA), and the producer takes it over — on Vulkan this exercises the
+    // EXTERNAL -> thisFamily queue-family acquire, the reverse of the initial hand-off. The producer
+    // then reads back what CUDA wrote, confirming the data survived the round-trip.
+    {
+        IResource* resources[] = {dstBuffer.get()};
+        auto handBackEncoder = dstQueue->createCommandEncoder();
+        REQUIRE_CALL(handBackEncoder->handOffShared(1, resources, srcQueue.get()));
+        dstQueue->submit(handBackEncoder->finish());
+        dstQueue->waitOnHost();
+    }
+    {
+        IResource* resources[] = {srcBuffer.get()};
+        auto reclaimEncoder = srcQueue->createCommandEncoder();
+        REQUIRE_CALL(reclaimEncoder->takeOverShared(1, resources, dstQueue.get()));
+        srcQueue->submit(reclaimEncoder->finish());
+        srcQueue->waitOnHost();
+    }
+    compareComputeResult(srcDevice, srcBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
 }
 #endif

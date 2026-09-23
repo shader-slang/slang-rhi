@@ -925,6 +925,26 @@ void CommandEncoder::executeCallback(const ExecuteCallbackDesc& desc)
     m_commandList->write(std::move(cmd));
 }
 
+Result CommandEncoder::handOffShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* destQueue)
+{
+    commands::HandOffShared cmd;
+    cmd.resourceCount = resourceCount;
+    cmd.resources = resources;
+    cmd.destQueue = destQueue;
+    m_commandList->write(std::move(cmd));
+    return SLANG_OK;
+}
+
+Result CommandEncoder::takeOverShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* srcQueue)
+{
+    commands::TakeOverShared cmd;
+    cmd.resourceCount = resourceCount;
+    cmd.resources = resources;
+    cmd.srcQueue = srcQueue;
+    m_commandList->write(std::move(cmd));
+    return SLANG_OK;
+}
+
 Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     // iterate over commands and specialize pipelines

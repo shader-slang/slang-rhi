@@ -906,6 +906,8 @@ void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* sr
         }
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
@@ -942,6 +944,7 @@ Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size s
         return SLANG_E_INVALID_ARG;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
     return baseObject->uploadBufferData(dst, offset, size, data);
 }
 
@@ -1016,8 +1019,7 @@ void DebugCommandEncoder::copyTexture(
         }
         if (dstSubresource.layer + dstSubresource.layerCount > dstDesc.getLayerCount())
         {
-            RHI_VALIDATION_ERROR(
-                "Destination layer range (layer + layerCount) exceeds destination texture layer count."
+            RHI_VALIDATION_ERROR("Destination layer range (layer + layerCount) exceeds destination texture layer count."
             );
             return;
         }
@@ -1068,8 +1070,7 @@ void DebugCommandEncoder::copyTexture(
     {
         if (srcOffset.x != dstOffset.x)
         {
-            RHI_VALIDATION_ERROR(
-                "Copying the remaining texture requires source and destination offset to be the same."
+            RHI_VALIDATION_ERROR("Copying the remaining texture requires source and destination offset to be the same."
             );
             return;
         }
@@ -1078,8 +1079,7 @@ void DebugCommandEncoder::copyTexture(
     {
         if (srcOffset.y != dstOffset.y)
         {
-            RHI_VALIDATION_ERROR(
-                "Copying the remaining texture requires source and destination offset to be the same."
+            RHI_VALIDATION_ERROR("Copying the remaining texture requires source and destination offset to be the same."
             );
             return;
         }
@@ -1088,8 +1088,7 @@ void DebugCommandEncoder::copyTexture(
     {
         if (srcOffset.z != dstOffset.z)
         {
-            RHI_VALIDATION_ERROR(
-                "Copying the remaining texture requires source and destination offset to be the same."
+            RHI_VALIDATION_ERROR("Copying the remaining texture requires source and destination offset to be the same."
             );
             return;
         }
@@ -1107,6 +1106,8 @@ void DebugCommandEncoder::copyTexture(
         }
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyTexture(dst, dstSubresource, dstOffset, src, srcSubresource, srcOffset, extent);
 }
 
@@ -1146,8 +1147,7 @@ Result DebugCommandEncoder::uploadTextureData(
         if (extent.width != kRemainingTextureSize || extent.height != kRemainingTextureSize ||
             extent.depth != kRemainingTextureSize)
         {
-            RHI_VALIDATION_ERROR(
-                "Uploading multiple mip levels at once requires extent to be Extent3D::kWholeTexture."
+            RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires extent to be Extent3D::kWholeTexture."
             );
             return SLANG_E_INVALID_ARG;
         }
@@ -1159,6 +1159,7 @@ Result DebugCommandEncoder::uploadTextureData(
         return SLANG_E_INVALID_ARG;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
     return baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
@@ -1185,6 +1186,7 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->clearBuffer(buffer, range);
 }
 
@@ -1224,6 +1226,7 @@ void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange 
         RHI_VALIDATION_WARNING("clearTextureFloat called on a non-float/non-normalized format.");
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureFloat(texture, subresourceRange, clearValue);
 }
 
@@ -1248,8 +1251,7 @@ void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange s
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     if (formatInfo.hasDepth || formatInfo.hasStencil)
     {
-        RHI_VALIDATION_ERROR(
-            "clearTextureUint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
+        RHI_VALIDATION_ERROR("clearTextureUint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
         );
         return;
     }
@@ -1263,6 +1265,7 @@ void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange s
         RHI_VALIDATION_WARNING("clearTextureUint called on a non-unsigned-integer format.");
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureUint(texture, subresourceRange, clearValue);
 }
 
@@ -1287,8 +1290,7 @@ void DebugCommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange s
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     if (formatInfo.hasDepth || formatInfo.hasStencil)
     {
-        RHI_VALIDATION_ERROR(
-            "clearTextureSint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
+        RHI_VALIDATION_ERROR("clearTextureSint cannot be used with depth/stencil formats; use clearTextureDepthStencil."
         );
         return;
     }
@@ -1302,6 +1304,7 @@ void DebugCommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange s
         RHI_VALIDATION_WARNING("clearTextureSint called on a non-signed-integer format.");
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureSint(texture, subresourceRange, clearValue);
 }
 
@@ -1382,6 +1385,7 @@ void DebugCommandEncoder::clearTextureDepthStencil(
         break;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureDepthStencil(texture, subresourceRange, clearDepth, depthValue, clearStencil, stencilValue);
 }
 
@@ -1424,12 +1428,12 @@ void DebugCommandEncoder::resolveQuery(
             buffer->getDesc().size
         ))
     {
-        RHI_VALIDATION_ERROR(
-            "Destination range out of bounds (offset + count * sizeof(uint64_t) exceeds buffer size)."
+        RHI_VALIDATION_ERROR("Destination range out of bounds (offset + count * sizeof(uint64_t) exceeds buffer size)."
         );
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->resolveQuery(getInnerObj(queryPool), index, count, buffer, offset);
 }
 
@@ -1474,6 +1478,8 @@ void DebugCommandEncoder::copyTextureToBuffer(
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMip, srcOffset, extent);
 }
 
@@ -1518,6 +1524,8 @@ void DebugCommandEncoder::copyBufferToTexture(
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyBufferToTexture(dst, dstLayer, dstMip, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
@@ -1586,6 +1594,8 @@ void DebugCommandEncoder::buildAccelerationStructure(
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
 
+    if (scratchBuffer.buffer)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, scratchBuffer.buffer, m_ownerQueue);
     baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }
 
@@ -1604,6 +1614,8 @@ void DebugCommandEncoder::buildMicromap(const MicromapBuildDesc& desc, IMicromap
         RHI_VALIDATION_ERROR("Micromap build data, descriptors, and histogram must be provided.");
         return;
     }
+    if (scratchBuffer.buffer)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, scratchBuffer.buffer, m_ownerQueue);
     baseObject->buildMicromap(desc, dst, scratchBuffer);
 }
 
@@ -1797,6 +1809,8 @@ void DebugCommandEncoder::convertCooperativeVectorMatrix(
         matrixCount
     ));
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dstBuffer, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, srcBuffer, m_ownerQueue);
     baseObject->convertCooperativeVectorMatrix(dstBuffer, dstDescs, srcBuffer, srcDescs, matrixCount);
 }
 
@@ -1823,6 +1837,7 @@ void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->setBufferState(buffer, state);
 }
 
@@ -1854,6 +1869,7 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
@@ -1979,6 +1995,84 @@ Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
     }
 
     return baseObject->getNativeHandle(outHandle);
+}
+
+Result DebugCommandEncoder::handOffShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* destQueue)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, handOffShared);
+
+    requireOpen();
+    requireNoPass();
+
+    if (resourceCount > 0 && !resources)
+    {
+        RHI_VALIDATION_ERROR("'resources' must not be null when 'resourceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!destQueue)
+    {
+        RHI_VALIDATION_ERROR("'destQueue' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    // Validate the whole batch before applying any state change (all-or-nothing): every resource
+    // must be non-null and have a shared handle.
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        if (!resources[i])
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", i);
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!SharedResourceOwnershipTracker::get().isShared(resources[i]))
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", i);
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
+    ICommandQueue* innerDest = getInnerObj(destQueue);
+    for (uint32_t i = 0; i < resourceCount; ++i)
+        SharedResourceOwnershipTracker::get().handOff(ctx, resources[i], m_ownerQueue, innerDest);
+
+    return baseObject->handOffShared(resourceCount, resources, innerDest);
+}
+
+Result DebugCommandEncoder::takeOverShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* srcQueue)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, takeOverShared);
+
+    requireOpen();
+    requireNoPass();
+
+    if (resourceCount > 0 && !resources)
+    {
+        RHI_VALIDATION_ERROR("'resources' must not be null when 'resourceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!srcQueue)
+    {
+        RHI_VALIDATION_ERROR("'srcQueue' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        if (!resources[i])
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", i);
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!SharedResourceOwnershipTracker::get().isShared(resources[i]))
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", i);
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
+    ICommandQueue* innerSrc = getInnerObj(srcQueue);
+    for (uint32_t i = 0; i < resourceCount; ++i)
+        SharedResourceOwnershipTracker::get().takeOver(ctx, resources[i], m_ownerQueue, innerSrc);
+
+    return baseObject->takeOverShared(resourceCount, resources, innerSrc);
 }
 
 void DebugCommandEncoder::requireOpen()

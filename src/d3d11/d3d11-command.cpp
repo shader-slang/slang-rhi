@@ -98,6 +98,8 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdHandOffShared(const commands::HandOffShared& cmd);
+    void cmdTakeOverShared(const commands::TakeOverShared& cmd);
 
     void invalidateState();
     void clearState();
@@ -902,6 +904,17 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
 }
 
+void CommandExecutor::cmdHandOffShared(const commands::HandOffShared&)
+{
+    // Only Vulkan tracks queue-family ownership of shared resources; other backends have nothing to
+    // transfer, so hand-off is a no-op.
+}
+
+void CommandExecutor::cmdTakeOverShared(const commands::TakeOverShared&)
+{
+    // No-op: see cmdHandOffShared.
+}
+
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
     NativeHandle nativeHandle{
@@ -1033,8 +1046,8 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
 
     uint64_t gpuTimestamp = 0;
     hr = S_FALSE;
-    while ((hr = device->m_immediateContext->GetData(timestampQuery, &gpuTimestamp, sizeof(gpuTimestamp), 0)) ==
-           S_FALSE)
+    while ((hr = device->m_immediateContext->GetData(timestampQuery, &gpuTimestamp, sizeof(gpuTimestamp), 0)) == S_FALSE
+    )
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

@@ -155,6 +155,10 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
     // m_bindings[ShaderOffsetKey{offset}] = binding;
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
 
+    // Shared-resource ownership is intentionally not validated at bind time: the queue that will
+    // submit the work is unknown here, and a resource may be legitimately bound while handed off if
+    // a takeOverShared is recorded before the dispatch that uses it. Ownership is checked at the
+    // actual command-use points instead, where the using queue is known.
     return baseObject->setBinding(offset, binding);
 }
 

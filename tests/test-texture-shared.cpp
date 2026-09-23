@@ -115,9 +115,6 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
         // dstDevice. Read back the texture and check that its contents are correct.
         auto srcTexture = createTexture(srcDevice, size, Format::RGBA32Float, &subData);
 
-        // Wait for the texture to be filled in before reading it back
-        srcDevice->getQueue(QueueType::Graphics)->waitOnHost();
-
         NativeHandle sharedHandle;
         REQUIRE_CALL(srcTexture->getSharedHandle(&sharedHandle));
         ComPtr<ITexture> dstTexture;
@@ -128,8 +125,28 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
             dstDevice
                 ->createTextureFromSharedHandle(sharedHandle, srcTexture->getDesc(), sizeInBytes, dstTexture.writeRef())
         );
-        // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
-        // dstDevice
+
+        // Explicitly transfer ownership of the shared texture from the producer (D3D12/Vulkan) to
+        // CUDA before CUDA reads it. On Vulkan this is the queue-family ownership transfer to/from
+        // VK_QUEUE_FAMILY_EXTERNAL; on D3D12/CUDA the calls are no-ops. The producer's waitOnHost also
+        // ensures the initial texture upload has completed before CUDA reads.
+        auto srcQueue = srcDevice->getQueue(QueueType::Graphics);
+        auto dstQueue = dstDevice->getQueue(QueueType::Graphics);
+        {
+            IResource* resources[] = {srcTexture.get()};
+            auto handOffEncoder = srcQueue->createCommandEncoder();
+            REQUIRE_CALL(handOffEncoder->handOffShared(1, resources, dstQueue.get()));
+            srcQueue->submit(handOffEncoder->finish());
+            srcQueue->waitOnHost();
+        }
+        {
+            IResource* resources[] = {dstTexture.get()};
+            auto takeOverEncoder = dstQueue->createCommandEncoder();
+            REQUIRE_CALL(takeOverEncoder->takeOverShared(1, resources, srcQueue.get()));
+            dstQueue->submit(takeOverEncoder->finish());
+            dstQueue->waitOnHost();
+        }
+
         compareComputeResult(dstDevice, dstTexture, 0, 0, std::span(texData, texData + 16));
 
         setUpAndRunShader(dstDevice, dstTexture, floatResults, "copyTexFloat4");
@@ -139,6 +156,26 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
             makeArray<
                 float>(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f)
         );
+
+        // Round-trip ownership back to the producer: CUDA hands the texture off to the producer's
+        // queue (a no-op on CUDA), and the producer takes it over — on Vulkan this exercises the
+        // EXTERNAL -> thisFamily queue-family acquire, the reverse of the initial hand-off. The
+        // producer then reads the texture back (unchanged, since CUDA only sampled it).
+        {
+            IResource* resources[] = {dstTexture.get()};
+            auto handBackEncoder = dstQueue->createCommandEncoder();
+            REQUIRE_CALL(handBackEncoder->handOffShared(1, resources, srcQueue.get()));
+            dstQueue->submit(handBackEncoder->finish());
+            dstQueue->waitOnHost();
+        }
+        {
+            IResource* resources[] = {srcTexture.get()};
+            auto reclaimEncoder = srcQueue->createCommandEncoder();
+            REQUIRE_CALL(reclaimEncoder->takeOverShared(1, resources, dstQueue.get()));
+            srcQueue->submit(reclaimEncoder->finish());
+            srcQueue->waitOnHost();
+        }
+        compareComputeResult(srcDevice, srcTexture, 0, 0, std::span(texData, texData + 16));
     }
 }
 #endif

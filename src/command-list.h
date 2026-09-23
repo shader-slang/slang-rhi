@@ -51,7 +51,9 @@
     x(PopDebugGroup) \
     x(InsertDebugMarker) \
     x(WriteTimestamp) \
-    x(ExecuteCallback)
+    x(ExecuteCallback) \
+    x(HandOffShared) \
+    x(TakeOverShared)
 // clang-format on
 
 
@@ -339,6 +341,20 @@ struct ExecuteCallback
     ExecuteCallbackDesc desc;
 };
 
+struct HandOffShared
+{
+    uint32_t resourceCount;
+    IResource* const* resources;
+    ICommandQueue* destQueue;
+};
+
+struct TakeOverShared
+{
+    uint32_t resourceCount;
+    IResource* const* resources;
+    ICommandQueue* srcQueue;
+};
+
 #define SLANG_RHI_COMMAND_CHECK_X(x)                                                                                   \
     static_assert(                                                                                                     \
         std::is_default_constructible_v<x> && std::is_trivially_copyable_v<x>,                                         \
@@ -462,6 +478,8 @@ public:
     void write(commands::InsertDebugMarker&& cmd);
     void write(commands::WriteTimestamp&& cmd);
     void write(commands::ExecuteCallback&& cmd);
+    void write(commands::HandOffShared&& cmd);
+    void write(commands::TakeOverShared&& cmd);
 
     const CommandSlot* getCommands() const { return m_commandSlots; }
     const QueryWriteRangeList& getQueryWrites() const { return m_queryWrites; }
@@ -496,6 +514,11 @@ public:
             retainResource(obj);
         }
     }
+
+    /// Retain the concrete implementation object behind a shared `IResource` (a `Buffer` or a
+    /// `Texture`) so it survives until the command list is reset. Used by the hand-off/take-over
+    /// commands, whose resources arrive as `IResource*` and may be either kind.
+    void retainSharedResource(IResource* resource);
 
     void* allocData(size_t size) { return m_allocator.allocate(size); }
 
