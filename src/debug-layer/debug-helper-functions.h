@@ -107,8 +107,12 @@ class SharedResourceOwnershipTracker
 public:
     static SharedResourceOwnershipTracker& get()
     {
-        static SharedResourceOwnershipTracker instance;
-        return instance;
+        // Intentionally never destroyed: the table is process-global and may be referenced during
+        // static teardown, and clang builds forbid exit-time destructors (-Wexit-time-destructors
+        // -Werror). A leaked function-local static has no exit-time destructor, and being
+        // constructed on first use it also avoids -Wglobal-constructors.
+        static SharedResourceOwnershipTracker* instance = new SharedResourceOwnershipTracker();
+        return *instance;
     }
 
     // Tie an imported resource to its shared handle so later uses on the consumer side resolve to the
