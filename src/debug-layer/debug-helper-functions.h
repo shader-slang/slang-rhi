@@ -126,7 +126,9 @@ public:
     }
 
     // Whether `resource` has a shared handle, i.e. is a valid handOffShared/takeOverShared argument.
-    // Used by the encoder to reject an unshared resource before mutating any tracker state.
+    // Used by the encoder to reject an unshared resource before recording a transfer. This is not a
+    // pure query: resolveKey caches the resolved key in m_resourceKeys and may call the backend's
+    // getSharedHandle. It does not touch the ownership state (Owned/HandedOff).
     bool isShared(IResource* resource)
     {
         Key key;

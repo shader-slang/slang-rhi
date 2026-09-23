@@ -2966,13 +2966,17 @@ public:
 
     /// Hand off ownership of the given shared resources from this encoder's queue to `destQueue`, so
     /// that a different queue or external API (e.g. CUDA) can access them. On backends with exclusive
-    /// queue-family ownership (Vulkan) this records a queue-family ownership-transfer release from
-    /// this queue's family to the destination; it is a no-op on backends that do not track
-    /// queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is recorded on this
-    /// encoder only and takes effect when the resulting command buffer is submitted - this call does
-    /// not itself submit or wait. Every resource must have been created with `BufferUsage::Shared` /
-    /// `TextureUsage::Shared` on this encoder's device. Once the hand-off is submitted, this queue
-    /// must not use the resources again until a matching `takeOverShared` reclaims them.
+    /// queue-family ownership (Vulkan) this records a queue-family ownership-transfer release. Today
+    /// the release always targets `VK_QUEUE_FAMILY_EXTERNAL` (slang-rhi exposes a single Vulkan queue
+    /// family), regardless of the queue passed: `destQueue` is consulted only by the debug validation
+    /// layer to pair a hand-off with its `takeOverShared`, and is reserved for selecting a same-device
+    /// destination family once multiple Vulkan families are exposed. It is a no-op on backends that do
+    /// not track queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is
+    /// recorded on this encoder only and takes effect when the resulting command buffer is submitted -
+    /// this call does not itself submit or wait. Every resource must have been created with
+    /// `BufferUsage::Shared` / `TextureUsage::Shared` on this encoder's device. Once the hand-off is
+    /// submitted, this queue must not use the resources again until a matching `takeOverShared`
+    /// reclaims them.
     virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
         uint32_t resourceCount,
         IResource* const* resources,
@@ -2981,8 +2985,10 @@ public:
 
     /// Take ownership of the given shared resources from `srcQueue` back to this encoder's queue,
     /// reversing a prior `handOffShared`. On Vulkan this records a queue-family ownership-transfer
-    /// acquire from the source to this queue's family; it is a no-op on backends that do not track
-    /// queue-family ownership. Recorded on this encoder only and takes effect on submit. The caller
+    /// acquire; today the source is always `VK_QUEUE_FAMILY_EXTERNAL` (see `handOffShared`), and
+    /// `srcQueue` is consulted only by the debug validation layer to match the hand-off. It is a
+    /// no-op on backends that do not track queue-family ownership. Recorded on this encoder only and
+    /// takes effect on submit. The caller
     /// must ensure the previous owner has finished using the resources before this acquire executes
     /// (e.g. via `waitOnHost` after the previous owner's submit). Once submitted, this queue owns the
     /// resources again and may use them.

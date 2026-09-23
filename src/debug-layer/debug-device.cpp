@@ -122,6 +122,17 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     RHI_VALIDATION_INFO("Debug layer is enabled.");
 }
 
+void DebugDevice::checkSharedResourceDeviceUse(IResource* resource)
+{
+    // A device-side read/map is not recorded on a specific queue, so we attribute it to the device's
+    // graphics queue: reads/maps are serviced there, and slang-rhi exposes a single Vulkan queue
+    // family, so it is the queue a shared resource would be owned by. If getQueue fails we skip the
+    // check rather than pass a null queue (which would misreport ownership).
+    ComPtr<ICommandQueue> ownerQueue;
+    if (SLANG_SUCCEEDED(baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef())) && ownerQueue)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, resource, ownerQueue.get());
+}
+
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 {
     SLANG_RHI_DEBUG_API(IDevice, getSlangSession);
@@ -489,9 +500,7 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
         break;
     }
 
-    ComPtr<ICommandQueue> ownerQueue;
-    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
-    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, ownerQueue.get());
+    checkSharedResourceDeviceUse(buffer);
 
 #if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
     {
@@ -1192,9 +1201,7 @@ Result DebugDevice::readTexture(
         return SLANG_E_INVALID_ARG;
     }
 
-    ComPtr<ICommandQueue> ownerQueue;
-    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
-    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, ownerQueue.get());
+    checkSharedResourceDeviceUse(texture);
     return baseObject->readTexture(texture, layer, mip, layout, outData);
 }
 
@@ -1244,9 +1251,7 @@ Result DebugDevice::readTexture(
         break;
     }
 
-    ComPtr<ICommandQueue> ownerQueue;
-    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
-    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, ownerQueue.get());
+    checkSharedResourceDeviceUse(texture);
     return baseObject->readTexture(texture, layer, mip, outBlob, outLayout);
 }
 
@@ -1277,9 +1282,7 @@ Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* 
         return SLANG_E_INVALID_ARG;
     }
 
-    ComPtr<ICommandQueue> ownerQueue;
-    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
-    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, ownerQueue.get());
+    checkSharedResourceDeviceUse(buffer);
     return baseObject->readBuffer(buffer, offset, size, outData);
 }
 
@@ -1310,9 +1313,7 @@ Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISla
         return SLANG_E_INVALID_ARG;
     }
 
-    ComPtr<ICommandQueue> ownerQueue;
-    baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef());
-    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, ownerQueue.get());
+    checkSharedResourceDeviceUse(buffer);
     return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 
