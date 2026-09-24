@@ -44,14 +44,11 @@ struct RecordingCallback : public IDebugCallback
     }
 };
 
-// The tracker stores and compares IResource*/ICommandQueue* by identity and never calls methods on
-// them (resolveKey hits the tied-key cache, bypassing getSharedHandle), so opaque non-null addresses
-// are sufficient synthetic operands.
-IResource* fakeResource(uintptr_t id)
-{
-    return reinterpret_cast<IResource*>(id);
-}
-
+// The tracker stores and compares ICommandQueue* by identity and never calls a method on a queue, so
+// an opaque non-null address is a sufficient synthetic queue. A resource operand is different: when it
+// resolves a tied import's key, resolveKey inspects the resource (getSharedHandle first, then the
+// Shared usage flag on the tied hit), so a resource must be a real object with a valid vtable -
+// fakeResource is defined below, after StubBuffer.
 ICommandQueue* fakeQueue(uintptr_t id)
 {
     return reinterpret_cast<ICommandQueue*>(id);
@@ -111,6 +108,18 @@ struct StubBuffer : public IBuffer
         return SLANG_E_NOT_IMPLEMENTED;
     }
 };
+
+// A synthetic resource operand for the tracker tests. resolveKey inspects a resource (queryInterface
+// for its buffer/texture kind, then the Shared usage flag) when resolving a tied import's key, so the
+// operand must be a real object with a valid vtable rather than a bogus address. Each call leaks a
+// distinct Shared buffer - release is a no-op on the stub and the test process is short-lived - so
+// distinct call sites get distinct identities; the id argument is retained only for call-site
+// readability. Which ownership entry a resource resolves to is still driven by its tieImportedResource
+// handle, exactly as a non-re-exportable import (e.g. a CUDA buffer) is resolved in production.
+IResource* fakeResource(uintptr_t /*id*/)
+{
+    return new StubBuffer(BufferUsage::Shared);
+}
 
 struct StubTexture : public ITexture
 {
@@ -696,6 +705,20 @@ TEST_CASE("shared-transfer-argument-validation")
         CHECK_EQ(encoder->handOffShared(1, resources, destQueue), SLANG_E_INVALID_ARG);
         CHECK_EQ(cb.lastType, DebugMessageType::Error);
     }
+
+    SUBCASE("a locally-created Shared resource with no exportable handle is accepted")
+    {
+        // On the no-op backends (CPU/CUDA/D3D11/Metal/WGPU) getSharedHandle is SLANG_E_NOT_AVAILABLE,
+        // so a locally-created Shared resource resolves no handle and is never tied. It is still a
+        // valid (no-op) transfer operand there, so validation accepts it on the Shared usage flag
+        // alone - the same predicate the base path uses - not on whether a shared handle resolves,
+        // which it does not on those backends. (A buffer skips the Vulkan texture-layout check, so this
+        // holds under the Vulkan ctx too.)
+        StubBuffer localShared(BufferUsage::Shared); // Shared flag set, but no m_sharedHandle, not tied
+        cb.reset();
+        CHECK_EQ(encoder->validateSharedTransferOperand(&localShared, 0), SLANG_OK);
+        CHECK_EQ(cb.messageCount, 0);
+    }
 }
 
 // A producer resolves its key fresh from getSharedHandle on every lookup and is not pointer-cached,
@@ -739,5 +762,41 @@ TEST_CASE("shared-ownership-tracker-producer-revalidation")
         buf.m_desc.usage = BufferUsage::ShaderResource; // recycled by a non-shared resource
         tracker.checkUse(&ctx, &buf, qB); // getSharedHandleOf fails the Shared check -> not tracked -> silent
         CHECK_EQ(cb.messageCount, 0);
+    }
+
+    SUBCASE("a non-shared resource recycling a freed import's address inherits no ownership entry")
+    {
+        // An import (e.g. a CUDA buffer created from a shared handle) cannot re-export its handle, so
+        // it is tied to its key by address rather than resolved fresh. The debug layer cannot observe
+        // its destruction, so if its address is later reused by a non-shared resource, that resource
+        // must not inherit the freed import's tied ownership entry: resolveKey gates the tied hit on
+        // isSharedResource, which rejects the recycled non-shared resource.
+        StubBuffer imp(BufferUsage::Shared); // an import: Shared flag, no getSharedHandle, tied by address
+        tracker.tieImportedResource(&imp, freshHandle());
+        tracker.checkUse(&ctx, &imp, qA); // first use resolves via the tie, acquires for qA
+        cb.reset();
+        imp.m_desc.usage = BufferUsage::ShaderResource; // address recycled by a non-shared resource
+        tracker.checkUse(&ctx, &imp, qB);               // tied hit rejected (not shared) -> untracked -> silent
+        CHECK_EQ(cb.messageCount, 0);
+    }
+
+    SUBCASE("a re-exportable resource recycling a freed import's address resolves to its own handle")
+    {
+        // resolveKey resolves fresh before consulting a tie, so a resource that can export its own
+        // handle keys off that handle: the live exported handle takes precedence over any stale
+        // imported tie left on its recycled address.
+        StubBuffer buf(BufferUsage::Shared);
+        tracker.tieImportedResource(&buf, freshHandle()); // a stale tie on this address
+        tracker.checkUse(&ctx, &buf, qA);                 // qA takes ownership of the stale-tie entry
+        cb.reset();
+        buf.m_sharedHandle = freshHandle(); // the resource now exports its own, different handle
+        tracker.checkUse(&ctx, &buf, qB);   // resolves its own handle fresh -> first use for qB, silent
+        CHECK_EQ(cb.messageCount, 0);
+        // Tracked under its own handle, not the stale tie: a third queue is a cross-queue error, which
+        // confirms qB holds ownership of the own-handle entry.
+        ICommandQueue* qC = fakeQueue(0x5003);
+        tracker.checkUse(&ctx, &buf, qC);
+        CHECK_EQ(cb.messageCount, 1);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
     }
 }

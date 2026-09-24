@@ -2041,7 +2041,11 @@ Result DebugCommandEncoder::validateSharedTransferOperand(IResource* resource, u
         RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", index);
         return SLANG_E_INVALID_ARG;
     }
-    if (!SharedResourceOwnershipTracker::get().isShared(resource))
+    // Decide shared-ness by the Shared usage flag (the same predicate the base path uses), not by
+    // whether a shared handle resolves: getSharedHandle is SLANG_E_NOT_AVAILABLE on the no-op backends
+    // (CPU/CUDA/D3D11/Metal/WGPU), so a handle-based check would falsely reject a locally-created
+    // Shared resource that the base path and docs accept as a valid (no-op) transfer operand there.
+    if (!isSharedResource(resource))
     {
         RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", index);
         return SLANG_E_INVALID_ARG;
@@ -2062,7 +2066,7 @@ Result DebugCommandEncoder::validateSharedTransferOperand(IResource* resource, u
                 RHI_VALIDATION_ERROR_FORMAT(
                     "'resources[%u]' is a shared texture whose default state does not map to the "
                     "general image layout the Vulkan queue-family ownership transfer requires; create "
-                    "it with ResourceState::General.",
+                    "it with ResourceState::General or ResourceState::UnorderedAccess.",
                     index
                 );
                 return SLANG_E_INVALID_ARG;
