@@ -224,6 +224,11 @@ public:
 #endif
 
 private:
+    // Validate a device-side use (read/map) of a possibly-shared resource against the ownership
+    // tracker. A device-side use is not tied to a specific queue, so it is attributed to the device's
+    // graphics queue; a getQueue failure skips the check rather than passing a null queue.
+    void checkSharedResourceDeviceUse(IResource* resource);
+
     DebugContext m_ctx;
 };
 

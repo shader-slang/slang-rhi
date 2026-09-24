@@ -388,6 +388,18 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* destQueue
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL takeOverShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* srcQueue
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(
         const CommandBufferDesc& desc,
         ICommandBuffer** outCommandBuffer

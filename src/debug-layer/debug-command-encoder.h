@@ -3,6 +3,8 @@
 #include "debug-base.h"
 #include "debug-shader-object.h"
 
+#include <set>
+
 namespace rhi::debug {
 
 class DebugRenderPassEncoder : public UnownedDebugObject<IRenderPassEncoder>
@@ -46,6 +48,12 @@ public:
 public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
+    // The debug root object whose Shared bindings are validated at draw/dispatch: m_rootObject for the
+    // convenience bindPipeline overload, or the caller's pre-built root for the two-argument overload.
+    // Held by RefPtr because the two-argument overload's root is owned by the caller (the underlying
+    // encoder retains only the inner object), so we keep it alive for the duration of the pass.
+    // Repointed on every bindPipeline so a later bind never validates a previous bind's stale bindings.
+    RefPtr<DebugShaderObject> m_boundRootObject;
     bool m_pipelineBound = false;
     bool m_indexBufferBound = false;
 };
@@ -82,6 +90,12 @@ public:
 public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
+    // The debug root object whose Shared bindings are validated at draw/dispatch: m_rootObject for the
+    // convenience bindPipeline overload, or the caller's pre-built root for the two-argument overload.
+    // Held by RefPtr because the two-argument overload's root is owned by the caller (the underlying
+    // encoder retains only the inner object), so we keep it alive for the duration of the pass.
+    // Repointed on every bindPipeline so a later bind never validates a previous bind's stale bindings.
+    RefPtr<DebugShaderObject> m_boundRootObject;
     bool m_pipelineBound = false;
 };
 
@@ -125,6 +139,12 @@ public:
 public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
+    // The debug root object whose Shared bindings are validated at draw/dispatch: m_rootObject for the
+    // convenience bindPipeline overload, or the caller's pre-built root for the two-argument overload.
+    // Held by RefPtr because the two-argument overload's root is owned by the caller (the underlying
+    // encoder retains only the inner object), so we keep it alive for the duration of the pass.
+    // Repointed on every bindPipeline so a later bind never validates a previous bind's stale bindings.
+    RefPtr<DebugShaderObject> m_boundRootObject;
     bool m_pipelineBound = false;
 };
 
@@ -306,12 +326,30 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* destQueue
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL takeOverShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* srcQueue
+    ) override;
+
 public:
     void requireOpen();
     void requireNoPass();
     void requireRenderPass();
     void requireComputePass();
     void requireRayTracingPass();
+
+    // Validate one resource operand of handOffShared/takeOverShared: reject a null resource, a
+    // non-shared resource, or (on Vulkan) a shared texture whose default state does not map to the
+    // general image layout the queue-family ownership transfer requires. Shared by both entry points
+    // so their operand contract stays identical.
+    Result validateSharedTransferOperand(IResource* resource, uint32_t index);
 
     enum class EncoderState
     {
@@ -329,6 +367,17 @@ public:
 
     EncoderState m_state = EncoderState::Open;
     PassState m_passState = PassState::NoPass;
+
+    // The inner command queue this encoder was created from, used to attribute shared-resource
+    // ownership for handOffShared/takeOverShared validation. Set by DebugCommandQueue. Not owned.
+    ICommandQueue* m_ownerQueue = nullptr;
+
+    // Resources handed off (handOffShared) earlier in THIS encoder and not yet taken back. A
+    // takeOverShared of one within the same encoder - which can never have a submit between it and
+    // the hand-off - is a likely missing-submit mistake (net no-op, no access window for the
+    // destination), flagged with a warning in takeOverShared. Not used for ownership state; that is
+    // the process-global tracker's job.
+    std::set<IResource*> m_handedOffThisEncoder;
 
     DebugRenderPassEncoder m_renderPassEncoder;
     DebugComputePassEncoder m_computePassEncoder;

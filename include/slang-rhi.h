@@ -2764,6 +2764,13 @@ struct ExecuteCallbackDesc
     Size userDataSize = 0;
 };
 
+class ICommandQueue;
+
+/// Records GPU commands into a command buffer. An `ICommandEncoder` is always produced by the RHI
+/// (`ICommandQueue::createCommandEncoder`) and is not intended to be implemented by clients: the
+/// interface is extended in place - new methods appended at the tail with the GUID unchanged - rather
+/// than through versioned sub-interfaces, so appending a method does not break the ABI for the RHI's
+/// own implementations but would break an out-of-tree implementer. Treat it as an RHI-produced type.
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
@@ -2961,6 +2968,50 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    /// Hand off ownership of the given shared resources from this encoder's queue to `destQueue`, so
+    /// that a different queue or external API (e.g. CUDA) can access them. On backends with exclusive
+    /// queue-family ownership (Vulkan) this records a queue-family ownership-transfer release. Today
+    /// the release always targets `VK_QUEUE_FAMILY_EXTERNAL` (slang-rhi exposes a single Vulkan queue
+    /// family), regardless of the queue passed: `destQueue` is consulted only by the debug validation
+    /// layer to pair a hand-off with its `takeOverShared`, and is reserved for selecting a same-device
+    /// destination family once multiple Vulkan families are exposed. It is a no-op on backends that do
+    /// not track queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is
+    /// recorded on this encoder only and takes effect when the resulting command buffer is submitted -
+    /// this call does not itself submit or wait. Every resource must be a shared resource - one
+    /// created with `BufferUsage::Shared` / `TextureUsage::Shared`, or one imported from a shared
+    /// handle. On Vulkan a shared texture must additionally have a default state that maps to the
+    /// general image layout (`ResourceState::General` or `ResourceState::UnorderedAccess`), which is
+    /// the layout external interop uses: the transfer changes only queue-family ownership and keeps
+    /// the image in that layout. A resource that is not shared is rejected with `SLANG_E_INVALID_ARG`
+    /// in every build. The Vulkan texture default-state precondition is enforced gracefully (also
+    /// `SLANG_E_INVALID_ARG`) only when the debug validation layer is enabled; in a release build with
+    /// the layer disabled, handing off a shared texture whose default state does not map to that
+    /// layout instead aborts when the command buffer is recorded. Once the hand-off is submitted, this
+    /// queue must not use the resources again until a matching `takeOverShared` reclaims them.
+    virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* destQueue
+    ) = 0;
+
+    /// Take ownership of the given shared resources from `srcQueue` back to this encoder's queue,
+    /// reversing a prior `handOffShared`. On Vulkan this records a queue-family ownership-transfer
+    /// acquire; today the source is always `VK_QUEUE_FAMILY_EXTERNAL` (see `handOffShared`), and
+    /// `srcQueue` is consulted only by the debug validation layer to match the hand-off. It is a
+    /// no-op on backends that do not track queue-family ownership. Recorded on this encoder only and
+    /// takes effect on submit. Every resource must be a shared resource, subject to the same
+    /// preconditions as `handOffShared` (a non-shared resource is rejected with `SLANG_E_INVALID_ARG`
+    /// in every build; the Vulkan texture default-state precondition is checked gracefully only under
+    /// the debug layer, as above). The caller
+    /// must ensure the previous owner has finished using the resources before this acquire executes
+    /// (e.g. via `waitOnHost` after the previous owner's submit). Once submitted, this queue owns the
+    /// resources again and may use them.
+    virtual SLANG_NO_THROW Result SLANG_MCALL takeOverShared(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        ICommandQueue* srcQueue
+    ) = 0;
 };
 
 #if 0

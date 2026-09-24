@@ -117,6 +117,8 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdHandOffShared(const commands::HandOffShared& cmd);
+    void cmdTakeOverShared(const commands::TakeOverShared& cmd);
 
     enum class BindMode
     {
@@ -1672,6 +1674,17 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     queryPool->writeTimestamp(m_cmdList, cmd.queryIndex);
+}
+
+void CommandRecorder::cmdHandOffShared(const commands::HandOffShared&)
+{
+    // Only Vulkan tracks queue-family ownership of shared resources; other backends have nothing to
+    // transfer, so hand-off is a no-op.
+}
+
+void CommandRecorder::cmdTakeOverShared(const commands::TakeOverShared&)
+{
+    // No-op: see cmdHandOffShared.
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)

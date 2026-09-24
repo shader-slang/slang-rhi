@@ -51,7 +51,9 @@
     x(PopDebugGroup) \
     x(InsertDebugMarker) \
     x(WriteTimestamp) \
-    x(ExecuteCallback)
+    x(ExecuteCallback) \
+    x(HandOffShared) \
+    x(TakeOverShared)
 // clang-format on
 
 
@@ -339,6 +341,20 @@ struct ExecuteCallback
     ExecuteCallbackDesc desc;
 };
 
+struct HandOffShared
+{
+    uint32_t resourceCount;
+    IResource* const* resources;
+    ICommandQueue* destQueue;
+};
+
+struct TakeOverShared
+{
+    uint32_t resourceCount;
+    IResource* const* resources;
+    ICommandQueue* srcQueue;
+};
+
 #define SLANG_RHI_COMMAND_CHECK_X(x)                                                                                   \
     static_assert(                                                                                                     \
         std::is_default_constructible_v<x> && std::is_trivially_copyable_v<x>,                                         \
@@ -363,6 +379,55 @@ SLANG_RHI_COMMANDS(SLANG_RHI_COMMAND_TRAITS_X)
 #undef SLANG_RHI_COMMAND_TRAITS_X
 
 } // namespace commands
+
+enum class SharedResourceKind
+{
+    Unknown,
+    Buffer,
+    Texture,
+};
+
+/// Classify a handOffShared/takeOverShared resource operand as an IBuffer or ITexture - the only
+/// resource kinds the transfer API accepts - writing the queried interface into the matching out
+/// parameter. This centralizes the buffer/texture queryInterface dispatch that the record, retain,
+/// ownership-transfer, and debug-tracker paths each perform, so the accepted-kind set is defined in
+/// one place. A texture *view* is not classified here (it is not itself an IBuffer/ITexture); a
+/// caller that accepts a view resolves it to its owning texture before calling this.
+inline SharedResourceKind classifySharedResource(
+    IResource* resource,
+    ComPtr<IBuffer>& outBuffer,
+    ComPtr<ITexture>& outTexture
+)
+{
+    if (resource)
+    {
+        if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)outBuffer.writeRef())))
+            return SharedResourceKind::Buffer;
+        if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)outTexture.writeRef())))
+            return SharedResourceKind::Texture;
+    }
+    return SharedResourceKind::Unknown;
+}
+
+/// True if `resource` is a buffer or texture created with the `Shared` usage flag - i.e. a valid
+/// handOffShared/takeOverShared operand. classifySharedResource only identifies the buffer/texture
+/// kind; this additionally checks the `Shared` usage the transfer API requires, and so rejects a
+/// null resource, a non-buffer/non-texture (sampler, view, acceleration structure), and a
+/// non-`Shared` buffer/texture.
+inline bool isSharedResource(IResource* resource)
+{
+    ComPtr<IBuffer> buffer;
+    ComPtr<ITexture> texture;
+    switch (classifySharedResource(resource, buffer, texture))
+    {
+    case SharedResourceKind::Buffer:
+        return is_set(buffer->getDesc().usage, BufferUsage::Shared);
+    case SharedResourceKind::Texture:
+        return is_set(texture->getDesc().usage, TextureUsage::Shared);
+    default:
+        return false;
+    }
+}
 
 inline void invokeExecuteCallback(const commands::ExecuteCallback& cmd, NativeHandle nativeHandle)
 {
@@ -462,6 +527,8 @@ public:
     void write(commands::InsertDebugMarker&& cmd);
     void write(commands::WriteTimestamp&& cmd);
     void write(commands::ExecuteCallback&& cmd);
+    void write(commands::HandOffShared&& cmd);
+    void write(commands::TakeOverShared&& cmd);
 
     const CommandSlot* getCommands() const { return m_commandSlots; }
     const QueryWriteRangeList& getQueryWrites() const { return m_queryWrites; }
@@ -496,6 +563,11 @@ public:
             retainResource(obj);
         }
     }
+
+    /// Retain the concrete implementation object behind a shared `IResource` (a `Buffer` or a
+    /// `Texture`) so it survives until the command list is reset. Used by the hand-off/take-over
+    /// commands, whose resources arrive as `IResource*` and may be either kind.
+    void retainSharedResource(IResource* resource);
 
     void* allocData(size_t size) { return m_allocator.allocate(size); }
 

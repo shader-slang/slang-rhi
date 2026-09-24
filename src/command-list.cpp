@@ -422,6 +422,64 @@ void CommandList::write(commands::ExecuteCallback&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::HandOffShared&& cmd)
+{
+    if (cmd.resources && cmd.resourceCount > 0)
+    {
+        cmd.resources = (IResource* const*)writeData(cmd.resources, cmd.resourceCount * sizeof(IResource*));
+        for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+            retainSharedResource(cmd.resources[i]);
+    }
+    else
+    {
+        // Never record a nonzero count with a null array: replay indexes `resources` directly, so an
+        // inconsistent {count>0, resources=null} would dereference null in the backend recorder.
+        cmd.resourceCount = 0;
+    }
+    retainResource<CommandQueue>(cmd.destQueue);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::TakeOverShared&& cmd)
+{
+    if (cmd.resources && cmd.resourceCount > 0)
+    {
+        cmd.resources = (IResource* const*)writeData(cmd.resources, cmd.resourceCount * sizeof(IResource*));
+        for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+            retainSharedResource(cmd.resources[i]);
+    }
+    else
+    {
+        // Never record a nonzero count with a null array: replay indexes `resources` directly, so an
+        // inconsistent {count>0, resources=null} would dereference null in the backend recorder.
+        cmd.resourceCount = 0;
+    }
+    retainResource<CommandQueue>(cmd.srcQueue);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::retainSharedResource(IResource* resource)
+{
+    if (!resource)
+        return;
+    ComPtr<IBuffer> buffer;
+    ComPtr<ITexture> texture;
+    switch (classifySharedResource(resource, buffer, texture))
+    {
+    case SharedResourceKind::Buffer:
+        retainResource<Buffer>(buffer.get());
+        return;
+    case SharedResourceKind::Texture:
+        retainResource<Texture>(texture.get());
+        return;
+    default:
+        // handOffShared/takeOverShared accept only Shared IBuffer/ITexture resources; anything else
+        // is out of contract. Fail loudly instead of silently not retaining it (which would let it be
+        // freed before replay).
+        SLANG_RHI_ASSERT(!"shared-transfer resource is neither IBuffer nor ITexture");
+    }
+}
+
 void CommandList::trackQueryWrite(IQueryPool* queryPool, uint32_t index, uint32_t count)
 {
     if (!queryPool || count == 0)

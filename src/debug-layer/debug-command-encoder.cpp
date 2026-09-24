@@ -51,6 +51,21 @@ bool validateAccelerationStructureQueryDescs(
     return true;
 }
 
+// Validate ownership of any Shared resources bound on `rootObject` against the queue that will submit
+// this pass's work. Called at draw/dispatch, where the submitting queue is known; a no-op unless a
+// Shared resource is actually bound (see DebugShaderObject::m_sharedBindings). `rootObject` is the
+// encoder's currently bound root (m_boundRootObject), which tracks both bindPipeline overloads, so it
+// reflects the active bindings only.
+void checkSharedBindingOwnership(DebugContext* ctx, DebugShaderObject* rootObject, ICommandQueue* usingQueue)
+{
+    if (!rootObject || !usingQueue)
+        return;
+    std::vector<IResource*> sharedResources;
+    rootObject->collectSharedBindings(sharedResources);
+    for (IResource* resource : sharedResources)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, resource, usingQueue);
+}
+
 } // namespace
 
 // ----------------------------------------------------------------------------
@@ -80,6 +95,7 @@ IShaderObject* DebugRenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
     m_pipelineBound = true;
+    m_boundRootObject = m_rootObject.get();
 
     return m_rootObject;
 }
@@ -99,6 +115,7 @@ void DebugRenderPassEncoder::bindPipeline(IRenderPipeline* pipeline, IShaderObje
 
     baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
     m_pipelineBound = true;
+    m_boundRootObject = rootObject ? getDebugObj(rootObject) : nullptr;
 }
 
 void DebugRenderPassEncoder::setRenderState(const RenderState& state)
@@ -168,6 +185,7 @@ void DebugRenderPassEncoder::draw(const DrawArguments& args)
         RHI_VALIDATION_WARNING("instanceCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->draw(args);
 }
 
@@ -193,6 +211,7 @@ void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
         RHI_VALIDATION_WARNING("instanceCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawIndexed(args);
 }
 
@@ -222,6 +241,7 @@ void DebugRenderPassEncoder::drawIndirect(
         RHI_VALIDATION_WARNING("maxDrawCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
@@ -256,6 +276,7 @@ void DebugRenderPassEncoder::drawIndexedIndirect(
         RHI_VALIDATION_WARNING("maxDrawCount is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
@@ -276,6 +297,7 @@ void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
         RHI_VALIDATION_WARNING("One or more dimensions are 0 (no-op dispatch).");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->drawMeshTasks(x, y, z);
 }
 
@@ -368,6 +390,7 @@ IShaderObject* DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
     m_pipelineBound = true;
+    m_boundRootObject = m_rootObject.get();
 
     return m_rootObject;
 }
@@ -387,6 +410,7 @@ void DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline, IShaderOb
 
     baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
     m_pipelineBound = true;
+    m_boundRootObject = rootObject ? getDebugObj(rootObject) : nullptr;
 }
 
 void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
@@ -406,6 +430,7 @@ void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z
         RHI_VALIDATION_WARNING("One or more group dimensions is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->dispatchCompute(x, y, z);
 }
 
@@ -427,6 +452,7 @@ void DebugComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer
         return;
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->dispatchComputeIndirect(argBuffer);
 }
 
@@ -524,6 +550,7 @@ IShaderObject* DebugRayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pip
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline, shaderTable);
     m_pipelineBound = true;
+    m_boundRootObject = m_rootObject.get();
 
     return m_rootObject;
 }
@@ -552,6 +579,7 @@ void DebugRayTracingPassEncoder::bindPipeline(
 
     baseObject->bindPipeline(pipeline, shaderTable, getInnerObj(rootObject));
     m_pipelineBound = true;
+    m_boundRootObject = rootObject ? getDebugObj(rootObject) : nullptr;
 }
 
 void DebugRayTracingPassEncoder::dispatchRays(
@@ -576,6 +604,7 @@ void DebugRayTracingPassEncoder::dispatchRays(
         RHI_VALIDATION_WARNING("One or more dispatch dimensions is 0.");
     }
 
+    checkSharedBindingOwnership(ctx, m_boundRootObject.get(), m_commandEncoder->m_ownerQueue);
     baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
 }
 
@@ -906,6 +935,8 @@ void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* sr
         }
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
@@ -942,6 +973,7 @@ Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size s
         return SLANG_E_INVALID_ARG;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
     return baseObject->uploadBufferData(dst, offset, size, data);
 }
 
@@ -1107,6 +1139,8 @@ void DebugCommandEncoder::copyTexture(
         }
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyTexture(dst, dstSubresource, dstOffset, src, srcSubresource, srcOffset, extent);
 }
 
@@ -1159,6 +1193,7 @@ Result DebugCommandEncoder::uploadTextureData(
         return SLANG_E_INVALID_ARG;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
     return baseObject->uploadTextureData(dst, subresourceRange, offset, extent, subresourceData, subresourceDataCount);
 }
 
@@ -1185,6 +1220,7 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->clearBuffer(buffer, range);
 }
 
@@ -1224,6 +1260,7 @@ void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange 
         RHI_VALIDATION_WARNING("clearTextureFloat called on a non-float/non-normalized format.");
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureFloat(texture, subresourceRange, clearValue);
 }
 
@@ -1263,6 +1300,7 @@ void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange s
         RHI_VALIDATION_WARNING("clearTextureUint called on a non-unsigned-integer format.");
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureUint(texture, subresourceRange, clearValue);
 }
 
@@ -1302,6 +1340,7 @@ void DebugCommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange s
         RHI_VALIDATION_WARNING("clearTextureSint called on a non-signed-integer format.");
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureSint(texture, subresourceRange, clearValue);
 }
 
@@ -1382,6 +1421,7 @@ void DebugCommandEncoder::clearTextureDepthStencil(
         break;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->clearTextureDepthStencil(texture, subresourceRange, clearDepth, depthValue, clearStencil, stencilValue);
 }
 
@@ -1430,6 +1470,7 @@ void DebugCommandEncoder::resolveQuery(
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->resolveQuery(getInnerObj(queryPool), index, count, buffer, offset);
 }
 
@@ -1474,6 +1515,8 @@ void DebugCommandEncoder::copyTextureToBuffer(
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMip, srcOffset, extent);
 }
 
@@ -1518,6 +1561,8 @@ void DebugCommandEncoder::copyBufferToTexture(
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dst, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, src, m_ownerQueue);
     baseObject->copyBufferToTexture(dst, dstLayer, dstMip, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
@@ -1586,6 +1631,8 @@ void DebugCommandEncoder::buildAccelerationStructure(
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
 
+    if (scratchBuffer.buffer)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, scratchBuffer.buffer, m_ownerQueue);
     baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }
 
@@ -1604,6 +1651,8 @@ void DebugCommandEncoder::buildMicromap(const MicromapBuildDesc& desc, IMicromap
         RHI_VALIDATION_ERROR("Micromap build data, descriptors, and histogram must be provided.");
         return;
     }
+    if (scratchBuffer.buffer)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, scratchBuffer.buffer, m_ownerQueue);
     baseObject->buildMicromap(desc, dst, scratchBuffer);
 }
 
@@ -1797,6 +1846,8 @@ void DebugCommandEncoder::convertCooperativeVectorMatrix(
         matrixCount
     ));
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, dstBuffer, m_ownerQueue);
+    SharedResourceOwnershipTracker::get().checkUse(ctx, srcBuffer, m_ownerQueue);
     baseObject->convertCooperativeVectorMatrix(dstBuffer, dstDescs, srcBuffer, srcDescs, matrixCount);
 }
 
@@ -1823,6 +1874,7 @@ void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->setBufferState(buffer, state);
 }
 
@@ -1854,6 +1906,7 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
         return;
     }
 
+    SharedResourceOwnershipTracker::get().checkUse(ctx, texture, m_ownerQueue);
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
@@ -1979,6 +2032,140 @@ Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
     }
 
     return baseObject->getNativeHandle(outHandle);
+}
+
+Result DebugCommandEncoder::validateSharedTransferOperand(IResource* resource, uint32_t index)
+{
+    if (!resource)
+    {
+        RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", index);
+        return SLANG_E_INVALID_ARG;
+    }
+    // Decide shared-ness by the Shared usage flag (the same predicate the base path uses), not by
+    // whether a shared handle resolves: getSharedHandle is SLANG_E_NOT_AVAILABLE on the no-op backends
+    // (CPU/CUDA/D3D11/Metal/WGPU), so a handle-based check would falsely reject a locally-created
+    // Shared resource that the base path and docs accept as a valid (no-op) transfer operand there.
+    if (!isSharedResource(resource))
+    {
+        RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", index);
+        return SLANG_E_INVALID_ARG;
+    }
+    // On Vulkan the queue-family ownership transfer keeps a shared texture in VK_IMAGE_LAYOUT_GENERAL,
+    // so the texture's default state must map to that layout - only General and UnorderedAccess do
+    // (see translateImageLayout). Reject a mismatch here as a graceful SLANG_E_INVALID_ARG; the
+    // Vulkan recorder asserts the same precondition as a backstop.
+    if (ctx && ctx->deviceType == DeviceType::Vulkan)
+    {
+        ComPtr<IBuffer> buffer;
+        ComPtr<ITexture> texture;
+        if (classifySharedResource(resource, buffer, texture) == SharedResourceKind::Texture)
+        {
+            ResourceState defaultState = texture->getDesc().defaultState;
+            if (defaultState != ResourceState::General && defaultState != ResourceState::UnorderedAccess)
+            {
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "'resources[%u]' is a shared texture whose default state does not map to the "
+                    "general image layout the Vulkan queue-family ownership transfer requires; create "
+                    "it with ResourceState::General or ResourceState::UnorderedAccess.",
+                    index
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
+Result DebugCommandEncoder::handOffShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* destQueue)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, handOffShared);
+
+    requireOpen();
+    requireNoPass();
+
+    if (resourceCount > 0 && !resources)
+    {
+        RHI_VALIDATION_ERROR("'resources' must not be null when 'resourceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!destQueue)
+    {
+        RHI_VALIDATION_ERROR("'destQueue' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    // Validate the whole batch before applying any state change (all-or-nothing): every resource
+    // must be non-null, be a shared buffer or texture, and (on Vulkan) satisfy the transfer's layout
+    // contract.
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        Result validation = validateSharedTransferOperand(resources[i], i);
+        if (SLANG_FAILED(validation))
+            return validation;
+    }
+
+    ICommandQueue* innerDest = getInnerObj(destQueue);
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        SharedResourceOwnershipTracker::get().handOff(ctx, resources[i], m_ownerQueue, innerDest);
+        m_handedOffThisEncoder.insert(resources[i]);
+    }
+
+    return baseObject->handOffShared(resourceCount, resources, innerDest);
+}
+
+Result DebugCommandEncoder::takeOverShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* srcQueue)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, takeOverShared);
+
+    requireOpen();
+    requireNoPass();
+
+    if (resourceCount > 0 && !resources)
+    {
+        RHI_VALIDATION_ERROR("'resources' must not be null when 'resourceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!srcQueue)
+    {
+        RHI_VALIDATION_ERROR("'srcQueue' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        Result validation = validateSharedTransferOperand(resources[i], i);
+        if (SLANG_FAILED(validation))
+            return validation;
+    }
+
+    // A take-over reversing a hand-off recorded earlier in THIS encoder is a net no-op (nothing can
+    // be submitted between them) and a likely mistake - the destination queue/external API never got
+    // an access window. Reconcile the tracker for such a resource directly to owned-by-this-queue,
+    // bypassing the generic take-over validation, which would otherwise flag an error (fatal on
+    // Vulkan) whenever the hand-off named a different destination queue than this one - exactly this
+    // case. A resource not handed off in this encoder takes the normal validated take-over path.
+    ICommandQueue* innerSrc = getInnerObj(srcQueue);
+    bool reversesSameEncoderHandOff = false;
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        if (m_handedOffThisEncoder.erase(resources[i]) > 0)
+        {
+            reversesSameEncoderHandOff = true;
+            SharedResourceOwnershipTracker::get().reclaimInSameEncoder(resources[i], m_ownerQueue);
+        }
+        else
+        {
+            SharedResourceOwnershipTracker::get().takeOver(ctx, resources[i], m_ownerQueue, innerSrc);
+        }
+    }
+    if (reversesSameEncoderHandOff)
+        RHI_VALIDATION_WARNING(
+            "takeOverShared reverses a handOffShared recorded earlier in the same "
+            "command encoder, with no submit between them; the transfer is a net "
+            "no-op and the destination queue/external API never received an access "
+            "window. Submit the hand-off (and wait) before taking the resource back."
+        );
+
+    return baseObject->takeOverShared(resourceCount, resources, innerSrc);
 }
 
 void DebugCommandEncoder::requireOpen()

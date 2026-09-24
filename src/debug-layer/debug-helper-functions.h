@@ -12,6 +12,8 @@
 
 #include "strings.h"
 
+#include <map>
+#include <mutex>
 #include <vector>
 
 namespace rhi::debug {
@@ -77,6 +79,304 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
     }
 
 #define RHI_VALIDATION_ERROR_FORMAT(...) RHI_VALIDATION_FORMAT(DebugMessageType::Error, __VA_ARGS__)
+
+// Tracks which queue currently owns each `Shared` resource across the explicit handOffShared /
+// takeOverShared transitions, so the validation layer can flag using a resource on a queue that does
+// not own it. The state is process-global because a shared resource is exported from one device and
+// imported into another, each with its own DebugContext; the two sides are tied only by the
+// resource's shared NativeHandle, the sole identifier common to both.
+//
+// A resource that can export its own shared handle - a producer on a backend that implements
+// getSharedHandle - resolves its key fresh from getSharedHandle on each lookup (the handle is exported
+// once and cached on the resource, so this is cheap and always current); it is deliberately not
+// pointer-cached in the tracker - see resolveKey. A resource that cannot re-export - an import (e.g. a
+// CUDA buffer created from a shared handle), or a Shared resource on a backend without getSharedHandle
+// - is resolved through the key it was tied to at import time in m_resourceKeys; a Shared resource
+// with neither an exportable handle nor a tie is left untracked.
+//
+// Misuse of the handOffShared/takeOverShared calls themselves - e.g. handing off a resource that is
+// already handed off, or handing off a resource owned by another queue - is an error on every
+// backend. Using a resource that was explicitly handed off is likewise an error. Using a resource on
+// a queue that does not own it, without an intervening hand-off, is an error on Vulkan (the
+// queue-family transfer is real, so it is genuine misuse) and a warning on the no-op backends (where
+// it cannot be distinguished from legitimate use).
+//
+// This is a best-effort validation aid, not a source of truth. The debug layer does not wrap
+// buffers/textures and so cannot observe their destruction, so ownership entries (m_entries, keyed by
+// shared handle) are not evicted on destruction; a stale entry persists until a producer with that
+// freshly minted handle is created, which erases it (resetForNewSharedResource). In a long-running
+// process the table grows. Stale state does not mislead a live resource: resolveKey resolves every
+// resource that can export its own handle fresh, so it never inherits a freed resource's key; and it
+// honors an import's tie only if the resource at that address is still a shared resource, so a freed
+// import's recycled address cannot pass a stale ownership entry to a later non-Shared resource. The
+// one narrow gap left is a Shared resource that is neither reset nor tied at creation - one wrapped
+// via create*FromNativeHandle - on a backend without getSharedHandle: it cannot resolve its own
+// handle, so if its address recycles a freed import's it inherits that stale tie. (createBuffer resets
+// the pointer tie and create*FromSharedHandle overwrites it, so those paths cannot inherit one.) It is
+// closeable by dropping the stale pointer tie in the native-handle path too, left as future work.
+// Ownership is updated at command-recording time rather than at submission, so validation assumes
+// encoders are submitted in the order recorded (the intended hand-off/take-over usage).
+class SharedResourceOwnershipTracker
+{
+public:
+    static SharedResourceOwnershipTracker& get()
+    {
+        // Intentionally never destroyed: the table is process-global and may be referenced during
+        // static teardown, and clang builds forbid exit-time destructors (-Wexit-time-destructors
+        // -Werror). A leaked function-local static has no exit-time destructor, and being
+        // constructed on first use it also avoids -Wglobal-constructors.
+        static SharedResourceOwnershipTracker* instance = new SharedResourceOwnershipTracker();
+        return *instance;
+    }
+
+    // Tie an imported resource to its shared handle so later uses on the consumer side resolve to the
+    // same entry as the producer. Import does not change ownership.
+    void tieImportedResource(IResource* resource, const NativeHandle& handle)
+    {
+        if (!resource || !handle)
+            return;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_resourceKeys[resource] = Key{handle.type, handle.value};
+    }
+
+    // Reset stale tracked state for a newly created shared resource. The new resource may recycle a
+    // freed resource's address, so its pointer->key tie is dropped unconditionally - otherwise a stale
+    // tie left by a destroyed import (which this new resource is not) would be inherited on a backend
+    // where the new resource cannot re-export and so cannot be re-keyed fresh. If the resource can
+    // export its own handle, any ownership entry for that freshly minted handle is dropped too: a
+    // just-minted handle's existing entry can only be stale, left by a destroyed resource whose handle
+    // value the driver recycled. Import paths do not call this: an imported handle is the producer's
+    // live handle, whose ownership state must be preserved for the consumer's takeOverShared.
+    void resetForNewSharedResource(IResource* resource)
+    {
+        if (!resource)
+            return;
+        NativeHandle handle;
+        bool exportable = getSharedHandleOf(resource, handle) && handle;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_resourceKeys.erase(resource);
+        if (exportable)
+            m_entries.erase(Key{handle.type, handle.value});
+    }
+
+    // Hand off ownership from `srcQueue` (this encoder's queue) to `destQueue`. Validates the
+    // transition (Unowned/Owned(srcQueue) -> HandedOff); an invalid transition is an error on every
+    // backend, since the application is misusing the API. The recorded transition is applied
+    // regardless of validity so the tracker follows the recorded command stream (the debug layer
+    // tracks, it does not gate - the real barrier is recorded either way); rejecting it would desync
+    // the tracker and spuriously flag every later legitimate op.
+    void handOff(DebugContext* ctx, IResource* resource, ICommandQueue* srcQueue, ICommandQueue* destQueue)
+    {
+        Key key;
+        if (!resolveKey(resource, key))
+            return;
+        const char* problem = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            Entry& entry = m_entries[key];
+            entry.registered = true;
+            if (entry.state == State::HandedOff)
+                problem =
+                    "a shared resource that is already handed off is being handed off again; the "
+                    "current owner must takeOverShared before handing it off.";
+            else if (entry.state == State::Owned && entry.owner != srcQueue)
+                problem = "a shared resource is being handed off by a queue that does not own it.";
+            entry.state = State::HandedOff;
+            entry.handoffSrc = srcQueue;
+            entry.handoffDst = destQueue;
+        }
+        if (problem)
+            report(ctx, Severity::Error, problem);
+    }
+
+    // Take ownership to `takerQueue` (this encoder's queue) from `srcQueue`, reversing a hand-off.
+    // Validates that the resource was handed off and that this queue is the one it was handed off to.
+    void takeOver(DebugContext* ctx, IResource* resource, ICommandQueue* takerQueue, ICommandQueue* srcQueue)
+    {
+        Key key;
+        if (!resolveKey(resource, key))
+            return;
+        const char* problem = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            Entry& entry = m_entries[key];
+            entry.registered = true;
+            if (entry.state != State::HandedOff)
+                problem = "a shared resource that was not handed off is being taken over.";
+            else if (entry.handoffDst && entry.handoffDst != takerQueue)
+                problem =
+                    "a shared resource is being taken over by a queue other than the one it was "
+                    "handed off to.";
+            else if (srcQueue && entry.handoffSrc && entry.handoffSrc != srcQueue)
+                problem = "the srcQueue does not match the queue that handed off the resource.";
+            entry.state = State::Owned;
+            entry.owner = takerQueue;
+            entry.handoffSrc = nullptr;
+            entry.handoffDst = nullptr;
+        }
+        if (problem)
+            report(ctx, Severity::Error, problem);
+    }
+
+    // Reconcile a resource that was handed off and then taken over within the same command encoder
+    // back to owned-by-`ownerQueue`, without take-over validation. The pair is a net no-op (nothing
+    // can be submitted between them), and the generic takeOver would report an error whenever the
+    // hand-off named a different destination queue than this queue - inappropriate for a cancelled
+    // same-encoder pair. The encoder warns about the suspicious pattern separately.
+    void reclaimInSameEncoder(IResource* resource, ICommandQueue* ownerQueue)
+    {
+        Key key;
+        if (!resolveKey(resource, key))
+            return;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        Entry& entry = m_entries[key];
+        entry.registered = true;
+        entry.state = State::Owned;
+        entry.owner = ownerQueue;
+        entry.handoffSrc = nullptr;
+        entry.handoffDst = nullptr;
+    }
+
+    // Validate a use of `resource` on `usingQueue`. A first use of an untracked resource acquires it
+    // for `usingQueue`; a use while the resource is handed off, or owned by a different queue, is
+    // reported through `ctx`.
+    void checkUse(DebugContext* ctx, IResource* resource, ICommandQueue* usingQueue)
+    {
+        Key key;
+        if (!resolveKey(resource, key))
+            return;
+        Severity severity = Severity::Warning;
+        const char* message = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            Entry& entry = m_entries[key];
+            if (!entry.registered)
+            {
+                // First use of an untracked shared resource acquires it for the using queue.
+                entry.registered = true;
+                entry.state = State::Owned;
+                entry.owner = usingQueue;
+                return;
+            }
+            if (entry.state == State::Owned && entry.owner == usingQueue)
+                return;
+            if (entry.state == State::HandedOff)
+            {
+                // Explicitly handed off then used: misuse of the API.
+                severity = Severity::Error;
+                message =
+                    "a shared resource that has been handed off to another queue or external API is "
+                    "used before being reacquired; call takeOverShared first.";
+            }
+            else
+            {
+                // Owned by a different queue without an intervening hand-off. On a backend where the
+                // transfer calls are no-ops this cannot be distinguished from legitimate use, so it is
+                // a warning; on Vulkan the queue-family ownership transfer is real, so using the
+                // resource on a non-owning queue without a takeOverShared is genuine misuse and an
+                // error.
+                severity = (ctx && ctx->deviceType == DeviceType::Vulkan) ? Severity::Error : Severity::Warning;
+                message = "a shared resource is used on a queue that does not currently own it.";
+            }
+        }
+        report(ctx, severity, message);
+    }
+
+private:
+    struct Key
+    {
+        NativeHandleType type;
+        uint64_t value;
+        bool operator<(const Key& other) const { return type != other.type ? type < other.type : value < other.value; }
+    };
+    enum class State
+    {
+        Unowned,
+        Owned,
+        HandedOff,
+    };
+    enum class Severity
+    {
+        Error,
+        Warning,
+    };
+    struct Entry
+    {
+        bool registered = false;
+        State state = State::Unowned;
+        ICommandQueue* owner = nullptr;      // valid when state == Owned
+        ICommandQueue* handoffSrc = nullptr; // the queue that handed off, when state == HandedOff
+        ICommandQueue* handoffDst = nullptr; // the queue expected to take over, when state == HandedOff
+    };
+
+    // Emit a validation message at the given severity. Called only outside m_mutex: the debug callback
+    // may re-enter a tracked RHI operation, which would re-acquire the mutex and deadlock.
+    void report(DebugContext* ctx, Severity severity, const char* message)
+    {
+        DebugMessageType type = (severity == Severity::Error) ? DebugMessageType::Error : DebugMessageType::Warning;
+        _rhiDiagnoseImpl(ctx, type, "%s: %s", getAPIName(), message);
+    }
+
+    // Return the resource's own shared handle - the export handle a producer minted for it. The Shared
+    // usage flag is checked before calling getSharedHandle because getSharedHandle on a resource created
+    // without it fails at the backend (only Shared allocations are exportable), so calling it on
+    // ordinary resources would emit spurious backend errors on every tracked command. Returns false for
+    // a resource that is not a Shared IBuffer/ITexture (a texture view, say), or one that cannot export
+    // its handle - an import, or a backend without getSharedHandle - which resolveKey resolves via an
+    // imported tie if one exists, and otherwise leaves untracked.
+    static bool getSharedHandleOf(IResource* resource, NativeHandle& outHandle)
+    {
+        ComPtr<IBuffer> buffer;
+        ComPtr<ITexture> texture;
+        switch (classifySharedResource(resource, buffer, texture))
+        {
+        case SharedResourceKind::Buffer:
+            return is_set(buffer->getDesc().usage, BufferUsage::Shared) &&
+                   SLANG_SUCCEEDED(buffer->getSharedHandle(&outHandle));
+        case SharedResourceKind::Texture:
+            return is_set(texture->getDesc().usage, TextureUsage::Shared) &&
+                   SLANG_SUCCEEDED(texture->getSharedHandle(&outHandle));
+        default:
+            return false;
+        }
+    }
+
+    bool resolveKey(IResource* resource, Key& outKey)
+    {
+        if (!resource)
+            return false;
+        // Resolve fresh first. Any resource that can re-export its shared handle - every producer, on
+        // any backend that implements getSharedHandle - resolves to its own current handle, so a
+        // recycled address never inherits a freed resource's key. getSharedHandleOf checks the Shared
+        // usage flag before touching the backend, so this is a cheap flag test for a non-Shared
+        // resource and a cached lookup for a producer.
+        NativeHandle handle;
+        if (getSharedHandleOf(resource, handle) && handle)
+        {
+            outKey = Key{handle.type, handle.value};
+            return true;
+        }
+        // Only a resource that cannot re-export reaches here - notably an imported resource (a CUDA
+        // buffer created from a shared handle has no getSharedHandle), tied to its key at import time
+        // in m_resourceKeys. Trust the tie only if the resource at this address is still a shared
+        // resource: the debug layer cannot observe destruction, so a freed import's address may be
+        // reused by a later non-Shared resource, which must not inherit the stale ownership entry. A
+        // non-re-exportable import always carries the Shared usage flag (it was imported from a shared
+        // handle), so isSharedResource honors it and rejects only the recycled non-Shared resource.
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_resourceKeys.find(resource);
+        if (it != m_resourceKeys.end() && isSharedResource(resource))
+        {
+            outKey = it->second;
+            return true;
+        }
+        return false;
+    }
+
+    std::mutex m_mutex;
+    std::map<IResource*, Key> m_resourceKeys;
+    std::map<Key, Entry> m_entries;
+};
 
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                                                   \
     I##typeName* Debug##typeName::getInterface(const Guid& guid)                                                       \

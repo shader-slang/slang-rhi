@@ -925,6 +925,42 @@ void CommandEncoder::executeCallback(const ExecuteCallbackDesc& desc)
     m_commandList->write(std::move(cmd));
 }
 
+// Reject an out-of-contract handOffShared/takeOverShared operand - null, non-buffer/non-texture, or
+// non-Shared - with SLANG_E_INVALID_ARG before recording. Only Shared buffers and textures are valid
+// transfer operands; enforcing that here (the base, non-debug path) keeps the contract identical in
+// every build. The debug layer performs the same rejection with richer diagnostics.
+static Result validateSharedTransferOperands(uint32_t resourceCount, IResource* const* resources)
+{
+    if (resourceCount > 0 && !resources)
+        return SLANG_E_INVALID_ARG;
+    for (uint32_t i = 0; i < resourceCount; ++i)
+        if (!isSharedResource(resources[i]))
+            return SLANG_E_INVALID_ARG;
+    return SLANG_OK;
+}
+
+Result CommandEncoder::handOffShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* destQueue)
+{
+    SLANG_RETURN_ON_FAIL(validateSharedTransferOperands(resourceCount, resources));
+    commands::HandOffShared cmd;
+    cmd.resourceCount = resourceCount;
+    cmd.resources = resources;
+    cmd.destQueue = destQueue;
+    m_commandList->write(std::move(cmd));
+    return SLANG_OK;
+}
+
+Result CommandEncoder::takeOverShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* srcQueue)
+{
+    SLANG_RETURN_ON_FAIL(validateSharedTransferOperands(resourceCount, resources));
+    commands::TakeOverShared cmd;
+    cmd.resourceCount = resourceCount;
+    cmd.resources = resources;
+    cmd.srcQueue = srcQueue;
+    m_commandList->write(std::move(cmd));
+    return SLANG_OK;
+}
+
 Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     // iterate over commands and specialize pipelines
