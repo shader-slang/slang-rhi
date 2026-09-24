@@ -2034,6 +2034,44 @@ Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
+Result DebugCommandEncoder::validateSharedTransferOperand(IResource* resource, uint32_t index)
+{
+    if (!resource)
+    {
+        RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", index);
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!SharedResourceOwnershipTracker::get().isShared(resource))
+    {
+        RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", index);
+        return SLANG_E_INVALID_ARG;
+    }
+    // On Vulkan the queue-family ownership transfer keeps a shared texture in VK_IMAGE_LAYOUT_GENERAL,
+    // so the texture's default state must map to that layout - only General and UnorderedAccess do
+    // (see translateImageLayout). Reject a mismatch here as a graceful SLANG_E_INVALID_ARG; the
+    // Vulkan recorder asserts the same precondition as a backstop.
+    if (ctx && ctx->deviceType == DeviceType::Vulkan)
+    {
+        ComPtr<IBuffer> buffer;
+        ComPtr<ITexture> texture;
+        if (classifySharedResource(resource, buffer, texture) == SharedResourceKind::Texture)
+        {
+            ResourceState defaultState = texture->getDesc().defaultState;
+            if (defaultState != ResourceState::General && defaultState != ResourceState::UnorderedAccess)
+            {
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "'resources[%u]' is a shared texture whose default state does not map to the "
+                    "general image layout the Vulkan queue-family ownership transfer requires; create "
+                    "it with ResourceState::General.",
+                    index
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
 Result DebugCommandEncoder::handOffShared(uint32_t resourceCount, IResource* const* resources, ICommandQueue* destQueue)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, handOffShared);
@@ -2052,19 +2090,12 @@ Result DebugCommandEncoder::handOffShared(uint32_t resourceCount, IResource* con
         return SLANG_E_INVALID_ARG;
     }
     // Validate the whole batch before applying any state change (all-or-nothing): every resource
-    // must be non-null and have a shared handle.
+    // must be non-null, have a shared handle, and (on Vulkan) satisfy the transfer's layout contract.
     for (uint32_t i = 0; i < resourceCount; ++i)
     {
-        if (!resources[i])
-        {
-            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", i);
-            return SLANG_E_INVALID_ARG;
-        }
-        if (!SharedResourceOwnershipTracker::get().isShared(resources[i]))
-        {
-            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", i);
-            return SLANG_E_INVALID_ARG;
-        }
+        Result validation = validateSharedTransferOperand(resources[i], i);
+        if (SLANG_FAILED(validation))
+            return validation;
     }
 
     ICommandQueue* innerDest = getInnerObj(destQueue);
@@ -2093,16 +2124,9 @@ Result DebugCommandEncoder::takeOverShared(uint32_t resourceCount, IResource* co
     }
     for (uint32_t i = 0; i < resourceCount; ++i)
     {
-        if (!resources[i])
-        {
-            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' must not be null.", i);
-            return SLANG_E_INVALID_ARG;
-        }
-        if (!SharedResourceOwnershipTracker::get().isShared(resources[i]))
-        {
-            RHI_VALIDATION_ERROR_FORMAT("'resources[%u]' is not a shared resource.", i);
-            return SLANG_E_INVALID_ARG;
-        }
+        Result validation = validateSharedTransferOperand(resources[i], i);
+        if (SLANG_FAILED(validation))
+            return validation;
     }
 
     ICommandQueue* innerSrc = getInnerObj(srcQueue);

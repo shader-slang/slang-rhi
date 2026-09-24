@@ -343,6 +343,12 @@ public:
     void requireComputePass();
     void requireRayTracingPass();
 
+    // Validate one resource operand of handOffShared/takeOverShared: reject a null resource, a
+    // non-shared resource, or (on Vulkan) a shared texture whose default state does not map to the
+    // general image layout the queue-family ownership transfer requires. Shared by both entry points
+    // so their operand contract stays identical.
+    Result validateSharedTransferOperand(IResource* resource, uint32_t index);
+
     enum class EncoderState
     {
         Open,

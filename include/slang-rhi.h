@@ -2973,12 +2973,14 @@ public:
     /// destination family once multiple Vulkan families are exposed. It is a no-op on backends that do
     /// not track queue-family ownership (D3D11, D3D12, CUDA, CPU, Metal, WGPU). The transfer is
     /// recorded on this encoder only and takes effect when the resulting command buffer is submitted -
-    /// this call does not itself submit or wait. Every resource must have been created with
-    /// `BufferUsage::Shared` / `TextureUsage::Shared` on this encoder's device. On Vulkan a shared
-    /// texture must additionally have a default state that maps to the general image layout (e.g.
-    /// `ResourceState::General`), which is the layout external interop uses: the transfer changes only
-    /// queue-family ownership and keeps the image in that layout. Once the hand-off is submitted, this
-    /// queue must not use the resources again until a matching `takeOverShared` reclaims them.
+    /// this call does not itself submit or wait. Every resource must be a shared resource - one
+    /// created with `BufferUsage::Shared` / `TextureUsage::Shared`, or one imported from a shared
+    /// handle. On Vulkan a shared texture must additionally have a default state that maps to the
+    /// general image layout (e.g. `ResourceState::General`), which is the layout external interop
+    /// uses: the transfer changes only queue-family ownership and keeps the image in that layout. The
+    /// debug layer rejects a resource that is not shared, or on Vulkan a texture with an incompatible
+    /// default state, with `SLANG_E_INVALID_ARG`. Once the hand-off is submitted, this queue must not
+    /// use the resources again until a matching `takeOverShared` reclaims them.
     virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(
         uint32_t resourceCount,
         IResource* const* resources,
@@ -2990,7 +2992,9 @@ public:
     /// acquire; today the source is always `VK_QUEUE_FAMILY_EXTERNAL` (see `handOffShared`), and
     /// `srcQueue` is consulted only by the debug validation layer to match the hand-off. It is a
     /// no-op on backends that do not track queue-family ownership. Recorded on this encoder only and
-    /// takes effect on submit. The caller
+    /// takes effect on submit. Every resource must be a shared resource, subject to the same
+    /// preconditions as `handOffShared` (the debug layer rejects a violation with
+    /// `SLANG_E_INVALID_ARG`). The caller
     /// must ensure the previous owner has finished using the resources before this acquire executes
     /// (e.g. via `waitOnHost` after the previous owner's submit). Once submitted, this queue owns the
     /// resources again and may use them.

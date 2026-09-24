@@ -1792,7 +1792,10 @@ void CommandRecorder::recordQueueFamilyOwnershipTransfer(
             continue;
 
         ComPtr<IBuffer> bufferItf;
-        if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)bufferItf.writeRef())))
+        ComPtr<ITexture> textureItf;
+        switch (classifySharedResource(resource, bufferItf, textureItf))
+        {
+        case SharedResourceKind::Buffer:
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(bufferItf.get());
             VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
@@ -1804,19 +1807,18 @@ void CommandRecorder::recordQueueFamilyOwnershipTransfer(
             barrier.offset = 0;
             barrier.size = VK_WHOLE_SIZE;
             bufferBarriers.push_back(barrier);
-            continue;
+            break;
         }
-
-        ComPtr<ITexture> textureItf;
-        if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)textureItf.writeRef())))
+        case SharedResourceKind::Texture:
         {
             TextureImpl* texture = checked_cast<TextureImpl*>(textureItf.get());
             // The transfer changes queue-family ownership only, not layout, so the texture must
             // already be in VK_IMAGE_LAYOUT_GENERAL: external (CUDA) interop requires GENERAL, and
             // since the hand-off release is emitted after the end-of-encoding default-state
-            // restoration (see record()), a shared texture's default state must map to GENERAL.
-            // Assert that precondition rather than emitting an oldLayout Vulkan would reject if a
-            // shared texture were created with a non-GENERAL default state.
+            // restoration (see record()), a shared texture's default state must map to GENERAL. The
+            // debug layer rejects a non-GENERAL default state up front (SLANG_E_INVALID_ARG); this
+            // asserts the same precondition as a backstop rather than emitting an oldLayout Vulkan
+            // would reject.
             SLANG_RHI_ASSERT(translateImageLayout(texture->m_desc.defaultState) == VK_IMAGE_LAYOUT_GENERAL);
             VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
             barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
@@ -1832,11 +1834,14 @@ void CommandRecorder::recordQueueFamilyOwnershipTransfer(
             barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
             barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
             imageBarriers.push_back(barrier);
-            continue;
+            break;
         }
-        // Only Shared IBuffer/ITexture are valid transfer arguments; anything else is out of contract
-        // (the debug layer rejects it up front, and the base path never retains it).
-        SLANG_RHI_ASSERT(!"shared-transfer resource is neither IBuffer nor ITexture");
+        default:
+            // Only Shared IBuffer/ITexture are valid transfer arguments; anything else is out of
+            // contract (the debug layer rejects it up front, and the base path never retains it).
+            SLANG_RHI_ASSERT(!"shared-transfer resource is neither IBuffer nor ITexture");
+            break;
+        }
     }
 
     if (bufferBarriers.empty() && imageBarriers.empty())

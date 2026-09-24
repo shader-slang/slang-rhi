@@ -380,6 +380,35 @@ SLANG_RHI_COMMANDS(SLANG_RHI_COMMAND_TRAITS_X)
 
 } // namespace commands
 
+enum class SharedResourceKind
+{
+    Unknown,
+    Buffer,
+    Texture,
+};
+
+/// Classify a handOffShared/takeOverShared resource operand as an IBuffer or ITexture - the only
+/// resource kinds the transfer API accepts - writing the queried interface into the matching out
+/// parameter. This centralizes the buffer/texture queryInterface dispatch that the record, retain,
+/// ownership-transfer, and debug-tracker paths each perform, so the accepted-kind set is defined in
+/// one place. A texture *view* is not classified here (it is not itself an IBuffer/ITexture); a
+/// caller that accepts a view resolves it to its owning texture before calling this.
+inline SharedResourceKind classifySharedResource(
+    IResource* resource,
+    ComPtr<IBuffer>& outBuffer,
+    ComPtr<ITexture>& outTexture
+)
+{
+    if (resource)
+    {
+        if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)outBuffer.writeRef())))
+            return SharedResourceKind::Buffer;
+        if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)outTexture.writeRef())))
+            return SharedResourceKind::Texture;
+    }
+    return SharedResourceKind::Unknown;
+}
+
 inline void invokeExecuteCallback(const commands::ExecuteCallback& cmd, NativeHandle nativeHandle)
 {
     if (!cmd.desc.callback)

@@ -192,14 +192,16 @@
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setTextureState`                      | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `globalBarrier`                        | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
-| `handOffShared`                        | :x: | :x:  | :x:   | :x:   | yes    | :x:   | :x:  |
-| `takeOverShared`                       | :x: | :x:  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `handOffShared` (1)                    | :x: | :x:  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `takeOverShared` (1)                   | :x: | :x:  | :x:   | :x:   | yes    | :x:   | :x:  |
 | `pushDebugGroup`                       | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `popDebugGroup`                        | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `insertDebugMarker`                    | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `writeTimestamp`                       | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 | `finish`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`                      | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+
+(1) A no-op that returns success on backends that do not track queue-family ownership (every backend except Vulkan); the `:x:` marks a no-op, not an unsupported call.
 
 ## `IPassEncoder` interface
 

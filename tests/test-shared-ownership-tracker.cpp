@@ -1,5 +1,13 @@
+// Host-side (no-GPU) unit tests for the debug layer's shared-resource ownership validation. The GPU
+// interop tests (buffer-shared-cuda / texture-shared-cuda) only exercise the single-resource, in-
+// order happy path, and the shared-test harness fails a test only on a debug-layer *error* (a warning
+// is merely logged), so the error/warning transitions and the argument-validation front door cannot
+// be proven from GPU CI alone. These tests drive the tracker state machine, the CommandList record
+// guard, the setBinding/collectSharedBindings path, and the encoder's argument validation directly.
+
 #include "testing.h"
 #include "../src/debug-layer/debug-helper-functions.h"
+#include "../src/debug-layer/debug-command-encoder.h"
 #include "../src/command-list.h"
 
 #include <atomic>
@@ -377,6 +385,33 @@ TEST_CASE("shared-ownership-tracker")
         CHECK_EQ(cb.messageCount, 1);
         CHECK_EQ(cb.lastType, DebugMessageType::Warning);
     }
+
+    SUBCASE("hand-off and take-over match across DebugContexts that share a handle")
+    {
+        // The tracker is process-global and keyed by the shared NativeHandle, so a hand-off recorded
+        // through one device's DebugContext is matched by a take-over through another's: the two sides
+        // of a cross-device interop see the same ownership entry via the same handle, even though each
+        // wraps the resource with a distinct IResource*.
+        RecordingCallback cbA;
+        RecordingCallback cbB;
+        DebugContext ctxA;
+        ctxA.deviceType = DeviceType::Vulkan;
+        ctxA.debugCallback = &cbA;
+        DebugContext ctxB;
+        ctxB.deviceType = DeviceType::Vulkan;
+        ctxB.debugCallback = &cbB;
+
+        NativeHandle handle = freshHandle();
+        IResource* resA = fakeResource(0x2100);
+        IResource* resB = fakeResource(0x2101);
+        tracker.tieImportedResource(resA, handle);
+        tracker.tieImportedResource(resB, handle);
+
+        tracker.handOff(&ctxA, resA, qProducer, qConsumer);
+        tracker.takeOver(&ctxB, resB, qConsumer, qProducer);
+        CHECK_EQ(cbA.messageCount, 0);
+        CHECK_EQ(cbB.messageCount, 0);
+    }
 }
 
 // Regression test for a null resource array on the record-then-replay path: handOffShared /
@@ -564,5 +599,80 @@ TEST_CASE("shared-binding-validation")
         std::vector<IResource*> shared;
         root->collectSharedBindings(shared);
         CHECK(shared.empty());
+    }
+}
+
+// Exercises the DebugCommandEncoder::handOffShared/takeOverShared argument-validation front door -
+// the checks that run before the base encoder records anything: a null resource array with a nonzero
+// count, a null destination/source queue, a non-shared resource, the all-or-nothing batch guard, and
+// (on Vulkan) a shared texture whose default state does not map to the general layout the transfer
+// requires. Each of these returns SLANG_E_INVALID_ARG before touching the (absent) base encoder, so
+// no device is needed. This is the single-encoder argument-validation path, distinct from the
+// pass-encoder draw/dispatch validation in shared-binding-validation above.
+TEST_CASE("shared-transfer-argument-validation")
+{
+    DebugContext ctx;
+    ctx.deviceType = DeviceType::Vulkan;
+    RecordingCallback cb;
+    ctx.debugCallback = &cb;
+    auto& tracker = SharedResourceOwnershipTracker::get();
+
+    RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder(&ctx);
+    ICommandQueue* destQueue = fakeQueue(0x4001);
+
+    SUBCASE("a null resource array with a nonzero count is rejected")
+    {
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(1, nullptr, destQueue), SLANG_E_INVALID_ARG);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+    }
+
+    SUBCASE("a null destination queue is rejected")
+    {
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(0, nullptr, nullptr), SLANG_E_INVALID_ARG);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+    }
+
+    SUBCASE("a null source queue is rejected by takeOverShared")
+    {
+        cb.reset();
+        CHECK_EQ(encoder->takeOverShared(0, nullptr, nullptr), SLANG_E_INVALID_ARG);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+    }
+
+    SUBCASE("a non-shared resource is rejected")
+    {
+        StubBuffer plain(BufferUsage::ShaderResource);
+        IResource* resources[] = {&plain};
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(1, resources, destQueue), SLANG_E_INVALID_ARG);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+    }
+
+    SUBCASE("a bad operand rejects the whole batch without applying any hand-off")
+    {
+        StubBuffer good(BufferUsage::Shared);
+        StubBuffer bad(BufferUsage::ShaderResource);
+        tracker.tieImportedResource(&good, freshHandle());
+        IResource* resources[] = {&good, &bad};
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(2, resources, destQueue), SLANG_E_INVALID_ARG);
+        // The valid operand must not have been handed off: a first use still acquires it silently. A
+        // spurious hand-off would instead make this checkUse a use-after-hand-off error.
+        cb.reset();
+        tracker.checkUse(&ctx, &good, destQueue);
+        CHECK_EQ(cb.messageCount, 0);
+    }
+
+    SUBCASE("a shared texture with a non-general default state is rejected on Vulkan")
+    {
+        StubTexture texture(TextureUsage::Shared);
+        texture.m_desc.defaultState = ResourceState::ShaderResource;
+        tracker.tieImportedResource(&texture, freshHandle());
+        IResource* resources[] = {&texture};
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(1, resources, destQueue), SLANG_E_INVALID_ARG);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
     }
 }

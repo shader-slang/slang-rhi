@@ -450,6 +450,8 @@ void CommandList::write(commands::TakeOverShared&& cmd)
     }
     else
     {
+        // Never record a nonzero count with a null array: replay indexes `resources` directly, so an
+        // inconsistent {count>0, resources=null} would dereference null in the backend recorder.
         cmd.resourceCount = 0;
     }
     retainResource<CommandQueue>(cmd.srcQueue);
@@ -461,21 +463,21 @@ void CommandList::retainSharedResource(IResource* resource)
     if (!resource)
         return;
     ComPtr<IBuffer> buffer;
-    if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
+    ComPtr<ITexture> texture;
+    switch (classifySharedResource(resource, buffer, texture))
     {
+    case SharedResourceKind::Buffer:
         retainResource<Buffer>(buffer.get());
         return;
-    }
-    ComPtr<ITexture> texture;
-    if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
-    {
+    case SharedResourceKind::Texture:
         retainResource<Texture>(texture.get());
         return;
+    default:
+        // handOffShared/takeOverShared accept only Shared IBuffer/ITexture resources; anything else
+        // is out of contract. Fail loudly instead of silently not retaining it (which would let it be
+        // freed before replay).
+        SLANG_RHI_ASSERT(!"shared-transfer resource is neither IBuffer nor ITexture");
     }
-    // handOffShared/takeOverShared accept only Shared IBuffer/ITexture resources; anything else is
-    // out of contract. Fail loudly instead of silently not retaining it (which would let it be freed
-    // before replay).
-    SLANG_RHI_ASSERT(!"shared-transfer resource is neither IBuffer nor ITexture");
 }
 
 void CommandList::trackQueryWrite(IQueryPool* queryPool, uint32_t index, uint32_t count)

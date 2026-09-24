@@ -297,23 +297,26 @@ private:
     // Resolve a resource's key, preferring a previously tied key (needed for imported resources that
     // cannot re-export) and falling back to getSharedHandle for producer resources. Returns false for
     // a resource without a shared handle, which is then left untracked.
-    // IResource does not expose getSharedHandle; only IBuffer and ITexture do. Query the concrete
-    // resource type to obtain the shared handle. The Shared usage flag is checked first because
-    // getSharedHandle on a resource created without it fails at the backend (only Shared allocations
-    // are exportable), so calling it on ordinary resources would emit spurious backend errors on
-    // every tracked command. Resources without a shared handle (a non-Shared resource, or a texture
-    // view) are left untracked.
+    // The Shared usage flag is checked before calling getSharedHandle because getSharedHandle on a
+    // resource created without it fails at the backend (only Shared allocations are exportable), so
+    // calling it on ordinary resources would emit spurious backend errors on every tracked command.
+    // A resource that is neither an IBuffer nor an ITexture (a texture view, say) is not shareable
+    // and is left untracked.
     static bool getSharedHandleOf(IResource* resource, NativeHandle& outHandle)
     {
         ComPtr<IBuffer> buffer;
-        if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
+        ComPtr<ITexture> texture;
+        switch (classifySharedResource(resource, buffer, texture))
+        {
+        case SharedResourceKind::Buffer:
             return is_set(buffer->getDesc().usage, BufferUsage::Shared) &&
                    SLANG_SUCCEEDED(buffer->getSharedHandle(&outHandle));
-        ComPtr<ITexture> texture;
-        if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
+        case SharedResourceKind::Texture:
             return is_set(texture->getDesc().usage, TextureUsage::Shared) &&
                    SLANG_SUCCEEDED(texture->getSharedHandle(&outHandle));
-        return false;
+        default:
+            return false;
+        }
     }
 
     bool resolveKey(IResource* resource, Key& outKey)

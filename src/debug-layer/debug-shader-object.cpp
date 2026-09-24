@@ -13,19 +13,23 @@ IResource* sharedResourceOfBinding(IResource* resource)
 {
     if (!resource)
         return nullptr;
-    ComPtr<IBuffer> buffer;
-    if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
-        return is_set(buffer->getDesc().usage, BufferUsage::Shared) ? buffer.get() : nullptr;
+    // A texture binding arrives as an ITextureView; resolve it to its owning texture, which is the
+    // resource that carries the shared handle (the view itself exposes none).
     ComPtr<ITextureView> view;
     if (SLANG_SUCCEEDED(resource->queryInterface(ITextureView::getTypeGuid(), (void**)view.writeRef())))
-    {
-        ITexture* texture = view->getTexture();
-        return (texture && is_set(texture->getDesc().usage, TextureUsage::Shared)) ? texture : nullptr;
-    }
+        resource = view->getTexture();
+
+    ComPtr<IBuffer> buffer;
     ComPtr<ITexture> texture;
-    if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
+    switch (classifySharedResource(resource, buffer, texture))
+    {
+    case SharedResourceKind::Buffer:
+        return is_set(buffer->getDesc().usage, BufferUsage::Shared) ? buffer.get() : nullptr;
+    case SharedResourceKind::Texture:
         return is_set(texture->getDesc().usage, TextureUsage::Shared) ? texture.get() : nullptr;
-    return nullptr;
+    default:
+        return nullptr;
+    }
 }
 
 } // namespace
