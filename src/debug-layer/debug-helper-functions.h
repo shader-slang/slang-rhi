@@ -109,9 +109,11 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // resource that can export its own handle fresh, so it never inherits a freed resource's key; and it
 // honors an import's tie only if the resource at that address is still a shared resource, so a freed
 // import's recycled address cannot pass a stale ownership entry to a later non-Shared resource. The
-// one residual is a non-re-exportable Shared import (e.g. a CUDA import) whose resource is freed and
-// whose address is later reused by another non-re-exportable Shared import: irreducible, since such
-// an import exposes no stable property to re-validate a tie against, and narrow (importer-side only).
+// one narrow gap left is a Shared resource that is neither reset nor tied at creation - one wrapped
+// via create*FromNativeHandle - on a backend without getSharedHandle: it cannot resolve its own
+// handle, so if its address recycles a freed import's it inherits that stale tie. (createBuffer resets
+// the pointer tie and create*FromSharedHandle overwrites it, so those paths cannot inherit one.) It is
+// closeable by dropping the stale pointer tie in the native-handle path too, left as future work.
 // Ownership is updated at command-recording time rather than at submission, so validation assumes
 // encoders are submitted in the order recorded (the intended hand-off/take-over usage).
 class SharedResourceOwnershipTracker
