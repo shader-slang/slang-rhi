@@ -3,6 +3,8 @@
 #include "debug-base.h"
 #include "debug-shader-object.h"
 
+#include <set>
+
 namespace rhi::debug {
 
 class DebugRenderPassEncoder : public UnownedDebugObject<IRenderPassEncoder>
@@ -369,6 +371,13 @@ public:
     // The inner command queue this encoder was created from, used to attribute shared-resource
     // ownership for handOffShared/takeOverShared validation. Set by DebugCommandQueue. Not owned.
     ICommandQueue* m_ownerQueue = nullptr;
+
+    // Resources handed off (handOffShared) earlier in THIS encoder and not yet taken back. A
+    // takeOverShared of one within the same encoder - which can never have a submit between it and
+    // the hand-off - is a likely missing-submit mistake (net no-op, no access window for the
+    // destination), flagged with a warning in takeOverShared. Not used for ownership state; that is
+    // the process-global tracker's job.
+    std::set<IResource*> m_handedOffThisEncoder;
 
     DebugRenderPassEncoder m_renderPassEncoder;
     DebugComputePassEncoder m_computePassEncoder;

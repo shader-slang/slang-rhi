@@ -34,15 +34,13 @@ public:
 
     StateTracking m_stateTracking;
 
-    // handOffShared queue-family releases deferred to end-of-encoding. The release to
-    // VK_QUEUE_FAMILY_EXTERNAL must be the last barrier on each resource, emitted after the
-    // end-of-encoding default-state restoration; see cmdHandOffShared and the command loop's tail.
-    struct PendingHandOff
-    {
-        uint32_t resourceCount;
-        IResource* const* resources;
-    };
-    short_vector<PendingHandOff> m_pendingHandOffs;
+    // Per-resource handOffShared queue-family releases (thisFamily -> EXTERNAL) deferred to
+    // end-of-encoding. The release must be the last barrier on each resource, emitted after the
+    // end-of-encoding default-state restoration (see cmdHandOffShared and the command loop's tail).
+    // Stored per resource (not per batch) so a same-encoder takeOverShared can cancel the matching
+    // pending release; a cancelled entry is tombstoned to nullptr, which
+    // recordQueueFamilyOwnershipTransfer skips.
+    short_vector<IResource*> m_pendingHandOffReleases;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
@@ -224,15 +222,14 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     // Emit deferred hand-off releases last, after the default-state restoration above, so the
     // release to VK_QUEUE_FAMILY_EXTERNAL is the final barrier on each handed-off resource. A
     // default-state transition emitted after the release would act on memory this queue no longer
-    // owns.
-    for (const auto& handOff : m_pendingHandOffs)
-        recordQueueFamilyOwnershipTransfer(
-            handOff.resourceCount,
-            handOff.resources,
-            m_device->m_queueFamilyIndex,
-            VK_QUEUE_FAMILY_EXTERNAL
-        );
-    m_pendingHandOffs.clear();
+    // owns. Entries cancelled by a same-encoder take-over are tombstoned nullptr and skipped here.
+    recordQueueFamilyOwnershipTransfer(
+        (uint32_t)m_pendingHandOffReleases.size(),
+        m_pendingHandOffReleases.data(),
+        m_device->m_queueFamilyIndex,
+        VK_QUEUE_FAMILY_EXTERNAL
+    );
+    m_pendingHandOffReleases.clear();
 
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkEndCommandBuffer(m_cmdBuffer), m_device);
 
@@ -1750,7 +1747,8 @@ void CommandRecorder::cmdHandOffShared(const commands::HandOffShared& cmd)
     // to, and cmd.destQueue is not consulted here (it is used only by the debug layer to pair a
     // hand-off with its take-over, and is where a destination family would be resolved once multiple
     // families are exposed).
-    m_pendingHandOffs.push_back({cmd.resourceCount, cmd.resources});
+    for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+        m_pendingHandOffReleases.push_back(cmd.resources[i]);
 }
 
 void CommandRecorder::cmdTakeOverShared(const commands::TakeOverShared& cmd)
@@ -1758,9 +1756,35 @@ void CommandRecorder::cmdTakeOverShared(const commands::TakeOverShared& cmd)
     // Acquire ownership of the shared resources from the external queue family back to this queue's
     // family, reversing a prior hand-off. See cmdHandOffShared for why the source is the external
     // family today.
+    //
+    // If a resource was handed off earlier in THIS encoder its release is still pending (deferred to
+    // the tail). Acquiring it now while that release fires at the tail would invert the order to
+    // acquire-then-release and leave the resource EXTERNAL-owned. Because the hand-off and take-over
+    // sit in one command buffer with no submission between them they cancel out (net: the resource
+    // stays owned by this queue), so we drop the matching pending release and skip the acquire for
+    // such a resource, acquiring only the rest.
+    short_vector<IResource*> toAcquire;
+    for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+    {
+        IResource* resource = cmd.resources[i];
+        if (!resource)
+            continue;
+        bool cancelledPendingHandOff = false;
+        for (uint32_t j = 0; j < m_pendingHandOffReleases.size(); ++j)
+        {
+            if (m_pendingHandOffReleases[j] == resource)
+            {
+                m_pendingHandOffReleases[j] = nullptr;
+                cancelledPendingHandOff = true;
+                break;
+            }
+        }
+        if (!cancelledPendingHandOff)
+            toAcquire.push_back(resource);
+    }
     recordQueueFamilyOwnershipTransfer(
-        cmd.resourceCount,
-        cmd.resources,
+        (uint32_t)toAcquire.size(),
+        toAcquire.data(),
         VK_QUEUE_FAMILY_EXTERNAL,
         m_device->m_queueFamilyIndex
     );

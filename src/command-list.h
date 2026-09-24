@@ -409,6 +409,26 @@ inline SharedResourceKind classifySharedResource(
     return SharedResourceKind::Unknown;
 }
 
+/// True if `resource` is a buffer or texture created with the `Shared` usage flag - i.e. a valid
+/// handOffShared/takeOverShared operand. classifySharedResource only identifies the buffer/texture
+/// kind; this additionally checks the `Shared` usage the transfer API requires, and so rejects a
+/// null resource, a non-buffer/non-texture (sampler, view, acceleration structure), and a
+/// non-`Shared` buffer/texture.
+inline bool isSharedResource(IResource* resource)
+{
+    ComPtr<IBuffer> buffer;
+    ComPtr<ITexture> texture;
+    switch (classifySharedResource(resource, buffer, texture))
+    {
+    case SharedResourceKind::Buffer:
+        return is_set(buffer->getDesc().usage, BufferUsage::Shared);
+    case SharedResourceKind::Texture:
+        return is_set(texture->getDesc().usage, TextureUsage::Shared);
+    default:
+        return false;
+    }
+}
+
 inline void invokeExecuteCallback(const commands::ExecuteCallback& cmd, NativeHandle nativeHandle)
 {
     if (!cmd.desc.callback)

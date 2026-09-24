@@ -73,6 +73,9 @@ NativeHandle freshHandle()
 struct StubBuffer : public IBuffer
 {
     BufferDesc m_desc;
+    // When set, getSharedHandle succeeds and returns this - modeling a producer whose handle is
+    // exported (and cached) on the resource. Left unset by tests that resolve via tieImportedResource.
+    NativeHandle m_sharedHandle{};
     explicit StubBuffer(BufferUsage usage) { m_desc.usage = usage; }
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override
     {
@@ -90,9 +93,12 @@ struct StubBuffer : public IBuffer
         return SLANG_E_NOT_IMPLEMENTED;
     }
     virtual SLANG_NO_THROW const BufferDesc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle*) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override
     {
-        return SLANG_E_NOT_IMPLEMENTED;
+        if (!m_sharedHandle)
+            return SLANG_E_NOT_IMPLEMENTED;
+        *outHandle = m_sharedHandle;
+        return SLANG_OK;
     }
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override { return 0; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
@@ -386,6 +392,21 @@ TEST_CASE("shared-ownership-tracker")
         CHECK_EQ(cb.lastType, DebugMessageType::Warning);
     }
 
+    SUBCASE("a same-encoder hand-off reclaim restores the owner without a take-over error")
+    {
+        IResource* res = fakeResource(0x200b);
+        tracker.tieImportedResource(res, freshHandle());
+        tracker.handOff(&ctx, res, qProducer, qConsumer); // qProducer hands off to qConsumer (silent)
+        cb.reset();
+        // The same encoder (owned by qProducer) reverses the hand-off. A generic takeOver by qProducer
+        // of a qConsumer-bound hand-off would be an error (wrong taker); the reconcile is silent and
+        // restores qProducer's ownership.
+        tracker.reclaimInSameEncoder(res, qProducer);
+        CHECK_EQ(cb.messageCount, 0);
+        tracker.checkUse(&ctx, res, qProducer); // qProducer still owns it -> silent
+        CHECK_EQ(cb.messageCount, 0);
+    }
+
     SUBCASE("hand-off and take-over match across DebugContexts that share a handle")
     {
         // The tracker is process-global and keyed by the shared NativeHandle, so a hand-off recorded
@@ -674,5 +695,49 @@ TEST_CASE("shared-transfer-argument-validation")
         cb.reset();
         CHECK_EQ(encoder->handOffShared(1, resources, destQueue), SLANG_E_INVALID_ARG);
         CHECK_EQ(cb.lastType, DebugMessageType::Error);
+    }
+}
+
+// A producer resolves its key fresh from getSharedHandle on every lookup and is not pointer-cached,
+// so the same IResource* later reporting a different shared handle - or dropping the Shared flag, as a
+// recycled address holding a non-shared resource would - resolves to its current handle (or to
+// nothing) rather than a stale key. Both cases stay silent; a pointer cache would instead raise a
+// cross-queue diagnostic.
+TEST_CASE("shared-ownership-tracker-producer-revalidation")
+{
+    auto& tracker = SharedResourceOwnershipTracker::get();
+    RecordingCallback cb;
+    DebugContext ctx;
+    ctx.deviceType = DeviceType::Vulkan;
+    ctx.debugCallback = &cb;
+    ICommandQueue* qA = fakeQueue(0x5001);
+    ICommandQueue* qB = fakeQueue(0x5002);
+
+    SUBCASE("a producer whose shared handle changes resolves fresh, not to a stale key")
+    {
+        StubBuffer buf(BufferUsage::Shared);
+        buf.m_sharedHandle = freshHandle();
+        tracker.checkUse(&ctx, &buf, qA); // first use resolves H1, acquires for qA
+        cb.reset();
+        buf.m_sharedHandle = freshHandle(); // same pointer now reports a different shared handle
+        tracker.checkUse(&ctx, &buf, qB);   // resolves H2 fresh -> first use for qB, silent
+        CHECK_EQ(cb.messageCount, 0);
+        // Confirm tracking is genuinely active and H2 is owned by qB (not silently disabled): a third
+        // queue using it is a cross-queue error.
+        ICommandQueue* qC = fakeQueue(0x5003);
+        tracker.checkUse(&ctx, &buf, qC);
+        CHECK_EQ(cb.messageCount, 1);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+    }
+
+    SUBCASE("a non-shared resource recycling a producer address is not tracked")
+    {
+        StubBuffer buf(BufferUsage::Shared);
+        buf.m_sharedHandle = freshHandle();
+        tracker.checkUse(&ctx, &buf, qA); // acquires for qA
+        cb.reset();
+        buf.m_desc.usage = BufferUsage::ShaderResource; // recycled by a non-shared resource
+        tracker.checkUse(&ctx, &buf, qB); // getSharedHandleOf fails the Shared check -> not tracked -> silent
+        CHECK_EQ(cb.messageCount, 0);
     }
 }

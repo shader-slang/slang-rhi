@@ -86,9 +86,11 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // imported into another, each with its own DebugContext; the two sides are tied only by the
 // resource's shared NativeHandle, the sole identifier common to both.
 //
-// A producer resource resolves its key via getSharedHandle (cached after the first export). An
-// imported resource that cannot re-export its handle (e.g. a CUDA buffer created from a shared
-// handle) is tied to its key at import time.
+// A producer resource resolves its key fresh from getSharedHandle on each lookup (the handle is
+// exported once and cached on the resource, so this is cheap and always current); it is deliberately
+// not pointer-cached in the tracker - see resolveKey. An imported resource that cannot re-export its
+// handle (e.g. a CUDA buffer created from a shared handle) is tied to its key at import time, in
+// m_resourceKeys.
 //
 // Misuse of the handOffShared/takeOverShared calls themselves - e.g. handing off a resource that is
 // already handed off, or handing off a resource owned by another queue - is an error on every
@@ -98,13 +100,16 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // it cannot be distinguished from legitimate use).
 //
 // This is a best-effort validation aid, not a source of truth. The debug layer does not wrap
-// buffers/textures and so cannot observe their destruction, so entries are never evicted; in a
-// long-running process that frees and recreates many shared resources the table grows unbounded.
-// Stale state from a destroyed resource does not, however, mislead a newly created one: creating a
-// producer shared resource resets any entry for its freshly minted handle (an existing entry for it
-// can only be a recycled, stale one) - see resetForNewSharedResource and the debug device's create
-// paths. Ownership is updated at command-recording time rather than at submission, so validation
-// assumes encoders are submitted in the order recorded (the intended hand-off/take-over usage).
+// buffers/textures and so cannot observe their destruction, so ownership entries (m_entries, keyed by
+// shared handle) are never evicted; in a long-running process the table grows unbounded (memory
+// only). Stale state does not mislead a live resource: a producer resolves its key fresh on each
+// lookup (so it can never inherit a freed resource's cached key), and creating a producer shared
+// resource resets any ownership entry for its freshly minted handle - an existing entry for it can
+// only be a recycled, stale one (see resetForNewSharedResource and the debug device's create paths).
+// The one residual is an imported tie whose resource is freed and whose address is later reused (see
+// resolveKey): irreducible, since a non-re-exportable import cannot be re-validated, and narrow.
+// Ownership is updated at command-recording time rather than at submission, so validation assumes
+// encoders are submitted in the order recorded (the intended hand-off/take-over usage).
 class SharedResourceOwnershipTracker
 {
 public:
@@ -147,8 +152,8 @@ public:
 
     // Whether `resource` has a shared handle, i.e. is a valid handOffShared/takeOverShared argument.
     // Used by the encoder to reject an unshared resource before recording a transfer. This is not a
-    // pure query: resolveKey caches the resolved key in m_resourceKeys and may call the backend's
-    // getSharedHandle. It does not touch the ownership state (Owned/HandedOff).
+    // pure query: resolveKey may call the backend's getSharedHandle (for a producer, resolved fresh)
+    // or match an existing imported tie. It does not touch the ownership state (Owned/HandedOff).
     bool isShared(IResource* resource)
     {
         Key key;
@@ -212,6 +217,25 @@ public:
         }
         if (problem)
             report(ctx, Severity::Error, problem);
+    }
+
+    // Reconcile a resource that was handed off and then taken over within the same command encoder
+    // back to owned-by-`ownerQueue`, without take-over validation. The pair is a net no-op (nothing
+    // can be submitted between them), and the generic takeOver would report an error whenever the
+    // hand-off named a different destination queue than this queue - inappropriate for a cancelled
+    // same-encoder pair. The encoder warns about the suspicious pattern separately.
+    void reclaimInSameEncoder(IResource* resource, ICommandQueue* ownerQueue)
+    {
+        Key key;
+        if (!resolveKey(resource, key))
+            return;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        Entry& entry = m_entries[key];
+        entry.registered = true;
+        entry.state = State::Owned;
+        entry.owner = ownerQueue;
+        entry.handoffSrc = nullptr;
+        entry.handoffDst = nullptr;
     }
 
     // Validate a use of `resource` on `usingQueue`. A first use of an untracked resource acquires it
@@ -328,18 +352,27 @@ private:
             auto it = m_resourceKeys.find(resource);
             if (it != m_resourceKeys.end())
             {
+                // Only imported resources are recorded in m_resourceKeys (tieImportedResource). They
+                // cannot re-export their shared handle - a CUDA buffer created from a shared handle
+                // has no getSharedHandle - so the tie is the only way to resolve them, and we trust
+                // it. This is the one residual of address recycling: the debug layer cannot observe
+                // destruction, so if an imported resource is freed and its address is reused, the
+                // stale tie survives. It is irreducible - a non-re-exportable import exposes no stable
+                // property to re-validate a cache hit against - and narrow (importer-side, and imports
+                // and producers rarely share an allocator).
                 outKey = it->second;
                 return true;
             }
         }
+        // Producer resources are resolved fresh from getSharedHandle each lookup, never pointer-cached:
+        // the debug layer cannot observe resource destruction, so a cached IResource* could be reused
+        // by a later resource and mis-resolve to a freed resource's stale key. Resolving fresh is cheap
+        // because getSharedHandle is cached on the resource (exported once, stable thereafter), and
+        // getSharedHandleOf checks the Shared usage flag before touching the backend.
         NativeHandle handle;
         if (!getSharedHandleOf(resource, handle) || !handle)
             return false;
         outKey = Key{handle.type, handle.value};
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_resourceKeys[resource] = outKey;
-        }
         return true;
     }
 

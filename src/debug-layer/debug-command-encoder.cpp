@@ -2100,7 +2100,10 @@ Result DebugCommandEncoder::handOffShared(uint32_t resourceCount, IResource* con
 
     ICommandQueue* innerDest = getInnerObj(destQueue);
     for (uint32_t i = 0; i < resourceCount; ++i)
+    {
         SharedResourceOwnershipTracker::get().handOff(ctx, resources[i], m_ownerQueue, innerDest);
+        m_handedOffThisEncoder.insert(resources[i]);
+    }
 
     return baseObject->handOffShared(resourceCount, resources, innerDest);
 }
@@ -2129,9 +2132,33 @@ Result DebugCommandEncoder::takeOverShared(uint32_t resourceCount, IResource* co
             return validation;
     }
 
+    // A take-over reversing a hand-off recorded earlier in THIS encoder is a net no-op (nothing can
+    // be submitted between them) and a likely mistake - the destination queue/external API never got
+    // an access window. Reconcile the tracker for such a resource directly to owned-by-this-queue,
+    // bypassing the generic take-over validation, which would otherwise flag an error (fatal on
+    // Vulkan) whenever the hand-off named a different destination queue than this one - exactly this
+    // case. A resource not handed off in this encoder takes the normal validated take-over path.
     ICommandQueue* innerSrc = getInnerObj(srcQueue);
+    bool reversesSameEncoderHandOff = false;
     for (uint32_t i = 0; i < resourceCount; ++i)
-        SharedResourceOwnershipTracker::get().takeOver(ctx, resources[i], m_ownerQueue, innerSrc);
+    {
+        if (m_handedOffThisEncoder.erase(resources[i]) > 0)
+        {
+            reversesSameEncoderHandOff = true;
+            SharedResourceOwnershipTracker::get().reclaimInSameEncoder(resources[i], m_ownerQueue);
+        }
+        else
+        {
+            SharedResourceOwnershipTracker::get().takeOver(ctx, resources[i], m_ownerQueue, innerSrc);
+        }
+    }
+    if (reversesSameEncoderHandOff)
+        RHI_VALIDATION_WARNING(
+            "takeOverShared reverses a handOffShared recorded earlier in the same "
+            "command encoder, with no submit between them; the transfer is a net "
+            "no-op and the destination queue/external API never received an access "
+            "window. Submit the hand-off (and wait) before taking the resource back."
+        );
 
     return baseObject->takeOverShared(resourceCount, resources, innerSrc);
 }
