@@ -369,8 +369,10 @@ Result DebugDevice::createTextureFromNativeHandle(NativeHandle handle, const Tex
     // createTexture (a fresh producer allocation, which resets any recycled tracker entry) and
     // createTextureFromSharedHandle (a cross-API import, which ties the entry to the shared handle),
     // the handle passed here is not the shared/export handle the tracker keys on, so we neither reset
-    // nor tie. If the wrapped texture is Shared, its ownership entry is created lazily from its shared
-    // handle on first tracked use (see SharedResourceOwnershipTracker::getSharedHandleOf).
+    // nor tie. If the wrapped texture is Shared on a backend that implements getSharedHandle, its
+    // ownership entry resolves lazily from that handle on first tracked use; on a backend without
+    // getSharedHandle it stays untracked (the create*FromNativeHandle residual noted in
+    // SharedResourceOwnershipTracker).
     return baseObject->createTextureFromNativeHandle(handle, desc, outTexture);
 }
 
@@ -461,8 +463,10 @@ Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const Buff
     // createBuffer (a fresh producer allocation, which resets any recycled tracker entry) and
     // createBufferFromSharedHandle (a cross-API import, which ties the entry to the shared handle),
     // the handle passed here is not the shared/export handle the tracker keys on, so we neither reset
-    // nor tie. If the wrapped buffer is Shared, its ownership entry is created lazily from its shared
-    // handle on first tracked use (see SharedResourceOwnershipTracker::getSharedHandleOf).
+    // nor tie. If the wrapped buffer is Shared on a backend that implements getSharedHandle, its
+    // ownership entry resolves lazily from that handle on first tracked use; on a backend without
+    // getSharedHandle it stays untracked (the create*FromNativeHandle residual noted in
+    // SharedResourceOwnershipTracker).
     return baseObject->createBufferFromNativeHandle(handle, desc, outBuffer);
 }
 

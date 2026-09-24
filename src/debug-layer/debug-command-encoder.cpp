@@ -2094,7 +2094,8 @@ Result DebugCommandEncoder::handOffShared(uint32_t resourceCount, IResource* con
         return SLANG_E_INVALID_ARG;
     }
     // Validate the whole batch before applying any state change (all-or-nothing): every resource
-    // must be non-null, have a shared handle, and (on Vulkan) satisfy the transfer's layout contract.
+    // must be non-null, be a shared buffer or texture, and (on Vulkan) satisfy the transfer's layout
+    // contract.
     for (uint32_t i = 0; i < resourceCount; ++i)
     {
         Result validation = validateSharedTransferOperand(resources[i], i);
