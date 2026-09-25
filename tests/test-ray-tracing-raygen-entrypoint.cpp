@@ -3,6 +3,75 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+// Resource-only entry points have no implicit ordinary-data wrapper. Explicit
+// parameter groups must still retain their own ordinary data and descriptor sets.
+GPU_TEST_CASE("ray-tracing-raygen-entrypoint-resources", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    for (const char* entryPoint : {"rayGenResources", "rayGenConstantBuffer", "rayGenParameterBlock", "rayGenOffsets"})
+    {
+        CAPTURE(std::string(entryPoint));
+        const bool hasGlobals = strcmp(entryPoint, "rayGenOffsets") == 0;
+        const bool hasParameterGroup = !hasGlobals && strcmp(entryPoint, "rayGenResources") != 0;
+
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadProgram(
+            device,
+            hasGlobals ? "test-ray-tracing-raygen-entrypoint-offsets" : "test-ray-tracing-raygen-entrypoint",
+            entryPoint,
+            program.writeRef()
+        ));
+
+        RayTracingPipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        auto pipeline = device->createRayTracingPipeline(pipelineDesc);
+        REQUIRE(pipeline != nullptr);
+
+        ShaderTableDesc shaderTableDesc = {};
+        shaderTableDesc.program = program;
+        shaderTableDesc.rayGenShaderCount = 1;
+        shaderTableDesc.rayGenShaderEntryPointNames = &entryPoint;
+        ComPtr<IShaderTable> shaderTable;
+        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = (hasGlobals ? 2 : 1) * sizeof(uint32_t);
+        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        const uint32_t initialValues[] = {99, 99};
+        auto outputBuffer = device->createBuffer(bufferDesc, initialValues);
+        REQUIRE(outputBuffer != nullptr);
+
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
+        auto cursor = ShaderCursor(rootObject->getEntryPoint(0));
+        if (hasGlobals)
+        {
+            // Global ordinary data and a resource move the entry point's descriptor base.
+            REQUIRE_CALL(ShaderCursor(rootObject)["bias"].setData<uint32_t>(45));
+            REQUIRE_CALL(ShaderCursor(rootObject)["globalOutput"].setBinding(outputBuffer));
+            REQUIRE_CALL(cursor["value"].setData<uint32_t>(12300));
+        }
+        if (hasParameterGroup)
+        {
+            cursor = cursor["params"];
+            REQUIRE_CALL(cursor["value"].setData<uint32_t>(12345));
+        }
+        REQUIRE_CALL(cursor["output"].setBinding(outputBuffer));
+        passEncoder->dispatchRays(0, 1, 1, 1);
+        passEncoder->end();
+        queue->submit(commandEncoder->finish());
+
+        if (hasGlobals)
+            compareComputeResult(device, outputBuffer, std::array<uint32_t, 2>{12345, 45});
+        else
+            compareComputeResult(device, outputBuffer, std::array<uint32_t, 1>{12345});
+    }
+}
+
 // Test verifies that ray generation entry points can be selected correctly
 // and entry point parameters are passed correctly.
 GPU_TEST_CASE("ray-tracing-raygen-entrypoint", ALL)
