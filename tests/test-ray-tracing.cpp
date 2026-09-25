@@ -155,6 +155,48 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
     test.run(tlas.tlas, raygenNames, hitGroupProgramNames, missNames, expectedPixels);
 }
 
+GPU_TEST_CASE("ray-tracing-native-primitive-flags", CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    ThreeTriangleBLAS blas(device, queue);
+    TLAS tlas(device, queue, blas.blas);
+
+    const RayTracingPipelineFlags flagCombinations[] = {
+        RayTracingPipelineFlags::None,
+        RayTracingPipelineFlags::EnableSpheres,
+        RayTracingPipelineFlags::EnableLinearSweptSpheres,
+        RayTracingPipelineFlags::EnableSpheres | RayTracingPipelineFlags::EnableLinearSweptSpheres,
+    };
+    for (auto flags : flagCombinations)
+    {
+        if (is_set(flags, RayTracingPipelineFlags::EnableSpheres) &&
+            !device->hasFeature(Feature::AccelerationStructureSpheres))
+            continue;
+        if (is_set(flags, RayTracingPipelineFlags::EnableLinearSweptSpheres) &&
+            !device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+            continue;
+        CAPTURE(uint32_t(flags));
+
+        // Enabling native primitives must preserve custom intersection shader linking and triangle traversal.
+        std::vector<HitGroupProgramNames> hitGroupProgramNames = {
+            {"closestHitShaderIdx0", nullptr, nullptr},
+            {nullptr, nullptr, "intersectionShaderNoHit"},
+        };
+        ExpectedPixel expectedPixels[] = {
+            EXPECTED_PIXEL(64, 64, 1.f, 0.f, 0.f, 1.f),
+            EXPECTED_PIXEL(63, 64, 0.f, 1.f, 0.f, 1.f),
+            EXPECTED_PIXEL(64, 63, 0.f, 0.f, 1.f, 1.f),
+            EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f),
+        };
+        RayTracingTriangleIntersectionTest test;
+        test.init(device);
+        test.run(tlas.tlas, {"rayGenShaderIdx0"}, hitGroupProgramNames, {"missShaderIdx0"}, expectedPixels, 0, flags);
+    }
+}
+
 GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
