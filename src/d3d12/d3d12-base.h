@@ -30,6 +30,7 @@ class RenderPipelineImpl;
 class ComputePipelineImpl;
 class RayTracingPipelineImpl;
 class AccelerationStructureImpl;
+class MicromapImpl;
 class SamplerImpl;
 class ShaderObjectImpl;
 class RootShaderObjectImpl;

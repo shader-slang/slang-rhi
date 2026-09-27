@@ -31,6 +31,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     std::string m_rootParameterShaderAttributeNameBuffer;
     const char* m_rootParameterShaderAttributeName = nullptr;
 
@@ -95,6 +101,7 @@ public:
         Size* outAlignment
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
+    virtual SLANG_NO_THROW Result getTextureBufferOffsetAlignment(Format format, Size* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
         const SubresourceData* initData,
@@ -200,6 +207,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -208,6 +220,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(
+        const MicromapDesc& desc,
+        IMicromap** outMicromap
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(

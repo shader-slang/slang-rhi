@@ -21,6 +21,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     Context m_ctx;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
@@ -50,6 +56,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
         const BufferDesc& desc,
         const void* initData,
+        IBuffer** outBuffer
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
         IBuffer** outBuffer
     ) override;
 
@@ -155,6 +167,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -163,6 +180,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(
+        const MicromapDesc& desc,
+        IMicromap** outMicromap
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(

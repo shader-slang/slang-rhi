@@ -645,8 +645,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // Constant buffer views need to be multiple of 256 bytes.
     uint32_t alignedSize = math::calcAligned2(size, 256);
 
-    ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(alignedSize, allocation));
+    TransientBufferArena::Allocation allocation;
+    SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(alignedSize, &allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
 
     // We also create and store a descriptor for our root constant buffer
@@ -657,7 +657,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     //
     // SLANG_RHI_ASSERT(ioOffset.resource == 0);
     D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
-    viewDesc.BufferLocation = allocation.buffer->getDeviceAddress() + allocation.offset;
+    viewDesc.BufferLocation = checked_cast<BufferImpl*>(allocation.buffer)->getDeviceAddress() + allocation.offset;
     viewDesc.SizeInBytes = alignedSize;
     m_device->m_device->CreateConstantBufferView(&viewDesc, descriptorSet.resources.getCpuHandle(ioOffset.resource));
     ioOffset.resource++;

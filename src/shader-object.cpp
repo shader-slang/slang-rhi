@@ -24,7 +24,12 @@ void ShaderObjectLayout::initBase(
     m_device = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
-    m_componentID = m_device->m_shaderCache.getComponentId(m_elementTypeLayout->getType());
+    auto type = m_elementTypeLayout->getType();
+    // Root layouts represent a program's global scope, which may not have a reflected type.
+    if (type)
+        m_componentID = m_device->m_shaderCache.getComponentId(type);
+    else
+        m_componentID = kInvalidComponentID;
 }
 
 // ----------------------------------------------------------------------------
@@ -647,7 +652,8 @@ Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& arg
 Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObjectLayout* specializedLayout)
 {
     SLANG_RHI_ASSERT(m_data.size() <= destSize);
-    std::memcpy(destData, m_data.data(), m_data.size());
+    if (!m_data.empty())
+        std::memcpy(destData, m_data.data(), m_data.size());
     return SLANG_OK;
 }
 

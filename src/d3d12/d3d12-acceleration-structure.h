@@ -4,6 +4,15 @@
 
 namespace rhi::d3d12 {
 
+inline bool usesOpacityMicromaps(const AccelerationStructureBuildDesc& desc)
+{
+    for (uint32_t i = 0; i < desc.inputCount; ++i)
+        if (desc.inputs[i].type == AccelerationStructureBuildInputType::Triangles &&
+            findStructInChain<AccelerationStructureOpacityMicromapDesc>(desc.inputs[i].triangles.next))
+            return true;
+    return false;
+}
+
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
@@ -26,15 +35,43 @@ public:
     DescriptorHandle m_descriptorHandle;
 };
 
+class MicromapImpl : public Micromap
+{
+public:
+    MicromapImpl(Device* device, const MicromapDesc& desc);
+
+    virtual void deleteThis() override;
+
+    // IResource implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // IMicromap implementation
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
+
+public:
+    RefPtr<BufferImpl> m_buffer;
+};
+
 struct AccelerationStructureBuildDescConverter
 {
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
     std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs;
+    std::vector<D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC> triangleDescs;
+    std::vector<D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC> ommLinkages;
+    std::vector<D3D12_RAYTRACING_GEOMETRY_OMM_TRIANGLES_DESC> ommTriangleDescs;
     Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* callback);
 
 private:
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS translateBuildFlags(AccelerationStructureBuildFlags flags);
     D3D12_RAYTRACING_GEOMETRY_FLAGS translateGeometryFlags(AccelerationStructureGeometryFlags flags);
+};
+
+struct MicromapBuildDescConverter
+{
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
+    D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_DESC arrayDesc = {};
+    std::vector<D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY> histogram;
+    Result convert(const MicromapBuildDesc& buildDesc);
 };
 
 #if SLANG_RHI_ENABLE_NVAPI

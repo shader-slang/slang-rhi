@@ -78,6 +78,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -752,6 +753,12 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructure);
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(ICommandEncoder, buildMicromap);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)

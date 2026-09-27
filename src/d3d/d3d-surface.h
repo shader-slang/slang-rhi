@@ -49,8 +49,10 @@ public:
         swapChainDesc.BufferDesc.Width = m_config.width;
         swapChainDesc.BufferDesc.Height = m_config.height;
         swapChainDesc.BufferDesc.Format = getMapFormat(srgbToLinearFormat(m_config.format));
+        // Render-target output is the internal presentation path. Optional native usages are
+        // enabled only when the resolved public configuration requests them.
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        if (is_set(m_info.supportedUsage, TextureUsage::UnorderedAccess))
+        if (is_set(m_config.usage, TextureUsage::UnorderedAccess))
             swapChainDesc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
         swapChainDesc.SwapEffect = m_swapEffect;
         swapChainDesc.OutputWindow = m_windowHandle;
@@ -108,6 +110,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override
     {
+        SLANG_RETURN_ON_FAIL(validateConfig(config));
         setConfig(config);
         if (m_config.format == Format::Undefined)
         {

@@ -18,6 +18,7 @@ class ShaderCompilationReporter;
 namespace rhi::cuda {
 class DeviceImpl;
 class AccelerationStructureImpl;
+class MicromapImpl;
 class RayTracingPipelineImpl;
 struct BindingDataImpl;
 class ShaderTableImpl;
@@ -74,6 +75,8 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    virtual Result getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes) = 0;
+
     /// Get the sizes required for building a cluster acceleration structure or BLAS-from-CLAS.
     virtual Result getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes) = 0;
 
@@ -86,6 +89,13 @@ public:
         BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
+    ) = 0;
+
+    virtual void buildMicromap(
+        CUstream stream,
+        const MicromapBuildDesc& desc,
+        MicromapImpl* dst,
+        BufferOffsetPair scratchBuffer
     ) = 0;
 
     /// Copy an acceleration structure.

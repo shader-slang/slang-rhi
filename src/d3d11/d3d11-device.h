@@ -13,6 +13,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     using Device::readBuffer;
 
     DeviceImpl();

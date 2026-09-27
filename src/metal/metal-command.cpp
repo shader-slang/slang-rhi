@@ -127,6 +127,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -858,10 +859,13 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 
 void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
-    // TODO: When implemented, must set m_computeEncoderHasDispatched = true
-    // so that cmdSetComputeState emits a memoryBarrier after indirect dispatches.
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(IComputePassEncoder, dispatchComputeIndirect);
+    if (!m_computeStateValid)
+        return;
+
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    m_computeCommandEncoder
+        ->dispatchThreadgroups(argBuffer->m_buffer.get(), cmd.argBuffer.offset, m_computePipeline->m_threadGroupSize);
+    m_computeEncoderHasDispatched = true;
 }
 
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
@@ -916,6 +920,12 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     }
 
     // TODO handle queryDescs
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(ICommandEncoder, buildMicromap);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)

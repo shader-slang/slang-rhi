@@ -10,8 +10,7 @@ namespace rhi::d3d12 {
 struct ShaderBinary
 {
     SlangStage stage;
-    slang::EntryPointReflection* entryPointInfo;
-    std::string actualEntryPointNameInAPI;
+    std::string entryPointName;
     std::vector<uint8_t> code;
 };
 
@@ -24,10 +23,7 @@ public:
     ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
     ~ShaderProgramImpl();
 
-    virtual Result createShaderModule(
-        slang::EntryPointReflection* entryPointInfo,
-        ComPtr<ISlangBlob> kernelCode
-    ) override;
+    virtual Result createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };
