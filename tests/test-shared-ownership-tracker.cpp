@@ -440,11 +440,12 @@ TEST_CASE("shared-ownership-tracker")
         IResource* import = fakeResource(0x200d);
         tracker.tieImportedResource(import, handle);
         cb.reset();
-        tracker.checkUse(&ctx, producer, qProducer); // the initData owner's own use is silent
-        CHECK_EQ(cb.messageCount, 0);
         tracker.checkUse(&cudaCtx, import, qConsumer);
         CHECK_EQ(cb.messageCount, 1);
         CHECK_EQ(cb.lastType, DebugMessageType::Error);
+        cb.reset();
+        tracker.checkUse(&ctx, producer, qProducer); // the initData owner's own use is silent
+        CHECK_EQ(cb.messageCount, 0);
     }
 
     SUBCASE("a same-encoder hand-off reclaim restores the owner without a take-over error")
@@ -565,7 +566,7 @@ TEST_CASE("shared-binding-validation")
         tracker.checkUse(&ctx, &buffer, qOwner); // first use acquires ownership for qOwner
         tracker.checkUse(&ctx, &buffer, qOwner); // reuse by the owner is silent
         CHECK_EQ(cb.messageCount, 0);
-        tracker.checkUse(&ctx, &buffer, qOther); // a different queue is diagnosed
+        tracker.checkUse(&ctx, &buffer, qOther);
         CHECK_EQ(cb.messageCount, 1);
         CHECK_EQ(cb.lastType, DebugMessageType::Warning); // no producer was recorded
     }

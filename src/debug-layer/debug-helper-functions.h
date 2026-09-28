@@ -105,7 +105,7 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // This is a best-effort validation aid, not a source of truth. The debug layer does not wrap
 // buffers/textures and so cannot observe their destruction, so ownership entries (m_entries, keyed by
 // shared handle) are not evicted on destruction; a stale entry persists until a producer with that
-// freshly minted handle is created, which erases it (resetForNewSharedResource). In a long-running
+// freshly minted handle is created, which resets it (resetForNewSharedResource). In a long-running
 // process the table grows. Stale state does not mislead a live resource: resolveKey resolves every
 // resource that can export its own handle fresh, so it never inherits a freed resource's key; and it
 // honors an import's tie only if the resource at that address is still a shared resource, so a freed
@@ -144,8 +144,8 @@ public:
     // freed resource's address, so its pointer->key tie is dropped unconditionally - otherwise a stale
     // tie left by a destroyed import (which this new resource is not) would be inherited on a backend
     // where the new resource cannot re-export and so cannot be re-keyed fresh. If the resource can
-    // export its own handle, any ownership entry for that freshly minted handle is dropped too: a
-    // just-minted handle's existing entry can only be stale, left by a destroyed resource whose handle
+    // export its own handle, any ownership entry for that freshly minted handle is replaced by a fresh
+    // one too: a just-minted handle's existing entry can only be stale, left by a destroyed resource whose handle
     // value the driver recycled. Import paths do not call this: an imported handle is the producer's
     // live handle, whose ownership state must be preserved for the consumer's takeOverShared.
     //
