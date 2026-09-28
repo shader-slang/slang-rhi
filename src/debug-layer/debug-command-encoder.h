@@ -374,8 +374,8 @@ public:
 
     // Resources handed off (handOffShared) earlier in THIS encoder and not yet taken back. A
     // takeOverShared of one within the same encoder - which can never have a submit between it and
-    // the hand-off - is a likely missing-submit mistake (net no-op, no access window for the
-    // destination), flagged with a warning in takeOverShared. Not used for ownership state; that is
+    // the hand-off - is a missing-submit mistake (net no-op, no access window for the destination),
+    // reported as an error in takeOverShared. Not used for ownership state; that is
     // the process-global tracker's job.
     std::set<IResource*> m_handedOffThisEncoder;
 

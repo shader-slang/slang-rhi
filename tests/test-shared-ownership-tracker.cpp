@@ -8,6 +8,7 @@
 #include "testing.h"
 #include "../src/debug-layer/debug-helper-functions.h"
 #include "../src/debug-layer/debug-command-encoder.h"
+#include "../src/debug-layer/debug-command-queue.h"
 #include "../src/command-list.h"
 
 #include <atomic>
@@ -845,5 +846,223 @@ TEST_CASE("shared-ownership-tracker-producer-revalidation")
         tracker.checkUse(&ctx, &buf, qC);
         CHECK_EQ(cb.messageCount, 1);
         CHECK_EQ(cb.lastType, DebugMessageType::Warning); // no producer was recorded
+    }
+}
+
+// A base encoder for DebugCommandEncoder that accepts every call and counts the hand-off/take-over
+// recordings, so the debug encoder's transfer paths can run end to end without a device. Reference
+// counting is a no-op, as for the other stubs.
+struct StubCommandEncoder : public ICommandEncoder
+{
+    CommandEncoderDesc m_desc;
+    int handOffCount = 0;
+    int takeOverCount = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override
+    {
+        if (uuid == ISlangUnknown::getTypeGuid() || uuid == ICommandEncoder::getTypeGuid())
+        {
+            *outObject = static_cast<ICommandEncoder*>(this);
+            return SLANG_OK;
+        }
+        return SLANG_E_NO_INTERFACE;
+    }
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 2; }
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 2; }
+    virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() override { return m_desc; }
+    virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc&) override
+    {
+        return nullptr;
+    }
+    virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() override { return nullptr; }
+    virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() override { return nullptr; }
+    virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(IBuffer*, Offset, IBuffer*, Offset, Size) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
+        ITexture*,
+        SubresourceRange,
+        Offset3D,
+        ITexture*,
+        SubresourceRange,
+        Offset3D,
+        Extent3D
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
+        IBuffer*,
+        Offset,
+        Size,
+        Size,
+        ITexture*,
+        uint32_t,
+        uint32_t,
+        Offset3D,
+        Extent3D
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
+        ITexture*,
+        uint32_t,
+        uint32_t,
+        Offset3D,
+        IBuffer*,
+        Offset,
+        Size,
+        Size,
+        Extent3D
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
+        ITexture*,
+        SubresourceRange,
+        Offset3D,
+        Extent3D,
+        const SubresourceData*,
+        uint32_t
+    ) override
+    {
+        return SLANG_OK;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(IBuffer*, Offset, Size, const void*) override
+    {
+        return SLANG_OK;
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer*, BufferRange) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(ITexture*, SubresourceRange, float[4]) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureUint(ITexture*, SubresourceRange, uint32_t[4]) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureSint(ITexture*, SubresourceRange, int32_t[4]) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
+        ITexture*,
+        SubresourceRange,
+        bool,
+        float,
+        bool,
+        uint8_t
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL resolveQuery(IQueryPool*, uint32_t, uint32_t, IBuffer*, uint64_t) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
+        const AccelerationStructureBuildDesc&,
+        IAccelerationStructure*,
+        IAccelerationStructure*,
+        BufferOffsetPair,
+        uint32_t,
+        const AccelerationStructureQueryDesc*
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL buildMicromap(
+        const MicromapBuildDesc&,
+        IMicromap*,
+        BufferOffsetPair
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
+        IAccelerationStructure*,
+        IAccelerationStructure*,
+        AccelerationStructureCopyMode
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL queryAccelerationStructureProperties(
+        uint32_t,
+        IAccelerationStructure**,
+        uint32_t,
+        const AccelerationStructureQueryDesc*
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc&) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
+        IBuffer*,
+        const CooperativeVectorMatrixDesc*,
+        IBuffer*,
+        const CooperativeVectorMatrixDesc*,
+        uint32_t
+    ) override
+    {
+    }
+    virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer*, ResourceState) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(ITexture*, SubresourceRange, ResourceState) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char*, const MarkerColor&) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char*, const MarkerColor&) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool*, uint32_t) override {}
+    virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc&) override {}
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(const CommandBufferDesc&, ICommandBuffer**) override
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle*) override
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL handOffShared(uint32_t, IResource* const*, ICommandQueue*) override
+    {
+        ++handOffCount;
+        return SLANG_OK;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL takeOverShared(uint32_t, IResource* const*, ICommandQueue*) override
+    {
+        ++takeOverCount;
+        return SLANG_OK;
+    }
+};
+
+// A takeOverShared that reverses a handOffShared recorded earlier in the same encoder is an error: no
+// submit can separate the two, so the other queue never gets an access window, and the call is still
+// forwarded so that the backend (on Vulkan, cancelling the pending release) keeps the resource owned
+// by this queue. A later handOffShared in the same encoder hands it off again.
+TEST_CASE("shared-transfer-same-encoder-reversal")
+{
+    DebugContext ctx;
+    ctx.deviceType = DeviceType::Vulkan;
+    RecordingCallback cb;
+    ctx.debugCallback = &cb;
+    auto& tracker = SharedResourceOwnershipTracker::get();
+
+    ICommandQueue* qOwner = fakeQueue(0x6001);
+    StubCommandEncoder base;
+    RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder(&ctx);
+    encoder->baseObject = &base;
+    encoder->m_ownerQueue = qOwner;
+    // A debug queue with no inner queue: getInnerObj maps it to null, which the tracker accepts as an
+    // unnamed destination.
+    RefPtr<DebugCommandQueue> otherQueue = new DebugCommandQueue(&ctx);
+
+    IResource* res = fakeProducer(freshHandle(), DeviceType::Vulkan, qOwner);
+    IResource* resources[] = {res};
+
+    SUBCASE("a take-over reversing a same-encoder hand-off is an error")
+    {
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(1, resources, otherQueue.get()), SLANG_OK);
+        CHECK_EQ(cb.messageCount, 0);
+        CHECK_EQ(encoder->takeOverShared(1, resources, otherQueue.get()), SLANG_OK);
+        CHECK_EQ(cb.messageCount, 1);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+        CHECK_EQ(base.handOffCount, 1);
+        CHECK_EQ(base.takeOverCount, 1);
+        cb.reset();
+        tracker.checkUse(&ctx, res, qOwner); // the pair cancels out: this queue still owns it
+        CHECK_EQ(cb.messageCount, 0);
+    }
+
+    SUBCASE("hand-off, take-over, hand-off in one encoder ends handed off")
+    {
+        CHECK_EQ(encoder->handOffShared(1, resources, otherQueue.get()), SLANG_OK);
+        CHECK_EQ(encoder->takeOverShared(1, resources, otherQueue.get()), SLANG_OK);
+        cb.reset();
+        CHECK_EQ(encoder->handOffShared(1, resources, otherQueue.get()), SLANG_OK);
+        CHECK_EQ(cb.messageCount, 0); // this queue owned it again, so the second hand-off is valid
+        tracker.checkUse(&ctx, res, qOwner);
+        CHECK_EQ(cb.messageCount, 1);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
     }
 }

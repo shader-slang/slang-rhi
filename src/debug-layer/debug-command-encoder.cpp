@@ -2138,11 +2138,12 @@ Result DebugCommandEncoder::takeOverShared(uint32_t resourceCount, IResource* co
     }
 
     // A take-over reversing a hand-off recorded earlier in THIS encoder is a net no-op (nothing can
-    // be submitted between them) and a likely mistake - the destination queue/external API never got
-    // an access window. Reconcile the tracker for such a resource directly to owned-by-this-queue,
-    // bypassing the generic take-over validation, which would otherwise flag an error (fatal on
-    // Vulkan) whenever the hand-off named a different destination queue than this one - exactly this
-    // case. A resource not handed off in this encoder takes the normal validated take-over path.
+    // be submitted between them), so the destination queue/external API never got an access window.
+    // The caller is likely trying to synchronize some other way within the encoder, which this does
+    // not do, so it is an error. The tracker is reconciled for such a resource directly to
+    // owned-by-this-queue, matching the backend's cancellation of the pair, rather than through the
+    // generic take-over validation, whose wrong-taker error would misdescribe the mistake. A resource
+    // not handed off in this encoder takes the normal validated take-over path.
     ICommandQueue* innerSrc = getInnerObj(srcQueue);
     bool reversesSameEncoderHandOff = false;
     for (uint32_t i = 0; i < resourceCount; ++i)
@@ -2158,7 +2159,7 @@ Result DebugCommandEncoder::takeOverShared(uint32_t resourceCount, IResource* co
         }
     }
     if (reversesSameEncoderHandOff)
-        RHI_VALIDATION_WARNING(
+        RHI_VALIDATION_ERROR(
             "takeOverShared reverses a handOffShared recorded earlier in the same "
             "command encoder, with no submit between them; the transfer is a net "
             "no-op and the destination queue/external API never received an access "

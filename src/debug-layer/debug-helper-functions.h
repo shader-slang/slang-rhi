@@ -237,7 +237,7 @@ public:
     // back to owned-by-`ownerQueue`, without take-over validation. The pair is a net no-op (nothing
     // can be submitted between them), and the generic takeOver would report an error whenever the
     // hand-off named a different destination queue than this queue - inappropriate for a cancelled
-    // same-encoder pair. The encoder warns about the suspicious pattern separately.
+    // same-encoder pair. The encoder reports the pattern as an error separately.
     void reclaimInSameEncoder(IResource* resource, ICommandQueue* ownerQueue)
     {
         Key key;
