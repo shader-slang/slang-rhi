@@ -76,6 +76,27 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         bindingRangeInfo.uniformOffset = uniformOffset;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.isSpecializable = m_elementTypeLayout->isBindingRangeSpecializable(r);
+        switch (slangBindingType)
+        {
+        case slang::BindingType::RawBuffer:
+        case slang::BindingType::MutableRawBuffer:
+        case slang::BindingType::TypedBuffer:
+        case slang::BindingType::MutableTypedBuffer:
+        {
+            // Consider AppendStructuredBuffer<float>: its leaf layout includes both the
+            // elements and the counter. Use the counter's buffer layout to identify the ABI,
+            // so a pair of pointer-only buffers is not mistaken for one legacy buffer.
+            auto bufferLayout = slangLeafTypeLayout;
+            if (auto counter = bufferLayout->getExplicitCounter())
+                bufferLayout = counter->getTypeLayout();
+            size_t bufferSize = bufferLayout->getSize(slang::ParameterCategory::Uniform);
+            SLANG_RHI_ASSERT(bufferSize == 8 || bufferSize == 16);
+            bindingRangeInfo.bufferHasSize = bufferSize == 16;
+            break;
+        }
+        default:
+            break;
+        }
         m_bindingRanges.push_back(bindingRangeInfo);
     }
 

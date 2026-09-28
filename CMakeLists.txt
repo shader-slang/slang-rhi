@@ -1060,6 +1060,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer.cpp
+        tests/test-cuda-buffer-abi.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp

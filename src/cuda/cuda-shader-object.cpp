@@ -24,16 +24,19 @@ void shaderObjectSetBinding(
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
         void* dataPtr = nullptr;
-        size_t dataSize = 0;
         if (buffer)
         {
             dataPtr = (uint8_t*)buffer->m_cudaMemory + slot.bufferRange.offset;
-            dataSize = slot.bufferRange.size;
-            if (buffer->m_desc.elementSize > 1)
-                dataSize /= buffer->m_desc.elementSize;
         }
         memcpy(dst + offset.uniformOffset, &dataPtr, sizeof(dataPtr));
-        memcpy(dst + offset.uniformOffset + 8, &dataSize, sizeof(dataSize));
+        auto layout = checked_cast<ShaderObjectLayoutImpl*>(shaderObject->m_layout.get());
+        if (layout->m_bindingRanges[offset.bindingRangeIndex].bufferHasSize)
+        {
+            size_t dataSize = buffer ? slot.bufferRange.size : 0;
+            if (buffer && buffer->m_desc.elementSize > 1)
+                dataSize /= buffer->m_desc.elementSize;
+            memcpy(dst + offset.uniformOffset + sizeof(dataPtr), &dataSize, sizeof(dataSize));
+        }
         break;
     }
     case slang::BindingType::Texture:
@@ -150,68 +153,7 @@ Result BindingDataBuilder::writeObjectData(
 
     shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout);
 
-    // Bindings are currently written in shaderObjectSetBinding() because
-    // the layout does currently only provide uniformOffset but no uniformStride.
-#if 0
-    for (const auto& bindingRange : specializedLayout->m_bindingRanges)
-    {
-        uint32_t count = bindingRange.count;
-        uint32_t slotIndex = bindingRange.slotIndex;
-        uint32_t uniformOffset = bindingRange.uniformOffset;
-        uint32_t uniformStride = 0; // TODO we need this from the layout
-
-        switch (bindingRange.bindingType)
-        {
-        case slang::BindingType::ConstantBuffer:
-        case slang::BindingType::ParameterBlock:
-        case slang::BindingType::ExistentialValue:
-            break;
-        case slang::BindingType::Texture:
-            for (uint32_t i = 0; i < count; ++i)
-            {
-                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
-                TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint64_t handle = textureView->getTexObject();
-                memcpy(dst + uniformOffset + (i * uniformStride), &handle, sizeof(handle));
-            }
-            break;
-        case slang::BindingType::MutableTexture:
-            for (uint32_t i = 0; i < count; ++i)
-            {
-                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
-                TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint64_t handle = textureView->getSurfObject();;
-                memcpy(dst + uniformOffset + (i * uniformStride), &handle, sizeof(handle));
-            }
-            break;
-        case slang::BindingType::RawBuffer:
-        case slang::BindingType::TypedBuffer:
-        case slang::BindingType::MutableRawBuffer:
-        case slang::BindingType::MutableTypedBuffer:
-            for (uint32_t i = 0; i < count; ++i)
-            {
-                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
-                BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                void* dataPtr = (uint8_t*)buffer->m_cudaMemory + slot.bufferRange.offset;
-                size_t dataSize = slot.bufferRange.size;
-                if (buffer->m_desc.elementSize > 1)
-                    dataSize /= buffer->m_desc.elementSize;
-                memcpy(dst + uniformOffset + (i * uniformStride), &dataPtr, sizeof(dataPtr));
-                memcpy(dst + uniformOffset + (i * uniformStride) + 8, &dataSize, sizeof(dataSize));
-            }
-            break;
-        case slang::BindingType::RayTracingAccelerationStructure:
-            for (uint32_t i = 0; i < count; ++i)
-            {
-                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
-                AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
-                OptixTraversableHandle handle = as->m_handle;
-                memcpy(dst + uniformOffset + (i * uniformStride), &handle, sizeof(handle));
-            }
-            break;
-        }
-    }
-#endif
+    // Resource bindings were written by shaderObjectSetBinding() using the reflected buffer ABI.
 
     // Once all the simple binding ranges are dealt with, we will bind
     // all of the sub-objects in sub-object ranges.

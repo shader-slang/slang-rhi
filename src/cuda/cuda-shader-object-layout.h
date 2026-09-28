@@ -30,6 +30,9 @@ public:
         // range index and array index.
         //
         uint32_t uniformOffset; // Uniform offset for a resource typed field.
+
+        // Older Slang CUDA targets store a size after the buffer pointer.
+        bool bufferHasSize = false;
     };
 
     struct SubObjectRangeInfo : Super::SubObjectRangeInfo
