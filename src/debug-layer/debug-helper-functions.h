@@ -97,9 +97,10 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
 // Misuse of the handOffShared/takeOverShared calls themselves - e.g. handing off a resource that is
 // already handed off, or handing off a resource owned by another queue - is an error on every
 // backend. Using a resource that was explicitly handed off is likewise an error. Using a resource on
-// a queue that does not own it, without an intervening hand-off, is an error on Vulkan (the
-// queue-family transfer is real, so it is genuine misuse) and a warning on the no-op backends (where
-// it cannot be distinguished from legitimate use).
+// a queue that does not own it, without an intervening hand-off, is judged by the resource's
+// producer: an error if the producer is Vulkan (its queue-family ownership is real, so the use is
+// genuine misuse on whichever device makes it), and a warning if the producer is a no-op backend such
+// as D3D12 or is unknown (the use cannot be distinguished from legitimate use).
 //
 // This is a best-effort validation aid, not a source of truth. The debug layer does not wrap
 // buffers/textures and so cannot observe their destruction, so ownership entries (m_entries, keyed by
@@ -147,7 +148,12 @@ public:
     // just-minted handle's existing entry can only be stale, left by a destroyed resource whose handle
     // value the driver recycled. Import paths do not call this: an imported handle is the producer's
     // live handle, whose ownership state must be preserved for the consumer's takeOverShared.
-    void resetForNewSharedResource(IResource* resource)
+    //
+    // The fresh entry records `producerType`, which sets the severity of a later cross-queue use (see
+    // checkUse). A non-null `initialOwner` is the queue that uploaded the resource's initData: that
+    // upload is its first use, so the resource starts out Owned by that queue rather than being
+    // acquired by whichever queue - possibly a consumer's - happens to use it next.
+    void resetForNewSharedResource(IResource* resource, DeviceType producerType, ICommandQueue* initialOwner)
     {
         if (!resource)
             return;
@@ -155,8 +161,17 @@ public:
         bool exportable = getSharedHandleOf(resource, handle) && handle;
         std::lock_guard<std::mutex> lock(m_mutex);
         m_resourceKeys.erase(resource);
-        if (exportable)
-            m_entries.erase(Key{handle.type, handle.value});
+        if (!exportable)
+            return;
+        Entry& entry = m_entries[Key{handle.type, handle.value}];
+        entry = Entry{};
+        entry.producerType = producerType;
+        if (initialOwner)
+        {
+            entry.registered = true;
+            entry.state = State::Owned;
+            entry.owner = initialOwner;
+        }
     }
 
     // Hand off ownership from `srcQueue` (this encoder's queue) to `destQueue`. Validates the
@@ -270,12 +285,11 @@ public:
             }
             else
             {
-                // Owned by a different queue without an intervening hand-off. On a backend where the
-                // transfer calls are no-ops this cannot be distinguished from legitimate use, so it is
-                // a warning; on Vulkan the queue-family ownership transfer is real, so using the
-                // resource on a non-owning queue without a takeOverShared is genuine misuse and an
-                // error.
-                severity = (ctx && ctx->deviceType == DeviceType::Vulkan) ? Severity::Error : Severity::Warning;
+                // Owned by a different queue without an intervening hand-off. The producer, not the
+                // using device, decides the severity: a Vulkan producer's queue-family ownership is
+                // real, so a CUDA consumer using a resource Vulkan still owns is genuine misuse. A
+                // no-op producer (D3D12) or an unknown one cannot be told apart from legitimate use.
+                severity = (entry.producerType == DeviceType::Vulkan) ? Severity::Error : Severity::Warning;
                 message = "a shared resource is used on a queue that does not currently own it.";
             }
         }
@@ -307,6 +321,9 @@ private:
         ICommandQueue* owner = nullptr;      // valid when state == Owned
         ICommandQueue* handoffSrc = nullptr; // the queue that handed off, when state == HandedOff
         ICommandQueue* handoffDst = nullptr; // the queue expected to take over, when state == HandedOff
+        // Backend of the device that created the resource; Default when the debug layer did not
+        // observe its creation (e.g. an entry first reached through an import's tie).
+        DeviceType producerType = DeviceType::Default;
     };
 
     // Emit a validation message at the given severity. Called only outside m_mutex: the debug callback

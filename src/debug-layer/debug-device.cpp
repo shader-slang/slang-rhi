@@ -133,6 +133,17 @@ void DebugDevice::checkSharedResourceDeviceUse(IResource* resource)
         SharedResourceOwnershipTracker::get().checkUse(ctx, resource, ownerQueue.get());
 }
 
+void DebugDevice::resetSharedResourceTracking(IResource* resource, bool hasInitData)
+{
+    // initData is uploaded on the graphics queue - the same queue checkSharedResourceDeviceUse
+    // attributes device-side uses to. If getQueue fails the resource is left unowned, to be acquired
+    // by its first use, rather than owned by a null queue.
+    ComPtr<ICommandQueue> initialOwner;
+    if (hasInitData)
+        baseObject->getQueue(QueueType::Graphics, initialOwner.writeRef());
+    SharedResourceOwnershipTracker::get().resetForNewSharedResource(resource, ctx->deviceType, initialOwner.get());
+}
+
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 {
     SLANG_RHI_DEBUG_API(IDevice, getSlangSession);
@@ -351,7 +362,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
     // A newly created shared texture mints a fresh handle, so drop any stale (recycled) tracker entry
     // for it; see SharedResourceOwnershipTracker::resetForNewSharedResource.
     if (SLANG_SUCCEEDED(result) && outTexture && *outTexture && is_set(desc.usage, TextureUsage::Shared))
-        SharedResourceOwnershipTracker::get().resetForNewSharedResource(*outTexture);
+        resetSharedResourceTracking(*outTexture, initData != nullptr);
     return result;
 }
 
@@ -445,7 +456,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     // A newly created shared buffer mints a fresh handle, so drop any stale (recycled) tracker entry
     // for it; see SharedResourceOwnershipTracker::resetForNewSharedResource.
     if (SLANG_SUCCEEDED(result) && outBuffer && *outBuffer && is_set(desc.usage, BufferUsage::Shared))
-        SharedResourceOwnershipTracker::get().resetForNewSharedResource(*outBuffer);
+        resetSharedResourceTracking(*outBuffer, initData != nullptr);
     return result;
 }
 

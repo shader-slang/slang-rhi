@@ -121,6 +121,17 @@ IResource* fakeResource(uintptr_t /*id*/)
     return new StubBuffer(BufferUsage::Shared);
 }
 
+// A producer's Shared resource as DebugDevice::createBuffer leaves it: it exports `handle`, and the
+// tracker has recorded its producer backend and, when it was created with initData, `initialOwner`.
+// Leaked for the same reason as fakeResource.
+IResource* fakeProducer(const NativeHandle& handle, DeviceType producerType, ICommandQueue* initialOwner = nullptr)
+{
+    StubBuffer* buffer = new StubBuffer(BufferUsage::Shared);
+    buffer->m_sharedHandle = handle;
+    SharedResourceOwnershipTracker::get().resetForNewSharedResource(buffer, producerType, initialOwner);
+    return buffer;
+}
+
 struct StubTexture : public ITexture
 {
     TextureDesc m_desc;
@@ -373,32 +384,67 @@ TEST_CASE("shared-ownership-tracker")
         CHECK_EQ(cb.messageCount, 0);
     }
 
-    SUBCASE("using a resource owned by another queue (no hand-off) is an error on Vulkan")
+    SUBCASE("a CUDA use of a resource a Vulkan producer still owns (no take-over) is an error")
     {
-        IResource* res = fakeResource(0x2007);
-        tracker.tieImportedResource(res, freshHandle());
-        tracker.checkUse(&ctx, res, qProducer); // acquires for qProducer
+        // The #787 misuse: the severity follows the Vulkan producer, not the CUDA device making the
+        // use, because the producer's queue-family ownership is real.
+        DebugContext cudaCtx;
+        cudaCtx.deviceType = DeviceType::CUDA;
+        cudaCtx.debugCallback = &cb;
+        NativeHandle handle = freshHandle();
+        IResource* producer = fakeProducer(handle, DeviceType::Vulkan);
+        IResource* import = fakeResource(0x2007);
+        tracker.tieImportedResource(import, handle);
+        tracker.checkUse(&ctx, producer, qProducer); // acquires for qProducer
         cb.reset();
-        // A different queue uses it without an intervening hand-off. On Vulkan the queue-family
-        // ownership transfer is real, so this is genuine misuse and an error.
-        tracker.checkUse(&ctx, res, qConsumer);
+        tracker.checkUse(&cudaCtx, import, qConsumer);
         CHECK_EQ(cb.messageCount, 1);
         CHECK_EQ(cb.lastType, DebugMessageType::Error);
     }
 
-    SUBCASE("using a resource owned by another queue (no hand-off) is a warning on a no-op backend")
+    SUBCASE("a cross-queue use of a D3D12 producer's resource (no hand-off) is a warning")
     {
         DebugContext d3dCtx;
         d3dCtx.deviceType = DeviceType::D3D12; // a backend where the transfer calls are no-ops
         d3dCtx.debugCallback = &cb;
-        IResource* res = fakeResource(0x200a);
-        tracker.tieImportedResource(res, freshHandle());
+        IResource* res = fakeProducer(freshHandle(), DeviceType::D3D12);
         tracker.checkUse(&d3dCtx, res, qProducer); // acquires for qProducer
         cb.reset();
-        // On a no-op backend cross-queue use cannot be attributed to the API, so it is only a warning.
+        // A no-op producer's cross-queue use cannot be attributed to the API, so it is only a warning.
         tracker.checkUse(&d3dCtx, res, qConsumer);
         CHECK_EQ(cb.messageCount, 1);
         CHECK_EQ(cb.lastType, DebugMessageType::Warning);
+    }
+
+    SUBCASE("a cross-queue use with an unknown producer is a warning, even on Vulkan")
+    {
+        // Reached only through an import's tie, so no producer creation was recorded.
+        IResource* res = fakeResource(0x200c);
+        tracker.tieImportedResource(res, freshHandle());
+        tracker.checkUse(&ctx, res, qProducer); // acquires for qProducer
+        cb.reset();
+        tracker.checkUse(&ctx, res, qConsumer);
+        CHECK_EQ(cb.messageCount, 1);
+        CHECK_EQ(cb.lastType, DebugMessageType::Warning);
+    }
+
+    SUBCASE("initData acquires the resource for the producer, so a consumer's first use is diagnosed")
+    {
+        // Without the initData acquisition the consumer's use would be the resource's first use and
+        // would silently acquire it for the consumer.
+        DebugContext cudaCtx;
+        cudaCtx.deviceType = DeviceType::CUDA;
+        cudaCtx.debugCallback = &cb;
+        NativeHandle handle = freshHandle();
+        IResource* producer = fakeProducer(handle, DeviceType::Vulkan, qProducer);
+        IResource* import = fakeResource(0x200d);
+        tracker.tieImportedResource(import, handle);
+        cb.reset();
+        tracker.checkUse(&ctx, producer, qProducer); // the initData owner's own use is silent
+        CHECK_EQ(cb.messageCount, 0);
+        tracker.checkUse(&cudaCtx, import, qConsumer);
+        CHECK_EQ(cb.messageCount, 1);
+        CHECK_EQ(cb.lastType, DebugMessageType::Error);
     }
 
     SUBCASE("a same-encoder hand-off reclaim restores the owner without a take-over error")
@@ -519,9 +565,9 @@ TEST_CASE("shared-binding-validation")
         tracker.checkUse(&ctx, &buffer, qOwner); // first use acquires ownership for qOwner
         tracker.checkUse(&ctx, &buffer, qOwner); // reuse by the owner is silent
         CHECK_EQ(cb.messageCount, 0);
-        tracker.checkUse(&ctx, &buffer, qOther); // a different queue on Vulkan is an error
+        tracker.checkUse(&ctx, &buffer, qOther); // a different queue is diagnosed
         CHECK_EQ(cb.messageCount, 1);
-        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+        CHECK_EQ(cb.lastType, DebugMessageType::Warning); // no producer was recorded
     }
 
     SUBCASE("a non-Shared buffer binding is not recorded")
@@ -746,11 +792,11 @@ TEST_CASE("shared-ownership-tracker-producer-revalidation")
         tracker.checkUse(&ctx, &buf, qB);   // resolves H2 fresh -> first use for qB, silent
         CHECK_EQ(cb.messageCount, 0);
         // Confirm tracking is genuinely active and H2 is owned by qB (not silently disabled): a third
-        // queue using it is a cross-queue error.
+        // queue using it is diagnosed.
         ICommandQueue* qC = fakeQueue(0x5003);
         tracker.checkUse(&ctx, &buf, qC);
         CHECK_EQ(cb.messageCount, 1);
-        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+        CHECK_EQ(cb.lastType, DebugMessageType::Warning); // no producer was recorded
     }
 
     SUBCASE("a non-shared resource recycling a producer address is not tracked")
@@ -792,11 +838,11 @@ TEST_CASE("shared-ownership-tracker-producer-revalidation")
         buf.m_sharedHandle = freshHandle(); // the resource now exports its own, different handle
         tracker.checkUse(&ctx, &buf, qB);   // resolves its own handle fresh -> first use for qB, silent
         CHECK_EQ(cb.messageCount, 0);
-        // Tracked under its own handle, not the stale tie: a third queue is a cross-queue error, which
+        // Tracked under its own handle, not the stale tie: a third queue is diagnosed, which
         // confirms qB holds ownership of the own-handle entry.
         ICommandQueue* qC = fakeQueue(0x5003);
         tracker.checkUse(&ctx, &buf, qC);
         CHECK_EQ(cb.messageCount, 1);
-        CHECK_EQ(cb.lastType, DebugMessageType::Error);
+        CHECK_EQ(cb.lastType, DebugMessageType::Warning); // no producer was recorded
     }
 }

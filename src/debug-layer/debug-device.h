@@ -229,6 +229,11 @@ private:
     // graphics queue; a getQueue failure skips the check rather than passing a null queue.
     void checkSharedResourceDeviceUse(IResource* resource);
 
+    // Reset the ownership tracker for a Shared resource this device just created, recording this
+    // device as its producer. When `hasInitData` is set the resource starts out owned by the graphics
+    // queue that uploaded the data (see resetForNewSharedResource).
+    void resetSharedResourceTracking(IResource* resource, bool hasInitData);
+
     DebugContext m_ctx;
 };
 
