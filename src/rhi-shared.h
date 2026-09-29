@@ -332,11 +332,63 @@ public:
 class ShaderTable : public IShaderTable, public DeviceChild
 {
 public:
+    /// Describes the native layout constraints that a backend applies to each shader record.
+    struct RecordLayout
+    {
+        Size headerSize;
+        Size alignment;
+        Size maximumStride;
+    };
+
+    enum class RecordLayoutError
+    {
+        None,
+        SizeOverflow,
+        AlignmentOverflow,
+        StrideTooLarge,
+    };
+
+    /// Owns the application bytes because native shader tables can be materialized lazily, after
+    /// the storage passed to createShaderTable has gone out of scope. The legacy overwrite remains
+    /// separate so writeData can apply it last and preserve the existing overwrite semantics.
+    struct OwnedRecord
+    {
+        ShaderRecordOverwrite overwrite = {};
+        std::vector<uint8_t> data;
+
+        Size getSize(Size headerSize) const;
+        void writeData(void* destination, Size headerSize) const;
+    };
+
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderTable* getInterface(const Guid& guid);
 
 public:
     ShaderTable(Device* device, const ShaderTableDesc& desc);
+
+    static Size getMaxRecordSize(const std::vector<OwnedRecord>& records, Size headerSize);
+
+    /// Adds two byte counts and returns false instead of wrapping `Size`.
+    static bool tryAddSize(Size left, Size right, Size* outSize);
+
+    /// Multiplies two byte counts and returns false instead of wrapping `Size`.
+    static bool tryMultiplySize(Size left, Size right, Size* outSize);
+
+    /// Aligns a byte count and returns false if the aligned result cannot be represented by `Size`.
+    static bool tryAlignSize(Size size, Size alignment, Size* outSize);
+
+    /// Calculates a record stride without overflowing and checks it against the backend limit.
+    /// This helper is public within the RHI implementation so its boundary behavior can be tested
+    /// independently of a native ray-tracing device.
+    static RecordLayoutError calculateRecordStride(
+        Size dataSize,
+        Size overwriteEnd,
+        const RecordLayout& layout,
+        Size* outStride
+    );
+
+    /// Validates all application-data records before a backend takes ownership of the descriptor.
+    static Result validateRecordData(Device* device, const ShaderTableDesc& desc, const RecordLayout& layout);
 
 public:
     uint32_t m_rayGenShaderCount;
@@ -350,13 +402,10 @@ public:
     std::vector<std::string> m_callableShaderEntryPointNames;
 
     std::vector<ShaderRecordOverwrite> m_rayGenRecordOverwrites;
-    std::vector<ShaderRecordOverwrite> m_missRecordOverwrites;
-    std::vector<ShaderRecordOverwrite> m_hitGroupRecordOverwrites;
-    std::vector<ShaderRecordOverwrite> m_callableRecordOverwrites;
+    std::vector<OwnedRecord> m_missRecords;
+    std::vector<OwnedRecord> m_hitGroupRecords;
+    std::vector<OwnedRecord> m_callableRecords;
     uint32_t m_rayGenRecordOverwriteMaxSize = 0;
-    uint32_t m_missRecordOverwriteMaxSize = 0;
-    uint32_t m_hitGroupRecordOverwriteMaxSize = 0;
-    uint32_t m_callableRecordOverwriteMaxSize = 0;
 };
 
 class Surface : public ISurface, public ComObject

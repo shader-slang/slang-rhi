@@ -2665,6 +2665,21 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    // No shader table can be used without the ray-tracing feature. Return before taking ownership
+    // so an unsupported device never attempts to copy record-data pointers it cannot validate
+    // against a native layout.
+    if (!hasFeature(Feature::RayTracing))
+        return SLANG_E_NOT_AVAILABLE;
+
+    // Vulkan exposes the native shader-record layout limits as device properties.
+    const auto& properties = m_api.m_rayTracingPipelineProperties;
+    const ShaderTable::RecordLayout recordLayout = {
+        properties.shaderGroupHandleSize,
+        properties.shaderGroupBaseAlignment,
+        properties.maxShaderGroupStride,
+    };
+    SLANG_RETURN_ON_FAIL(ShaderTable::validateRecordData(this, desc, recordLayout));
+
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;

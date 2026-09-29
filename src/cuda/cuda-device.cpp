@@ -16,6 +16,8 @@
 
 #include "core/platform.h"
 
+#include <limits>
+
 namespace rhi::cuda {
 
 struct ComputeCapabilityInfo
@@ -443,6 +445,16 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
+    // OptixShaderBindingTable stores its record strides in unsigned-int fields, so UINT32_MAX is
+    // also the narrowing limit even though the shared descriptor uses the native Size type.
+    const ShaderTable::RecordLayout recordLayout = {
+        optix::kShaderBindingTableRecordHeaderSize,
+        optix::kShaderBindingTableRecordAlignment,
+        std::numeric_limits<uint32_t>::max(),
+    };
+    SLANG_RETURN_ON_FAIL(ShaderTable::validateRecordData(this, desc, recordLayout));
+
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;

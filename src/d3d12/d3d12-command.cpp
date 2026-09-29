@@ -1166,6 +1166,10 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             return;
         }
         requireBufferState(shaderTablePipelineData->buffer, ResourceState::ShaderResource);
+        if (shaderTablePipelineData->structuralRecordBuffer)
+        {
+            requireBufferState(shaderTablePipelineData->structuralRecordBuffer, ResourceState::ConstantBuffer);
+        }
         DeviceAddress shaderTableAddr = shaderTablePipelineData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
@@ -1180,8 +1184,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         {
             m_dispatchRaysDesc.MissShaderTable.StartAddress =
                 shaderTableAddr + shaderTablePipelineData->missTableOffset;
-            m_dispatchRaysDesc.MissShaderTable.SizeInBytes =
-                m_shaderTable->m_missShaderCount * shaderTablePipelineData->missRecordStride;
+            m_dispatchRaysDesc.MissShaderTable.SizeInBytes = shaderTablePipelineData->missTableSize;
             m_dispatchRaysDesc.MissShaderTable.StrideInBytes = shaderTablePipelineData->missRecordStride;
         }
 
@@ -1189,8 +1192,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         {
             m_dispatchRaysDesc.HitGroupTable.StartAddress =
                 shaderTableAddr + shaderTablePipelineData->hitGroupTableOffset;
-            m_dispatchRaysDesc.HitGroupTable.SizeInBytes =
-                m_shaderTable->m_hitGroupCount * shaderTablePipelineData->hitGroupRecordStride;
+            m_dispatchRaysDesc.HitGroupTable.SizeInBytes = shaderTablePipelineData->hitGroupTableSize;
             m_dispatchRaysDesc.HitGroupTable.StrideInBytes = shaderTablePipelineData->hitGroupRecordStride;
         }
 
@@ -1198,8 +1200,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         {
             m_dispatchRaysDesc.CallableShaderTable.StartAddress =
                 shaderTableAddr + shaderTablePipelineData->callableTableOffset;
-            m_dispatchRaysDesc.CallableShaderTable.SizeInBytes =
-                m_shaderTable->m_callableShaderCount * shaderTablePipelineData->callableRecordStride;
+            m_dispatchRaysDesc.CallableShaderTable.SizeInBytes = shaderTablePipelineData->callableTableSize;
             m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = shaderTablePipelineData->callableRecordStride;
         }
     }
