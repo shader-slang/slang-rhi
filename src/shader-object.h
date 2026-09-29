@@ -299,7 +299,7 @@ public:
         IBuffer** buffer
     );
 
-    void trackResources(std::set<RefPtr<RefObject>>& resources);
+    void trackResources(TrackedObjectSet& resources);
 
 protected:
     inline void incrementVersion() { m_version++; }
@@ -354,7 +354,7 @@ public:
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
 
-    void trackResources(std::set<RefPtr<RefObject>>& resources);
+    void trackResources(TrackedObjectSet& resources);
 };
 
 bool _doesValueFitInExistentialPayload(

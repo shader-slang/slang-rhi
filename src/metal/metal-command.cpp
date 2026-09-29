@@ -1166,7 +1166,7 @@ void CommandQueueImpl::shutdown()
 
 void CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
     for (const auto& commandBuffer : commandBuffers)

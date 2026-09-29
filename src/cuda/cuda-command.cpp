@@ -71,7 +71,7 @@ static Result resolveTimestampAnchor(CommandQueueImpl* queue, uint64_t generatio
 
 static bool isTimestampAnchorInUse(CommandQueueImpl* queue, uint64_t generation)
 {
-    for (const RefPtr<CommandBufferImpl>& commandBuffer : queue->m_commandBuffersInFlight)
+    for (const InternalRefPtr<CommandBufferImpl>& commandBuffer : queue->m_commandBuffersInFlight)
     {
         if (commandBuffer->m_timestampAnchorGeneration == generation)
         {
@@ -984,7 +984,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
         {
             commandBuffer = m_commandBuffersPool.front();
             m_commandBuffersPool.pop_front();
-            commandBuffer->setInternalReferenceCount(0);
         }
         else
         {
@@ -996,7 +995,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
-        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -1008,7 +1006,6 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_commandBuffersPool.push_back(commandBuffer);
-        commandBuffer->setInternalReferenceCount(1);
     }
 }
 
@@ -1017,7 +1014,6 @@ void CommandQueueImpl::retireCommandBufferLocked(CommandBufferImpl* commandBuffe
     // NOTE: Caller must hold m_mutex!
     commandBuffer->reset();
     m_commandBuffersPool.push_back(commandBuffer);
-    commandBuffer->setInternalReferenceCount(1);
 }
 
 Result CommandQueueImpl::retireCommandBuffers()
@@ -1060,7 +1056,7 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
     {
-        RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
+        InternalRefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
         if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
 
@@ -1369,7 +1365,7 @@ Result CommandEncoderImpl::init()
 /// Track resources for CUDA backend, skipping device-local buffers.
 /// Device-local buffers rely on CUDA stream FIFO ordering for safe reuse.
 /// We still track textures, upload/readback buffers, and other resources.
-static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
+static void trackResourcesForCUDA(ShaderObject* shaderObject, TrackedObjectSet& resources)
 {
     // Track slot resources, but skip device-local buffers
     for (const auto& slot : shaderObject->m_slots)
@@ -1386,12 +1382,12 @@ static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<Re
                     continue; // Skip tracking - CUDA stream ordering provides safety
                 }
             }
-            resources.insert(slot.resource);
+            trackObject(resources, slot.resource);
         }
         if (slot.resource2)
         {
             // resource2 is typically a sampler or counter buffer, always track
-            resources.insert(slot.resource2);
+            trackObject(resources, slot.resource2);
         }
     }
 
@@ -1405,7 +1401,7 @@ static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<Re
     }
 }
 
-static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<RefPtr<RefObject>>& resources)
+static void trackResourcesForCUDARoot(RootShaderObject* rootObject, TrackedObjectSet& resources)
 {
     trackResourcesForCUDA(rootObject, resources);
     for (const auto& entryPoint : rootObject->m_entryPoints)
