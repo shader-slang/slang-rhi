@@ -135,7 +135,8 @@ static Result createComputeProgramFromCoverageMetadata(
     IShaderProgram** outProgram,
     std::vector<SyntheticResourceBindingDesc>* outSyntheticResources = nullptr,
     std::vector<std::string>* outSyntheticResourceDebugNames = nullptr,
-    uint32_t* outCoverageCounterCount = nullptr
+    uint32_t* outCoverageCounterCount = nullptr,
+    uint32_t* outCounterByteWidth = nullptr
 )
 {
     auto slangSession = device->getSlangSession();
@@ -238,17 +239,28 @@ static Result createComputeProgramFromCoverageMetadata(
                     : nullptr;
         }
     }
+    if (outCounterByteWidth)
+    {
+        slang::CoverageBufferInfo bufferInfo = {};
+        SLANG_RETURN_ON_FAIL(coverageMetadata->getBufferInfo(&bufferInfo));
+        *outCounterByteWidth = bufferInfo.elementByteWidth;
+    }
     if (outCoverageCounterCount)
         *outCoverageCounterCount = coverageMetadata->getCounterCount();
     return SLANG_OK;
 }
 
-static ComPtr<IBuffer> createTestBuffer(IDevice* device, size_t size = 256, const void* initData = nullptr)
+static ComPtr<IBuffer> createTestBuffer(
+    IDevice* device,
+    size_t size = 256,
+    const void* initData = nullptr,
+    uint32_t elementSize = sizeof(uint32_t)
+)
 {
     BufferDesc bufferDesc = {};
     bufferDesc.size = size;
     bufferDesc.format = Format::Undefined;
-    bufferDesc.elementSize = sizeof(uint32_t);
+    bufferDesc.elementSize = elementSize;
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
@@ -492,6 +504,31 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         desc = makeSyntheticResourceDesc();
         desc.bindingType = slang::BindingType::Sampler;
         checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
+
+        // Reject descriptors that would allocate less than the CUDA binding
+        // writer's pointer/count pair or texture/acceleration-structure handle.
+        for (auto bindingType :
+             {slang::BindingType::RawBuffer,
+              slang::BindingType::MutableRawBuffer,
+              slang::BindingType::TypedBuffer,
+              slang::BindingType::MutableTypedBuffer,
+              slang::BindingType::Texture,
+              slang::BindingType::MutableTexture,
+              slang::BindingType::CombinedTextureSampler,
+              slang::BindingType::RayTracingAccelerationStructure})
+        {
+            desc = makeSyntheticResourceDesc();
+            desc.bindingType = bindingType;
+            desc.uniformOffset = 4096;
+            const bool isBuffer =
+                bindingType == slang::BindingType::RawBuffer || bindingType == slang::BindingType::MutableRawBuffer ||
+                bindingType == slang::BindingType::TypedBuffer || bindingType == slang::BindingType::MutableTypedBuffer;
+            desc.uniformStride = isBuffer ? 15 : 7;
+            checkCreateFails(desc, SLANG_E_INVALID_ARG);
+            desc.uniformStride++;
+            ComPtr<IShaderProgram> program;
+            REQUIRE_CALL(createComputeProgramWithSyntheticResource(device, kShaderSource, desc, program.writeRef()));
+        }
     }
 }
 
@@ -571,16 +608,25 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
 // End-to-end coverage metadata path: ask Slang for coverage synthetic-resource
 // metadata, translate it into RHI descriptors, create the program, bind the
 // hidden coverage buffer, dispatch, and verify counters were written.
-GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | CUDA | DontCreateDevice)
+static void testCoverageMetadata(
+    GpuTestContext* ctx,
+    uint32_t requestedCounterByteWidth,
+    const char* declarations = "RWStructuredBuffer<uint> outBuffer;",
+    const char* outputPath = "outBuffer",
+    int32_t coverageSpace = 3,
+    bool entryPointParameter = false
+)
 {
     static constexpr uint32_t kCoverageBinding = 11;
-    static constexpr uint32_t kCoverageSpace = 3;
-    static constexpr char kShaderSource[] = R"(
-RWStructuredBuffer<uint> outBuffer;
+    std::string shaderSource = declarations;
+    shaderSource += R"(
 
 [shader("compute")]
 [numthreads(1, 1, 1)]
-void computeMain(uint3 tid : SV_DispatchThreadID)
+void computeMain(uint3 tid : SV_DispatchThreadID)";
+    if (entryPointParameter)
+        shaderSource += ", uniform ParameterBlock<Params> params";
+    shaderSource += R"()
 {
     uint accum = tid.x;
     for (uint i = 0; i < 4; ++i)
@@ -590,11 +636,20 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         else
             accum += i * 2u;
     }
-    outBuffer[0] = accum;
-}
-)";
+    )";
+    shaderSource += outputPath;
+    shaderSource += "[0] = accum;\n}\n";
 
     DeviceExtraOptions extraOptions = {};
+    if (requestedCounterByteWidth == 4)
+    {
+        slang::CompilerOptionEntry width = {};
+        width.name = slang::CompilerOptionName::TraceCoverageCounterByteWidth;
+        width.value.kind = slang::CompilerOptionValueKind::Int;
+        width.value.intValue0 = 4;
+        extraOptions.compilerOptions.push_back(width);
+    }
+    // The 64-bit case intentionally uses the compiler default.
 
     slang::CompilerOptionEntry traceCoverageOption = {};
     traceCoverageOption.name = slang::CompilerOptionName::TraceCoverage;
@@ -606,31 +661,41 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     traceCoverageBindingOption.name = slang::CompilerOptionName::TraceCoverageBinding;
     traceCoverageBindingOption.value.kind = slang::CompilerOptionValueKind::Int;
     traceCoverageBindingOption.value.intValue0 = kCoverageBinding;
-    traceCoverageBindingOption.value.intValue1 = kCoverageSpace;
-    extraOptions.compilerOptions.push_back(traceCoverageBindingOption);
+    traceCoverageBindingOption.value.intValue1 = coverageSpace;
+    if (coverageSpace >= 0)
+        extraOptions.compilerOptions.push_back(traceCoverageBindingOption);
 
     auto localDevice = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
+
+    if (requestedCounterByteWidth == 8 && !localDevice->hasFeature(Feature::AtomicInt64))
+        SKIP("64-bit buffer atomics are not supported");
 
     std::vector<SyntheticResourceBindingDesc> syntheticResources;
     std::vector<std::string> syntheticResourceDebugNames;
     uint32_t coverageCounterCount = 0;
+    uint32_t counterByteWidth = 0;
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(createComputeProgramFromCoverageMetadata(
         localDevice,
-        kShaderSource,
+        shaderSource,
         shaderProgram.writeRef(),
         &syntheticResources,
         &syntheticResourceDebugNames,
-        &coverageCounterCount
+        &coverageCounterCount,
+        &counterByteWidth
     ));
 
     REQUIRE_EQ(syntheticResources.size(), 1u);
     REQUIRE_GT(coverageCounterCount, 0u);
+    REQUIRE_EQ(counterByteWidth, requestedCounterByteWidth);
     CHECK_EQ(syntheticResources[0].bindingType, slang::BindingType::MutableRawBuffer);
     CHECK_EQ(syntheticResources[0].scope, SyntheticResourceScope::Global);
     CHECK_EQ(syntheticResources[0].access, SyntheticResourceAccess::ReadWrite);
-    CHECK_EQ(syntheticResources[0].binding, int32_t(kCoverageBinding));
-    CHECK_EQ(syntheticResources[0].space, int32_t(kCoverageSpace));
+    if (ctx->deviceType == DeviceType::Vulkan && coverageSpace >= 0)
+    {
+        CHECK_EQ(syntheticResources[0].binding, int32_t(kCoverageBinding));
+        CHECK_EQ(syntheticResources[0].space, coverageSpace);
+    }
     REQUIRE(syntheticResources[0].debugName != nullptr);
     CHECK_EQ(std::strcmp(syntheticResources[0].debugName, "__slang_coverage"), 0);
 
@@ -660,34 +725,56 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     const uint32_t initialOutput = 0;
     auto outputBuffer = createTestBuffer(localDevice, sizeof(uint32_t), &initialOutput);
 
-    std::vector<uint32_t> zeroCoverage(coverageCounterCount, 0);
-    auto coverageBuffer = createTestBuffer(localDevice, zeroCoverage.size() * sizeof(uint32_t), zeroCoverage.data());
+    const uint64_t initialCounter = counterByteWidth == 8 ? uint64_t(UINT32_MAX) : 0;
+    std::vector<uint8_t> initialCoverage(size_t(coverageCounterCount) * counterByteWidth);
+    for (uint32_t i = 0; i < coverageCounterCount; ++i)
+        std::memcpy(initialCoverage.data() + size_t(i) * counterByteWidth, &initialCounter, counterByteWidth);
+    auto coverageBuffer =
+        createTestBuffer(localDevice, initialCoverage.size(), initialCoverage.data(), counterByteWidth);
 
-    ShaderCursor(rootObject)["outBuffer"].setBinding(outputBuffer);
+    ShaderCursor outputCursor =
+        entryPointParameter ? ShaderCursor(rootObject->getEntryPoint(0)) : ShaderCursor(rootObject);
+    REQUIRE_CALL(outputCursor.getPath(outputPath).setBinding(outputBuffer));
     REQUIRE_CALL(
         bindSyntheticResource(shaderProgram.get(), rootObject.get(), syntheticResources[0].id, Binding(coverageBuffer))
     );
 
     auto queue = localDevice->getQueue(QueueType::Graphics);
-    auto commandEncoder = queue->createCommandEncoder();
-    auto passEncoder = commandEncoder->beginComputePass();
-    passEncoder->bindPipeline(pipeline, rootObject);
-    passEncoder->dispatchCompute(1, 1, 1);
-    passEncoder->end();
-    queue->submit(commandEncoder->finish());
-    queue->waitOnHost();
+    std::vector<uint64_t> firstDeltas(coverageCounterCount);
+    for (uint32_t dispatch = 0; dispatch < 2; ++dispatch)
+    {
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        passEncoder->bindPipeline(pipeline, rootObject);
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
 
-    compareComputeResult(localDevice, outputBuffer, std::array<uint32_t, 1>{10u});
+        compareComputeResult(localDevice, outputBuffer, std::array<uint32_t, 1>{10u});
 
-    ComPtr<ISlangBlob> coverageBlob;
-    REQUIRE_CALL(
-        localDevice->readBuffer(coverageBuffer, 0, zeroCoverage.size() * sizeof(uint32_t), coverageBlob.writeRef())
-    );
-    const uint32_t* coverageData = reinterpret_cast<const uint32_t*>(coverageBlob->getBufferPointer());
-    uint64_t totalHits = 0;
-    for (uint32_t i = 0; i < coverageCounterCount; ++i)
-        totalHits += coverageData[i];
-    CHECK_GT(totalHits, 0u);
+        ComPtr<ISlangBlob> coverageBlob;
+        REQUIRE_CALL(localDevice->readBuffer(coverageBuffer, 0, initialCoverage.size(), coverageBlob.writeRef()));
+        uint64_t totalHits = 0;
+        for (uint32_t i = 0; i < coverageCounterCount; ++i)
+        {
+            uint64_t value = 0;
+            std::memcpy(
+                &value,
+                (const uint8_t*)coverageBlob->getBufferPointer() + size_t(i) * counterByteWidth,
+                counterByteWidth
+            );
+            REQUIRE_GE(value, initialCounter);
+            if (dispatch == 0)
+                firstDeltas[i] = value - initialCounter;
+            else
+                CHECK_EQ(value, initialCounter + 2 * firstDeltas[i]);
+            totalHits += value - initialCounter;
+        }
+        // With 64-bit counters seeded at UINT32_MAX, a positive delta also
+        // proves that incrementing crossed the 32-bit boundary without wrapping.
+        CHECK_GT(totalHits, 0u);
+    }
 
     coverageBuffer.setNull();
     outputBuffer.setNull();
@@ -696,4 +783,73 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     syntheticProgram.setNull();
     shaderProgram.setNull();
     localDevice.setNull();
+}
+
+// Explicit 32-bit mode supports MoltenVK; the default 64-bit mode must preserve
+// increments past UINT32_MAX and both modes must accumulate across dispatches.
+GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | CUDA | DontCreateDevice)
+{
+    testCoverageMetadata(ctx, 4);
+}
+
+GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata-64", Vulkan | CUDA | DontCreateDevice)
+{
+    testCoverageMetadata(ctx, 8);
+}
+
+// Exercise compiler-assigned and explicit coverage sets alongside a child set,
+// including sharing that set at a distinct binding and nested ParameterBlocks.
+GPU_TEST_CASE("synthetic-resource-bindings-parameter-block", Vulkan | DontCreateDevice)
+{
+    for (int32_t space : {-1, 0, 3})
+    {
+        CAPTURE(space);
+        testCoverageMetadata(
+            ctx,
+            4,
+            "struct Params { RWStructuredBuffer<uint> outBuffer; }; ParameterBlock<Params> params;",
+            "params.outBuffer",
+            space
+        );
+    }
+}
+
+GPU_TEST_CASE("synthetic-resource-bindings-nested-parameter-block", Vulkan | DontCreateDevice)
+{
+    testCoverageMetadata(
+        ctx,
+        4,
+        "struct Inner { RWStructuredBuffer<uint> outBuffer; }; "
+        "struct Outer { uint padding; ParameterBlock<Inner> inner; }; ParameterBlock<Outer> params; uint "
+        "globalPadding;",
+        "params.inner.outBuffer"
+    );
+}
+
+// Entry-point descriptor ranges must be collected before coverage is inserted,
+// just like global ParameterBlocks, and use the same runtime allocation order.
+GPU_TEST_CASE("synthetic-resource-bindings-entry-point-parameter-block", Vulkan | DontCreateDevice)
+{
+    testCoverageMetadata(ctx, 4, "struct Params { RWStructuredBuffer<uint> outBuffer; };", "params.outBuffer", 3, true);
+}
+
+// A synthetic binding cannot overwrite an ordinary binding in a child set.
+GPU_TEST_CASE("synthetic-resource-bindings-child-binding-collision", Vulkan)
+{
+    const char* source = R"(
+struct Params { RWStructuredBuffer<uint> outBuffer; };
+ParameterBlock<Params> params;
+[shader("compute")][numthreads(1, 1, 1)]
+void computeMain() { params.outBuffer[0] = 10; }
+)";
+    SyntheticResourceBindingDesc desc = {};
+    desc.id = 17;
+    desc.bindingType = slang::BindingType::MutableRawBuffer;
+    desc.space = 0;
+    desc.binding = 0;
+    desc.access = SyntheticResourceAccess::ReadWrite;
+    SLANG_RHI_DISABLE_ASSERT_SCOPE();
+    ComPtr<IShaderProgram> program;
+    CHECK_EQ(createComputeProgramWithSyntheticResource(device, source, desc, program.writeRef()), SLANG_E_INVALID_ARG);
+    CHECK(program == nullptr);
 }

@@ -800,8 +800,6 @@ Result RootShaderObjectLayoutImpl::create(
 {
     RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout, syntheticResources);
     SLANG_RETURN_ON_FAIL(builder.addGlobalParams(programLayout->getGlobalParamsVarLayout()));
-    if (syntheticResources)
-        SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
     for (SlangInt e = 0; e < entryPointCount; ++e)
@@ -817,6 +815,9 @@ Result RootShaderObjectLayoutImpl::create(
         SLANG_RETURN_ON_FAIL(builder.addEntryPoint(entryPointLayout));
     }
 
+    if (syntheticResources)
+        SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
+
     SLANG_RETURN_ON_FAIL(builder.build(outLayout));
     if (syntheticResources)
         SLANG_RETURN_ON_FAIL(syntheticResources->setResolvedLocations(builder.m_syntheticLocations));
@@ -830,6 +831,8 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
+    m_preallocateDescriptorSets = builder->m_syntheticResources != nullptr;
+    m_firstChildDescriptorSet = builder->m_firstChildDescriptorSet;
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
@@ -907,6 +910,13 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 {
+    if (m_preallocateDescriptorSets)
+    {
+        for (const auto& set : getOwnDescriptorSets())
+            m_vkDescriptorSetLayouts.push_back(set.descriptorSetLayout);
+        return SLANG_OK;
+    }
+
     SLANG_RETURN_ON_FAIL(addAllDescriptorSetsRec(this));
 
     // Note: the descriptor ranges/sets for direct entry point parameters
@@ -1123,11 +1133,54 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
     if (!m_syntheticResources)
         return SLANG_OK;
 
+    // Collect reflected child sets before inserting synthetic resources or gaps.
+    // Both the pipeline layout and runtime binding use the original depth-first
+    // order for ParameterBlocks. Synthetic bindings can then share those sets
+    // without moving them or allocating a second, incompatible descriptor set.
+    m_firstChildDescriptorSet = (uint32_t)m_descriptorSetBuildInfos.size();
+    SLANG_RETURN_ON_FAIL(addChildDescriptorSets(m_subObjectRanges, m_bindingRanges));
+    for (const auto& entryPoint : m_entryPoints)
+        SLANG_RETURN_ON_FAIL(
+            addChildDescriptorSets(entryPoint.layout->getSubObjectRanges(), entryPoint.layout->m_bindingRanges)
+        );
+    m_childDescriptorSetCount = 0;
+
     for (const auto& resource : m_syntheticResources->getInputs())
     {
         SLANG_RETURN_ON_FAIL(_addSyntheticResource(resource));
     }
 
+    return SLANG_OK;
+}
+
+Result RootShaderObjectLayoutImpl::Builder::addChildDescriptorSets(
+    const std::vector<SubObjectRangeInfo>& subObjectRanges,
+    const std::vector<BindingRangeInfo>& bindingRanges
+)
+{
+    for (const auto& subObject : subObjectRanges)
+    {
+        const auto& range = bindingRanges[subObject.bindingRangeIndex];
+        if (!subObject.layout || (range.bindingType != slang::BindingType::ParameterBlock &&
+                                  range.bindingType != slang::BindingType::ConstantBuffer &&
+                                  range.bindingType != slang::BindingType::PushConstant))
+            continue;
+        for (uint32_t i = 0; i < range.count; ++i)
+        {
+            if (range.bindingType == slang::BindingType::ParameterBlock)
+            {
+                for (const auto& set : subObject.layout->getOwnDescriptorSets())
+                {
+                    uint32_t index = 0;
+                    SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)m_descriptorSetBuildInfos.size(), &index));
+                    m_descriptorSetBuildInfos[index].vkBindings = set.vkBindings;
+                }
+            }
+            SLANG_RETURN_ON_FAIL(
+                addChildDescriptorSets(subObject.layout->getSubObjectRanges(), subObject.layout->m_bindingRanges)
+            );
+        }
+    }
     return SLANG_OK;
 }
 

@@ -287,6 +287,9 @@ Result BindingDataBuilder::bindAsRoot(
         m_bindingData->entryPointData = nullptr;
     }
 
+    m_preallocatedDescriptorSets = specializedLayout->m_preallocateDescriptorSets;
+    m_nextChildDescriptorSet = specializedLayout->m_firstChildDescriptorSet;
+
     BindingOffset offset = {};
 
     // Note: the operations here are quite similar to what `bindAsParameterBlock` does.
@@ -734,19 +737,24 @@ Result BindingDataBuilder::bindAsParameterBlock(
     // not the sets for any parent object(s).
     //
     BindingOffset offset = inOffset;
-    offset.bindingSet = m_bindingData->descriptorSetCount;
+    offset.bindingSet = m_preallocatedDescriptorSets ? m_nextChildDescriptorSet : m_bindingData->descriptorSetCount;
     offset.binding = 0;
 
     // Note: Interface-type binding handling has been simplified
     // now that pending data layout APIs have been removed.
 
     // Writing the bindings for a parameter block is relatively easy:
-    // we just need to allocate the descriptor set(s) needed for this
-    // object and then fill it in like a `ConstantBuffer<X>`.
+    // we fill its sets like a `ConstantBuffer<X>`. For synthetic layouts,
+    // the root already allocated every set, including child sets that may
+    // share bindings with synthetic resources. Advance through the original
+    // reflected order instead of appending after the synthetic sets.
     //
-    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
+    if (m_preallocatedDescriptorSets)
+        m_nextChildDescriptorSet += specializedLayout->getOwnDescriptorSetCount();
+    else
+        SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
 
-    SLANG_RHI_ASSERT(offset.bindingSet < m_bindingData->descriptorSetCount);
+    SLANG_RHI_ASSERT(offset.bindingSet <= m_bindingData->descriptorSetCount);
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, offset, specializedLayout));
 
     return SLANG_OK;

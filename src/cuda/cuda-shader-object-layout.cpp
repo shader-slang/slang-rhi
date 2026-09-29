@@ -166,12 +166,16 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(SyntheticResourceBindi
     {
         if (resource.scope != SyntheticResourceScope::Global)
             return SLANG_E_NOT_IMPLEMENTED;
+        int32_t minimumStride = sizeof(uint64_t);
         switch (resource.bindingType)
         {
         case slang::BindingType::RawBuffer:
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableRawBuffer:
         case slang::BindingType::MutableTypedBuffer:
+            // CUDA buffers marshal both a device pointer and an element count.
+            minimumStride = 2 * sizeof(uint64_t);
+            break;
         case slang::BindingType::Texture:
         case slang::BindingType::MutableTexture:
         case slang::BindingType::CombinedTextureSampler:
@@ -182,7 +186,7 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(SyntheticResourceBindi
         }
         if (resource.uniformOffset < 0)
             return SLANG_E_INVALID_ARG;
-        if (resource.uniformStride <= 0)
+        if (resource.uniformStride < minimumStride)
             return SLANG_E_INVALID_ARG;
         if (resource.arraySize == 0)
             return SLANG_E_INVALID_ARG;

@@ -448,6 +448,10 @@ public:
 
         Result addEntryPoint(EntryPointLayout* entryPointLayout);
         Result addSyntheticResources();
+        Result addChildDescriptorSets(
+            const std::vector<SubObjectRangeInfo>& subObjectRanges,
+            const std::vector<BindingRangeInfo>& bindingRanges
+        );
         Result _addSyntheticResource(const SyntheticResourceBindingRecord& resource);
         Result _validateSyntheticResource(
             const SyntheticResourceBindingRecord& resource,
@@ -466,6 +470,7 @@ public:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         SyntheticResourceBindingState* m_syntheticResources = nullptr;
+        uint32_t m_firstChildDescriptorSet = 0;
         std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
     };
@@ -524,6 +529,9 @@ public:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
+    // Synthetic layouts allocate the complete descriptor-set tree at the root.
+    bool m_preallocateDescriptorSets = false;
+    uint32_t m_firstChildDescriptorSet = 0;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     std::vector<VkPushConstantRange> m_allPushConstantRanges;

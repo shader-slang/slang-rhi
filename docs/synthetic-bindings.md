@@ -49,6 +49,16 @@ the ordinary path and does not expose `ISyntheticShaderProgram`.
 Backends that do not support synthetic resources reject non-empty
 synthetic descriptors with `SLANG_E_NOT_IMPLEMENTED`.
 
+For coverage buffers, query `ICoverageTracingMetadata::getBufferInfo()` and
+use `elementByteWidth` for both the buffer element size and counter readback.
+Allocate `getCounterCount() * elementByteWidth` bytes. Slang defaults to
+64-bit counters; devices without 64-bit buffer atomics, including MoltenVK,
+need an explicit `TraceCoverageCounterByteWidth = 4` compiler option.
+
+CUDA synthetic descriptors must provide enough uniform storage for each
+resource: a minimum `uniformStride` of 16 bytes for buffers (pointer and
+count), or 8 bytes for texture and acceleration-structure handles.
+
 ## Backend Support
 
 Current support:
