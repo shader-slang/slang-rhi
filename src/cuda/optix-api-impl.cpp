@@ -739,7 +739,9 @@ public:
         }
         optixPipelineCompileOptions.pipelineLaunchParamsVariableName = hasGlobalParams ? "SLANG_globalParams" : nullptr;
 
-        optixPipelineCompileOptions.usesPrimitiveTypeFlags = 0;
+        // Zero implicitly enables custom primitives and triangles. Keep both enabled when adding native types.
+        optixPipelineCompileOptions.usesPrimitiveTypeFlags =
+            OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM | OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
             optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
