@@ -360,7 +360,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.Usage = d3dUsage;
 
         ComPtr<ID3D11Texture1D> texture1D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture1D(&d3dDesc, subresourcesPtr, texture1D.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateTexture1D(&d3dDesc, subresourcesPtr, texture1D.writeRef()),
+            this
+        );
 
         texture->m_resource = texture1D;
         break;
@@ -391,7 +394,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         }
 
         ComPtr<ID3D11Texture2D> texture2D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture2D(&d3dDesc, subresourcesPtr, texture2D.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateTexture2D(&d3dDesc, subresourcesPtr, texture2D.writeRef()),
+            this
+        );
 
         texture->m_resource = texture2D;
         break;
@@ -410,7 +416,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.Usage = d3dUsage;
 
         ComPtr<ID3D11Texture3D> texture3D;
-        SLANG_RETURN_ON_FAIL(m_device->CreateTexture3D(&d3dDesc, subresourcesPtr, texture3D.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateTexture3D(&d3dDesc, subresourcesPtr, texture3D.writeRef()),
+            this
+        );
 
         texture->m_resource = texture3D;
         break;

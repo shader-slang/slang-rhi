@@ -8,12 +8,11 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
     slang::TypeLayoutReflection* layout
 )
 {
-    initBase(device, session, layout);
+    m_elementTypeLayout = _unwrapParameterGroups(layout, m_containerType);
+    initBase(device, session, m_elementTypeLayout);
 
     m_slotCount = 0;
     m_subObjectCount = 0;
-
-    m_elementTypeLayout = _unwrapParameterGroups(layout, m_containerType);
 
     // Compute the binding ranges that are used to store
     // the logical contents of the object in memory. These will relate

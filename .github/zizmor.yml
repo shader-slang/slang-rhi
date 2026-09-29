@@ -1,0 +1,10 @@
+# Allow ref-pinning for slang reusable workflows (@master by design) and
+# first-party GitHub actions; silence zizmor/CodeRabbit unpinned-uses nags.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        shader-slang/slang/*: ref-pin
+        actions/*: ref-pin
+        github/*: ref-pin
+        dependabot/*: ref-pin

@@ -227,7 +227,8 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
 
     if (handle.type != NativeHandleType::MTLTexture || handle.value == 0)
     {
-        return SLANG_E_INVALID_ARG;
+        *outTexture = nullptr;
+        return SLANG_E_INVALID_HANDLE;
     }
 
     MTL::Texture* nativeTexture = reinterpret_cast<MTL::Texture*>(handle.value);

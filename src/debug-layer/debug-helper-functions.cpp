@@ -6,7 +6,7 @@
 
 namespace rhi::debug {
 
-thread_local const char* _currentFunctionName = nullptr;
+thread_local const char* tls_currentFunctionName = nullptr;
 
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Device)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(CommandQueue)
@@ -299,6 +299,71 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                         i
                     );
                     valid = false;
+                }
+            }
+            if (triangles.next)
+            {
+                for (auto* header = static_cast<const ChainedStructHeader*>(triangles.next); header;
+                     header = static_cast<const ChainedStructHeader*>(header->next))
+                {
+                    if (header->type != AccelerationStructureOpacityMicromapDesc::kStructType)
+                    {
+                        RHI_VALIDATION_ERROR_FORMAT(
+                            "AccelerationStructureBuildDesc::inputs[%d].triangles.next has an unsupported structure "
+                            "type.",
+                            i
+                        );
+                        valid = false;
+                    }
+                }
+
+                if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+                {
+                    const auto& link = ommDesc->link;
+                    if (!link.micromap || !link.usageCounts || link.usageCount == 0)
+                    {
+                        RHI_VALIDATION_ERROR_FORMAT(
+                            "AccelerationStructureBuildDesc::inputs[%d] opacity micromap and usage counts must be "
+                            "provided.",
+                            i
+                        );
+                        valid = false;
+                    }
+                    if (link.indexingMode == MicromapIndexingMode::Indexed)
+                    {
+                        if (!link.indexBuffer || link.indexFormat == MicromapIndexFormat::None)
+                        {
+                            RHI_VALIDATION_ERROR_FORMAT(
+                                "AccelerationStructureBuildDesc::inputs[%d] indexed opacity micromaps require an index "
+                                "buffer and format.",
+                                i
+                            );
+                            valid = false;
+                        }
+                    }
+                    else if (link.indexBuffer || link.indexFormat != MicromapIndexFormat::None)
+                    {
+                        RHI_VALIDATION_ERROR_FORMAT(
+                            "AccelerationStructureBuildDesc::inputs[%d] linear opacity micromaps must not specify an "
+                            "index buffer or format.",
+                            i
+                        );
+                        valid = false;
+                    }
+                    for (uint32_t j = 0; link.usageCounts && j < link.usageCount; ++j)
+                    {
+                        if (link.usageCounts[j].subdivisionLevel > 12 ||
+                            (link.usageCounts[j].format != uint32_t(OpacityMicromapFormat::TwoState) &&
+                             link.usageCounts[j].format != uint32_t(OpacityMicromapFormat::FourState)))
+                        {
+                            RHI_VALIDATION_ERROR_FORMAT(
+                                "AccelerationStructureBuildDesc::inputs[%d] contains an invalid opacity micromap usage "
+                                "count.",
+                                i
+                            );
+                            valid = false;
+                        }
+                    }
                 }
             }
             break;

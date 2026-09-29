@@ -26,7 +26,10 @@ Result QueryPoolImpl::init()
     default:
         return SLANG_E_INVALID_ARG;
     }
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateQueryPool(device->m_api.m_device, &createInfo, nullptr, &m_pool));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkCreateQueryPool(device->m_api.m_device, &createInfo, nullptr, &m_pool),
+        device
+    );
 
     device->_labelObject((uint64_t)m_pool, VK_OBJECT_TYPE_QUERY_POOL, m_desc.label);
 
@@ -48,17 +51,16 @@ QueryPoolImpl::~QueryPoolImpl()
     }
 }
 
-Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    if (!outReady || !isValidQueryRange(queryIndex, count))
+    if (!outState || !isValidQueryRange(queryIndex, count))
     {
         return SLANG_E_INVALID_ARG;
     }
 
-    *outReady = false;
     if (count == 0)
     {
-        *outReady = true;
+        *outState = QueryResultState::Resolved;
         return SLANG_OK;
     }
     if (m_pool == VK_NULL_HANDLE)
@@ -67,13 +69,14 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
     }
 
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
-        return SLANG_FAIL;
+        *outState = QueryResultState::Reset;
+        return SLANG_OK;
     }
-    if (queryInfo.state == QueryRangeState::Resolved)
+    if (queryInfo.state == QueryResultState::Resolved)
     {
-        *outReady = true;
+        *outState = QueryResultState::Resolved;
         return SLANG_OK;
     }
 
@@ -91,12 +94,13 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
     );
     if (result == VK_NOT_READY)
     {
+        *outState = QueryResultState::Pending;
         return SLANG_OK;
     }
-    SLANG_VK_RETURN_ON_FAIL(result);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(result, device);
 
-    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
-    *outReady = true;
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
+    *outState = QueryResultState::Resolved;
 
     return SLANG_OK;
 }
@@ -118,24 +122,27 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     }
 
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
         return SLANG_FAIL;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
-        device->m_api.m_device,
-        m_pool,
-        queryIndex,
-        count,
-        sizeof(uint64_t) * count,
-        outData,
-        sizeof(uint64_t),
-        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
-    ));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkGetQueryPoolResults(
+            device->m_api.m_device,
+            m_pool,
+            queryIndex,
+            count,
+            sizeof(uint64_t) * count,
+            outData,
+            sizeof(uint64_t),
+            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+        ),
+        device
+    );
 
-    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
 
     return SLANG_OK;
 }

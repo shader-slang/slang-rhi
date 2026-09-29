@@ -741,6 +741,27 @@ Result DebugDevice::getClusterOperationSizes(const ClusterOperationParams& param
     return baseObject->getClusterOperationSizes(params, outSizes);
 }
 
+Result DebugDevice::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    SLANG_RHI_DEBUG_API(IDevice, getMicromapSizes);
+    if (!outSizes)
+    {
+        RHI_VALIDATION_ERROR("'outSizes' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!desc.dataBuffer.buffer || !desc.descriptorBuffer.buffer || !desc.histogram || desc.histogramCount == 0)
+    {
+        RHI_VALIDATION_ERROR("Micromap build data, descriptors, and histogram must be provided.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.descriptorStride < sizeof(MicromapTriangleDesc))
+    {
+        RHI_VALIDATION_ERROR("Micromap descriptor stride is too small.");
+        return SLANG_E_INVALID_ARG;
+    }
+    return baseObject->getMicromapSizes(desc, outSizes);
+}
+
 Result DebugDevice::createAccelerationStructure(
     const AccelerationStructureDesc& desc,
     IAccelerationStructure** outAccelerationStructure
@@ -792,6 +813,22 @@ Result DebugDevice::createAccelerationStructure(
     }
 
     return baseObject->createAccelerationStructure(patchedDesc, outAccelerationStructure);
+}
+
+Result DebugDevice::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createMicromap);
+    if (!outMicromap)
+    {
+        RHI_VALIDATION_ERROR("'outMicromap' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.size == 0)
+    {
+        RHI_VALIDATION_ERROR("Micromap size must be greater than zero.");
+        return SLANG_E_INVALID_ARG;
+    }
+    return baseObject->createMicromap(desc, outMicromap);
 }
 
 Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
@@ -1633,14 +1670,15 @@ void DebugDevice::validateCudaContext()
     if (currentContext == nullptr)
     {
         RHI_VALIDATION_WARNING(
-            "No CUDA context is current. Use setCudaContextCurrent() or SLANG_DEVICE_SCOPE to set the device context."
+            "No CUDA context is current. "
+            "Use setCudaContextCurrent() or SLANG_RHI_DEVICE_SCOPE to set the device context."
         );
     }
     else if (currentContext != expectedContext)
     {
         RHI_VALIDATION_WARNING(
-            "Wrong CUDA context is current. Use setCudaContextCurrent() or SLANG_DEVICE_SCOPE to set the correct "
-            "device context."
+            "Wrong CUDA context is current. "
+            "Use setCudaContextCurrent() or SLANG_RHI_DEVICE_SCOPE to set the correct device context."
         );
     }
 #endif

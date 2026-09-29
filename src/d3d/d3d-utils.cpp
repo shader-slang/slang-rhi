@@ -502,6 +502,39 @@ AdapterLUID getAdapterLUID(LUID luid)
     return adapterLUID;
 }
 
+const char* getHRESULTName(HRESULT res)
+{
+#define CASE(x)                                                                                                        \
+    case x:                                                                                                            \
+        return #x;
+    switch (res)
+    {
+        CASE(S_OK)
+        CASE(S_FALSE)
+        CASE(E_FAIL)
+        CASE(E_INVALIDARG)
+        CASE(E_OUTOFMEMORY)
+        CASE(E_NOTIMPL)
+        CASE(E_NOINTERFACE)
+        CASE(DXGI_ERROR_INVALID_CALL)
+        CASE(DXGI_ERROR_NOT_FOUND)
+        CASE(DXGI_ERROR_MORE_DATA)
+        CASE(DXGI_ERROR_UNSUPPORTED)
+        CASE(DXGI_ERROR_DEVICE_REMOVED)
+        CASE(DXGI_ERROR_DEVICE_HUNG)
+        CASE(DXGI_ERROR_DEVICE_RESET)
+        CASE(DXGI_ERROR_WAIT_TIMEOUT)
+    default:
+        return "<unknown>";
+    }
+#undef CASE
+}
+
+void reportD3DError(HRESULT result, const char* call, const SourceLocation location, Device* device)
+{
+    reportNativeCallError(device, call, result, getHRESULTName(result), location);
+}
+
 uint32_t getPlaneSliceCount(DXGI_FORMAT format)
 {
     switch (format)

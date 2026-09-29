@@ -49,8 +49,10 @@ public:
         swapChainDesc.BufferDesc.Width = m_config.width;
         swapChainDesc.BufferDesc.Height = m_config.height;
         swapChainDesc.BufferDesc.Format = getMapFormat(srgbToLinearFormat(m_config.format));
+        // Render-target output is the internal presentation path. Optional native usages are
+        // enabled only when the resolved public configuration requests them.
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        if (is_set(m_info.supportedUsage, TextureUsage::UnorderedAccess))
+        if (is_set(m_config.usage, TextureUsage::UnorderedAccess))
             swapChainDesc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
         swapChainDesc.SwapEffect = m_swapEffect;
         swapChainDesc.OutputWindow = m_windowHandle;
@@ -67,11 +69,11 @@ public:
         if (!dxgiFactory2)
         {
             ComPtr<IDXGISwapChain> swapChain;
-            SLANG_RETURN_ON_FAIL(
+            SLANG_D3D_RETURN_ON_FAIL(
                 getDXGIFactory()->CreateSwapChain(getOwningDevice(), &swapChainDesc, swapChain.writeRef())
             );
-            SLANG_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER));
-            SLANG_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
+            SLANG_D3D_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER));
+            SLANG_D3D_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
         }
         else
         {
@@ -85,7 +87,7 @@ public:
             desc1.SampleDesc = swapChainDesc.SampleDesc;
             desc1.SwapEffect = swapChainDesc.SwapEffect;
             ComPtr<IDXGISwapChain1> swapChain1;
-            SLANG_RETURN_ON_FAIL(dxgiFactory2->CreateSwapChainForHwnd(
+            SLANG_D3D_RETURN_ON_FAIL(dxgiFactory2->CreateSwapChainForHwnd(
                 getOwningDevice(),
                 m_windowHandle,
                 &desc1,
@@ -93,7 +95,7 @@ public:
                 nullptr,
                 swapChain1.writeRef()
             ));
-            SLANG_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
+            SLANG_D3D_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
         }
 
         createSwapchainTextures(m_config.desiredImageCount);
@@ -108,6 +110,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override
     {
+        SLANG_RETURN_ON_FAIL(validateConfig(config));
         setConfig(config);
         if (m_config.format == Format::Undefined)
         {

@@ -201,36 +201,56 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
     {
         cmd.desc.inputs = (AccelerationStructureBuildInput*)
             writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInput));
+        AccelerationStructureBuildInput* inputs = const_cast<AccelerationStructureBuildInput*>(cmd.desc.inputs);
         for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
         {
-            switch (cmd.desc.inputs[i].type)
+            switch (inputs[i].type)
             {
             case AccelerationStructureBuildInputType::Instances:
             {
-                const AccelerationStructureBuildInputInstances& instances = cmd.desc.inputs[i].instances;
+                const AccelerationStructureBuildInputInstances& instances = inputs[i].instances;
                 retainResource<Buffer>(instances.instanceBuffer.buffer);
                 break;
             }
             case AccelerationStructureBuildInputType::Triangles:
             {
-                const AccelerationStructureBuildInputTriangles& triangles = cmd.desc.inputs[i].triangles;
+                AccelerationStructureBuildInputTriangles& triangles = inputs[i].triangles;
                 for (uint32_t j = 0; j < triangles.vertexBufferCount; ++j)
                     retainResource<Buffer>(triangles.vertexBuffers[j].buffer);
                 retainResource<Buffer>(triangles.indexBuffer.buffer);
                 retainResource<Buffer>(triangles.preTransformBuffer.buffer);
+                if (const auto* sourceOpacityDesc =
+                        findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+                {
+                    auto* opacityDesc = (AccelerationStructureOpacityMicromapDesc*)
+                        writeData(sourceOpacityDesc, sizeof(AccelerationStructureOpacityMicromapDesc));
+                    triangles.next = opacityDesc;
+                    // Extension chains are copied explicitly as support is added. Do not retain
+                    // a pointer into caller-owned memory for an unrecognized nested extension.
+                    opacityDesc->next = nullptr;
+                    retainResource<Micromap>(opacityDesc->link.micromap);
+                    retainResource<Buffer>(opacityDesc->link.indexBuffer.buffer);
+                    if (opacityDesc->link.usageCounts && opacityDesc->link.usageCount > 0)
+                    {
+                        opacityDesc->link.usageCounts = (MicromapUsageCount*)writeData(
+                            opacityDesc->link.usageCounts,
+                            opacityDesc->link.usageCount * sizeof(MicromapUsageCount)
+                        );
+                    }
+                }
                 break;
             }
             case AccelerationStructureBuildInputType::ProceduralPrimitives:
             {
                 const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
-                    cmd.desc.inputs[i].proceduralPrimitives;
+                    inputs[i].proceduralPrimitives;
                 for (uint32_t j = 0; j < proceduralPrimitives.aabbBufferCount; ++j)
                     retainResource<Buffer>(proceduralPrimitives.aabbBuffers[j].buffer);
                 break;
             }
             case AccelerationStructureBuildInputType::Spheres:
             {
-                const AccelerationStructureBuildInputSpheres& spheres = cmd.desc.inputs[i].spheres;
+                const AccelerationStructureBuildInputSpheres& spheres = inputs[i].spheres;
                 for (uint32_t j = 0; j < spheres.vertexBufferCount; ++j)
                 {
                     retainResource<Buffer>(spheres.vertexPositionBuffers[j].buffer);
@@ -241,7 +261,7 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
             }
             case AccelerationStructureBuildInputType::LinearSweptSpheres:
             {
-                const AccelerationStructureBuildInputLinearSweptSpheres lss = cmd.desc.inputs[i].linearSweptSpheres;
+                const AccelerationStructureBuildInputLinearSweptSpheres lss = inputs[i].linearSweptSpheres;
                 for (uint32_t j = 0; j < lss.vertexBufferCount; ++j)
                 {
                     retainResource<Buffer>(lss.vertexPositionBuffers[j].buffer);
@@ -265,6 +285,20 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
             retainResource<QueryPool>(cmd.queryDescs[i].queryPool);
             trackQueryWrite(cmd.queryDescs[i].queryPool, uint32_t(cmd.queryDescs[i].firstQueryIndex), 1);
         }
+    }
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::BuildMicromap&& cmd)
+{
+    retainResource<Buffer>(cmd.desc.dataBuffer.buffer);
+    retainResource<Buffer>(cmd.desc.descriptorBuffer.buffer);
+    retainResource<Micromap>(cmd.dst);
+    retainResource<Buffer>(cmd.scratchBuffer.buffer);
+    if (cmd.desc.histogram && cmd.desc.histogramCount > 0)
+    {
+        cmd.desc.histogram =
+            (MicromapUsageCount*)writeData(cmd.desc.histogram, cmd.desc.histogramCount * sizeof(MicromapUsageCount));
     }
     writeCommand(std::move(cmd));
 }

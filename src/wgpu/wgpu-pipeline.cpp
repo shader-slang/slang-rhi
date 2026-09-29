@@ -137,7 +137,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             startTime,
             Timer::now(),
             false,
-            0
+            0,
+            nullptr
         );
     }
 
@@ -206,7 +207,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             startTime,
             Timer::now(),
             false,
-            0
+            0,
+            nullptr
         );
     }
 

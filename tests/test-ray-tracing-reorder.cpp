@@ -125,6 +125,8 @@ struct RayTracingTriangleReorderTest
 
 GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
 {
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
@@ -137,6 +139,8 @@ GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
 
 GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
 {
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
@@ -149,6 +153,8 @@ GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
 
 GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", ALL)
 {
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))

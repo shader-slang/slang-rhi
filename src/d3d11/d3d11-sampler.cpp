@@ -40,7 +40,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     dxDesc.MaxLOD = desc.maxLOD;
 
     ComPtr<ID3D11SamplerState> sampler;
-    SLANG_RETURN_ON_FAIL(m_device->CreateSamplerState(&dxDesc, sampler.writeRef()));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_device->CreateSamplerState(&dxDesc, sampler.writeRef()), this);
 
     RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_sampler = sampler;

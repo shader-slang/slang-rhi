@@ -165,7 +165,7 @@ struct RayTracingLssIntrinsicsTest
 
     void init(IDevice* device_) { this->device = device_; }
 
-    void run(const char* raygenName, const char* closestHitName)
+    void run(const char* raygenName, const char* closestHitName, const char* shaderModule = "test-ray-tracing-lss")
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
@@ -182,7 +182,7 @@ struct RayTracingLssIntrinsicsTest
 
         RayTracingTestPipeline pipeline(
             device,
-            "test-ray-tracing-lss",
+            shaderModule,
             {raygenName},
             {{closestHitName, /*anyhit=*/nullptr, intersectionName}},
             {"missNOP"},
@@ -238,6 +238,8 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
 
 GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
 {
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
@@ -248,4 +250,21 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
     RayTracingLssIntrinsicsTest test;
     test.init(device);
     test.run("rayGenLssIntrinsicsHitObject", "closestHitNOP");
+}
+
+// Inline ray-query variant: the raygen shader uses RayQuery<>.CommittedIsLss()
+// and RayQuery<>.CommittedLssObjectPositionsAndRadii() instead of the TraceRay
+// closesthit path. Reuses the same single-segment LSS BLAS and result checks.
+GPU_TEST_CASE("ray-tracing-lss-intrinsics-inline-ray-query", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::RayQuery))
+        SKIP("ray query not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
+
+    RayTracingLssIntrinsicsTest test;
+    test.init(device);
+    test.run("rayGenLssInlineRayQuery", "closestHitNOP", "test-ray-tracing-lss-inline-rq");
 }

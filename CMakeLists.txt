@@ -46,6 +46,9 @@ option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_TESTS_WITH_GLFW "Build tests that require GLFW" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+option(SLANG_RHI_ENABLE_ASAN "Enable AddressSanitizer (clang only)" OFF)
+option(SLANG_RHI_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (clang only)" OFF)
+option(SLANG_RHI_ENABLE_TSAN "Enable ThreadSanitizer (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
@@ -59,6 +62,53 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
     else()
         message(FATAL_ERROR "Code coverage is only supported with Clang")
+    endif()
+endif()
+
+# Configure sanitizer flags
+if(SLANG_RHI_ENABLE_TSAN AND (SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN))
+    message(FATAL_ERROR "ThreadSanitizer must run separately from AddressSanitizer and UndefinedBehaviorSanitizer")
+endif()
+
+if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN OR SLANG_RHI_ENABLE_TSAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(SLANG_RHI_SANITIZERS)
+        if(SLANG_RHI_ENABLE_ASAN)
+            list(APPEND SLANG_RHI_SANITIZERS address)
+        endif()
+        if(SLANG_RHI_ENABLE_UBSAN)
+            list(APPEND SLANG_RHI_SANITIZERS undefined)
+        endif()
+        if(SLANG_RHI_ENABLE_TSAN)
+            list(APPEND SLANG_RHI_SANITIZERS thread)
+        endif()
+        list(JOIN SLANG_RHI_SANITIZERS "," SLANG_RHI_SANITIZER_FLAGS)
+
+        add_compile_options(-fsanitize=${SLANG_RHI_SANITIZER_FLAGS} -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=${SLANG_RHI_SANITIZER_FLAGS})
+
+        # Make undefined behavior fail the test process instead of recovering and
+        # potentially allowing a successful exit.
+        if(SLANG_RHI_ENABLE_UBSAN)
+            add_compile_options(
+                -fno-sanitize-recover=undefined
+                -fsanitize-ignorelist=${CMAKE_CURRENT_SOURCE_DIR}/tools/ubsan-ignorelist.txt
+            )
+        endif()
+
+        # On Windows, the debug CRT conflicts with ASAN. Force the static release CRT.
+        if(SLANG_RHI_ENABLE_ASAN AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+            add_compile_options(-fno-sanitize-link-runtime)
+            # The MSVC STL uses __has_feature(address_sanitizer) under Clang to
+            # activate ASAN container annotations and emits /INFERASANLIBS via a
+            # pragma in that path. Some lld-link versions reject that directive
+            # in .drectve sections. Defining __SANITIZE_ADDRESS__ selects the
+            # equivalent STL annotation path without emitting the directive.
+            add_compile_definitions(__SANITIZE_ADDRESS__)
+        endif()
+    else()
+        message(FATAL_ERROR "Sanitizers are only supported with Clang")
     endif()
 endif()
 
@@ -145,9 +195,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-# Synthetic resource binding APIs require Slang 2026.9.1 or newer; pinned to
-# the latest stable release.
-set(SLANG_RHI_FETCH_SLANG_VERSION "2026.10.2" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.17.1" CACHE STRING "Slang version to fetch")
 option(SLANG_RHI_FETCH_DXC "Fetch DirectXShaderCompiler for the D3D12 backend" ON)
 
 # slang-rhi depends on a few external libraries.
@@ -194,8 +242,8 @@ endif()
 
 # NVAPI
 if(NOT DEFINED SLANG_RHI_NVAPI_URL)
-    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/3d34a4faf095996663321646ebe003539a908f89.zip") # R580
-    set(SLANG_RHI_NVAPI_URL_HASH "SHA256=9c3172f1d6236b81f1666d169f72afbf36cf520eb8386febe053edb322baa10d")
+    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/cd6918f60b3c9a0476fdfe7e89bb32330602049d.zip") # R610
+    set(SLANG_RHI_NVAPI_URL_HASH "SHA256=e9832432139331aef90356c78f92a0ad7d238fc527128ad9f51350614d3c598a")
 endif()
 
 # OptiX headers
@@ -214,8 +262,8 @@ endif()
 
 # Vulkan headers
 if(NOT DEFINED SLANG_RHI_VULKAN_HEADERS_URL)
-    set(SLANG_RHI_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip")
-    set(SLANG_RHI_VULKAN_HEADERS_URL_HASH "SHA256=182bcf135d01d1cd27afac116acdb9b91e860c07a535af4cde75429909fa6e2c")
+    set(SLANG_RHI_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.347.zip")
+    set(SLANG_RHI_VULKAN_HEADERS_URL_HASH "SHA256=ac260b9d0bacbdff95c6eda03f9af48a4d235eeba76b2bc55db26e970219687e")
 endif()
 
 # Metal C++ headers
@@ -226,7 +274,7 @@ endif()
 
 # Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
 if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT EMSCRIPTEN)
-    set(DAWN_VERSION "135.0.7049.80")
+    set(DAWN_VERSION "138.0.7204.168")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -243,17 +291,17 @@ if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT EMSCRIPTEN)
     endif()
     set(SLANG_RHI_DAWN_URL "https://github.com/shader-slang/webgpu-dawn-binaries/releases/download/v${DAWN_VERSION}/webgpu-dawn-${DAWN_VERSION}-${DAWN_OS}-${DAWN_ARCH}.zip")
     if(DAWN_OS STREQUAL "windows" AND DAWN_ARCH STREQUAL "x86_64")
-        set(SLANG_RHI_DAWN_URL_HASH "SHA256=9d62899bd1c085ae9fabab66ef25bcf92a3b0bb7d763ec885c771440572c8f7d")
+        set(SLANG_RHI_DAWN_URL_HASH "SHA256=b4343ce0f44a99c1ca76c2c4ac4a0406f6cb0550d51522d45fad171f12e19e5c")
     elseif(DAWN_OS STREQUAL "windows" AND DAWN_ARCH STREQUAL "aarch64")
-        set(SLANG_RHI_DAWN_URL_HASH "SHA256=0473ef01e8dbd2b2e4fb5654ba4fa3be195aedccbde2738ff8b246039bd5743e")
+        set(SLANG_RHI_DAWN_URL_HASH "SHA256=fd45fc360d1563b1b1d9c6411b4203e2e6de9e843a96d6a11612b73f27af8b3b")
     elseif(DAWN_OS STREQUAL "linux" AND DAWN_ARCH STREQUAL "x86_64")
-        set(SLANG_RHI_DAWN_URL_HASH "SHA256=bc5a60e2f9c80c286ecc5a5f4feb5b8a26620c01defe69c45a98d376e1fe180a")
+        set(SLANG_RHI_DAWN_URL_HASH "SHA256=527216981b1e486ec03470ae5af1b7f8020fd2de042b4ace12b10281d08fe669")
     elseif(DAWN_OS STREQUAL "linux" AND DAWN_ARCH STREQUAL "aarch64")
-        set(SLANG_RHI_DAWN_URL_HASH "SHA256=0e9f8f2ff83e92f5a80ccc94a5cf4b02633be7f3c08f4aafdd1f31ee92aa8f8b")
+        set(SLANG_RHI_DAWN_URL_HASH "SHA256=128a58d6ae967966af39003b05848d4ae59a7048a88a3b5374c94c73fbdba4b1")
     elseif(DAWN_OS STREQUAL "macos" AND DAWN_ARCH STREQUAL "x86_64")
-        set(SLANG_RHI_DAWN_URL_HASH "SHA256=83d600fc1efebb75c3b95dbe00ffc377ab38f4a4a3941d17e13e57e47d58f1df")
+        set(SLANG_RHI_DAWN_URL_HASH "SHA256=1727b4242c65d8be37b1225cb94eaf6d45dd2e715d6c07f83e380441fea8b936")
     elseif(DAWN_OS STREQUAL "macos" AND DAWN_ARCH STREQUAL "aarch64")
-        set(SLANG_RHI_DAWN_URL_HASH "SHA256=a0e75a45b3e956ddb97e73200e0beb086084522eb63de0b4d5bb01aa985cecd1")
+        set(SLANG_RHI_DAWN_URL_HASH "SHA256=8a17471681a5158a2c6cf607c2201384030d5a02404aeb87fddedd4d087c6285")
     endif()
 endif()
 
@@ -306,18 +354,18 @@ if(SLANG_RHI_FETCH_SLANG)
     set(SLANG_VERSION ${SLANG_RHI_FETCH_SLANG_VERSION})
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
     # Version string for which bundled hashes are provided; update together with the hashes below.
-    set(SLANG_HASH_VERSION "2026.4.1")
+    set(SLANG_HASH_VERSION "2026.17.1")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-windows-x86_64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=f964c0ccb53d8f2c308a08419093e9374e97bf07529e8b2cd02363adca08f0af")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=a41896cba523ecfecaf67d18bdb7767349112a45540ac0b88e8ce48e10ce239f")
             endif()
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-windows-aarch64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=91c4714e2b4eeeb21ea63296ba143ef750038368e54e5feb0b2dea471726fdef")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=49bfb24ac0569f1f34c15adc1fd40e937d42ae2f0756842869855827186db62a")
             endif()
         else()
             message(FATAL_ERROR "Unsupported processor architecture (${SLANG_RHI_ARCHITECTURE}) for fetched Slang binaries")
@@ -326,12 +374,12 @@ if(SLANG_RHI_FETCH_SLANG)
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-linux-x86_64.tar.gz")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=bca3909c6f346c1298c504643f924d5a8eac14160af9a975183f53d06443fbb0")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=31d7e53377dd9a80a1b7b9ec86f800562db91ca4ed2fb4c77573cba4d3e5095d")
             endif()
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-linux-aarch64.tar.gz")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=543f3a35d32fd2634d05ae9694e9df989ea09cc46591faa7405209e4f975318e")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=9fde649a04957d854292f315a77fea44365943af6fc0854ab6a01a72cbc24cd7")
             endif()
         else()
             message(FATAL_ERROR "Unsupported processor architecture (${SLANG_RHI_ARCHITECTURE}) for fetched Slang binaries")
@@ -340,12 +388,12 @@ if(SLANG_RHI_FETCH_SLANG)
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-macos-x86_64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=899e502fac7cc8c2b03da802b1919843856716277e6e208132799333692a7925")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=0ea622ed274fdc847d566873a63d724393100742c0b47d437a0a99550858f937")
             endif()
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-macos-aarch64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=23670f850799ac338e8d8d30406a5a4f78b3af6310c7072946143460453767af")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=20577fd1e09b82dfe23e6b1765825fac5d13a41c4e98066963a102932cde4efc")
             endif()
         else()
             message(FATAL_ERROR "Unsupported processor architecture (${SLANG_RHI_ARCHITECTURE}) for fetched Slang binaries")
@@ -353,7 +401,7 @@ if(SLANG_RHI_FETCH_SLANG)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         set(SLANG_URL "${SLANG_URL}-wasm-libs.zip")
         if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-            set(SLANG_RHI_SLANG_URL_HASH "SHA256=43eb086360cd56fc245239bf788af887bebbb4dc6e79141b4afdcd994591d903")
+            set(SLANG_RHI_SLANG_URL_HASH "SHA256=2d485d7a469f3f21ccad45082fc5327648942bde0824970dbb1b8032452627a2")
         endif()
     endif()
 
@@ -410,16 +458,12 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
             )
-            set(SLANG_RHI_SLANG_CMARK_LIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a)
-            if(NOT EXISTS ${SLANG_RHI_SLANG_CMARK_LIB})
-                message(FATAL_ERROR "Slang Emscripten package is missing ${SLANG_RHI_SLANG_CMARK_LIB}")
-            endif()
             target_link_libraries(slang INTERFACE
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcompiler-core.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
-                ${SLANG_RHI_SLANG_CMARK_LIB}
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a
             )
         endif()
     endfunction()
@@ -444,6 +488,11 @@ if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma/D3D12MemAlloc.cpp)
     target_include_directories(slang-rhi-d3d12ma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma)
     target_compile_features(slang-rhi-d3d12ma PRIVATE cxx_std_20)
+    if(SLANG_RHI_ENABLE_UBSAN AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Windows SDK bitmask operators form out-of-range intermediate enum values.
+        # Limit the exception to the vendored allocator; slang-rhi remains fully checked.
+        target_compile_options(slang-rhi-d3d12ma PRIVATE -fno-sanitize=enum)
+    endif()
     # Force-include D3D12MA configuration header to route assertions through slang-rhi.
     target_include_directories(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(MSVC)
@@ -753,6 +802,7 @@ target_sources(slang-rhi PRIVATE
     src/format-conversion.cpp
     src/heap.cpp
     src/pipeline.cpp
+    src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp
@@ -760,8 +810,10 @@ target_sources(slang-rhi PRIVATE
     src/shader.cpp
     src/staging-heap.cpp
     src/synthetic-resource-bindings.cpp
+    src/transient-buffer-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
+    src/core/diagnostics.cpp
     src/core/offset-allocator.cpp
     src/core/platform.cpp
     src/core/sha1.cpp
@@ -837,7 +889,6 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
-        src/d3d12/d3d12-constant-buffer-pool.cpp
         src/d3d12/d3d12-descriptor-heap.cpp
         src/d3d12/d3d12-device.cpp
         src/d3d12/d3d12-fence.cpp
@@ -864,7 +915,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
-        src/vulkan/vk-constant-buffer-pool.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -984,6 +1034,12 @@ set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
+    # MSVC 14.51+ emits C5285 on doctest's vendored std::tuple forward declaration
+    # (external/doctest/doctest.h); without this, a consumer's /WX promotes it to an
+    # error. Attached to doctest so the suppression travels with the header that
+    # causes it. Remove once the vendored doctest carries the upstream C5285 fix
+    # (doctest#1160).
+    target_compile_options(doctest INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/wd5285>)
 
     add_library(slang-rhi-stb INTERFACE)
     target_include_directories(slang-rhi-stb INTERFACE external/stb)
@@ -1004,12 +1060,14 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
+        tests/test-buffer.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
         tests/test-caching-allocator.cpp
         tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
+        tests/test-constant-buffer-arena.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
@@ -1046,13 +1104,16 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-nvrtc.cpp
         tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
+        tests/test-parallel-pipeline-creation.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
+        tests/test-push-constant.cpp
         tests/test-ray-tracing-clusters.cpp
         tests/test-ray-tracing-hitobject-intrinsics.cpp
         tests/test-ray-tracing-intrinsics.cpp
         tests/test-ray-tracing-lss.cpp
+        tests/test-opacity-micromap.cpp
         tests/test-ray-tracing-raygen-entrypoint.cpp
         tests/test-ray-tracing-reorder.cpp
         tests/test-ray-tracing-shader-table-multi-pipeline.cpp
@@ -1067,11 +1128,13 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-sampler.cpp
         tests/test-sha1.cpp
         tests/test-shader-cache.cpp
+        tests/test-shader-object-from-type-layout.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
         tests/test-ring-queue.cpp
         tests/test-short-vector.cpp
         tests/test-staging-heap.cpp
+        tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
         tests/test-surface.cpp
         tests/test-synthetic-resource-bindings.cpp
@@ -1085,6 +1148,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/memory-report.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/texture-test.cpp
@@ -1105,9 +1169,18 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    if(SLANG_RHI_ENABLE_VULKAN)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        target_link_libraries(slang-rhi-tests PRIVATE psapi)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+    endif()
+    if(SLANG_RHI_ENABLE_METAL)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-metal-cpp)
     endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

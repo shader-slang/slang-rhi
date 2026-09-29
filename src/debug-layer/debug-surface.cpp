@@ -23,8 +23,6 @@ Result DebugSurface::configure(const SurfaceConfig& config)
 
     const SurfaceInfo& info = baseObject->getInfo();
 
-    m_configured = false;
-
     // format must be Format::Undefined (selecting preferred format) or any of the supported formats.
     if (config.format != Format::Undefined && !contains(info.formats, info.formatCount, config.format))
     {

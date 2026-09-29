@@ -123,7 +123,7 @@ inline Result findBindlessDescriptorSet(const void* codeData, size_t codeSize, u
     return SLANG_OK;
 }
 
-Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
@@ -133,7 +133,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     auto& stageCreateInfo = m_stageCreateInfos.back();
 
     module.code = kernelCode;
-    module.entryPointName = entryPointInfo->getNameOverride();
+    module.entryPointName = desc.entryPointName;
     SLANG_RETURN_ON_FAIL(findBindlessDescriptorSet(
         kernelCode->getBufferPointer(),
         kernelCode->getBufferSize(),
@@ -144,8 +144,9 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     VkShaderModuleCreateInfo moduleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     moduleCreateInfo.pCode = (uint32_t*)module.code->getBufferPointer();
     moduleCreateInfo.codeSize = module.code->getBufferSize();
-    SLANG_VK_RETURN_ON_FAIL(
-        device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule),
+        device
     );
 
 #if SLANG_RHI_ENABLE_AFTERMATH
@@ -161,7 +162,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
 #endif
 
     stageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    stageCreateInfo.stage = (VkShaderStageFlagBits)translateShaderStage(entryPointInfo->getStage());
+    stageCreateInfo.stage = (VkShaderStageFlagBits)translateShaderStage(desc.stage);
     stageCreateInfo.module = module.shaderModule;
     stageCreateInfo.pName = "main";
 

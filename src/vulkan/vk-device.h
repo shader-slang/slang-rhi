@@ -26,6 +26,12 @@ struct CalibratedTimestampSupport
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     using Device::readBuffer;
 
     Result initVulkanInstance(
@@ -59,6 +65,10 @@ public:
         const void* initData,
         IBuffer** outBuffer
     ) override;
+
+    /// Stage and submit initialization data for a newly created buffer.
+    Result uploadBufferInitData(IBuffer* buffer, Offset offset, Size size, const void* data);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
         NativeHandle handle,
         const BufferDesc& desc,
@@ -131,6 +141,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -141,6 +156,11 @@ public:
         IAccelerationStructure** outAccelerationStructure
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(
+        const MicromapDesc& desc,
+        IMicromap** outMicromap
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
         const TextureDesc& desc,
         Size* outSize,
@@ -148,6 +168,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
+    virtual SLANG_NO_THROW Result getTextureBufferOffsetAlignment(Format format, Size* outAlignment) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
         const CooperativeMatrixDesc& desc,
@@ -210,6 +231,11 @@ public:
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData
     );
+
+    /// If a shader called abort() (OpAbortKHR) the device is lost; retrieve the abort message via
+    /// VK_KHR_device_fault and report it through the debug message callback. No-op when
+    /// Feature::ShaderAbort is unavailable. Safe to call after VK_ERROR_DEVICE_LOST.
+    void reportShaderAbortMessage();
 
     void _labelObject(uint64_t object, VkObjectType objectType, const char* label);
 

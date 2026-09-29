@@ -23,11 +23,11 @@ ShaderProgramImpl::~ShaderProgramImpl()
 #endif
 }
 
-Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode)
 {
     ShaderBinary shaderBin;
-    shaderBin.stage = entryPointInfo->getStage();
-    shaderBin.entryPointInfo = entryPointInfo;
+    shaderBin.stage = desc.stage;
+    shaderBin.entryPointName = desc.entryPointName;
     shaderBin.code.assign(
         reinterpret_cast<const uint8_t*>(kernelCode->getBufferPointer()),
         reinterpret_cast<const uint8_t*>(kernelCode->getBufferPointer()) + (size_t)kernelCode->getBufferSize()

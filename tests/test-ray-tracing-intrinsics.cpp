@@ -465,8 +465,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-instance-index", ALL)
     CHECK_EQ(result->instanceIndex, 0);
 }
 
-// Callable shaders haven't been implemented for the CUDA/OptiX backend in Slang
-GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan)
+GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");

@@ -229,12 +229,15 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         // know the appropraite type/layout of sub-object to allocate.
         //
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
-        createForElementType(
-            m_device,
-            m_session,
-            slangLeafTypeLayout->getElementTypeLayout(),
-            subObjectLayout.writeRef()
-        );
+        if (slangBindingType != slang::BindingType::ExistentialValue)
+        {
+            createForElementType(
+                m_device,
+                m_session,
+                slangLeafTypeLayout->getElementTypeLayout(),
+                subObjectLayout.writeRef()
+            );
+        }
 
         SubObjectRangeInfo subObjectRange;
         subObjectRange.bindingRangeIndex = bindingRangeIndex;
@@ -944,12 +947,15 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         return SLANG_FAIL;
     }
 
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateRootSignature(
-        0,
-        signature->GetBufferPointer(),
-        signature->GetBufferSize(),
-        IID_PPV_ARGS(outRootSignature)
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateRootSignature(
+            0,
+            signature->GetBufferPointer(),
+            signature->GetBufferSize(),
+            IID_PPV_ARGS(outRootSignature)
+        ),
+        device
+    );
     return SLANG_OK;
 }
 

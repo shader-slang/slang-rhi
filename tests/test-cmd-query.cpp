@@ -34,15 +34,16 @@ static ComPtr<ICommandBuffer> createTimestampCommandBuffer(
 
 static void checkQueryResultReady(IQueryPool* queryPool, uint32_t queryIndex, uint32_t count)
 {
-    bool ready = false;
-    REQUIRE_CALL(queryPool->isResultReady(queryIndex, count, &ready));
-    CHECK(ready);
+    QueryResultState state = QueryResultState::Reset;
+    REQUIRE_CALL(queryPool->getResultState(queryIndex, count, &state));
+    CHECK(state == QueryResultState::Resolved);
 }
 
-static void checkQueryResultUnavailable(IQueryPool* queryPool, uint32_t queryIndex, uint32_t count)
+static void checkQueryResultReset(IQueryPool* queryPool, uint32_t queryIndex, uint32_t count)
 {
-    bool ready = true;
-    CHECK(queryPool->isResultReady(queryIndex, count, &ready) == SLANG_FAIL);
+    QueryResultState state = QueryResultState::Resolved;
+    REQUIRE_CALL(queryPool->getResultState(queryIndex, count, &state));
+    CHECK(state == QueryResultState::Reset);
 }
 
 struct AccelerationStructureQueryBuild
@@ -180,7 +181,13 @@ GPU_TEST_CASE("cmd-query-resolve-host", ALL)
     }
 
     double durationGPU = maxTime - minTime;
-    CHECK(durationGPU < durationCPU);
+    // durationCPU is intended to bound the GPU timestamp span, but it is
+    // truncated to whole microseconds above and a fast loop spans only a few
+    // microseconds, so the containment margin can vanish. Allow for truncation
+    // and cross-clock jitter (~2us) plus the GPU's own timestamp granularity
+    // (2 / timestampFrequency, which dominates on coarse-timer backends) so this
+    // stays a units sanity-check rather than a sub-microsecond race.
+    CHECK(durationGPU <= durationCPU + 2e-6 + 2.0 / static_cast<double>(timestampFrequency));
     // printf("Duration CPU: %.3f ms, GPU: %.3f\n", durationCPU * 1000.0, durationGPU * 1000.0);
 }
 
@@ -212,18 +219,19 @@ GPU_TEST_CASE("cmd-query-result-readiness", ALL)
     auto queryPool = createTimestampQueryPool(device, 1);
     auto queue = device->getQueue(QueueType::Graphics);
 
-    checkQueryResultUnavailable(queryPool, 0, 1);
+    checkQueryResultReset(queryPool, 0, 1);
 
     auto commandBuffer = createTimestampCommandBuffer(queue, queryPool, {0});
-    checkQueryResultUnavailable(queryPool, 0, 1);
+    checkQueryResultReset(queryPool, 0, 1);
 
     REQUIRE_CALL(queryPool->reset());
-    checkQueryResultUnavailable(queryPool, 0, 1);
+    checkQueryResultReset(queryPool, 0, 1);
 
     REQUIRE_CALL(queue->submit(commandBuffer));
 
-    bool ready = true;
-    REQUIRE_CALL(queryPool->isResultReady(0, 1, &ready));
+    QueryResultState state = QueryResultState::Reset;
+    REQUIRE_CALL(queryPool->getResultState(0, 1, &state));
+    CHECK((state == QueryResultState::Pending || state == QueryResultState::Resolved));
 
     REQUIRE_CALL(queue->waitOnHost());
     checkQueryResultReady(queryPool, 0, 1);
@@ -231,7 +239,7 @@ GPU_TEST_CASE("cmd-query-result-readiness", ALL)
     uint64_t timestamp = 0;
     REQUIRE_CALL(queryPool->getResult(0, 1, &timestamp));
     REQUIRE_CALL(queryPool->reset());
-    checkQueryResultUnavailable(queryPool, 0, 1);
+    checkQueryResultReset(queryPool, 0, 1);
 }
 
 GPU_TEST_CASE("cmd-query-partial-range-readiness", ALL)
@@ -251,8 +259,8 @@ GPU_TEST_CASE("cmd-query-partial-range-readiness", ALL)
     checkQueryResultReady(queryPool, 0, 1);
     REQUIRE_CALL(queryPool->getResult(0, 1, &timestamp));
 
-    checkQueryResultUnavailable(queryPool, 1, 1);
-    checkQueryResultUnavailable(queryPool, 0, 2);
+    checkQueryResultReset(queryPool, 1, 1);
+    checkQueryResultReset(queryPool, 0, 2);
     CHECK(queryPool->getResult(0, 2, &timestamp) == SLANG_FAIL);
 }
 
@@ -323,7 +331,7 @@ GPU_TEST_CASE("cmd-query-reset-invalidates-ready-result", ALL)
     REQUIRE_CALL(queryPool->getResult(0, 1, &timestamp));
 
     REQUIRE_CALL(queryPool->reset());
-    checkQueryResultUnavailable(queryPool, 0, 1);
+    checkQueryResultReset(queryPool, 0, 1);
     CHECK(queryPool->getResult(0, 1, &timestamp) == SLANG_FAIL);
 }
 
@@ -343,9 +351,9 @@ GPU_TEST_CASE("cmd-query-reset-range", ALL)
 
     REQUIRE_CALL(queryPool->reset(1, 1));
     checkQueryResultReady(queryPool, 0, 1);
-    checkQueryResultUnavailable(queryPool, 1, 1);
+    checkQueryResultReset(queryPool, 1, 1);
     checkQueryResultReady(queryPool, 2, 1);
-    checkQueryResultUnavailable(queryPool, 0, 3);
+    checkQueryResultReset(queryPool, 0, 3);
 
     uint64_t timestamp = 0;
     REQUIRE_CALL(queryPool->getResult(0, 1, &timestamp));
@@ -387,7 +395,7 @@ GPU_TEST_CASE("cmd-query-acceleration-structure-get-result-without-wait", D3D12 
     auto queue = device->getQueue(QueueType::Graphics);
     auto build = createAccelerationStructureCompactionQueryBuild(device, queue);
 
-    checkQueryResultUnavailable(build.queryPool, 0, 1);
+    checkQueryResultReset(build.queryPool, 0, 1);
     REQUIRE_CALL(queue->submit(build.commandBuffer));
 
     uint64_t compactedSize = 0;
@@ -396,7 +404,7 @@ GPU_TEST_CASE("cmd-query-acceleration-structure-get-result-without-wait", D3D12 
     checkQueryResultReady(build.queryPool, 0, 1);
 
     REQUIRE_CALL(build.queryPool->reset(0, 1));
-    checkQueryResultUnavailable(build.queryPool, 0, 1);
+    checkQueryResultReset(build.queryPool, 0, 1);
 }
 
 GPU_TEST_CASE("cmd-query-range-across-command-buffers", ALL)
@@ -440,7 +448,7 @@ GPU_TEST_CASE("cmd-query-range-across-submissions", ALL)
     REQUIRE_CALL(queue->submit(createTimestampCommandBuffer(queue, queryPool, {0})));
     REQUIRE_CALL(queue->waitOnHost());
     checkQueryResultReady(queryPool, 0, 1);
-    checkQueryResultUnavailable(queryPool, 0, 2);
+    checkQueryResultReset(queryPool, 0, 2);
 
     REQUIRE_CALL(queue->submit(createTimestampCommandBuffer(queue, queryPool, {1})));
     REQUIRE_CALL(queue->waitOnHost());
@@ -463,7 +471,7 @@ GPU_TEST_CASE("cmd-query-d3d12-get-result-requires-submission", D3D12)
     auto commandBuffer = createTimestampCommandBuffer(queue, queryPool, {0});
 
     uint64_t timestamp = 0;
-    checkQueryResultUnavailable(queryPool, 0, 1);
+    checkQueryResultReset(queryPool, 0, 1);
     CHECK(queryPool->getResult(0, 1, &timestamp) == SLANG_FAIL);
 
     REQUIRE_CALL(queue->submit(commandBuffer));
@@ -533,7 +541,13 @@ GPU_TEST_CASE("cmd-query-resolve-device", ALL & ~(D3D11 | CPU | CUDA))
     }
 
     double durationGPU = maxTime - minTime;
-    CHECK(durationGPU < durationCPU);
+    // durationCPU is intended to bound the GPU timestamp span, but it is
+    // truncated to whole microseconds above and a fast loop spans only a few
+    // microseconds, so the containment margin can vanish. Allow for truncation
+    // and cross-clock jitter (~2us) plus the GPU's own timestamp granularity
+    // (2 / timestampFrequency, which dominates on coarse-timer backends) so this
+    // stays a units sanity-check rather than a sub-microsecond race.
+    CHECK(durationGPU <= durationCPU + 2e-6 + 2.0 / static_cast<double>(timestampFrequency));
     // printf("Duration CPU: %.3f ms, GPU: %.3f\n", durationCPU * 1000.0, durationGPU * 1000.0);
 }
 

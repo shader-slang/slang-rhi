@@ -104,6 +104,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -129,6 +130,8 @@ public:
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
+
+    void resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites);
 
     void requireAccelerationStructureQueryResultBuffers(
         uint32_t queryCount,
@@ -176,12 +179,17 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 #undef SLANG_RHI_COMMAND_EXECUTE_X
     }
 
+    if (commandList.writesTimestamp())
+    {
+        resolveTimestampQueryResults(commandList.getQueryWrites());
+    }
+
     // Transition all resources back to their default states.
     m_stateTracking.requireDefaultStates();
     commitBarriers();
     m_stateTracking.clear();
 
-    SLANG_RETURN_ON_FAIL(m_cmdList->Close());
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_cmdList->Close(), m_device);
 
     return SLANG_OK;
 }
@@ -1270,6 +1278,23 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
                     ResourceState::AccelerationStructureBuildInput
                 );
             }
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(input.triangles.next))
+            {
+                if (ommDesc->link.micromap)
+                {
+                    requireBufferState(
+                        checked_cast<MicromapImpl*>(ommDesc->link.micromap)->m_buffer,
+                        ResourceState::MicromapRead
+                    );
+                }
+                if (ommDesc->link.indexBuffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(ommDesc->link.indexBuffer.buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
             break;
         case AccelerationStructureBuildInputType::ProceduralPrimitives:
             for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
@@ -1342,7 +1367,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     commitBarriers();
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (m_device->m_nvapiEnabled)
+    if (m_device->m_nvapiEnabled && !usesOpacityMicromaps(cmd.desc))
     {
         NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EX desc = {};
         desc.destAccelerationStructureData = dst->getDeviceAddress();
@@ -1384,6 +1409,26 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     }
 
     copyAccelerationStructureQueryResults(cmd.propertyQueryCount, cmd.queryDescs, 1);
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    MicromapImpl* dst = checked_cast<MicromapImpl*>(cmd.dst);
+    BufferImpl* scratch = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
+    requireBufferState(dst->m_buffer, ResourceState::MicromapWrite);
+    requireBufferState(scratch, ResourceState::UnorderedAccess);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.dataBuffer.buffer), ResourceState::MicromapBuildInput);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.descriptorBuffer.buffer), ResourceState::MicromapBuildInput);
+
+    MicromapBuildDescConverter converter;
+    if (SLANG_FAILED(converter.convert(cmd.desc)))
+        return;
+    commitBarriers();
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+    buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
+    buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
+    buildDesc.Inputs = converter.desc;
+    m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1752,8 +1797,12 @@ void CommandRecorder::commitBarriers()
         }
         else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
                   bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
+                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapWrite) ||
                  ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0))
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
@@ -1807,6 +1856,25 @@ void CommandRecorder::commitBarriers()
     }
 
     m_stateTracking.clearBarriers();
+}
+
+void CommandRecorder::resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites)
+{
+    for (const auto& queryWrite : queryWrites)
+    {
+        if (queryWrite.queryPool->getDesc().type != QueryType::Timestamp)
+            continue;
+
+        auto queryPool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);
+        m_cmdList->ResolveQueryData(
+            queryPool->m_queryHeap,
+            queryPool->m_queryType,
+            queryWrite.index,
+            queryWrite.count,
+            queryPool->m_readBackBuffer,
+            uint64_t(queryWrite.index) * sizeof(uint64_t)
+        );
+    }
 }
 
 void CommandRecorder::requireAccelerationStructureQueryResultBuffers(
@@ -1873,7 +1941,10 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())),
+        m_device
+    );
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     if (device->m_aftermathCrashDumper)
@@ -1882,17 +1953,36 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     }
 #endif
 
-    SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_trackingFence.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_trackingFence.writeRef())),
+        m_device
+    );
     m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
+
+    TransientBufferHeapDesc constantBufferHeapDesc;
+    constantBufferHeapDesc.initialPageSize = 64 * 1024;
+    constantBufferHeapDesc.maxPageSize = 4 * 1024 * 1024;
+    constantBufferHeapDesc.maxRetainedSize = 4 * 1024 * 1024;
+    constantBufferHeapDesc.memoryType = MemoryType::Upload;
+    constantBufferHeapDesc.usage = BufferUsage::ConstantBuffer;
+    constantBufferHeapDesc.defaultState = ResourceState::ConstantBuffer;
+    constantBufferHeapDesc.alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    constantBufferHeapDesc.allocationGranularity = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    m_constantBufferHeap.initialize(device, constantBufferHeapDesc);
     return SLANG_OK;
 }
 
 void CommandQueueImpl::shutdown()
 {
     waitOnHost();
+    // A failed device wait may leave command buffers in the in-flight list. Destroy them before
+    // releasing the heap so their allocation handles cannot outlive its pages.
+    m_commandBuffersInFlight.clear();
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+    // Release the shared constant-buffer pages while deferred deletion is still available.
+    m_constantBufferHeap.release();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
@@ -2004,7 +2094,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
-        SLANG_RETURN_ON_FAIL(m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]), m_device);
     }
 
     // Execute command lists.
@@ -2030,10 +2120,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
-        SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]), m_device);
     }
 
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID), m_device);
 
     retireCommandBuffers();
 
@@ -2055,9 +2145,12 @@ Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_lastSubmittedID++;
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID), m_device);
     ResetEvent(m_globalWaitHandle);
-    SLANG_RETURN_ON_FAIL(m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle),
+        m_device
+    );
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
     device->flushValidationMessages();
     retireCommandBuffers();
@@ -2087,12 +2180,12 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
 
     UINT64 gpuTimestamp = 0;
     UINT64 cpuTimestamp = 0;
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->GetClockCalibration(&gpuTimestamp, &cpuTimestamp));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->GetClockCalibration(&gpuTimestamp, &cpuTimestamp), m_device);
 
     const uint64_t after = getCpuTimestamp();
 
     UINT64 gpuFrequency = 0;
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->GetTimestampFrequency(&gpuFrequency));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->GetTimestampFrequency(&gpuFrequency), m_device);
 
     const uint64_t cpuFrequency = getCpuTimestampFrequency();
 
@@ -2139,7 +2232,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_constantBufferArena = &m_commandBuffer->m_constantBufferArena;
     builder.m_cbvSrvUavArena = &m_commandBuffer->m_cbvSrvUavArena;
     builder.m_samplerArena = &m_commandBuffer->m_samplerArena;
     ShaderObjectLayout* specializedLayout = nullptr;
@@ -2203,17 +2296,21 @@ CommandBufferImpl::~CommandBufferImpl()
 Result CommandBufferImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        IID_PPV_ARGS(m_d3dCommandAllocator.writeRef())
-    ));
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateCommandList(
-        0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        m_d3dCommandAllocator,
-        nullptr,
-        IID_PPV_ARGS(m_d3dCommandList.writeRef())
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device
+            ->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_d3dCommandAllocator.writeRef())),
+        device
+    );
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateCommandList(
+            0,
+            D3D12_COMMAND_LIST_TYPE_DIRECT,
+            m_d3dCommandAllocator,
+            nullptr,
+            IID_PPV_ARGS(m_d3dCommandList.writeRef())
+        ),
+        device
+    );
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     if (device->m_aftermathCrashDumper)
@@ -2228,7 +2325,7 @@ Result CommandBufferImpl::init()
     };
     m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 
-    m_constantBufferPool.init(device);
+    m_constantBufferArena.initialize(&m_queue->m_constantBufferHeap);
 
     SLANG_RETURN_ON_FAIL(m_cbvSrvUavArena.init(device->m_gpuCbvSrvUavHeap, 128));
     SLANG_RETURN_ON_FAIL(m_samplerArena.init(device->m_gpuSamplerHeap, 4));
@@ -2239,8 +2336,8 @@ Result CommandBufferImpl::init()
 Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_RETURN_ON_FAIL(m_d3dCommandAllocator->Reset());
-    SLANG_RETURN_ON_FAIL(m_d3dCommandList->Reset(m_d3dCommandAllocator, nullptr));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dCommandAllocator->Reset(), device);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dCommandList->Reset(m_d3dCommandAllocator, nullptr), device);
     ID3D12DescriptorHeap* heaps[] = {
         device->m_gpuCbvSrvUavHeap->getHeap(),
         device->m_gpuSamplerHeap->getHeap(),
@@ -2249,7 +2346,7 @@ Result CommandBufferImpl::reset()
 
     m_cbvSrvUavArena.reset();
     m_samplerArena.reset();
-    m_constantBufferPool.reset();
+    m_constantBufferArena.reset();
     m_bindingCache.reset();
     return CommandBuffer::reset();
 }

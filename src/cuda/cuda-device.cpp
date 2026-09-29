@@ -27,20 +27,15 @@ struct ComputeCapabilityInfo
 };
 
 // List of compute capabilities. This is in order from lowest to highest.
-// Note: This currently only contains versions exposed as a Slang capability.
+// These are driver-reported hardware tiers and do not imply downstream compiler support.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
 #define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
-    COMPUTE_CAPABILITY(1, 0),
-    COMPUTE_CAPABILITY(2, 0),
-    COMPUTE_CAPABILITY(3, 0),
-    COMPUTE_CAPABILITY(3, 5),
-    COMPUTE_CAPABILITY(4, 0),
-    COMPUTE_CAPABILITY(5, 0),
-    COMPUTE_CAPABILITY(6, 0),
-    COMPUTE_CAPABILITY(7, 0),
-    COMPUTE_CAPABILITY(8, 0),
-    COMPUTE_CAPABILITY(8, 9),
-    COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(1, 0),  COMPUTE_CAPABILITY(2, 0),  COMPUTE_CAPABILITY(3, 0),  COMPUTE_CAPABILITY(3, 5),
+    COMPUTE_CAPABILITY(4, 0),  COMPUTE_CAPABILITY(5, 0),  COMPUTE_CAPABILITY(6, 0),  COMPUTE_CAPABILITY(7, 0),
+    COMPUTE_CAPABILITY(7, 2),  COMPUTE_CAPABILITY(7, 5),  COMPUTE_CAPABILITY(8, 0),  COMPUTE_CAPABILITY(8, 6),
+    COMPUTE_CAPABILITY(8, 7),  COMPUTE_CAPABILITY(8, 8),  COMPUTE_CAPABILITY(8, 9),  COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(10, 0), COMPUTE_CAPABILITY(10, 3), COMPUTE_CAPABILITY(11, 0), COMPUTE_CAPABILITY(12, 0),
+    COMPUTE_CAPABILITY(12, 1),
 #undef COMPUTE_CAPABILITY
 };
 
@@ -287,6 +282,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::AccelerationStructure);
         addFeature(Feature::RayTracing);
+        addFeature(Feature::OpacityMicromap);
         uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
         m_info.optixVersion = optixVersion;
         if (optixVersion >= 80100)
@@ -304,7 +300,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
-                // addCapability(Capability::optix_coopvec);
+                // Slang's optix_coopvec capability implies _cuda_sm_9_0. Keep exposing the
+                // API feature on every device supported by OptiX, but only enable the native
+                // OptiX shader path when the device also supports the implied architecture.
+                if (hasComputeCapability(9, 0))
+                {
+                    addCapability(Capability::optix_coopvec);
+                }
             }
         }
     }
@@ -561,6 +563,13 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    return m_ctx.optixContext->getMicromapSizes(desc, outSizes);
+}
+
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     if (!m_ctx.optixContext)
@@ -584,6 +593,16 @@ Result DeviceImpl::createAccelerationStructure(
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 

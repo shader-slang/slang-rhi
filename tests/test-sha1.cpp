@@ -96,4 +96,21 @@ TEST_CASE("sha1")
                                 }
         );
     }
+
+    SUBCASE("block boundaries")
+    {
+        std::array<uint8_t, 256> data;
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = static_cast<uint8_t>(i);
+
+        SHA1 contiguous(data.data(), data.size());
+        CHECK(contiguous.getHexDigest() == "4916d6bdb7f78e6803698cab32d1586ea457dfc8");
+
+        SHA1 chunked;
+        chunked.update(data.data(), 1);
+        chunked.update(data.data() + 1, 63);
+        chunked.update(data.data() + 64, 64);
+        chunked.update(data.data() + 128, 128);
+        CHECK(chunked.getHexDigest() == contiguous.getHexDigest());
+    }
 }

@@ -40,7 +40,9 @@ VkDescriptorPool DescriptorSetAllocator::newPool()
     descriptorPoolInfo.pNext = &inlineUniformBlockInfo;
 
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    SLANG_VK_CHECK(m_api->vkCreateDescriptorPool(m_api->m_device, &descriptorPoolInfo, nullptr, &descriptorPool));
+    SLANG_VK_ASSERT_ON_FAIL(
+        m_api->vkCreateDescriptorPool(m_api->m_device, &descriptorPoolInfo, nullptr, &descriptorPool)
+    );
     pools.push_back(descriptorPool);
     return descriptorPool;
 }

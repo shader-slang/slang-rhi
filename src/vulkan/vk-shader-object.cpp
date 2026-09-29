@@ -9,6 +9,8 @@
 
 #include "../state-tracking.h"
 
+#include <string>
+
 namespace rhi::vk {
 
 inline void writeDescriptor(DeviceImpl* device, const VkWriteDescriptorSet& write)
@@ -341,46 +343,59 @@ Result BindingDataBuilder::bindAsEntryPoint(
     uint32_t entryPointIndex
 )
 {
+    if (layout->getSlangLayout()->getStage() != SLANG_STAGE_RAY_GENERATION)
+    {
+        // For non-raygen entry points, ordinary data goes into push constants.
+        return bindAsPushConstantBuffer(shaderObject, inOffset, layout);
+    }
+
+    // For raygen entry points, ordinary data is stored in the SBT instead.
+    if (shaderObject->m_data.size())
+    {
+        SLANG_RHI_ASSERT(m_bindingData->entryPointData && entryPointIndex < m_bindingData->entryPointCount);
+        BindingDataImpl::EntryPointData& epData = m_bindingData->entryPointData[entryPointIndex];
+        epData.size = shaderObject->m_data.size();
+        epData.data = m_allocator->allocate(epData.size);
+        ::memcpy(epData.data, shaderObject->m_data.data(), epData.size);
+    }
+
+    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, inOffset, layout));
+
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindAsPushConstantBuffer(
+    ShaderObject* shaderObject,
+    const BindingOffset& inOffset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
     BindingOffset offset = inOffset;
 
     if (shaderObject->m_data.size())
     {
-        if (layout->getSlangLayout()->getStage() == SLANG_STAGE_RAY_GENERATION)
-        {
-            // For raygen entry points, ordinary data is stored in the SBT, not as push constants.
-            SLANG_RHI_ASSERT(m_bindingData->entryPointData && entryPointIndex < m_bindingData->entryPointCount);
-            BindingDataImpl::EntryPointData& epData = m_bindingData->entryPointData[entryPointIndex];
-            epData.size = shaderObject->m_data.size();
-            epData.data = m_allocator->allocate(epData.size);
-            ::memcpy(epData.data, shaderObject->m_data.data(), epData.size);
-        }
-        else
-        {
-            // For non-raygen entry points, ordinary data goes into push constants.
-            //
-            // The index of the push constant range to bind is passed down as part of the
-            // `offset`, and we increment it here so that any further recursively-contained
-            // push-constant ranges use the next index.
-            //
-            auto pushConstantRangeIndex = offset.pushConstantRange++;
+        // The offset identifies a range in the flattened pipeline layout. Increment it
+        // before recursing so any push constants nested in this object's contents use
+        // the following ranges.
+        const auto pushConstantRangeIndex = offset.pushConstantRange++;
+        SLANG_RHI_ASSERT(pushConstantRangeIndex < m_pushConstantRanges.size());
+        const auto& pushConstantRange = m_pushConstantRanges[pushConstantRangeIndex];
+        SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
 
-            // Information about the push constant ranges (including offsets and stage flags)
-            // was pre-computed for the entire program and stored on the binding context.
-            //
-            const auto& pushConstantRange = m_pushConstantRanges[pushConstantRangeIndex];
-            SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
-
-            uint32_t index = m_bindingData->pushConstantCount++;
-            m_bindingData->pushConstantRanges[index] = pushConstantRange;
-            m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
-            ::memcpy(m_bindingData->pushConstantData[index], shaderObject->m_data.data(), pushConstantRange.size);
-        }
+        const uint32_t index = m_bindingData->pushConstantCount++;
+        SLANG_RHI_ASSERT(index < m_pushConstantRanges.size());
+        m_bindingData->pushConstantRanges[index] = pushConstantRange;
+        m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
+        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(
+            m_bindingData->pushConstantData[index],
+            pushConstantRange.size,
+            specializedLayout
+        ));
     }
 
-    // Any remaining bindings in the object can be handled through the
-    // "value" case.
-    //
-    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, layout));
+    // Resources and nested parameter blocks in the push-constant element type still
+    // need their normal recursive binding treatment.
+    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout));
 
     return SLANG_OK;
 }
@@ -398,8 +413,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         return SLANG_OK;
     }
 
-    ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
+    TransientBufferArena::Allocation allocation;
+    SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(size, &allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
 
     // If we did indeed need/create a buffer, then we must bind it into
@@ -412,7 +427,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         ioOffset.binding,
         0,
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        allocation.buffer,
+        checked_cast<BufferImpl*>(allocation.buffer),
         {allocation.offset, size}
     );
     ioOffset.binding++;
@@ -447,6 +462,7 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
+        case slang::BindingType::PushConstant:
             break;
 
         case slang::BindingType::Texture:
@@ -572,9 +588,11 @@ Result BindingDataBuilder::bindAsValue(
             break;
 
         default:
-            SLANG_RHI_ASSERT_FAILURE("Unsupported binding type");
+        {
+            std::string message = "Unsupported binding type: " + std::to_string((int)bindingRangeInfo.bindingType);
+            SLANG_RHI_ASSERT_FAILURE(message.c_str());
             return SLANG_FAIL;
-            break;
+        }
         }
     }
 
@@ -633,6 +651,18 @@ Result BindingDataBuilder::bindAsValue(
                 //
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
                 SLANG_RETURN_ON_FAIL(bindAsParameterBlock(subObject, objOffset, subObjectLayout));
+            }
+        }
+        break;
+
+        case slang::BindingType::PushConstant:
+        {
+            BindingOffset objOffset = rangeOffset;
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
+                SLANG_RETURN_ON_FAIL(bindAsPushConstantBuffer(subObject, objOffset, subObjectLayout));
+                objOffset += rangeStride;
             }
         }
         break;

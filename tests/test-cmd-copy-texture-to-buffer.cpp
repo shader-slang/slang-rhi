@@ -3,6 +3,8 @@
 #include "texture-test.h"
 #include "resource-desc-utils.h"
 
+#include <numeric>
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -139,7 +141,9 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
             // Get cpu side data.
             TextureData& data = c->getTextureData();
 
-            uint32_t customAlignment = 512;
+            Size requiredRowAlignment = 1;
+            REQUIRE_CALL(device->getTextureRowAlignment(data.desc.format, &requiredRowAlignment));
+            Size customAlignment = std::lcm<Size>(512, requiredRowAlignment);
 
             // Calculate total size needed for buffer
             // Note: need to ask texture its layout here, to get platform compatible strides
@@ -149,7 +153,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
                 SubresourceLayout textureLayout;
                 REQUIRE_CALL(c->getTexture()->getSubresourceLayout(subresource.mip, &textureLayout));
 
-                textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
+                textureLayout.rowPitch = math::calcAligned(textureLayout.rowPitch, customAlignment);
                 textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;
                 textureLayout.sizeInBytes = textureLayout.slicePitch * textureLayout.size.depth;
 
@@ -177,7 +181,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
 
-                    textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
+                    textureLayout.rowPitch = math::calcAligned(textureLayout.rowPitch, customAlignment);
                     textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;
                     textureLayout.sizeInBytes = textureLayout.slicePitch * textureLayout.size.depth;
 
@@ -212,7 +216,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
 
-                    textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
+                    textureLayout.rowPitch = math::calcAligned(textureLayout.rowPitch, customAlignment);
                     textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;
                     textureLayout.sizeInBytes = textureLayout.slicePitch * textureLayout.size.depth;
 

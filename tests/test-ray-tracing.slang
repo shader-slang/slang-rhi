@@ -10,6 +10,11 @@ uniform uint2 dims;
 uniform RWTexture2D resultTexture;
 uniform RaytracingAccelerationStructure sceneBVH;
 
+[shader("intersection")]
+void intersectionShaderNoHit()
+{
+}
+
 [shader("raygeneration")]
 void rayGenShaderIdx0()
 {

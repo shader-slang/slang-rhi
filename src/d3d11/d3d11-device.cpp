@@ -173,7 +173,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 #endif
 
     SLANG_RHI_ASSERT(m_device && m_immediateContext);
-    SLANG_RETURN_ON_FAIL(m_immediateContext->QueryInterface(m_immediateContext1.writeRef()));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_immediateContext->QueryInterface(m_immediateContext1.writeRef()), this);
 
     // Initialize device info
     {
@@ -195,7 +195,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         D3D11_QUERY_DESC disjointQueryDesc = {};
         disjointQueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
         ComPtr<ID3D11Query> disjointQuery;
-        SLANG_RETURN_ON_FAIL(m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()), this);
         m_immediateContext->Begin(disjointQuery);
         m_immediateContext->End(disjointQuery);
         D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData = {};
@@ -525,9 +525,10 @@ Result DeviceImpl::readTexture(
     // Now just read back texels from the staging textures
     {
         D3D11_MAPPED_SUBRESOURCE mappedResource;
-        SLANG_RETURN_ON_FAIL(
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
             m_immediateContext
-                ->Map(stagingTextureImpl->m_resource.get(), subResourceIdx, D3D11_MAP_READ, 0, &mappedResource)
+                ->Map(stagingTextureImpl->m_resource.get(), subResourceIdx, D3D11_MAP_READ, 0, &mappedResource),
+            this
         );
 
         auto blob = OwnedBlob::create(layout.sizeInBytes);
@@ -574,7 +575,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     stagingBufferDesc.ByteWidth = size;
     stagingBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     stagingBufferDesc.Usage = D3D11_USAGE_STAGING;
-    SLANG_RETURN_ON_FAIL(m_device->CreateBuffer(&stagingBufferDesc, nullptr, stagingBuffer.writeRef()));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_device->CreateBuffer(&stagingBufferDesc, nullptr, stagingBuffer.writeRef()),
+        this
+    );
 
     // Copy to staging buffer.
     D3D11_BOX srcBox = {};
@@ -585,7 +589,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Map the staging buffer and copy data.
     D3D11_MAPPED_SUBRESOURCE mappedResource;
-    SLANG_RETURN_ON_FAIL(m_immediateContext->Map(stagingBuffer, 0, D3D11_MAP_READ, 0, &mappedResource));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_immediateContext->Map(stagingBuffer, 0, D3D11_MAP_READ, 0, &mappedResource),
+        this
+    );
     std::memcpy(outData, mappedResource.pData, size);
     m_immediateContext->Unmap(stagingBuffer, 0);
 

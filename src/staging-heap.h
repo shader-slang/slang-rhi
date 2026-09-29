@@ -42,6 +42,7 @@ public:
         // Allocate a node from the page heap.
         bool allocNode(
             Size size,
+            Size alignment,
             StagingHeap::MetaData metadata,
             std::thread::id lock_to_thread,
             std::list<Node>::iterator& res
@@ -134,19 +135,33 @@ public:
     // Attempt to cleanup and check no allocations remain
     void release();
 
-    // Allocate block of memory and wrap in a ref counted handle that automatically
-    // frees the allocation when handle is freed.
+    /// Allocate a block using the heap's default offset alignment and wrap it in a
+    /// ref-counted handle.
     Result allocHandle(size_t size, MetaData metadata, Handle** outHandle);
 
-    // Allocate a block of memory.
+    /// Allocate a block using the requested offset alignment instead of the heap's
+    /// default, and wrap it in a ref-counted handle.
+    Result allocHandle(size_t size, Size alignment, MetaData metadata, Handle** outHandle);
+
+    /// Allocate a block using the heap's default offset alignment.
     Result alloc(size_t size, MetaData metadata, Allocation* outAllocation);
 
-    // Allocate/store a block of data in the heap and wrap in a ref counted
-    // handle that automatically frees the allocation when handle is freed.
+    /// Allocate a block using the requested offset alignment instead of the heap's default.
+    Result alloc(size_t size, Size alignment, MetaData metadata, Allocation* outAllocation);
+
+    /// Allocate and store data using the heap's default offset alignment, wrapping
+    /// it in a ref-counted handle.
     Result stageHandle(const void* data, size_t size, MetaData metadata, Handle** outHandle);
 
-    // Allocate/store a block of data in the heap.
+    /// Allocate and store data using the requested offset alignment instead of the
+    /// heap's default, wrapping it in a ref-counted handle.
+    Result stageHandle(const void* data, size_t size, Size alignment, MetaData metadata, Handle** outHandle);
+
+    /// Allocate and store data using the heap's default offset alignment.
     Result stage(const void* data, size_t size, MetaData metadata, Allocation* outAllocation);
+
+    /// Allocate and store data using the requested offset alignment instead of the heap's default.
+    Result stage(const void* data, size_t size, Size alignment, MetaData metadata, Allocation* outAllocation);
 
     // Free existing allocation.
     void free(Allocation allocation);
@@ -175,14 +190,20 @@ public:
         return m_totalUsed;
     }
 
-    // Get alignment of heap.
-    Size getAlignment() const { return m_alignment; }
+    // Get the default offset alignment of heap allocations.
+    Size getDefaultAlignment() const { return m_defaultAlignment; }
+
+    // Get the granularity used to round allocation sizes.
+    Size getAllocationGranularity() const { return m_allocationGranularity; }
 
     // Get default page size.
     Size getPageSize() const { return m_pageSize; }
 
-    // Align a size to that of heap allocations.
-    Size alignUp(Size value) { return (value + m_alignment - 1) / m_alignment * m_alignment; }
+    // Round a size up to the heap's allocation granularity.
+    Size alignAllocationSize(Size value)
+    {
+        return (value + m_allocationGranularity - 1) / m_allocationGranularity * m_allocationGranularity;
+    }
 
     // Used by testing system to change whether pages stay mapped
     void testOnlySetKeepPagesMapped(bool keepPagesMapped) { m_keepPagesMapped = keepPagesMapped; }
@@ -198,16 +219,17 @@ private:
     int m_nextPageId = 1;
     Size m_totalCapacity = 0;
     Size m_totalUsed = 0;
-    Size m_alignment = 1024;
+    Size m_defaultAlignment = 1024;
+    Size m_allocationGranularity = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
     bool m_keepPagesMapped = true;
     std::unordered_map<int, RefPtr<Page>> m_pages;
     MemoryType m_memoryType;
     mutable std::mutex m_mutex;
 
-    Result allocHandleInternal(size_t size, MetaData metadata, Handle** outHandle);
+    Result allocHandleInternal(size_t size, Size alignment, MetaData metadata, Handle** outHandle);
 
-    Result allocInternal(size_t size, MetaData metadata, Allocation* outAllocation);
+    Result allocInternal(size_t size, Size alignment, MetaData metadata, Allocation* outAllocation);
 
     Result allocPage(size_t size, StagingHeap::Page** outPage);
 

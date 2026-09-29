@@ -10,5 +10,5 @@ void computeMain(
     uint3 sv_dispatchThreadID : SV_DispatchThreadID)
 {
     var input = buffer[sv_dispatchThreadID.x];
-    buffer[sv_dispatchThreadID.x] = input + 1;
+    buffer[sv_dispatchThreadID.x] = uint16_t(input + 1);
 }

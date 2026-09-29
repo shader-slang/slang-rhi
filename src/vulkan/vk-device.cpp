@@ -236,7 +236,7 @@ VkBool32 DeviceImpl::handleDebugMessage(
     // Ignore: VUID-VkShaderModuleCreateInfo-pCode-08737:
     // https://vulkan.lunarg.com/doc/view/1.4.321.1/windows/antora/spec/latest/chapters/shaders.html#VUID-VkShaderModuleCreateInfo-pCode-08737
     // This validation error is triggered by incorrect SPIR-V outputted by Slang:
-    // https://github.com/shader-slang/slang/issues/9106
+    // https://github.com/shader-slang/slang/issues/11841
     if (pCallbackData->messageIdNumber == -1520283006)
     {
         return VK_FALSE;
@@ -285,6 +285,39 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
 )
 {
     return ((DeviceImpl*)pUserData)->handleDebugMessage(messageSeverity, messageTypes, pCallbackData);
+}
+
+void DeviceImpl::reportShaderAbortMessage()
+{
+    // No-op unless the full shader-abort round-trip was enabled at device creation (Feature::ShaderAbort)
+    // and we still hold a device handle to query.
+    if (!hasFeature(Feature::ShaderAbort) || m_device == VK_NULL_HANDLE)
+        return;
+
+    // vkGetDeviceFaultDebugInfoKHR is an error-path entry point, so load it on demand rather than
+    // through the device proc table.
+    auto vkGetDeviceFaultDebugInfoKHR =
+        (PFN_vkGetDeviceFaultDebugInfoKHR)m_api.vkGetDeviceProcAddr(m_device, "vkGetDeviceFaultDebugInfoKHR");
+    if (!vkGetDeviceFaultDebugInfoKHR)
+        return;
+
+    // Chain VkDeviceFaultShaderAbortMessageInfoKHR so the driver fills in the message produced by
+    // OpAbortKHR. Use the standard two-call pattern: query the size first, then retrieve the data.
+    VkDeviceFaultShaderAbortMessageInfoKHR abortInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_SHADER_ABORT_MESSAGE_INFO_KHR};
+    VkDeviceFaultDebugInfoKHR debugInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_DEBUG_INFO_KHR};
+    debugInfo.pNext = &abortInfo;
+
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS || abortInfo.messageDataSize == 0)
+        return;
+
+    std::vector<char> buffer(abortInfo.messageDataSize);
+    abortInfo.pMessageData = buffer.data();
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS)
+        return;
+
+    // The message data is not guaranteed to be null-terminated; bound it to the reported size.
+    std::string message(buffer.data(), buffer.size());
+    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, ("Shader abort: " + message).c_str());
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -482,8 +515,9 @@ Result DeviceImpl::initVulkanInstance(
         messengerCreateInfo.pfnUserCallback = &debugMessageCallback;
         messengerCreateInfo.pUserData = this;
 
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback),
+            this
         );
     }
     return SLANG_OK;
@@ -510,10 +544,14 @@ Result DeviceImpl::initVulkanDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr),
+            this
+        );
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data()),
+            this
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -605,6 +643,7 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingMotionBlurFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.opacityMicromapFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.computeShaderDerivativesFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.extendedDynamicStateFeatures);
@@ -642,6 +681,9 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.faultFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderConstantDataFeatures);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -709,6 +751,40 @@ Result DeviceImpl::initVulkanDevice(
             code                                                                                                       \
         }                                                                                                              \
     }
+
+        // VK_KHR_shader_abort lets a shader call abort() (lowered by Slang to OpAbortKHR). Executing
+        // it ceases the invocation and loses the device; the abort message is then retrievable only
+        // via VK_KHR_device_fault (vkGetDeviceFaultDebugInfoKHR + VkDeviceFaultShaderAbortMessageInfoKHR).
+        // VK_KHR_shader_abort hard-depends on both VK_KHR_device_fault and VK_KHR_shader_constant_data,
+        // so the three must be enabled together. Feature::ShaderAbort is reported only when the whole
+        // round-trip (abort + fault-message retrieval) is available, since that is what the dependent
+        // runtime test (shader-slang/slang#11790) needs.
+        if (extensionNames.count(VK_KHR_SHADER_ABORT_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_DEVICE_FAULT_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME) &&
+            extendedFeatures.shaderAbortFeatures.shaderAbort && extendedFeatures.faultFeatures.deviceFault &&
+            extendedFeatures.shaderConstantDataFeatures.shaderConstantData)
+        {
+            // Enable all three extensions/features together (shader_abort hard-depends on the other
+            // two), chaining each queried feature struct into the device-create chain. The gate above
+            // has already verified each feature bit, so every call here succeeds.
+            addFeatureExtension(
+                extendedFeatures.shaderConstantDataFeatures.shaderConstantData,
+                extendedFeatures.shaderConstantDataFeatures,
+                VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME
+            );
+            addFeatureExtension(
+                extendedFeatures.faultFeatures.deviceFault,
+                extendedFeatures.faultFeatures,
+                VK_KHR_DEVICE_FAULT_EXTENSION_NAME
+            );
+            addFeatureExtension(
+                extendedFeatures.shaderAbortFeatures.shaderAbort,
+                extendedFeatures.shaderAbortFeatures,
+                VK_KHR_SHADER_ABORT_EXTENSION_NAME
+            );
+            availableFeatures.push_back(Feature::ShaderAbort);
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderDrawParametersFeatures,
@@ -815,6 +891,22 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             availableFeatures.push_back(Feature::AccelerationStructure);
+
+            const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
+                                             extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+            if (hasSynchronization2)
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.opacityMicromapFeatures,
+                    micromap,
+                    VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
+                    {
+                        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_3)
+                            deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+                        availableFeatures.push_back(Feature::OpacityMicromap);
+                    }
+                );
+            }
 
             // These both depend on VK_KHR_acceleration_structure
 
@@ -1052,16 +1144,65 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.cooperativeMatrix2Features,
-            cooperativeMatrixWorkgroupScope,
-            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+        // VK_NV_cooperative_matrix2 has independent feature bits - one does not imply another - so
+        // each is reported on its own bit and the extension is enabled whenever any exposed bit is
+        // supported. The gate lists exactly the bits mapped to a Feature/Capability below (flexible
+        // dimensions has no SPIR-V capability and is not exposed, so it is not part of the gate). It
+        // also depends on VK_KHR_cooperative_matrix (its capabilities require SPV_KHR_cooperative_matrix),
+        // so it is enabled only when that dependency is also enabled - keeping the enabled-extension
+        // list valid. The queried struct is inserted into the device pNext chain exactly once; a
+        // second insertion would self-link its pNext.
+        {
+            const auto& coopMat2 = extendedFeatures.cooperativeMatrix2Features;
+            const bool anyCoopMat2Feature =
+                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixReductions ||
+                coopMat2.cooperativeMatrixConversions || coopMat2.cooperativeMatrixPerElementOperations ||
+                coopMat2.cooperativeMatrixTensorAddressing || coopMat2.cooperativeMatrixBlockLoads;
+            // The KHR block above enables VK_KHR_cooperative_matrix under exactly this condition.
+            const bool khrCoopMatrixEnabled = extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix &&
+                                              extensionNames.count(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME) > 0;
+            if (khrCoopMatrixEnabled && addFeatureExtension(
+                                            anyCoopMat2Feature,
+                                            extendedFeatures.cooperativeMatrix2Features,
+                                            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME
+                                        ))
             {
-                availableFeatures.push_back(Feature::CooperativeMatrix2);
-                availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
-                availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+                if (coopMat2.cooperativeMatrixWorkgroupScope)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrix2);
+                    availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+                }
+                if (coopMat2.cooperativeMatrixReductions)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixReductions);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixReductionsNV);
+                }
+                if (coopMat2.cooperativeMatrixConversions)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixConversions);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixConversionsNV);
+                }
+                if (coopMat2.cooperativeMatrixPerElementOperations)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixPerElementOperations);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixPerElementOperationsNV);
+                }
+                if (coopMat2.cooperativeMatrixTensorAddressing)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixTensorAddressing);
+                    // This bit enables both the CooperativeMatrixTensorAddressingNV and the standalone
+                    // TensorAddressingNV SPIR-V capability (TensorView/TensorLayout), so advertise both.
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixTensorAddressingNV);
+                    availableCapabilities.push_back(Capability::spvTensorAddressingNV);
+                }
+                if (coopMat2.cooperativeMatrixBlockLoads)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixBlockLoads);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixBlockLoadsNV);
+                }
             }
-        );
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.mutableDescriptorTypeFeatures,
@@ -1372,6 +1513,63 @@ Result DeviceImpl::initVulkanDevice(
         m_calibratedTimestampSupport = {};
     }
 
+#if SLANG_PROCESSOR_ARM_64
+    // Ray tracing pipelines are currently broken on ARM64 lavapipe. Keep feature detection and device
+    // creation unchanged, but do not advertise the affected features or shader capabilities.
+    if (m_api.vkGetPhysicalDeviceProperties2 && (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2 ||
+                                                 extensionNames.count(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME)))
+    {
+        VkPhysicalDeviceDriverProperties driverProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        EXTEND_DESC_CHAIN(props, driverProps);
+        m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
+        if (driverProps.driverID == VK_DRIVER_ID_MESA_LLVMPIPE)
+        {
+            auto remove = [](auto& values, auto value)
+            {
+                values.erase(std::remove(values.begin(), values.end(), value), values.end());
+            };
+
+            for (Feature feature : {
+                     Feature::AccelerationStructure,
+                     Feature::AccelerationStructureSpheres,
+                     Feature::AccelerationStructureLinearSweptSpheres,
+                     Feature::RayTracing,
+                     Feature::RayQuery,
+                     Feature::ShaderExecutionReordering,
+                     Feature::RayTracingMotionBlur,
+                     Feature::RayTracingValidation,
+                     Feature::ClusterAccelerationStructure,
+                 })
+            {
+                remove(availableFeatures, feature);
+            }
+
+            for (Capability capability : {
+                     Capability::SPV_KHR_ray_tracing,
+                     Capability::SPV_KHR_ray_query,
+                     Capability::SPV_KHR_ray_tracing_position_fetch,
+                     Capability::SPV_NV_ray_tracing_motion_blur,
+                     Capability::SPV_NV_shader_invocation_reorder,
+                     Capability::SPV_NV_cluster_acceleration_structure,
+                     Capability::SPV_NV_linear_swept_spheres,
+                     Capability::spvRayTracingMotionBlurNV,
+                     Capability::spvRayTracingKHR,
+                     Capability::spvRayTracingPositionFetchKHR,
+                     Capability::spvRayQueryKHR,
+                     Capability::spvRayQueryPositionFetchKHR,
+                     Capability::spvShaderInvocationReorderNV,
+                     Capability::spirv_nv,
+                     Capability::spvRayTracingClusterAccelerationStructureNV,
+                     Capability::spvRayTracingLinearSweptSpheresGeometryNV,
+                 })
+            {
+                remove(availableCapabilities, capability);
+            }
+        }
+    }
+#endif
+
     return SLANG_OK;
 }
 
@@ -1384,8 +1582,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Process chained descs
     const VulkanDeviceExtendedDesc* extendedDesc = nullptr;
-    for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
-         header = header->next)
+    for (const ChainedStructHeader* header = static_cast<const ChainedStructHeader*>(desc.next); header;
+         header = static_cast<const ChainedStructHeader*>(header->next))
     {
         switch (header->type)
         {
@@ -1565,7 +1763,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
         {
             Feature feature = featureTable[i];
-            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_9))
+            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_10))
             {
                 addFeature(feature);
             }
@@ -1695,7 +1893,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler), this);
     }
 
     // Create bindless descriptor set if needed.
@@ -1840,6 +2038,24 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return SLANG_OK;
 }
 
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!m_api.vkGetMicromapBuildSizesEXT)
+        return SLANG_E_NOT_AVAILABLE;
+    MicromapBuildDescConverter converter;
+    SLANG_RETURN_ON_FAIL(converter.convert(desc));
+    VkMicromapBuildSizesInfoEXT info = {VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT};
+    m_api.vkGetMicromapBuildSizesEXT(
+        m_device,
+        VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+        &converter.buildInfo,
+        &info
+    );
+    outSizes->micromapSize = info.micromapSize;
+    outSizes->scratchSize = info.buildScratchSize;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     if (!m_api.vkGetClusterAccelerationStructureBuildSizesNV)
@@ -1902,10 +2118,31 @@ Result DeviceImpl::createAccelerationStructure(
             createInfo.pNext = &motionInfo;
         }
     }
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle),
+        this
     );
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!m_api.vkCreateMicromapEXT)
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = desc.size;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::MicromapStorage;
+    bufferDesc.defaultState = ResourceState::MicromapRead;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    VkMicromapCreateInfoEXT createInfo = {VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT};
+    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.size = desc.size;
+    createInfo.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateMicromapEXT(m_device, &createInfo, nullptr, &result->m_vkHandle));
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 
@@ -2037,7 +2274,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkImage image;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image), this);
 
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, image, &memRequirements);
@@ -2051,17 +2288,32 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
+    Size blockSize = getFormatInfo(format).blockSizeInBytes;
+    if (blockSize == 0)
+        blockSize = 1;
+
     switch (format)
     {
     case Format::D16Unorm:
     case Format::D32Float:
     case Format::D32FloatS8Uint:
-        *outAlignment = 4;
+        *outAlignment = math::calcAligned(4, blockSize);
         break;
     default:
-        *outAlignment = 1;
+        // VkBufferImageCopy expresses bufferRowLength in texels, so the byte
+        // row pitch must represent a whole number of format blocks.
+        *outAlignment = blockSize;
         break;
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureBufferOffsetAlignment(Format format, Size* outAlignment)
+{
+    const FormatInfo& formatInfo = getFormatInfo(format);
+    if (formatInfo.blockSizeInBytes == 0)
+        return SLANG_E_INVALID_ARG;
+    *outAlignment = formatInfo.kind == FormatKind::DepthStencil ? 4 : formatInfo.blockSizeInBytes;
     return SLANG_OK;
 }
 
@@ -2239,11 +2491,14 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
             vkPropertyCount,
             {VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV}
         );
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
-            m_api.m_physicalDevice,
-            &vkPropertyCount,
-            vkProperties.data()
-        ));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
+                m_api.m_physicalDevice,
+                &vkPropertyCount,
+                vkProperties.data()
+            ),
+            this
+        );
         for (const auto& vkProps : vkProperties)
         {
             CooperativeVectorProperties props;
@@ -2288,7 +2543,7 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     info.srcStride = rowColumnStride;
     info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     info.dstStride = rowColumnStride;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info), this);
     return SLANG_OK;
 }
 
@@ -2323,7 +2578,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
         info.srcStride = srcDesc.rowColumnStride;
         info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
         info.dstStride = dstDesc.rowColumnStride;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info), this);
     }
     return SLANG_OK;
 }
@@ -2441,7 +2696,15 @@ Result DeviceImpl::waitForFences(
     auto result = m_api.vkWaitSemaphores(m_api.m_device, &waitInfo, timeout);
     if (result == VK_TIMEOUT)
         return SLANG_E_TIME_OUT;
-    return result == VK_SUCCESS ? SLANG_OK : SLANG_FAIL;
+    if (result != VK_SUCCESS)
+    {
+        // Report the failure instead of dropping it silently, so that device loss (and any
+        // shader-abort message it carries) is surfaced when a caller waits on timeline fences
+        // after an aborting dispatch rather than via the command queue.
+        reportVulkanError(result, "vkWaitSemaphores", SLANG_RHI_SOURCE_LOCATION(), this);
+        return SLANG_FAIL;
+    }
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk

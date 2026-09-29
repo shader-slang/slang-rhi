@@ -325,7 +325,7 @@ void DeviceImpl::initializeFormatSupport()
         }
 
         // Add flags depending on feature support.
-        if (format == Format::BGRA8UnormSrgb)
+        if (format == Format::BGRA8Unorm)
         {
             flags |= supportBGRA8UnormStorage ? STORAGE_WO : 0;
         }
