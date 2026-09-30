@@ -97,6 +97,8 @@ struct ParentState
 // against the shared lifetime implementation without a backend or driver.
 struct TextureLifetimeDevice : Device
 {
+    using Device::readBuffer;
+
     LifetimeState& state;
     std::vector<InternalRefPtr<RefObject>> children;
 
