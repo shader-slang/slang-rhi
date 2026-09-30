@@ -1,10 +1,10 @@
 #include "testing.h"
+#include "barrier.h"
 #include <slang-rhi.h>
 #include "core/smart-pointer.h"
 #include "rhi-shared.h"
 #include "device.h"
 
-#include <barrier>
 #include <thread>
 
 using namespace rhi;
@@ -215,7 +215,7 @@ GPU_TEST_CASE("device-lifetime-default-view-concurrent-publication", ALL | DontC
         {
             auto texture = testDevice->createTexture(desc);
             REQUIRE(texture);
-            std::barrier start(8);
+            rhi::testing::Barrier start(8);
             std::atomic<ITextureView*> identity{nullptr};
             std::atomic<uint32_t> errors{0};
             std::vector<std::thread> threads;
@@ -225,7 +225,7 @@ GPU_TEST_CASE("device-lifetime-default-view-concurrent-publication", ALL | DontC
                     [&]
                     {
                         DeviceScope scope(testDevice);
-                        start.arrive_and_wait();
+                        start.arriveAndWait();
                         auto view = texture->getDefaultView();
                         ITextureView* expected = nullptr;
                         if (!view)

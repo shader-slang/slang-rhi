@@ -1,11 +1,11 @@
 #include "testing.h"
+#include "barrier.h"
 #include "core/smart-pointer.h"
 #include "rhi-shared.h"
 
 #include <atomic>
 #include <algorithm>
 #include <array>
-#include <barrier>
 #include <semaphore>
 #include <thread>
 #include <vector>
@@ -313,7 +313,7 @@ TEST_CASE("ref-object-concurrent-external-lifetimes")
     LifetimeState state;
     RefPtr<LifetimeOwner> owner = new LifetimeOwner(state);
     InternalRefPtr<LifetimeChild> child = new LifetimeChild(owner);
-    std::barrier phase(threadCount);
+    rhi::testing::Barrier phase(threadCount);
     std::atomic<uint32_t> errors{0};
     std::vector<std::thread> threads;
     for (uint32_t i = 0; i < threadCount; ++i)
@@ -323,14 +323,14 @@ TEST_CASE("ref-object-concurrent-external-lifetimes")
             {
                 for (uint32_t j = 0; j < iterations; ++j)
                 {
-                    phase.arrive_and_wait();
+                    phase.arriveAndWait();
                     RefPtr<LifetimeChild> external = retained;
-                    phase.arrive_and_wait();
+                    phase.arriveAndWait();
                     if (owner->getReferenceCount() != 2 || child->getExternalReferenceCount() != threadCount)
                         ++errors;
-                    phase.arrive_and_wait();
+                    phase.arriveAndWait();
                     external.setNull();
-                    phase.arrive_and_wait();
+                    phase.arriveAndWait();
                     if (owner->getReferenceCount() != 1 || child->getExternalReferenceCount() != 0)
                         ++errors;
                 }
@@ -352,15 +352,15 @@ TEST_CASE("ref-object-concurrent-final-releases")
     LifetimeState state;
     RefPtr<LifetimeOwner> owner = new LifetimeOwner(state);
     LifetimeChild* child = nullptr;
-    std::barrier phase(2);
+    rhi::testing::Barrier phase(2);
     std::thread internalReleaser(
         [&]
         {
             for (uint32_t i = 0; i < iterations; ++i)
             {
-                phase.arrive_and_wait();
+                phase.arriveAndWait();
                 child->releaseInternalReference();
-                phase.arrive_and_wait();
+                phase.arriveAndWait();
             }
         }
     );
@@ -369,9 +369,9 @@ TEST_CASE("ref-object-concurrent-final-releases")
         RefPtr<LifetimeChild> external = new LifetimeChild(owner);
         child = external;
         child->addInternalReference();
-        phase.arrive_and_wait();
+        phase.arriveAndWait();
         external.setNull();
-        phase.arrive_and_wait();
+        phase.arriveAndWait();
     }
     internalReleaser.join();
     CHECK_EQ(owner->getReferenceCount(), 1);
@@ -385,14 +385,14 @@ TEST_CASE("ref-object-overlapping-external-lifetimes")
     RefPtr<LifetimeOwner> owner = new LifetimeOwner(state);
     InternalRefPtr<LifetimeChild> child = new LifetimeChild(owner);
     std::atomic<uint32_t> errors{0};
-    std::barrier start(8);
+    rhi::testing::Barrier start(8);
     std::vector<std::thread> threads;
     for (uint32_t i = 0; i < 8; ++i)
     {
         threads.emplace_back(
             [&, retained = child]()
             {
-                start.arrive_and_wait();
+                start.arriveAndWait();
                 for (uint32_t j = 0; j < 20000; ++j)
                 {
                     RefPtr<LifetimeChild> external = retained;
@@ -531,14 +531,14 @@ TEST_CASE("ref-object-cache-concurrent-consumers")
     RefPtr<TextureLifetimeDevice> owner = new TextureLifetimeDevice(state);
     RefPtr<LifetimeTexture> parent = new LifetimeTexture(owner, parentState);
     auto* view = parent->getCachedView();
-    std::barrier start(8);
+    rhi::testing::Barrier start(8);
     std::vector<std::thread> threads;
     for (uint32_t i = 0; i < 8; ++i)
     {
         threads.emplace_back(
             [&, i]
             {
-                start.arrive_and_wait();
+                start.arriveAndWait();
                 for (uint32_t j = 0; j < 20000; ++j)
                 {
                     if ((i + j) % 2)
@@ -571,15 +571,15 @@ TEST_CASE("ref-object-cache-concurrent-final-releases")
     LifetimeState state;
     RefPtr<TextureLifetimeDevice> owner = new TextureLifetimeDevice(state);
     LifetimeTextureView* view = nullptr;
-    std::barrier phase(2);
+    rhi::testing::Barrier phase(2);
     std::thread internalReleaser(
         [&]
         {
             for (uint32_t i = 0; i < iterations; ++i)
             {
-                phase.arrive_and_wait();
+                phase.arriveAndWait();
                 view->releaseInternalReference();
-                phase.arrive_and_wait();
+                phase.arriveAndWait();
             }
         }
     );
@@ -591,9 +591,9 @@ TEST_CASE("ref-object-cache-concurrent-final-releases")
         view = external;
         view->addInternalReference();
         parent.setNull();
-        phase.arrive_and_wait();
+        phase.arriveAndWait();
         external.setNull();
-        phase.arrive_and_wait();
+        phase.arriveAndWait();
         CHECK_FALSE(parentState.alive);
         CHECK_EQ(parentState.viewsDestroyed.load(), 1);
         CHECK_EQ(parentState.errors.load(), 0);
