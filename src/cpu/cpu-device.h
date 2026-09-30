@@ -97,7 +97,7 @@ public:
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
 private:
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 };
 
 } // namespace rhi::cpu

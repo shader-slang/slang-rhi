@@ -11,7 +11,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
-    m_defaultView.setNull();
+    destroyDefaultView();
     DeviceImpl* device = getDevice<DeviceImpl>();
     for (auto& srv : m_srvs)
     {
@@ -54,7 +54,6 @@ void TextureImpl::deleteThis()
         delete this;
         return;
     }
-    m_defaultView.setNull();
     m_sampler.setNull();
     getDevice<DeviceImpl>()->deferDelete(this);
 }
@@ -86,18 +85,6 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     *outHandle = m_sharedHandle;
     return SLANG_OK;
 #endif
-}
-
-Result TextureImpl::getDefaultView(ITextureView** outTextureView)
-{
-    if (!m_defaultView)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
-        m_defaultView->setInternalReferenceCount(1);
-    }
-
-    returnComPtr(outTextureView, m_defaultView);
-    return SLANG_OK;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE
@@ -373,8 +360,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
     return allocation.cpuHandle;
 }
 
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
+TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc)
+    : TextureView(texture, desc)
+    , m_texture(texture)
 {
 }
 

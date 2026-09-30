@@ -60,7 +60,7 @@ public:
 
 public:
     QueryType m_queryType;
-    RefPtr<BufferImpl> m_buffer;
+    InternalRefPtr<BufferImpl> m_buffer;
     D3D12Resource m_readBackBuffer;
     uint8_t* m_mappedReadBackData = nullptr;
     uint32_t m_stride = 0;

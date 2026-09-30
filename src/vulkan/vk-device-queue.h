@@ -84,7 +84,7 @@ protected:
         VkFence fence = VK_NULL_HANDLE;
         bool active = false;
         uint64_t value = 0;
-        std::vector<RefPtr<RefObject>> retainedResources;
+        std::vector<InternalRefPtr<RefObject>> retainedResources;
     };
 
     void _updateFenceAtIndex(int fenceIndex, bool blocking);

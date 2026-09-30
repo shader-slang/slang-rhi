@@ -10,7 +10,7 @@ public:
     /// Data specific to a pipeline, including the buffer and table offsets/strides.
     struct PipelineData : public RefObject
     {
-        RefPtr<BufferImpl> buffer;
+        InternalRefPtr<BufferImpl> buffer;
 
         uint32_t rayGenTableOffset;
         uint32_t missTableOffset;

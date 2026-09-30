@@ -449,8 +449,6 @@ private:
                 if (request.pipeline->m_program->isSpecializable())
                 {
                     m_device->m_shaderCache.addSpecializedPipeline(request.key, request.concretePipeline);
-                    request.concretePipeline->breakStrongReferenceToDevice();
-                    request.concretePipeline->m_program->breakStrongReferenceToDevice();
                 }
                 else
                 {
