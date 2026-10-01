@@ -19,7 +19,7 @@ uniform RWStructuredBuffer<Result> resultBuffer;
 [raypayload]
 struct RayPayload
 {
-    float3 attribute : read(caller) : write(closesthit);
+    float3 attribute : read(caller) : write(closesthit, anyhit);
 };
 
 [raypayload]
@@ -47,6 +47,8 @@ struct RayPayloadAttribute
 static const float3 kInstanceTranslation = float3(1.0, 2.0, 3.0);
 static const float3 kRayOriginWorld = float3(0.0, 0.0, 0.0);
 static const float3 kTrianglePointObject = float3(0.25, 0.25, 1.0);
+// The object-ray tests use their separate swapped/scaled instance transform.
+static const float3 kObjectTestTargetWorld = float3(0.5, 3.0, 11.0);
 
 [shader("closesthit")]
 void closestHitNOP(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
@@ -115,7 +117,7 @@ void rayGenShaderObjectRayOrigin()
 
     RayDesc ray;
     ray.Origin = kRayOriginWorld;
-    ray.Direction = (kTrianglePointObject + kInstanceTranslation) - kRayOriginWorld;
+    ray.Direction = kObjectTestTargetWorld - kRayOriginWorld;
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
     TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
@@ -149,7 +151,7 @@ void rayGenShaderObjectRayDirection()
 
     RayDesc ray;
     ray.Origin = kRayOriginWorld;
-    ray.Direction = (kTrianglePointObject + kInstanceTranslation) - kRayOriginWorld;
+    ray.Direction = kObjectTestTargetWorld - kRayOriginWorld;
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
     TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);

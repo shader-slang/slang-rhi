@@ -30,10 +30,17 @@ constexpr std::array<float, 12> kInstanceTransform = {
     0.0f, 0.0f, 1.0f,  3.0f,
 };
 
-constexpr std::array<float, 12> kWorldToObjectTransform = {
-    1.0f, 0.0f, 0.0f, -1.0f,
-    0.0f, 1.0f, 0.0f, -2.0f,
-    0.0f, 0.0f, 1.0f, -3.0f,
+// Swapped, scaled axes distinguish object direction from world direction and normalization.
+constexpr std::array<float, 12> kObjectInstanceTransform = {
+    0.0f, -2.0f, 0.0f, 1.0f,
+    4.0f,  0.0f, 0.0f, 2.0f,
+    0.0f,  0.0f, 8.0f, 3.0f,
+};
+
+constexpr std::array<float, 12> kObjectWorldToObjectTransform = {
+     0.0f, 0.25f, 0.0f,   -0.5f,
+    -0.5f, 0.0f,  0.0f,    0.5f,
+     0.0f, 0.0f,  0.125f, -0.375f,
 };
 // clang-format on
 
@@ -65,6 +72,9 @@ constexpr std::array<float, 3> kRayOriginWorld = {0.0f, 0.0f, 0.0f};
 
 constexpr std::array<float, 3> kTrianglePointWorld = applyPointTransform(kInstanceTransform, kTrianglePointObject);
 constexpr std::array<float, 3> kWorldRayDirection = subtract(kTrianglePointWorld, kRayOriginWorld);
+constexpr std::array<float, 3> kObjectTestTargetWorld =
+    applyPointTransform(kObjectInstanceTransform, kTrianglePointObject);
+constexpr std::array<float, 3> kObjectTestDirectionWorld = subtract(kObjectTestTargetWorld, kRayOriginWorld);
 
 void checkFloat3(const float* actual, const std::array<float, 3>& expected)
 {
@@ -88,7 +98,7 @@ struct RayTracingTriangleTest
         const char* closestHitName,
         const char* anyHitName = nullptr,
         const char* missName = "missNOP",
-        bool applyInstanceTransform = false
+        const float* instanceTransform = nullptr
     )
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
@@ -96,7 +106,7 @@ struct RayTracingTriangleTest
         const bool enableAnyHit = anyHitName != nullptr;
         SingleTriangleBLAS blas(device, queue, enableAnyHit);
 
-        TLAS tlas = TLAS(device, queue, blas.blas, applyInstanceTransform ? kInstanceTransform.data() : nullptr);
+        TLAS tlas = TLAS(device, queue, blas.blas, instanceTransform);
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {{closestHitName, anyHitName}};
         std::vector<const char*> missNames = {missName};
@@ -157,33 +167,44 @@ struct RayTracingMotionBlurTriangleTest
 
 } // namespace
 
-GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
+GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL | DontCreateDevice)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
-
-    constexpr std::array<float, 3> kExpectedObjectRayOrigin =
-        applyPointTransform(kWorldToObjectTransform, kRayOriginWorld);
-
-    RayTracingTriangleTest test;
-    test.init(device);
-    test.createResultBuffer(sizeof(RayIntrinsicResult));
-
-    // OptiX only allows calling ObjectRayOrigin from any hit or intersection.
-    const char* closestHitName = "closestHitWriteObjectRayOrigin";
-    const char* anyHitName = nullptr;
-    if (device->getInfo().deviceType == DeviceType::CUDA)
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
     {
-        closestHitName = nullptr;
-        anyHitName = "anyHitWriteObjectRayOrigin";
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto testDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(testDevice != nullptr);
+        if (!testDevice->hasFeature(Feature::RayTracing))
+            SKIP("ray tracing not supported");
+
+        constexpr std::array<float, 3> kExpectedObjectRayOrigin =
+            applyPointTransform(kObjectWorldToObjectTransform, kRayOriginWorld);
+
+        RayTracingTriangleTest test;
+        test.init(testDevice);
+        test.createResultBuffer(sizeof(RayIntrinsicResult));
+
+        // OptiX only allows calling ObjectRayOrigin from any hit or intersection.
+        const char* closestHitName = "closestHitWriteObjectRayOrigin";
+        const char* anyHitName = nullptr;
+        if (testDevice->getInfo().deviceType == DeviceType::CUDA)
+        {
+            closestHitName = nullptr;
+            anyHitName = "anyHitWriteObjectRayOrigin";
+        }
+
+        test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName, "missNOP", kObjectInstanceTransform.data());
+
+        ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+        const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+        checkFloat3(result->value, kExpectedObjectRayOrigin);
     }
-
-    test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName, "missNOP", /*applyInstanceTransform=*/true);
-
-    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
-    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
-
-    checkFloat3(result->value, kExpectedObjectRayOrigin);
 }
 
 GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
@@ -199,7 +220,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
         "closestHitWriteWorldRayOrigin",
         nullptr,
         "missNOP",
-        /*applyInstanceTransform=*/true
+        kInstanceTransform.data()
     );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
@@ -208,33 +229,50 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
     checkFloat3(result->value, kRayOriginWorld);
 }
 
-GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
+GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL | DontCreateDevice)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
-
-    constexpr std::array<float, 3> kExpectedObjectRayDirection =
-        applyVectorTransform(kWorldToObjectTransform, kWorldRayDirection);
-
-    RayTracingTriangleTest test;
-    test.init(device);
-    test.createResultBuffer(sizeof(RayIntrinsicResult));
-
-    // OptiX only allows calling ObjectRayDirection from any hit or intersection.
-    const char* closestHitName = "closestHitWriteObjectRayDirection";
-    const char* anyHitName = nullptr;
-    if (device->getInfo().deviceType == DeviceType::CUDA)
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
     {
-        closestHitName = nullptr;
-        anyHitName = "anyHitWriteObjectRayDirection";
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto testDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(testDevice != nullptr);
+        if (!testDevice->hasFeature(Feature::RayTracing))
+            SKIP("ray tracing not supported");
+
+        constexpr std::array<float, 3> kExpectedObjectRayDirection =
+            applyVectorTransform(kObjectWorldToObjectTransform, kObjectTestDirectionWorld);
+
+        RayTracingTriangleTest test;
+        test.init(testDevice);
+        test.createResultBuffer(sizeof(RayIntrinsicResult));
+
+        // OptiX only allows calling ObjectRayDirection from any hit or intersection.
+        const char* closestHitName = "closestHitWriteObjectRayDirection";
+        const char* anyHitName = nullptr;
+        if (testDevice->getInfo().deviceType == DeviceType::CUDA)
+        {
+            closestHitName = nullptr;
+            anyHitName = "anyHitWriteObjectRayDirection";
+        }
+
+        test.run(
+            "rayGenShaderObjectRayDirection",
+            closestHitName,
+            anyHitName,
+            "missNOP",
+            kObjectInstanceTransform.data()
+        );
+
+        ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+        const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+        checkFloat3(result->value, kExpectedObjectRayDirection);
     }
-
-    test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName, "missNOP", /*applyInstanceTransform=*/true);
-
-    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
-    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
-
-    checkFloat3(result->value, kExpectedObjectRayDirection);
 }
 
 GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-direction", ALL)
@@ -250,7 +288,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-direction", ALL)
         "closestHitWriteWorldRayDirection",
         nullptr,
         "missNOP",
-        /*applyInstanceTransform=*/true
+        kInstanceTransform.data()
     );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
