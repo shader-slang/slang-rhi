@@ -1136,6 +1136,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-ray-tracing-reorder.cpp
         tests/test-ray-tracing-shader-table-multi-pipeline.cpp
         tests/test-ray-tracing-sphere.cpp
+        tests/test-ray-tracing-transform-list.cpp
         tests/test-ray-tracing-transform-query.cpp
         tests/test-ray-tracing.cpp
         tests/test-resolve-resource-tests.cpp
