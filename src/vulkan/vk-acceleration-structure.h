@@ -24,7 +24,7 @@ public:
     DeviceAddress getAccelerationStructureDeviceAddress();
 
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
-    RefPtr<BufferImpl> m_buffer;
+    InternalRefPtr<BufferImpl> m_buffer;
     DeviceAddress m_deviceAddress = 0;
     DescriptorHandle m_descriptorHandle;
 };
@@ -45,7 +45,7 @@ public:
 
 public:
     VkMicromapEXT m_vkHandle = VK_NULL_HANDLE;
-    RefPtr<BufferImpl> m_buffer;
+    InternalRefPtr<BufferImpl> m_buffer;
 };
 
 struct AccelerationStructureBuildDescConverter

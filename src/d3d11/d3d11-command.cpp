@@ -1107,7 +1107,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
         );
     }
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

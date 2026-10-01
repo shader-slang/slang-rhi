@@ -1973,7 +1973,7 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     return SLANG_OK;
 }
 
-void CommandQueueImpl::shutdown()
+void CommandQueueImpl::waitAndReleaseCommandBuffers()
 {
     waitOnHost();
     // A failed device wait may leave command buffers in the in-flight list. Destroy them before
@@ -1981,6 +1981,11 @@ void CommandQueueImpl::shutdown()
     m_commandBuffersInFlight.clear();
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+}
+
+void CommandQueueImpl::shutdown()
+{
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty() && m_commandBuffersPool.empty());
     // Release the shared constant-buffer pages while deferred deletion is still available.
     m_constantBufferHeap.release();
     // Execute remaining deferred deletes.
@@ -2009,7 +2014,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
-        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -2021,25 +2025,28 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_commandBuffersPool.push_back(commandBuffer);
-        commandBuffer->setInternalReferenceCount(1);
     }
 }
 
 void CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
     uint64_t lastFinishedID = updateLastFinishedID();
-    for (const auto& commandBuffer : commandBuffers)
+    while (!commandBuffers.empty())
     {
+        auto current = commandBuffers.begin();
+        CommandBufferImpl* commandBuffer = current->get();
         if (commandBuffer->m_submissionID <= lastFinishedID)
         {
-            retireCommandBuffer(commandBuffer);
+            commandBuffer->reset();
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_commandBuffersPool.splice(m_commandBuffersPool.end(), commandBuffers, current);
         }
         else
         {
-            m_commandBuffersInFlight.push_back(commandBuffer);
+            m_commandBuffersInFlight.splice(m_commandBuffersInFlight.end(), commandBuffers, current);
         }
     }
 
@@ -2065,7 +2072,7 @@ void CommandQueueImpl::executeDeferredDeletes()
     std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
     while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
     {
-        // GPU is done with this resource - delete it.
+        // Destructors must not enqueue deferred deletes; release child resources in deleteThis().
         delete m_deferredDeleteQueue.front().resource;
         m_deferredDeleteQueue.pop();
     }
@@ -2256,7 +2263,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

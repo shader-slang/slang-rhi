@@ -13,7 +13,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
-    m_defaultView.setNull();
+    destroyDefaultView();
     if (m_texture)
     {
         getDevice<DeviceImpl>()->m_ctx.api.wgpuTextureRelease(m_texture);
@@ -31,18 +31,6 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
-}
-
-Result TextureImpl::getDefaultView(ITextureView** outTextureView)
-{
-    if (!m_defaultView)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
-        m_defaultView->setInternalReferenceCount(1);
-    }
-
-    returnComPtr(outTextureView, m_defaultView);
-    return SLANG_OK;
 }
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
@@ -144,8 +132,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 }
 
 
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
+TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc)
+    : TextureView(texture, desc)
+    , m_texture(texture)
 {
 }
 
@@ -167,8 +156,7 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     TextureImpl* textureImpl = checked_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
-    view->m_texture = textureImpl;
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(textureImpl, desc);
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(view->m_desc.subresourceRange);
 
     WGPUTextureViewDescriptor viewDesc = {};

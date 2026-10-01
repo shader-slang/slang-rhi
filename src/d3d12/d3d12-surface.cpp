@@ -77,7 +77,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     auto result = (int)m_swapChain3->GetCurrentBackBufferIndex();
     WaitForSingleObject(m_frameEvents[result], INFINITE);
     ResetEvent(m_frameEvents[result]);
-    returnComPtr(outTexture, m_textures[result]);
+    returnComPtrCopy(outTexture, m_textures[result]);
     return SLANG_OK;
 }
 

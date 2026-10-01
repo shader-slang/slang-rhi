@@ -101,7 +101,7 @@ public:
     NS::SharedPtr<MTL::SharedEventListener> m_trackingEventListener;
     uint64_t m_lastSubmittedID;
     uint64_t m_lastFinishedID;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
     // Deferred delete queue for GPU resources.
     // Resources are held here until the GPU has finished using them.
@@ -117,6 +117,10 @@ public:
     ~CommandQueueImpl();
 
     void init(NS::SharedPtr<MTL::CommandQueue> commandQueue);
+    // Wait for GPU work and release command buffers before releasing device-owned heaps.
+    void waitAndReleaseCommandBuffers();
+    // Drain deferred deletes and destroy native queue services after command buffers and device-owned heaps are
+    // released.
     void shutdown();
 
     void retireCommandBuffers();

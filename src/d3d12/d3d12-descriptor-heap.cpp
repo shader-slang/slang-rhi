@@ -40,7 +40,7 @@ Result CPUDescriptorHeap::create(
 )
 {
     RefPtr<CPUDescriptorHeap> heap = new CPUDescriptorHeap(device, type, pageSize);
-    returnRefPtrMove(outHeap, heap);
+    returnRefPtr(outHeap, heap);
     return SLANG_OK;
 }
 
@@ -168,7 +168,7 @@ Result GPUDescriptorHeap::create(
 {
     RefPtr<GPUDescriptorHeap> heap = new GPUDescriptorHeap(device, type, size, maxAllocations);
     SLANG_RETURN_ON_FAIL(heap->m_heap.init(device, type, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, size));
-    returnRefPtrMove(outHeap, heap);
+    returnRefPtr(outHeap, heap);
     return SLANG_OK;
 }
 
