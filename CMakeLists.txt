@@ -1098,6 +1098,8 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-link-time-options.cpp
         tests/test-link-time-type.cpp
         tests/test-math.cpp
+        tests/test-example-math.cpp
+        tests/test-example-path-tracer.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
