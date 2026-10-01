@@ -33,6 +33,7 @@ struct Options
     uint32_t d3d12ShaderModel = 0;
     bool d3d12DisableNVAPI = false;
     int optixVersion = 0;
+    std::vector<slang::CompilerOptionEntry> cudaCompilerOptions;
 
     Options()
     {
@@ -47,6 +48,9 @@ inline Options& options()
     static Options opts;
     return opts;
 }
+
+// Validates an explicit CUDA selector and records only its canonical compiler option.
+Result setCudaCompiler(const char* compiler);
 
 inline std::string& exePath()
 {

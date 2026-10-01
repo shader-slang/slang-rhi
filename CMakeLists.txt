@@ -1046,6 +1046,23 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(renderdoc INTERFACE)
     target_include_directories(renderdoc INTERFACE external/renderdoc)
 
+    # Keep default test builds compatible with older Slang headers. Recheck when a configure
+    # switches between fetched headers and a local compiler build in the same build directory.
+    include(CheckCXXSourceCompiles)
+    include(CMakePushCheckState)
+    cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_INCLUDES "${SLANG_RHI_SLANG_INCLUDE_DIR}")
+    unset(SLANG_RHI_HAS_CUDA_COMPILER_SELECTION CACHE)
+    check_cxx_source_compiles("
+        #include <slang.h>
+        int main()
+        {
+            return int(slang::CompilerOptionName::EmitCUDAMethod)
+                + int(SLANG_EMIT_CUDA_VIA_NVVM) + int(SLANG_EMIT_CUDA_VIA_NVRTC);
+        }
+    " SLANG_RHI_HAS_CUDA_COMPILER_SELECTION)
+    cmake_pop_check_state()
+
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
@@ -1156,6 +1173,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_compile_definitions(slang-rhi-tests
         PRIVATE
         SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+        SLANG_RHI_HAS_CUDA_COMPILER_SELECTION=$<BOOL:${SLANG_RHI_HAS_CUDA_COMPILER_SELECTION}>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
         SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"

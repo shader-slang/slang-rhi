@@ -31,6 +31,51 @@
 
 namespace rhi::testing {
 
+Result setCudaCompiler(const char* compiler)
+{
+    if (strcmp(compiler, "nvvm") != 0 && strcmp(compiler, "nvrtc") != 0)
+    {
+        std::fprintf(stderr, "Invalid CUDA compiler '%s'; expected nvvm or nvrtc.\n", compiler);
+        return SLANG_E_INVALID_ARG;
+    }
+
+#if SLANG_RHI_HAS_CUDA_COMPILER_SELECTION
+    // Validate against the linked runtime as well as the headers used to build this test.
+    // The SessionDesc convenience parser can return default options after a parse error;
+    // a compile request preserves the parser's result and diagnostic instead.
+    ComPtr<slang::IGlobalSession> globalSession;
+    Result result = slang::createGlobalSession(globalSession.writeRef());
+    slang::SessionDesc sessionDesc = {};
+    ComPtr<slang::ISession> session;
+    if (SLANG_SUCCEEDED(result))
+        result = globalSession->createSession(sessionDesc, session.writeRef());
+    ComPtr<slang::ICompileRequest> request;
+    if (SLANG_SUCCEEDED(result))
+        result = session->createCompileRequest(request.writeRef());
+    const char* argument = strcmp(compiler, "nvvm") == 0 ? "-emit-cuda-via-nvvm" : "-emit-cuda-via-nvrtc";
+    if (SLANG_SUCCEEDED(result))
+        result = request->processCommandLineArguments(&argument, 1);
+    if (SLANG_FAILED(result))
+    {
+        std::fprintf(stderr, "The linked Slang compiler cannot select CUDA compiler '%s'.\n", compiler);
+        if (request)
+            std::fprintf(stderr, "%s", request->getDiagnosticOutput());
+        return result;
+    }
+
+    // Do not forward the parser's unrelated defaults over per-test compiler options.
+    slang::CompilerOptionEntry entry = {};
+    entry.name = slang::CompilerOptionName::EmitCUDAMethod;
+    entry.value.kind = slang::CompilerOptionValueKind::Int;
+    entry.value.intValue0 = strcmp(compiler, "nvvm") == 0 ? SLANG_EMIT_CUDA_VIA_NVVM : SLANG_EMIT_CUDA_VIA_NVRTC;
+    options().cudaCompilerOptions = {entry};
+    return SLANG_OK;
+#else
+    std::fprintf(stderr, "CUDA compiler selection requires Slang headers exposing EmitCUDAMethod.\n");
+    return SLANG_E_NOT_AVAILABLE;
+#endif
+}
+
 static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
 static ShaderCache gShaderCache;
 
@@ -647,6 +692,12 @@ ComPtr<IDevice> createTestingDevice(
             compilerOptions.push_back(option);
     }
 
+    if (deviceType == DeviceType::CUDA)
+    {
+        const auto& cudaOptions = options().cudaCompilerOptions;
+        compilerOptions.insert(compilerOptions.end(), cudaOptions.begin(), cudaOptions.end());
+    }
+
     slang::CompilerOptionEntry emitSpirvDirectlyEntry;
     emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
     emitSpirvDirectlyEntry.value.intValue0 = 1;
@@ -927,6 +978,12 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     DeviceDesc desc;
     desc.deviceType = deviceType;
     desc.adapter = getSelectedDeviceAdapter(deviceType);
+    if (deviceType == DeviceType::CUDA)
+    {
+        const auto& cudaOptions = options().cudaCompilerOptions;
+        desc.slang.compilerOptionEntries = cudaOptions.data();
+        desc.slang.compilerOptionEntryCount = cudaOptions.size();
+    }
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif

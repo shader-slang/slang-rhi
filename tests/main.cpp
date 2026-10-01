@@ -173,6 +173,19 @@ int main(int argc, const char** argv)
             options.d3d12DisableNVAPI = true;
         }
 
+        if (doctest::parseFlag(argc, argv, "cuda-compiler") || doctest::parseFlag(argc, argv, "cuda-compiler="))
+        {
+            std::fprintf(stderr, "CUDA compiler selection requires --cuda-compiler=nvvm or --cuda-compiler=nvrtc.\n");
+            return 1;
+        }
+
+        doctest::String cudaCompiler;
+        if (doctest::parseOption(argc, argv, "cuda-compiler=", &cudaCompiler))
+        {
+            if (SLANG_FAILED(rhi::testing::setCudaCompiler(cudaCompiler.c_str())))
+                return 1;
+        }
+
         doctest::parseIntOption(argc, argv, "optix-version=", doctest::option_int, options.optixVersion);
 
         if (doctest::parseFlag(argc, argv, "memory-report"))
