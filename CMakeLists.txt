@@ -1129,6 +1129,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-ray-tracing-array-payload.cpp
         tests/test-ray-tracing-clusters.cpp
         tests/test-ray-tracing-hitobject-intrinsics.cpp
+        tests/test-ray-tracing-hitobject-lifecycle.cpp
         tests/test-ray-tracing-instance-matrix.cpp
         tests/test-ray-tracing-intrinsics.cpp
         tests/test-ray-tracing-lss.cpp

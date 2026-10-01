@@ -717,7 +717,10 @@ public:
 
         OptixPipelineCompileOptions optixPipelineCompileOptions = {};
         optixPipelineCompileOptions.usesMotionBlur = 0;
-        optixPipelineCompileOptions.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
+        // Owned HitObject replay reconstructs a GAS hit with an explicit transform list.
+        // The single-level specialization loses instance IDs and faults on curve queries in
+        // this path with OptiX 9; the general graph mode preserves the reconstructed state.
+        optixPipelineCompileOptions.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
         optixPipelineCompileOptions.numPayloadValues =
             (desc.maxRayPayloadSize + sizeof(uint32_t) - 1) / sizeof(uint32_t);
         optixPipelineCompileOptions.numAttributeValues =
