@@ -466,12 +466,31 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
 {
     if (m_accelerationStructures.arrayDirty)
     {
-        m_accelerationStructures.array = NS::TransferPtr(
-            NS::Array::alloc()->init(
-                (const NS::Object* const*)m_accelerationStructures.list.data(),
-                m_accelerationStructures.list.size()
-            )
-        );
+        // Instance descriptors use stable registry indices. Released structures
+        // leave holes, but NSArray rejects nil elements. Fill unused indices
+        // with a live structure without changing any instance's index.
+        auto structures = m_accelerationStructures.list;
+        MTL::AccelerationStructure* placeholder = nullptr;
+        for (auto structure : structures)
+        {
+            if (structure)
+            {
+                placeholder = structure;
+                break;
+            }
+        }
+        if (placeholder)
+        {
+            for (auto& structure : structures)
+                if (!structure)
+                    structure = placeholder;
+        }
+        else
+        {
+            structures.clear();
+        }
+        m_accelerationStructures.array =
+            NS::TransferPtr(NS::Array::alloc()->init((const NS::Object* const*)structures.data(), structures.size()));
         m_accelerationStructures.arrayDirty = false;
     }
     return m_accelerationStructures.array.get();
