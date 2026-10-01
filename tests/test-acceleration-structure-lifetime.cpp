@@ -3,9 +3,9 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static ComPtr<IAccelerationStructure> buildTriangle(IDevice* device, ICommandQueue* queue, float z)
+static ComPtr<IAccelerationStructure> buildTriangle(IDevice* device, ICommandQueue* queue, float z, float xOffset = 0.f)
 {
-    const Vertex vertices[] = {{0.f, 0.f, z}, {1.f, 0.f, z}, {0.f, 1.f, z}};
+    const Vertex vertices[] = {{xOffset, 0.f, z}, {xOffset + 1.f, 0.f, z}, {xOffset, 1.f, z}};
     BufferDesc vertexDesc = {};
     vertexDesc.size = sizeof(vertices);
     vertexDesc.usage = BufferUsage::AccelerationStructureBuildInput;
@@ -64,7 +64,7 @@ GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Met
         void computeMain(uint3 tid : SV_DispatchThreadID)
         {
             RayDesc ray;
-            ray.Origin = float3(tid.x == 0 ? 0.25 : 2.0, 0.25, 0.0);
+            ray.Origin = float3(tid.x == 0 ? 0.25 : 2.25, 0.25, 0.0);
             ray.Direction = float3(0.0, 0.0, 1.0);
             ray.TMin = 0.0;
             ray.TMax = 10.0;
@@ -97,7 +97,9 @@ GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Met
         // Keep an unrelated BLAS alive before the target. Compacting the registry
         // would change the target's index and could select the wrong geometry.
         auto discarded = buildTriangle(device, queue, 3.f);
-        auto decoy = buildTriangle(device, queue, 1.f);
+        // The second ray hits only the decoy's geometry. It must still miss the
+        // TLAS: using the decoy as a hole filler must not create an extra instance.
+        auto decoy = buildTriangle(device, queue, 1.f, 2.f);
         auto target = buildTriangle(device, queue, 2.f);
 
         // Release more slots than the new TLAS can reuse, leaving holes when
@@ -105,8 +107,11 @@ GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Met
         {
             auto temporary0 = buildTriangle(device, queue, 4.f);
             auto temporary1 = buildTriangle(device, queue, 5.f);
+            // Retire the earlier slot first, so the TLAS reuses a later slot and
+            // a hole remains before the live decoy and target.
+            discarded.setNull();
+            REQUIRE_CALL(queue->waitOnHost());
         }
-        discarded.setNull();
         REQUIRE_CALL(queue->waitOnHost());
 
         TLAS scene(device, queue, target);

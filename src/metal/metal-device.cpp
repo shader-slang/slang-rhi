@@ -466,24 +466,29 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
 {
     if (m_accelerationStructures.arrayDirty)
     {
-        // Instance descriptors use stable registry indices. Released structures
-        // leave holes, but NSArray rejects nil elements. Fill unused indices
-        // with a live structure without changing any instance's index.
+        // Instance descriptors use stable registry indices, so we cannot compact
+        // the holes left by released structures. NSArray rejects nil elements.
+        // Only instance descriptors create TLAS instances; this array supplies
+        // their index targets. Valid descriptors never reference unregistered
+        // slots, so filling those slots with a live structure adds no instances
+        // or geometry and does not change ray intersections. Fill only this copy:
+        // the registry keeps its holes so the free list can reuse them.
+        // NSArray retains these references; it does not copy the structures.
         auto structures = m_accelerationStructures.list;
-        MTL::AccelerationStructure* placeholder = nullptr;
+        MTL::AccelerationStructure* unusedSlotPlaceholder = nullptr;
         for (auto structure : structures)
         {
             if (structure)
             {
-                placeholder = structure;
+                unusedSlotPlaceholder = structure;
                 break;
             }
         }
-        if (placeholder)
+        if (unusedSlotPlaceholder)
         {
             for (auto& structure : structures)
                 if (!structure)
-                    structure = placeholder;
+                    structure = unusedSlotPlaceholder;
         }
         else
         {
