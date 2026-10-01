@@ -362,6 +362,10 @@ uniform RWStructuredBuffer<uint> identityResults;
         : write(closesthit, miss);
     uint hit : read(caller)
         : write(closesthit, miss);
+    uint rayFlags : read(caller)
+        : write(closesthit, miss);
+    uint hitKind : read(caller)
+        : write(closesthit, miss);
 };
 
 [shader("closesthit")] void closestHitWriteIdentities(
@@ -373,6 +377,8 @@ uniform RWStructuredBuffer<uint> identityResults;
     payload.instanceIndex = InstanceIndex();
     payload.instanceID = InstanceID();
     payload.hit = 1;
+    payload.rayFlags = RayFlags();
+    payload.hitKind = HitKind();
 }
 
     [shader("miss")] void missWriteIdentities(inout IdentityPayload payload)
@@ -381,6 +387,8 @@ uniform RWStructuredBuffer<uint> identityResults;
     payload.instanceIndex = 0xdead0002;
     payload.instanceID = 0xdead0003;
     payload.hit = 0;
+    payload.rayFlags = RayFlags();
+    payload.hitKind = 0xdead0004;
 }
 
 [shader("raygeneration")] void rayGenShaderIdentities()
@@ -400,11 +408,14 @@ uniform RWStructuredBuffer<uint> identityResults;
     ray.TMin = 0.001;
     ray.TMax = 2.0;
     IdentityPayload payload = {};
-    TraceRay(sceneBVH, RAY_FLAG_FORCE_OPAQUE, 0xff, 0, 0, 0, ray, payload);
+    uint flags = index % 2 == 0 ? RAY_FLAG_FORCE_OPAQUE : RAY_FLAG_NONE;
+    TraceRay(sceneBVH, flags, 0xff, 0, 0, 0, ray, payload);
 
-    uint offset = 1 + index * 4;
+    uint offset = 1 + index * 6;
     identityResults[offset] = payload.primitive;
     identityResults[offset + 1] = payload.instanceIndex;
     identityResults[offset + 2] = payload.instanceID;
     identityResults[offset + 3] = payload.hit;
+    identityResults[offset + 4] = payload.rayFlags;
+    identityResults[offset + 5] = payload.hitKind;
 }

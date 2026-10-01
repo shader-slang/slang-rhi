@@ -551,7 +551,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-identities", ALL | DontCreateDevice)
         );
 
         // Initialize every output word so missing writes and either guard overwrite fail.
-        std::array<uint32_t, 30> initial;
+        std::array<uint32_t, 44> initial;
         initial.fill(0xa5a5a5a5);
         initial.front() = 0x13579bdf;
         initial.back() = 0x2468ace0;
@@ -579,15 +579,18 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-identities", ALL | DontCreateDevice)
         REQUIRE_EQ(blob->getBufferSize(), sizeof(initial));
         const auto* actual = static_cast<const uint32_t*>(blob->getBufferPointer());
         CHECK_EQ(actual[0], initial.front());
-        CHECK_EQ(actual[29], initial.back());
+        CHECK_EQ(actual[43], initial.back());
         for (uint32_t index = 0; index < 7; ++index)
         {
             CAPTURE(index);
-            const uint32_t offset = 1 + index * 4;
+            const uint32_t offset = 1 + index * 6;
             CHECK_EQ(actual[offset], index < 6 ? index % 3 : 0xdead0001);
             CHECK_EQ(actual[offset + 1], index < 6 ? index / 3 : 0xdead0002);
             CHECK_EQ(actual[offset + 2], index < 6 ? (index < 3 ? 0xF00D : 0x1234) : 0xdead0003);
             CHECK_EQ(actual[offset + 3], index < 6 ? 1 : 0);
+            CHECK_EQ(actual[offset + 4], index % 2 == 0 ? 1 : 0);
+            // For +Z rays, triangles 0/1 are back-facing and triangle 2 is front-facing.
+            CHECK_EQ(actual[offset + 5], index < 6 ? (index % 3 == 2 ? 254 : 255) : 0xdead0004);
         }
     }
 }
