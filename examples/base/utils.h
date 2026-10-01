@@ -2,7 +2,7 @@
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
-#include "../src/enum-strings.h"
+#include "../../src/enum-strings.h"
 
 #include <execution>
 #include <limits>
