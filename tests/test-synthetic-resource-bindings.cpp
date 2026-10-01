@@ -10,6 +10,22 @@ using namespace rhi::testing;
 
 namespace {
 
+// Negative tests capture expected layout errors without disabling assertions.
+struct SyntheticLayoutDebugCallback : IDebugCallback
+{
+    std::string errors;
+
+    void SLANG_MCALL handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    {
+        if (type == DebugMessageType::Error)
+        {
+            CHECK(source == DebugMessageSource::Layer);
+            errors += message;
+            errors += '\n';
+        }
+    }
+};
+
 static Result loadModuleFromSource(slang::ISession* slangSession, std::string_view source, slang::IModule** outModule)
 {
     static uint64_t counter = 0;
@@ -439,15 +455,20 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     shaderProgram.setNull();
 }
 
-// Invalid synthetic-resource records should be rejected by the shared
-// descriptor validation before backend layout creation. The CUDA-only sampler
-// case verifies backend-specific unsupported binding-type rejection.
+// Invalid records and unsupported scopes/types must fail program creation.
+// Collisions and descriptor-set limits must return errors with assertions enabled.
 GPU_TEST_CASE("synthetic-resource-bindings-invalid-descs", Vulkan | CUDA)
 {
+    SyntheticLayoutDebugCallback callback;
+    DeviceExtraOptions extraOptions;
+    extraOptions.debugCallback = &callback;
+    ComPtr<IDevice> testDevice = createTestingDevice(ctx, device->getDeviceType(), false, &extraOptions);
+    REQUIRE(testDevice);
     static constexpr uint32_t kSyntheticResourceID = 17;
     static constexpr char kShaderSource[] = R"(
 RWStructuredBuffer<uint> outBuffer;
 
+[shader("compute")]
 [numthreads(1, 1, 1)]
 void computeMain(uint3 tid : SV_DispatchThreadID)
 {
@@ -475,8 +496,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     {
         ComPtr<IShaderProgram> shaderProgram;
         Result result =
-            createComputeProgramWithSyntheticResource(device, kShaderSource, desc, shaderProgram.writeRef());
+            createComputeProgramWithSyntheticResource(testDevice, kShaderSource, desc, shaderProgram.writeRef());
         CHECK_EQ(result, expectedResult);
+        CHECK(shaderProgram == nullptr);
     };
 
     SyntheticResourceBindingDesc desc = makeSyntheticResourceDesc();
@@ -499,7 +521,38 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     desc.uniformStride = -1;
     checkCreateFails(desc, SLANG_E_INVALID_ARG);
 
-    if (device->getDeviceType() == DeviceType::CUDA)
+    desc = makeSyntheticResourceDesc();
+    desc.scope = SyntheticResourceScope::EntryPoint;
+    desc.entryPointIndex = 0;
+    checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
+
+    if (testDevice->getDeviceType() == DeviceType::Vulkan)
+    {
+        for (auto bindingType :
+             {slang::BindingType::ConstantBuffer,
+              slang::BindingType::InputRenderTarget,
+              slang::BindingType::InlineUniformData,
+              slang::BindingType::ParameterBlock,
+              slang::BindingType::PushConstant})
+        {
+            desc = makeSyntheticResourceDesc();
+            desc.bindingType = bindingType;
+            checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
+        }
+
+        desc = makeSyntheticResourceDesc();
+        desc.space = INT32_MAX;
+        checkCreateFails(desc, SLANG_E_INVALID_ARG);
+        CHECK(callback.errors.find("Descriptor set space exceeds") != std::string::npos);
+        callback.errors.clear();
+
+        desc = makeSyntheticResourceDesc();
+        desc.binding = 0;
+        checkCreateFails(desc, SLANG_E_INVALID_ARG);
+        CHECK(callback.errors.find("Duplicate Vulkan descriptor binding") != std::string::npos);
+    }
+
+    if (testDevice->getDeviceType() == DeviceType::CUDA)
     {
         desc = makeSyntheticResourceDesc();
         desc.bindingType = slang::BindingType::Sampler;
@@ -527,7 +580,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
             checkCreateFails(desc, SLANG_E_INVALID_ARG);
             desc.uniformStride++;
             ComPtr<IShaderProgram> program;
-            REQUIRE_CALL(createComputeProgramWithSyntheticResource(device, kShaderSource, desc, program.writeRef()));
+            REQUIRE_CALL(
+                createComputeProgramWithSyntheticResource(testDevice, kShaderSource, desc, program.writeRef())
+            );
         }
     }
 }
@@ -537,6 +592,11 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
 // bindings; CUDA rejects the unsupported second synthetic binding type.
 GPU_TEST_CASE("synthetic-resource-bindings-layout-failure", Vulkan | CUDA)
 {
+    SyntheticLayoutDebugCallback callback;
+    DeviceExtraOptions extraOptions;
+    extraOptions.debugCallback = &callback;
+    ComPtr<IDevice> testDevice = createTestingDevice(ctx, device->getDeviceType(), false, &extraOptions);
+    REQUIRE(testDevice);
     static constexpr uint32_t kFirstSyntheticResourceID = 17;
     static constexpr uint32_t kSecondSyntheticResourceID = 18;
     static constexpr char kShaderSource[] = R"(
@@ -571,14 +631,14 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     };
 
     Result expectedResult = SLANG_OK;
-    if (device->getDeviceType() == DeviceType::Vulkan)
+    if (testDevice->getDeviceType() == DeviceType::Vulkan)
     {
         // Two synthetic resources at the same descriptor binding pass the generic
         // descriptor validation but fail when the Vulkan layout builder adds the
         // second resource.
         expectedResult = SLANG_E_INVALID_ARG;
     }
-    else if (device->getDeviceType() == DeviceType::CUDA)
+    else if (testDevice->getDeviceType() == DeviceType::CUDA)
     {
         // CUDA accepts the first synthetic raw buffer, then fails on the second
         // resource because samplers are not supported as synthetic CUDA bindings.
@@ -592,9 +652,8 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
 
     ComPtr<IShaderProgram> shaderProgram;
     {
-        SLANG_RHI_DISABLE_ASSERT_SCOPE();
         Result result = createComputeProgramWithSyntheticResources(
-            device,
+            testDevice,
             kShaderSource,
             descs,
             (uint32_t)SLANG_COUNT_OF(descs),
@@ -603,6 +662,8 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         CHECK_EQ(result, expectedResult);
     }
     CHECK(shaderProgram == nullptr);
+    if (testDevice->getDeviceType() == DeviceType::Vulkan)
+        CHECK(callback.errors.find("Duplicate Vulkan descriptor binding") != std::string::npos);
 }
 
 // End-to-end coverage metadata path: ask Slang for coverage synthetic-resource
@@ -836,6 +897,11 @@ GPU_TEST_CASE("synthetic-resource-bindings-entry-point-parameter-block", Vulkan 
 // A synthetic binding cannot overwrite an ordinary binding in a child set.
 GPU_TEST_CASE("synthetic-resource-bindings-child-binding-collision", Vulkan)
 {
+    SyntheticLayoutDebugCallback callback;
+    DeviceExtraOptions extraOptions;
+    extraOptions.debugCallback = &callback;
+    ComPtr<IDevice> testDevice = createTestingDevice(ctx, device->getDeviceType(), false, &extraOptions);
+    REQUIRE(testDevice);
     const char* source = R"(
 struct Params { RWStructuredBuffer<uint> outBuffer; };
 ParameterBlock<Params> params;
@@ -848,8 +914,11 @@ void computeMain() { params.outBuffer[0] = 10; }
     desc.space = 0;
     desc.binding = 0;
     desc.access = SyntheticResourceAccess::ReadWrite;
-    SLANG_RHI_DISABLE_ASSERT_SCOPE();
     ComPtr<IShaderProgram> program;
-    CHECK_EQ(createComputeProgramWithSyntheticResource(device, source, desc, program.writeRef()), SLANG_E_INVALID_ARG);
+    CHECK_EQ(
+        createComputeProgramWithSyntheticResource(testDevice, source, desc, program.writeRef()),
+        SLANG_E_INVALID_ARG
+    );
     CHECK(program == nullptr);
+    CHECK(callback.errors.find("Duplicate Vulkan descriptor binding") != std::string::npos);
 }

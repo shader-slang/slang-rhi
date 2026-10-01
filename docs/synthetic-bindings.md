@@ -63,6 +63,17 @@ count), or 8 bytes for texture and acceleration-structure handles.
 
 Current support:
 
+Vulkan and CUDA currently support only `SyntheticResourceScope::Global`.
+`EntryPoint` scope is reserved for future support; creating a program with an
+entry-point-scoped synthetic descriptor returns `SLANG_E_NOT_IMPLEMENTED`.
+Global scope means the resource is bound on the root shader object, not that
+coverage is restricted to any particular function or entry point.
+
+Vulkan supports synthetic buffers, textures, samplers, combined texture/samplers,
+and acceleration structures (when supported by the device). CUDA supports buffers,
+textures, combined texture/samplers, and acceleration structures. Other binding
+types return `SLANG_E_NOT_IMPLEMENTED`; `Unknown` is an invalid descriptor.
+
 | Backend | Support |
 |---------|---------|
 | CUDA    | yes     |

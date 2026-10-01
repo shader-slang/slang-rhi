@@ -21,9 +21,7 @@ bool syntheticResourceConsumesBindingCount(slang::BindingType bindingType)
     case slang::BindingType::MutableTexture:
     case slang::BindingType::TypedBuffer:
     case slang::BindingType::MutableTypedBuffer:
-    case slang::BindingType::InputRenderTarget:
     case slang::BindingType::RayTracingAccelerationStructure:
-    case slang::BindingType::ConstantBuffer:
         return true;
     default:
         return false;
@@ -54,7 +52,11 @@ Result ShaderObjectLayoutImpl::Builder::_findOrAddCompactDescriptorSet(uint32_t 
 
     if (m_descriptorSetBuildInfos.size() >= kMaxDescriptorSets)
     {
-        SLANG_RHI_ASSERT_FAILURE("Descriptor set count exceeds Vulkan layout limit");
+        m_device->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Descriptor set count exceeds Vulkan layout limit"
+        );
         return SLANG_E_INVALID_ARG;
     }
 
@@ -73,7 +75,11 @@ Result ShaderObjectLayoutImpl::Builder::_findOrAddPreservedDescriptorSet(
 {
     if (space >= kMaxDescriptorSets)
     {
-        SLANG_RHI_ASSERT_FAILURE("Descriptor set space exceeds Vulkan layout limit");
+        m_device->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Descriptor set space exceeds Vulkan layout limit"
+        );
         return SLANG_E_INVALID_ARG;
     }
 
@@ -103,7 +109,7 @@ Result ShaderObjectLayoutImpl::Builder::addDescriptorSetBinding(
     {
         if (existingBinding.binding == bindingDesc.binding)
         {
-            SLANG_RHI_ASSERT_FAILURE(sourceLabel);
+            m_device->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, sourceLabel);
             return SLANG_E_INVALID_ARG;
         }
     }
@@ -1034,7 +1040,11 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
             totalDescriptorSetCount++;
         if (totalDescriptorSetCount > kMaxDescriptorSets)
         {
-            SLANG_RHI_ASSERT_FAILURE("Descriptor set count exceeds Vulkan layout limit");
+            m_device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Descriptor set count exceeds Vulkan layout limit"
+            );
             return SLANG_E_INVALID_ARG;
         }
     }
@@ -1207,15 +1217,28 @@ Result RootShaderObjectLayoutImpl::Builder::_validateSyntheticResource(
     if (resource.space < 0 || resource.binding < 0)
         return SLANG_E_INVALID_ARG;
 
+    // Synthetic ranges have resource slots but no reflected subobject layout.
+    // Accept only types that the runtime resource-slot binding loop can write.
+    switch (resource.bindingType)
+    {
+    case slang::BindingType::Sampler:
+    case slang::BindingType::CombinedTextureSampler:
+    case slang::BindingType::Texture:
+    case slang::BindingType::MutableTexture:
+    case slang::BindingType::TypedBuffer:
+    case slang::BindingType::MutableTypedBuffer:
+    case slang::BindingType::RawBuffer:
+    case slang::BindingType::MutableRawBuffer:
+    case slang::BindingType::RayTracingAccelerationStructure:
+        break;
+    default:
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+
     VkDescriptorType descriptorType = _mapDescriptorType(resource.bindingType);
     if (descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
         return SLANG_E_INVALID_ARG;
 
-    if (resource.bindingType == slang::BindingType::InlineUniformData &&
-        !m_device->m_api.m_extendedFeatures.inlineUniformBlockFeatures.inlineUniformBlock)
-    {
-        return SLANG_E_NOT_AVAILABLE;
-    }
     if (resource.bindingType == slang::BindingType::RayTracingAccelerationStructure &&
         !m_device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
     {

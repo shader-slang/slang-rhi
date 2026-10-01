@@ -10,6 +10,8 @@ enum class SyntheticResourceScope
     Global,
 
     /// The synthetic resource is bound on a specific entry-point shader object.
+    /// Reserved for future support. Vulkan and CUDA currently reject this scope
+    /// during program creation with SLANG_E_NOT_IMPLEMENTED.
     EntryPoint,
 };
 
