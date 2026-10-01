@@ -594,3 +594,70 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-identities", ALL | DontCreateDevice)
         }
     }
 }
+
+GPU_TEST_CASE("ray-tracing-intrinsics-payload-termination", CUDA | Vulkan | D3D12 | DontCreateDevice)
+{
+    // Expectations come from the writes before termination, including nested inout copyback.
+    constexpr std::array<uint32_t, 9> expectedValues = {11, 12, 21, 21, 91, 31, 31, 93, 42};
+    constexpr std::array<uint32_t, 9> expectedPhases = {1, 2, 1, 2, 1, 1, 2, 1, 1};
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
+    {
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto testDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(testDevice != nullptr);
+        if (!testDevice->hasFeature(Feature::RayTracing))
+            SKIP("ray tracing not supported");
+
+        auto queue = testDevice->getQueue(QueueType::Graphics);
+        SingleTriangleBLAS blas(testDevice, queue, true);
+        TLAS tlas(testDevice, queue, blas.blas);
+        RayTracingTestPipeline pipeline(
+            testDevice,
+            "test-ray-tracing-intrinsics",
+            {"rayGenPayloadTermination"},
+            {{"closestHitPayloadTermination", "anyHitPayloadTermination"}},
+            {"missPayloadTermination"}
+        );
+
+        // Change only the uniform mode between launches of the same compiled pipeline.
+        for (uint32_t mode = 0; mode < expectedValues.size(); ++mode)
+        {
+            CAPTURE(mode);
+            const std::array<uint32_t, 5> initial = {0x13579bdf, 0xa5a5a5a5, 0xa5a5a5a5, 0xa5a5a5a5, 0x2468ace0};
+            BufferDesc desc = {};
+            desc.size = sizeof(initial);
+            desc.elementSize = sizeof(uint32_t);
+            desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+            desc.defaultState = ResourceState::UnorderedAccess;
+            auto output = testDevice->createBuffer(desc, initial.data());
+            REQUIRE(output != nullptr);
+
+            auto encoder = queue->createCommandEncoder();
+            auto pass = encoder->beginRayTracingPass();
+            auto rootObject = pass->bindPipeline(pipeline.raytracingPipeline, pipeline.shaderTable);
+            ShaderCursor cursor(rootObject);
+            cursor["sceneBVH"].setBinding(tlas.tlas);
+            cursor["terminationMode"].setData(&mode, sizeof(mode));
+            cursor["terminationResults"].setBinding(output);
+            pass->dispatchRays(0, 1, 1, 1);
+            pass->end();
+            REQUIRE_CALL(queue->submit(encoder->finish()));
+            REQUIRE_CALL(queue->waitOnHost());
+
+            ComPtr<ISlangBlob> blob;
+            REQUIRE_CALL(testDevice->readBuffer(output, 0, sizeof(initial), blob.writeRef()));
+            REQUIRE_EQ(blob->getBufferSize(), sizeof(initial));
+            const auto* actual = static_cast<const uint32_t*>(blob->getBufferPointer());
+            CHECK_EQ(actual[0], initial.front());
+            CHECK_EQ(actual[1], expectedValues[mode]);
+            CHECK_EQ(actual[2], 64 + mode);
+            CHECK_EQ(actual[3], expectedPhases[mode]);
+            CHECK_EQ(actual[4], initial.back());
+        }
+    }
+}

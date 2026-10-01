@@ -419,3 +419,114 @@ uniform RWStructuredBuffer<uint> identityResults;
     identityResults[offset + 4] = payload.rayFlags;
     identityResults[offset + 5] = payload.hitKind;
 }
+
+// This oracle has independent bindings so the existing identity and attribute tests stay unchanged.
+uniform uint terminationMode;
+uniform RWStructuredBuffer<uint> terminationResults;
+
+[raypayload]
+struct TerminationPayload
+{
+    uint value : read(caller, anyhit, closesthit, miss) : write(caller, anyhit);
+    uint marker : read(caller, anyhit, closesthit, miss) : write(caller, anyhit);
+    uint phase : read(caller) : write(caller, closesthit, miss);
+};
+
+[noinline]
+void conditionalTermination()
+{
+    if (terminationMode == 2 || terminationMode == 5)
+        AcceptHitAndEndSearch();
+    if (terminationMode == 3 || terminationMode == 6)
+        IgnoreHit();
+}
+
+[noinline]
+void innerTermination(inout TerminationPayload payload)
+{
+    payload.value = 31;
+    conditionalTermination();
+    payload.value = 92;
+}
+
+[noinline]
+void outerTermination(inout TerminationPayload payload)
+{
+    innerTermination(payload);
+    payload.value = 93;
+}
+
+namespace OrdinaryTerminationNames
+{
+    [noinline]
+    uint IgnoreHit(uint value)
+    {
+        return value + 1;
+    }
+
+    [noinline]
+    uint AcceptHitAndEndSearch(uint value)
+    {
+        return value * 2;
+    }
+}
+
+[shader("anyhit")]
+void anyHitPayloadTermination(inout TerminationPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    payload.marker = 64 + terminationMode;
+    if (terminationMode == 0)
+    {
+        payload.value = 11;
+        AcceptHitAndEndSearch();
+        payload.value = 91;
+    }
+    else if (terminationMode == 1)
+    {
+        payload.value = 12;
+        IgnoreHit();
+        payload.value = 92;
+    }
+    else if (terminationMode <= 4)
+    {
+        payload.value = 21;
+        conditionalTermination();
+        payload.value = 91;
+    }
+    else if (terminationMode <= 7)
+    {
+        outerTermination(payload);
+    }
+    else
+    {
+        payload.value = OrdinaryTerminationNames::AcceptHitAndEndSearch(OrdinaryTerminationNames::IgnoreHit(20));
+    }
+}
+
+[shader("closesthit")]
+void closestHitPayloadTermination(inout TerminationPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    payload.phase = 1;
+}
+
+[shader("miss")]
+void missPayloadTermination(inout TerminationPayload payload)
+{
+    payload.phase = 2;
+}
+
+[shader("raygeneration")]
+void rayGenPayloadTermination()
+{
+    TerminationPayload payload = {};
+    payload.value = 7;
+    RayDesc ray;
+    ray.Origin = float3(0.25, 0.25, 0.0);
+    ray.Direction = float3(0.0, 0.0, 1.0);
+    ray.TMin = 0.001;
+    ray.TMax = 2.0;
+    TraceRay(sceneBVH, RAY_FLAG_NONE, 0xff, 0, 0, 0, ray, payload);
+    terminationResults[1] = payload.value;
+    terminationResults[2] = payload.marker;
+    terminationResults[3] = payload.phase;
+}
