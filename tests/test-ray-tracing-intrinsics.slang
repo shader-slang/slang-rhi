@@ -348,3 +348,63 @@ void rayGenShaderCallShaderTest()
     result.value = payload.attribute;
     resultBuffer[0] = result;
 }
+
+// A separate binding keeps the existing Result layout and attribute tests unchanged.
+uniform RWStructuredBuffer<uint> identityResults;
+
+[raypayload] struct IdentityPayload
+{
+    uint primitive : read(caller)
+        : write(closesthit, miss);
+    uint instanceIndex : read(caller)
+        : write(closesthit, miss);
+    uint instanceID : read(caller)
+        : write(closesthit, miss);
+    uint hit : read(caller)
+        : write(closesthit, miss);
+};
+
+[shader("closesthit")] void closestHitWriteIdentities(
+    inout IdentityPayload payload,
+    in BuiltInTriangleIntersectionAttributes attr
+)
+{
+    payload.primitive = PrimitiveIndex();
+    payload.instanceIndex = InstanceIndex();
+    payload.instanceID = InstanceID();
+    payload.hit = 1;
+}
+
+    [shader("miss")] void missWriteIdentities(inout IdentityPayload payload)
+{
+    payload.primitive = 0xdead0001;
+    payload.instanceIndex = 0xdead0002;
+    payload.instanceID = 0xdead0003;
+    payload.hit = 0;
+}
+
+[shader("raygeneration")] void rayGenShaderIdentities()
+{
+    uint index = DispatchRaysIndex().x;
+    uint primitive = index % 3;
+    // These points are strictly inside the three triangles, away from shared edges.
+    float x = primitive == 1 ? -0.25 : 0.25;
+    float y = primitive == 2 ? -0.25 : 0.25;
+    x += index >= 3 ? 4.0 : 0.0;
+    if (index == 6)
+        x = 10.0;
+
+    RayDesc ray;
+    ray.Origin = float3(x, y, 0.0);
+    ray.Direction = float3(0.0, 0.0, 1.0);
+    ray.TMin = 0.001;
+    ray.TMax = 2.0;
+    IdentityPayload payload = {};
+    TraceRay(sceneBVH, RAY_FLAG_FORCE_OPAQUE, 0xff, 0, 0, 0, ray, payload);
+
+    uint offset = 1 + index * 4;
+    identityResults[offset] = payload.primitive;
+    identityResults[offset + 1] = payload.instanceIndex;
+    identityResults[offset + 2] = payload.instanceID;
+    identityResults[offset + 3] = payload.hit;
+}

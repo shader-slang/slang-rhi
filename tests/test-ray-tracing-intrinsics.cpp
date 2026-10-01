@@ -509,3 +509,85 @@ GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
     // Check that callable shader wrote the expected value
     checkFloat3(result->value, {1.0f, 2.0f, 3.0f});
 }
+
+GPU_TEST_CASE("ray-tracing-intrinsics-hit-identities", ALL | DontCreateDevice)
+{
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
+    {
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto testDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(testDevice != nullptr);
+        if (!testDevice->hasFeature(Feature::RayTracing))
+            SKIP("ray tracing not supported");
+
+        auto queue = testDevice->getQueue(QueueType::Graphics);
+        ThreeTriangleBLAS blas(testDevice, queue);
+        // Translation separates the instances; distinct custom IDs cannot be confused with their ordinal indices.
+        std::vector<AccelerationStructureInstanceDescGeneric> instances(2);
+        for (uint32_t index = 0; index < instances.size(); ++index)
+        {
+            auto& instance = instances[index];
+            instance.transform[0][0] = 1.0f;
+            instance.transform[1][1] = 1.0f;
+            instance.transform[2][2] = 1.0f;
+            instance.transform[0][3] = index == 0 ? 0.0f : 4.0f;
+            instance.instanceID = index == 0 ? 0xF00D : 0x1234;
+            instance.instanceMask = 0xFF;
+            instance.instanceContributionToHitGroupIndex = 0;
+            instance.accelerationStructure = blas.blas->getHandle();
+        }
+        TLAS tlas(testDevice, queue, instances);
+        RayTracingTestPipeline pipeline(
+            testDevice,
+            "test-ray-tracing-intrinsics",
+            {"rayGenShaderIdentities"},
+            {{"closestHitWriteIdentities", nullptr}},
+            {"missWriteIdentities"}
+        );
+
+        // Initialize every output word so missing writes and either guard overwrite fail.
+        std::array<uint32_t, 30> initial;
+        initial.fill(0xa5a5a5a5);
+        initial.front() = 0x13579bdf;
+        initial.back() = 0x2468ace0;
+        BufferDesc desc = {};
+        desc.size = sizeof(initial);
+        desc.elementSize = sizeof(uint32_t);
+        desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        desc.defaultState = ResourceState::UnorderedAccess;
+        auto output = testDevice->createBuffer(desc, initial.data());
+        REQUIRE(output != nullptr);
+
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginRayTracingPass();
+        auto rootObject = pass->bindPipeline(pipeline.raytracingPipeline, pipeline.shaderTable);
+        ShaderCursor cursor(rootObject);
+        cursor["sceneBVH"].setBinding(tlas.tlas);
+        cursor["identityResults"].setBinding(output);
+        pass->dispatchRays(0, 7, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        ComPtr<ISlangBlob> blob;
+        REQUIRE_CALL(testDevice->readBuffer(output, 0, sizeof(initial), blob.writeRef()));
+        REQUIRE_EQ(blob->getBufferSize(), sizeof(initial));
+        const auto* actual = static_cast<const uint32_t*>(blob->getBufferPointer());
+        CHECK_EQ(actual[0], initial.front());
+        CHECK_EQ(actual[29], initial.back());
+        for (uint32_t index = 0; index < 7; ++index)
+        {
+            CAPTURE(index);
+            const uint32_t offset = 1 + index * 4;
+            CHECK_EQ(actual[offset], index < 6 ? index % 3 : 0xdead0001);
+            CHECK_EQ(actual[offset + 1], index < 6 ? index / 3 : 0xdead0002);
+            CHECK_EQ(actual[offset + 2], index < 6 ? (index < 3 ? 0xF00D : 0x1234) : 0xdead0003);
+            CHECK_EQ(actual[offset + 3], index < 6 ? 1 : 0);
+        }
+    }
+}

@@ -676,9 +676,6 @@ struct TLAS
 
     TLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas, const float* transform = nullptr)
     {
-        AccelerationStructureInstanceDescType nativeInstanceDescType = getAccelerationStructureInstanceDescType(device);
-        Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
-
         std::vector<AccelerationStructureInstanceDescGeneric> genericInstanceDescs;
         genericInstanceDescs.resize(1);
         static const float kIdentityTransform[12] = {
@@ -702,6 +699,30 @@ struct TLAS
         genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
         genericInstanceDescs[0].accelerationStructure = blas->getHandle();
 
+        build(device, queue, genericInstanceDescs);
+    }
+
+    TLAS(
+        IDevice* device,
+        ICommandQueue* queue,
+        const std::vector<AccelerationStructureInstanceDescGeneric>& genericInstanceDescs
+    )
+    {
+        build(device, queue, genericInstanceDescs);
+    }
+
+private:
+    // Convert generic instance descriptors to the native format and build their top-level structure.
+    void build(
+        IDevice* device,
+        ICommandQueue* queue,
+        const std::vector<AccelerationStructureInstanceDescGeneric>& genericInstanceDescs
+    )
+    {
+        REQUIRE(!genericInstanceDescs.empty());
+        AccelerationStructureInstanceDescType nativeInstanceDescType = getAccelerationStructureInstanceDescType(device);
+        Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
+
         std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
         convertAccelerationStructureInstanceDescs(
             genericInstanceDescs.size(),
@@ -722,7 +743,7 @@ struct TLAS
         AccelerationStructureBuildInput buildInput = {};
         buildInput.type = AccelerationStructureBuildInputType::Instances;
         buildInput.instances.instanceBuffer = instanceBuffer;
-        buildInput.instances.instanceCount = 1;
+        buildInput.instances.instanceCount = genericInstanceDescs.size();
         buildInput.instances.instanceStride = nativeInstanceDescSize;
         AccelerationStructureBuildDesc buildDesc = {};
         buildDesc.inputs = &buildInput;
