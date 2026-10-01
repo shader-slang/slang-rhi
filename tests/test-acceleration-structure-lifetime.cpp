@@ -48,6 +48,62 @@ static ComPtr<IAccelerationStructure> buildTriangle(IDevice* device, ICommandQue
     return structure;
 }
 
+static void buildScene(
+    IDevice* device,
+    ICommandQueue* queue,
+    IAccelerationStructure* blas,
+    float zOffset,
+    ComPtr<IAccelerationStructure>& scene
+)
+{
+    AccelerationStructureInstanceDescGeneric instance = {};
+    instance.transform[0][0] = instance.transform[1][1] = instance.transform[2][2] = 1.f;
+    instance.transform[2][3] = zOffset;
+    instance.instanceMask = 0xff;
+    instance.accelerationStructure = blas->getHandle();
+    auto instanceType = getAccelerationStructureInstanceDescType(device);
+    Size instanceStride = getAccelerationStructureInstanceDescSize(instanceType);
+    std::vector<uint8_t> nativeInstance(instanceStride);
+    convertAccelerationStructureInstanceDesc(instanceType, nativeInstance.data(), &instance);
+    BufferDesc instanceDesc = {};
+    instanceDesc.size = instanceStride;
+    instanceDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    instanceDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    auto instanceBuffer = device->createBuffer(instanceDesc, nativeInstance.data());
+    REQUIRE(instanceBuffer);
+
+    AccelerationStructureBuildInput input = {};
+    input.type = AccelerationStructureBuildInputType::Instances;
+    input.instances.instanceBuffer = instanceBuffer;
+    input.instances.instanceCount = 1;
+    input.instances.instanceStride = instanceStride;
+    AccelerationStructureBuildDesc buildDesc = {};
+    buildDesc.inputs = &input;
+    buildDesc.inputCount = 1;
+    buildDesc.flags = AccelerationStructureBuildFlags::AllowUpdate;
+    buildDesc.mode = scene ? AccelerationStructureBuildMode::Update : AccelerationStructureBuildMode::Build;
+    AccelerationStructureSizes sizes = {};
+    REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+    if (!scene)
+    {
+        AccelerationStructureDesc desc = {};
+        desc.kind = AccelerationStructureKind::TopLevel;
+        desc.size = sizes.accelerationStructureSize;
+        REQUIRE_CALL(device->createAccelerationStructure(desc, scene.writeRef()));
+    }
+    BufferDesc scratchDesc = {};
+    scratchDesc.size = std::max(sizes.scratchSize, sizes.updateScratchSize);
+    scratchDesc.usage = BufferUsage::UnorderedAccess;
+    scratchDesc.defaultState = ResourceState::UnorderedAccess;
+    auto scratch = device->createBuffer(scratchDesc);
+    REQUIRE(scratch);
+    auto encoder = queue->createCommandEncoder();
+    auto source = buildDesc.mode == AccelerationStructureBuildMode::Update ? scene.get() : nullptr;
+    encoder->buildAccelerationStructure(buildDesc, scene, source, scratch, 0, nullptr);
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+}
+
 GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Metal | DontCacheDevice)
 {
     if (!device->hasFeature(Feature::RayQuery))
@@ -98,7 +154,7 @@ GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Met
         // would change the target's index and could select the wrong geometry.
         auto discarded = buildTriangle(device, queue, 3.f);
         // The second ray hits only the decoy's geometry. It must still miss the
-        // TLAS: using the decoy as a hole filler must not create an extra instance.
+        // TLAS: the native array is an index table, not a list of instances.
         auto decoy = buildTriangle(device, queue, 1.f, 2.f);
         auto target = buildTriangle(device, queue, 2.f);
 
@@ -114,20 +170,27 @@ GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Met
         }
         REQUIRE_CALL(queue->waitOnHost());
 
-        TLAS scene(device, queue, target);
+        ComPtr<IAccelerationStructure> scene;
+        buildScene(device, queue, target, 0.f, scene);
+        auto trace = [&](float expectedDistance)
         {
             auto encoder = queue->createCommandEncoder();
             auto pass = encoder->beginComputePass();
             auto root = pass->bindPipeline(pipeline);
             ShaderCursor cursor(root);
-            REQUIRE_CALL(cursor["scene"].setBinding(scene.tlas));
+            REQUIRE_CALL(cursor["scene"].setBinding(scene));
             REQUIRE_CALL(cursor["results"].setBinding(results));
             pass->dispatchCompute(2, 1, 1);
             pass->end();
             REQUIRE_CALL(queue->submit(encoder->finish()));
             REQUIRE_CALL(queue->waitOnHost());
-        }
-        compareComputeResult(device, results, makeArray<float>(2.f, -1.f));
+            compareComputeResult(device, results, makeArray<float>(expectedDistance, -1.f));
+        };
+        trace(2.f);
+        // Refit uses the same registry snapshot, including its dummy-filled holes.
+        // Updating the instance transform must move the hit and keep the decoy absent.
+        buildScene(device, queue, target, 1.f, scene);
+        trace(3.f);
         // All structures are released here. The next iteration replaces the scene.
     }
     REQUIRE_CALL(queue->waitOnHost());
