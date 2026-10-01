@@ -470,9 +470,13 @@ void DeviceImpl::unregisterAccelerationStructure(uint32_t index, MTL::Accelerati
 Result DeviceImpl::initializeDummyAccelerationStructure()
 {
     if (m_accelerationStructures.dummy)
+    {
         return SLANG_OK;
+    }
     if (!m_device->supportsRaytracing())
+    {
         return SLANG_E_NOT_AVAILABLE;
+    }
 
     // Build a private empty BLAS once, on first acceleration-structure creation.
     // Metal requires a geometry descriptor even when it contains no triangles.
@@ -480,7 +484,10 @@ Result DeviceImpl::initializeDummyAccelerationStructure()
     const float vertex[3] = {};
     auto vertexBuffer = NS::TransferPtr(m_device->newBuffer(vertex, sizeof(vertex), MTL::ResourceStorageModeShared));
     if (!vertexBuffer)
+    {
         return SLANG_FAIL;
+    }
+
     auto geometry = NS::TransferPtr(MTL::AccelerationStructureTriangleGeometryDescriptor::alloc()->init());
     geometry->setVertexBuffer(vertexBuffer.get());
     geometry->setVertexFormat(MTL::AttributeFormatFloat3);
@@ -496,13 +503,21 @@ Result DeviceImpl::initializeDummyAccelerationStructure()
         m_device->newBuffer(max(sizes.buildScratchBufferSize, NS::UInteger(1)), MTL::ResourceStorageModePrivate)
     );
     if (!dummy || !scratch)
+    {
         return SLANG_FAIL;
+    }
+
     auto commandBuffer = NS::RetainPtr(m_commandQueue->commandBuffer());
     if (!commandBuffer)
+    {
         return SLANG_FAIL;
+    }
     auto encoder = NS::RetainPtr(commandBuffer->accelerationStructureCommandEncoder());
     if (!encoder)
+    {
         return SLANG_FAIL;
+    }
+
     encoder->waitForFence(m_queue->m_queueFence.get());
     encoder->buildAccelerationStructure(dummy.get(), descriptor.get(), scratch.get(), 0);
     encoder->updateFence(m_queue->m_queueFence.get());
@@ -510,7 +525,10 @@ Result DeviceImpl::initializeDummyAccelerationStructure()
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
     if (commandBuffer->status() != MTL::CommandBufferStatusCompleted)
+    {
         return SLANG_FAIL;
+    }
+
     registerResource(dummy.get());
     m_accelerationStructures.dummy = std::move(dummy);
     m_accelerationStructures.resourcesDirty = true;
@@ -529,8 +547,12 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
         // for each hole, rather than adding placeholder references to a live AS.
         auto structures = m_accelerationStructures.list;
         for (auto& structure : structures)
+        {
             if (!structure)
+            {
                 structure = m_accelerationStructures.dummy.get();
+            }
+        }
         m_accelerationStructures.array =
             NS::TransferPtr(NS::Array::alloc()->init((const NS::Object* const*)structures.data(), structures.size()));
         m_accelerationStructures.arrayDirty = false;
@@ -549,7 +571,9 @@ std::span<MTL::Resource* const> DeviceImpl::getAccelerationStructureResources()
                 m_accelerationStructures.resources.push_back(as);
         }
         if (m_accelerationStructures.dummy)
+        {
             m_accelerationStructures.resources.push_back(m_accelerationStructures.dummy.get());
+        }
         m_accelerationStructures.resourcesDirty = false;
     }
     return std::span<MTL::Resource* const>(

@@ -107,7 +107,9 @@ static void buildScene(
 GPU_TEST_CASE("acceleration-structure-release-and-rebuild", D3D12 | Vulkan | Metal | DontCacheDevice)
 {
     if (!device->hasFeature(Feature::RayQuery))
+    {
         SKIP("Ray queries not supported");
+    }
 
     ComPtr<IShaderProgram> program;
     REQUIRE_CALL(loadComputeProgramFromSource(
