@@ -65,6 +65,17 @@ public:
     // Returns the current mouse Y position.
     float getMouseY() const { return m_mousePos[1]; }
 
+    // Device management
+
+    // Create a device and retain the missing features if the example requires
+    // features that this backend does not support.
+    Result createDevice(
+        DeviceType deviceType,
+        std::vector<Feature> requiredFeatures,
+        std::vector<std::pair<std::string, std::string>> preprocessorMacros,
+        IDevice** outDevice
+    );
+
     // Window management
 
     // Creates a window with the specified title and size.
@@ -78,6 +89,8 @@ public:
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
 
 public:
+    DeviceType m_deviceType = DeviceType::Default;
+    std::vector<Feature> m_missingFeatures;
     GLFWwindow* m_window = nullptr;
 
     float m_mousePos[2] = {0.0f, 0.0f};
@@ -109,6 +122,20 @@ static ExampleBase* mainExample = nullptr;
 ExampleBase::~ExampleBase()
 {
     destroyWindow();
+}
+
+Result ExampleBase::createDevice(
+    DeviceType deviceType,
+    std::vector<Feature> requiredFeatures,
+    std::vector<std::pair<std::string, std::string>> preprocessorMacros,
+    IDevice** outDevice
+)
+{
+    SLANG_RETURN_ON_FAIL(
+        rhi::createDevice(deviceType, requiredFeatures, preprocessorMacros, outDevice, &m_missingFeatures)
+    );
+    m_deviceType = (*outDevice)->getDeviceType();
+    return SLANG_OK;
 }
 
 Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t width, uint32_t height)
@@ -340,7 +367,11 @@ static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
 template<typename Example>
 static int main(int argc, const char** argv)
 {
-    glfwInit();
+    if (!glfwInit())
+    {
+        LOG_ERROR("Failed to initialize GLFW");
+        return 1;
+    }
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     std::vector<DeviceType> deviceTypes = {
@@ -367,18 +398,46 @@ static int main(int argc, const char** argv)
             {
                 mainExample = example;
             }
-            if (SLANG_FAILED(example->init(deviceType)))
+            Result result = example->init(deviceType);
+            if (SLANG_FAILED(result))
             {
+                if (result == SLANG_E_NOT_AVAILABLE && !example->m_missingFeatures.empty())
+                {
+                    std::string missingFeatures;
+                    for (Feature feature : example->m_missingFeatures)
+                    {
+                        if (!missingFeatures.empty())
+                            missingFeatures += ", ";
+                        const char* name = getRHI()->getFeatureName(feature);
+                        missingFeatures += name ? name : "unknown";
+                    }
+                    LOG_INFO(
+                        "%s: skipped (missing required features: %s).",
+                        getRHI()->getDeviceTypeName(deviceType),
+                        missingFeatures.c_str()
+                    );
+                }
+                else
+                    LOG_ERROR(
+                        "Could not initialize %s example (0x%08x).",
+                        getRHI()->getDeviceTypeName(deviceType),
+                        unsigned(result)
+                    );
                 mainExample = prevMainExample;
                 delete example;
                 continue;
             }
             examples.push_back(example);
         }
+        else
+        {
+            LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
+        }
     }
 
     layoutWindows();
 
+    int exitCode = examples.empty() ? 1 : 0;
     if (examples.size() > 0)
     {
         while (true)
@@ -403,10 +462,22 @@ static int main(int argc, const char** argv)
 
             for (ExampleBase* example : examples)
             {
-                // TODO: handle errors
-                example->update(time);
-                example->draw();
+                Result result = example->update(time);
+                if (SLANG_SUCCEEDED(result))
+                    result = example->draw();
+                if (SLANG_FAILED(result))
+                {
+                    LOG_ERROR(
+                        "%s: example frame failed (0x%08x).",
+                        getRHI()->getDeviceTypeName(example->m_deviceType),
+                        unsigned(result)
+                    );
+                    exitCode = 1;
+                    break;
+                }
             }
+            if (exitCode != 0)
+                break;
         }
 
         for (ExampleBase* example : examples)
@@ -416,9 +487,12 @@ static int main(int argc, const char** argv)
         }
     }
 
+    examples.clear();
+    mainExample = nullptr;
+
     glfwTerminate();
 
-    return 0;
+    return exitCode;
 }
 
 } // namespace detail
