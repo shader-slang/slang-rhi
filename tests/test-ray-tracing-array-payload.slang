@@ -200,3 +200,115 @@ void nestedRayGen()
         }
     }
 }
+
+// Two tail-padded records precede matrices with different matrix-layout annotations.
+struct PaddedPayloadBlock { float4 vector; float tail; };
+struct LayoutPayloadData
+{
+    PaddedPayloadBlock blocks[2];
+    row_major float2x3 rows;
+    column_major float2x3 columns;
+};
+[raypayload]
+struct LayoutPayload
+{
+    LayoutPayloadData data : read(caller, anyhit, closesthit, miss) : write(caller, anyhit, closesthit, miss);
+};
+float readLayoutWord(LayoutPayload payload, uint word)
+{
+    if (word < 10)
+        return word % 5 == 4 ? payload.data.blocks[word / 5].tail : payload.data.blocks[word / 5].vector[word % 5];
+    if (word < 16)
+        return payload.data.rows[(word - 10) / 3][(word - 10) % 3];
+    return payload.data.columns[(word - 16) / 3][(word - 16) % 3];
+}
+void writeLayoutWord(inout LayoutPayload payload, uint word, float value)
+{
+    if (word < 10)
+    {
+        if (word % 5 == 4) payload.data.blocks[word / 5].tail = value;
+        else payload.data.blocks[word / 5].vector[word % 5] = value;
+    }
+    else if (word < 16) payload.data.rows[(word - 10) / 3][(word - 10) % 3] = value;
+    else payload.data.columns[(word - 16) / 3][(word - 16) % 3] = value;
+}
+[shader("anyhit")]
+void layoutAnyHit(inout LayoutPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    [unroll] for (uint word = 0; word < 22; ++word)
+        writeLayoutWord(payload, word, readLayoutWord(payload, word) * 2.0 + float(word + 3));
+}
+[shader("closesthit")]
+void layoutClosestHit(inout LayoutPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    [unroll] for (uint word = 0; word < 22; ++word)
+        writeLayoutWord(payload, word, readLayoutWord(payload, word) * 3.0 - float(word + 1));
+}
+[shader("miss")]
+void layoutMiss(inout LayoutPayload payload)
+{
+    [unroll] for (uint word = 0; word < 22; ++word)
+        writeLayoutWord(payload, word, -readLayoutWord(payload, word) - 32.0 - float(word * 2));
+}
+[shader("raygeneration")]
+void layoutRayGen()
+{
+    uint rayIndex = DispatchRaysIndex().x;
+    RayDesc ray = {float3(rayIndex == 0 ? 0.25 : 2.0, 0.25, 0.0), 0.125, float3(0.0, 0.0, 1.0), 2.0};
+    LayoutPayload payload;
+    [unroll] for (uint word = 0; word < 22; ++word)
+        writeLayoutWord(payload, word, float(word + 1) * 0.25);
+    TraceRay(sceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, 0, 0, 0, ray, payload);
+    [unroll] for (uint word = 0; word < 22; ++word)
+        arrayPayloadResults[1 + rayIndex * 22 + word] = asuint(readLayoutWord(payload, word));
+}
+
+[raypayload]
+struct SingletonPayload
+{
+    column_major float3x1 column : read(caller, anyhit, closesthit, miss) : write(caller, anyhit, closesthit, miss);
+    row_major float1x4 row : read(caller, anyhit, closesthit, miss) : write(caller, anyhit, closesthit, miss);
+    float1x1 scalar : read(caller, anyhit, closesthit, miss) : write(caller, anyhit, closesthit, miss);
+};
+float readSingletonWord(SingletonPayload payload, uint word)
+{
+    if (word < 3) return payload.column[word][0];
+    if (word < 7) return payload.row[0][word - 3];
+    return payload.scalar[0][0];
+}
+void writeSingletonWord(inout SingletonPayload payload, uint word, float value)
+{
+    if (word < 3) payload.column[word][0] = value;
+    else if (word < 7) payload.row[0][word - 3] = value;
+    else payload.scalar[0][0] = value;
+}
+[shader("anyhit")]
+void singletonAnyHit(inout SingletonPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    [unroll] for (uint word = 0; word < 8; ++word)
+        writeSingletonWord(payload, word, readSingletonWord(payload, word) * 2.0 + float(word + 3));
+}
+[shader("closesthit")]
+void singletonClosestHit(inout SingletonPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    [unroll] for (uint word = 0; word < 8; ++word)
+        writeSingletonWord(payload, word, readSingletonWord(payload, word) * 3.0 - float(word + 1));
+}
+[shader("miss")]
+void singletonMiss(inout SingletonPayload payload)
+{
+    [unroll] for (uint word = 0; word < 8; ++word)
+        writeSingletonWord(payload, word, -readSingletonWord(payload, word) - 32.0 - float(word * 2));
+}
+[shader("raygeneration")]
+void singletonRayGen()
+{
+    uint rayIndex = DispatchRaysIndex().x;
+    RayDesc ray = {float3(rayIndex == 0 ? 0.25 : 2.0, 0.25, 0.0), 0.125, float3(0.0, 0.0, 1.0), 2.0};
+    SingletonPayload payload;
+    [unroll] for (uint word = 0; word < 8; ++word)
+        writeSingletonWord(payload, word, float(word + 1) * 0.25);
+    TraceRay(sceneBVH, RAY_FLAG_FORCE_NON_OPAQUE, 0xff, 0, 0, 0, ray, payload);
+    [unroll] for (uint word = 0; word < 8; ++word)
+        arrayPayloadResults[1 + rayIndex * 8 + word] = asuint(readSingletonWord(payload, word));
+}

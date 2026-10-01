@@ -241,6 +241,79 @@ GPU_TEST_CASE("bind-pointers-struct-float-copy", Vulkan | CUDA | Metal)
     compareComputeResult(device, dst, std::span<uint8_t>((uint8_t*)srcData.data(), srcData.size() * sizeof(float)));
 }
 
+GPU_TEST_CASE("bind-pointers-nested-array-copy", Vulkan | CUDA | Metal)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-pointer-struct-copy", "nestedMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    const int floatCount = 4096;
+
+    // Different addresses, source values and guarded destinations make a wrong array index
+    // observable. The shader selects pair1 for even lanes and pair0 for odd lanes.
+    std::vector<float> sourceData[2], expectedData[2];
+    std::vector<float> initial(floatCount, -1.0f);
+    for (uint32_t pair = 0; pair < 2; ++pair)
+    {
+        sourceData[pair].resize(floatCount);
+        expectedData[pair] = initial;
+        for (uint32_t lane = 0; lane < floatCount; ++lane)
+        {
+            sourceData[pair][lane] = float(pair * 8192 + lane) * 0.25f;
+            if (((lane + 1) & 1) == pair)
+                expectedData[pair][lane] = sourceData[pair][lane];
+        }
+    }
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = floatCount * sizeof(float);
+    bufferDesc.format = Format::Undefined;
+    bufferDesc.elementSize = sizeof(float);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IBuffer> sources[2], destinations[2];
+    for (uint32_t pair = 0; pair < 2; ++pair)
+    {
+        REQUIRE_CALL(device->createBuffer(bufferDesc, sourceData[pair].data(), sources[pair].writeRef()));
+        REQUIRE_CALL(device->createBuffer(bufferDesc, initial.data(), destinations[pair].writeRef()));
+    }
+
+    {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor shaderCursor(rootObject);
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            shaderCursor["nested"]["pairs"][i]["src"].setData(sources[i]->getDeviceAddress());
+            shaderCursor["nested"]["pairs"][i]["dst"].setData(destinations[i]->getDeviceAddress());
+        }
+        shaderCursor["nested"]["selector"].setData(uint32_t(1));
+
+        passEncoder->dispatchCompute(floatCount / 32, 1, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    for (uint32_t pair = 0; pair < 2; ++pair)
+        compareComputeResult(
+            device,
+            destinations[pair],
+            std::span<uint8_t>((uint8_t*)expectedData[pair].data(), expectedData[pair].size() * sizeof(float))
+        );
+}
+
 GPU_TEST_CASE("bind-pointers-intermediate-copy-global-barrier", Vulkan | CUDA | Metal)
 {
     ComPtr<IShaderProgram> shaderProgram;

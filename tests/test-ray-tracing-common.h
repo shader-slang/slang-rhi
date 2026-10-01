@@ -1065,7 +1065,8 @@ struct RayTracingTestPipeline
         const std::vector<const char*>& missNames,
         RayTracingPipelineFlags flags = RayTracingPipelineFlags::None,
         const ShaderRecordOverwrite* hitGroupSbtData = nullptr,
-        const std::vector<const char*>& callableNames = std::vector<const char*>()
+        const std::vector<const char*>& callableNames = std::vector<const char*>(),
+        uint32_t maxAttributeSizeInBytes = 8
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1127,7 +1128,7 @@ struct RayTracingTestPipeline
         rtpDesc.hitGroupCount = hitGroups.size();
         rtpDesc.hitGroups = hitGroups.data();
         rtpDesc.maxRayPayloadSize = 128;
-        rtpDesc.maxAttributeSizeInBytes = 8;
+        rtpDesc.maxAttributeSizeInBytes = maxAttributeSizeInBytes;
         rtpDesc.maxRecursion = 2;
         rtpDesc.flags = flags;
         REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));

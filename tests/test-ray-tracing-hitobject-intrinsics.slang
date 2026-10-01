@@ -652,3 +652,31 @@ void rayGenShaderGetShaderRecordBufferHandle()
     resultBuffer[0].invokeWasSuccess = 1;
 }
 #endif
+
+// CUDA register attributes are dense despite this record's internal/tail padding.
+struct PaddedAttributes { uint tag; float4 value; float3 tail; };
+[shader("intersection")]
+void intersectionPaddedAttributes()
+{
+    PaddedAttributes attributes = {19, float4(0.125, -0.25, 0.5, 2.0), float3(4, 8, 16)};
+    ReportHit(1.0, CUSTOM_HIT_KIND, attributes);
+}
+[shader("closesthit")]
+void closestHitPaddedAttributes(inout RayPayload payload, in PaddedAttributes attributes)
+{
+    payload.queryWasSuccess = int(attributes.tag);
+    payload.invokeWasSuccess = all(attributes.value == float4(0.125, -0.25, 0.5, 2.0)) && all(attributes.tail == float3(4, 8, 16));
+}
+[shader("raygeneration")]
+void rayGenPaddedAttributes()
+{
+    RayDesc ray = {float3(0), 0.001, float3(0, 0, 1), 10000.0};
+    RayPayload payload = {};
+    HitObject object = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+    PaddedAttributes attributes = object.GetAttributes<PaddedAttributes>();
+    resultBuffer[0].queryWasSuccess = int(attributes.tag);
+    resultBuffer[0].rayOrigin = attributes.value.xyz;
+    HitObject.Invoke(sceneBVH, object, payload);
+    resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
+    resultBuffer[0].rayDirection = float3(attributes.value.w, attributes.tail.x + attributes.tail.y + attributes.tail.z, float(payload.queryWasSuccess));
+}

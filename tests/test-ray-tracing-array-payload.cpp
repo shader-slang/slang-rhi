@@ -12,12 +12,14 @@ enum class PayloadShape
 {
     FlatFloat12,
     NestedMixed32,
+    PaddedMatrices,
+    SingletonMatrices,
 };
 
 // Compose the specified stage transformations independently of shader storage traversal.
 uint32_t expectedPayloadWord(PayloadShape shape, uint32_t word, bool hit)
 {
-    const uint32_t field = shape == PayloadShape::FlatFloat12 ? 0 : word % 8;
+    const uint32_t field = shape == PayloadShape::NestedMixed32 ? word % 8 : 0;
     if (field < 4)
     {
         const float initial = float(word + 1) * 0.25f;
@@ -99,7 +101,9 @@ struct PayloadTriangleBLAS
 void runArrayPayloadTest(GpuTestContext* ctx, PayloadShape shape)
 {
     const bool flat = shape == PayloadShape::FlatFloat12;
-    const uint32_t wordCount = flat ? 12 : 32;
+    const bool layout = shape == PayloadShape::PaddedMatrices;
+    const bool singleton = shape == PayloadShape::SingletonMatrices;
+    const uint32_t wordCount = flat ? 12 : layout ? 22 : singleton ? 8 : 32;
     for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
     {
         CAPTURE(optimization);
@@ -119,9 +123,22 @@ void runArrayPayloadTest(GpuTestContext* ctx, PayloadShape shape)
         RayTracingTestPipeline pipeline(
             device,
             "test-ray-tracing-array-payload",
-            {flat ? "flatRayGen" : "nestedRayGen"},
-            {{flat ? "flatClosestHit" : "nestedClosestHit", flat ? "flatAnyHit" : "nestedAnyHit"}},
-            {flat ? "flatMiss" : "nestedMiss"}
+            {flat        ? "flatRayGen"
+             : layout    ? "layoutRayGen"
+             : singleton ? "singletonRayGen"
+                         : "nestedRayGen"},
+            {{flat        ? "flatClosestHit"
+              : layout    ? "layoutClosestHit"
+              : singleton ? "singletonClosestHit"
+                          : "nestedClosestHit",
+              flat        ? "flatAnyHit"
+              : layout    ? "layoutAnyHit"
+              : singleton ? "singletonAnyHit"
+                          : "nestedAnyHit"}},
+            {flat        ? "flatMiss"
+             : layout    ? "layoutMiss"
+             : singleton ? "singletonMiss"
+                         : "nestedMiss"}
         );
 
         // One hit and one miss have disjoint outputs, each with every payload word observed.
@@ -176,4 +193,14 @@ GPU_TEST_CASE("ray-tracing-array-payload-flat", CUDA | Vulkan | D3D12 | DontCrea
 GPU_TEST_CASE("ray-tracing-array-payload-nested", CUDA | Vulkan | D3D12 | DontCreateDevice)
 {
     runArrayPayloadTest(ctx, PayloadShape::NestedMixed32);
+}
+
+GPU_TEST_CASE("ray-tracing-array-payload-layout", CUDA | Vulkan | D3D12 | DontCreateDevice)
+{
+    runArrayPayloadTest(ctx, PayloadShape::PaddedMatrices);
+}
+
+GPU_TEST_CASE("ray-tracing-array-payload-singleton-matrices", CUDA | Vulkan | D3D12 | DontCreateDevice)
+{
+    runArrayPayloadTest(ctx, PayloadShape::SingletonMatrices);
 }

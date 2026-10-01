@@ -94,7 +94,8 @@ struct RayTracingSingleCustomGeometryTest
         const char* filepath,
         const char* raygenName,
         const std::vector<HitGroupProgramNames>& hitGroupProgramNames,
-        const std::vector<const char*>& missNames
+        const std::vector<const char*>& missNames,
+        uint32_t maxAttributeSizeInBytes = 8
     )
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
@@ -102,7 +103,17 @@ struct RayTracingSingleCustomGeometryTest
         SingleCustomGeometryBLAS blas(device, queue);
         TLAS tlas(device, queue, blas.blas);
 
-        RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
+        RayTracingTestPipeline pipeline(
+            device,
+            filepath,
+            {raygenName},
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::None,
+            nullptr,
+            {},
+            maxAttributeSizeInBytes
+        );
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
 
         ComPtr<ISlangBlob> resultBlob;
@@ -728,4 +739,40 @@ GPU_TEST_CASE("ray-tracing-hitobject-get-shader-record-buffer-handle", Vulkan)
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-padded-attributes", CUDA | DontCreateDevice)
+{
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
+    {
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(device != nullptr);
+        RayTracingSingleCustomGeometryTest test;
+        test.init(device);
+        test.createResultBuffer(sizeof(TestResult));
+        test.run(
+            "test-ray-tracing-hitobject-intrinsics",
+            "rayGenPaddedAttributes",
+            {{"closestHitPaddedAttributes", nullptr, "intersectionPaddedAttributes"}},
+            {"missNOP"},
+            32
+        );
+        auto blob = test.getTestResult();
+        REQUIRE_EQ(blob->getBufferSize(), sizeof(TestResult));
+        auto result = static_cast<const TestResult*>(blob->getBufferPointer());
+        CHECK_EQ(result->queryWasSuccess, 19);
+        CHECK_EQ(result->invokeWasSuccess, 1);
+        CHECK_EQ(result->rayOrigin[0], 0.125f);
+        CHECK_EQ(result->rayOrigin[1], -0.25f);
+        CHECK_EQ(result->rayOrigin[2], 0.5f);
+        CHECK_EQ(result->rayDirection[0], 2.0f);
+        CHECK_EQ(result->rayDirection[1], 28.0f);
+        CHECK_EQ(result->rayDirection[2], 19.0f);
+    }
 }
