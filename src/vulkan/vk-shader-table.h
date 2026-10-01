@@ -15,13 +15,13 @@ public:
         /// Index into the root object layout's entry points.
         uint32_t entryPointIndex;
         /// Offset within the SBT buffer where params should be written.
-        uint32_t sbtOffset;
+        Size sbtOffset;
         /// Size of parameters to copy.
         size_t paramsSize;
         /// Offset of this raygen record from the start of the raygen table.
-        uint32_t recordOffset;
+        Size recordOffset;
         /// Aligned size of this raygen record.
-        uint32_t recordSize;
+        Size recordSize;
     };
 
     /// Data specific to a pipeline, including the buffer and raygen infos.
@@ -33,10 +33,10 @@ public:
         // Offset from the start of `buffer` to the aligned shader table base address.
         uint32_t tableOffset = 0;
 
-        uint32_t raygenTableSize;
-        uint32_t missTableSize;
-        uint32_t hitTableSize;
-        uint32_t callableTableSize;
+        Size raygenTableSize;
+        Size missTableSize;
+        Size hitTableSize;
+        Size callableTableSize;
 
         uint32_t missRecordStride;
         uint32_t hitGroupRecordStride;

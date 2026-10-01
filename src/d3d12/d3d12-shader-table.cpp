@@ -18,40 +18,65 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     if (it != m_pipelineData.end())
         return it->second.get();
 
+    auto getRecordSize = [&](const std::vector<OwnedRecord>& records)
+    {
+        Size size = getMaxRecordSize(records, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+        SLANG_RHI_ASSERT(size <= UINT32_MAX);
+        return size;
+    };
+
     // Calculate record sizes (without alignment).
-    uint32_t raygenRecordSize = max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_rayGenRecordOverwriteMaxSize);
-    uint32_t missRecordSize = max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_missRecordOverwriteMaxSize);
-    uint32_t hitGroupRecordSize =
-        max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_hitGroupRecordOverwriteMaxSize);
-    uint32_t callableRecordSize =
-        max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_callableRecordOverwriteMaxSize);
+    Size raygenRecordSize = max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_rayGenRecordOverwriteMaxSize);
+    Size missRecordSize = getRecordSize(m_missRecords);
+    Size hitGroupRecordSize = getRecordSize(m_hitGroupRecords);
+    Size callableRecordSize = getRecordSize(m_callableRecords);
 
     // Align all record sizes to D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, expect raygen records which must be
     // aligned to D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT.
-    raygenRecordSize = (uint32_t)math::calcAligned2(raygenRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-    missRecordSize = (uint32_t)math::calcAligned2(missRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
-    hitGroupRecordSize =
-        (uint32_t)math::calcAligned2(hitGroupRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
-    callableRecordSize =
-        (uint32_t)math::calcAligned2(callableRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    if (!tryAlignSize(raygenRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, &raygenRecordSize) ||
+        !tryAlignSize(missRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, &missRecordSize) ||
+        !tryAlignSize(hitGroupRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, &hitGroupRecordSize) ||
+        !tryAlignSize(callableRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, &callableRecordSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Shader table record-size alignment overflowed.");
+        return nullptr;
+    }
 
-    // Calculate table sizes.
-    uint32_t raygenTableSize = m_rayGenShaderCount * raygenRecordSize;
-    uint32_t missTableSize = m_missShaderCount * missRecordSize;
-    uint32_t hitgroupTableSize = m_hitGroupCount * hitGroupRecordSize;
-    uint32_t callableTableSize = m_callableShaderCount * callableRecordSize;
+    // Compute every section in `Size` before allocating the table. A single large record determines
+    // the stride of its whole section, so multiplying in uint32_t could otherwise wrap even when
+    // most records contain no application data.
+    Size raygenTableSize = 0;
+    Size missTableSize = 0;
+    Size hitGroupTableSize = 0;
+    Size callableTableSize = 0;
+    if (!tryMultiplySize(m_rayGenShaderCount, raygenRecordSize, &raygenTableSize) ||
+        !tryMultiplySize(m_missShaderCount, missRecordSize, &missTableSize) ||
+        !tryMultiplySize(m_hitGroupCount, hitGroupRecordSize, &hitGroupTableSize) ||
+        !tryMultiplySize(m_callableShaderCount, callableRecordSize, &callableTableSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Shader table section size overflowed.");
+        return nullptr;
+    }
 
     // Calculate table offsets, ensuring each table starts at a multiple of
     // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT.
-    uint32_t rayGenTableOffset = 0;
-    uint32_t missTableOffset =
-        (uint32_t)math::calcAligned2(rayGenTableOffset + raygenTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-    uint32_t hitGroupTableOffset =
-        (uint32_t)math::calcAligned2(missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-    uint32_t callableTableOffset = (uint32_t)
-        math::calcAligned2(hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-
-    uint32_t tableSize = callableTableOffset + callableTableSize;
+    Size rayGenTableOffset = 0;
+    Size missTableOffset = 0;
+    Size hitGroupTableOffset = 0;
+    Size callableTableOffset = 0;
+    Size tableSize = 0;
+    Size sectionEnd = 0;
+    if (!tryAddSize(rayGenTableOffset, raygenTableSize, &sectionEnd) ||
+        !tryAlignSize(sectionEnd, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, &missTableOffset) ||
+        !tryAddSize(missTableOffset, missTableSize, &sectionEnd) ||
+        !tryAlignSize(sectionEnd, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, &hitGroupTableOffset) ||
+        !tryAddSize(hitGroupTableOffset, hitGroupTableSize, &sectionEnd) ||
+        !tryAlignSize(sectionEnd, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, &callableTableOffset) ||
+        !tryAddSize(callableTableOffset, callableTableSize, &tableSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Shader table layout size overflowed.");
+        return nullptr;
+    }
 
     auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
@@ -64,6 +89,12 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         {
             memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
         }
+    };
+
+    auto writeOwnedTableEntry = [&](void* dest, const std::string& name, const OwnedRecord& record)
+    {
+        writeTableEntry(dest, name, nullptr);
+        record.writeData(dest, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
     };
 
     auto tableData = std::make_unique<uint8_t[]>(tableSize);
@@ -81,28 +112,28 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     for (uint32_t i = 0; i < m_missShaderCount; i++)
     {
-        writeTableEntry(
-            tablePtr + missTableOffset + i * missRecordSize,
+        writeOwnedTableEntry(
+            tablePtr + missTableOffset + Size(i) * missRecordSize,
             m_missShaderEntryPointNames[i],
-            i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr
+            m_missRecords[i]
         );
     }
 
     for (uint32_t i = 0; i < m_hitGroupCount; i++)
     {
-        writeTableEntry(
-            tablePtr + hitGroupTableOffset + i * hitGroupRecordSize,
+        writeOwnedTableEntry(
+            tablePtr + hitGroupTableOffset + Size(i) * hitGroupRecordSize,
             m_hitGroupNames[i],
-            i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr
+            m_hitGroupRecords[i]
         );
     }
 
     for (uint32_t i = 0; i < m_callableShaderCount; i++)
     {
-        writeTableEntry(
-            tablePtr + callableTableOffset + i * callableRecordSize,
+        writeOwnedTableEntry(
+            tablePtr + callableTableOffset + Size(i) * callableRecordSize,
             m_callableShaderEntryPointNames[i],
-            i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr
+            m_callableRecords[i]
         );
     }
 
@@ -129,10 +160,13 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     pipelineData->missTableOffset = missTableOffset;
     pipelineData->hitGroupTableOffset = hitGroupTableOffset;
     pipelineData->callableTableOffset = callableTableOffset;
-    pipelineData->rayGenRecordStride = raygenRecordSize;
-    pipelineData->missRecordStride = missRecordSize;
-    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
-    pipelineData->callableRecordStride = callableRecordSize;
+    pipelineData->missTableSize = missTableSize;
+    pipelineData->hitGroupTableSize = hitGroupTableSize;
+    pipelineData->callableTableSize = callableTableSize;
+    pipelineData->rayGenRecordStride = uint32_t(raygenRecordSize);
+    pipelineData->missRecordStride = uint32_t(missRecordSize);
+    pipelineData->hitGroupRecordStride = uint32_t(hitGroupRecordSize);
+    pipelineData->callableRecordStride = uint32_t(callableRecordSize);
 
     m_pipelineData.emplace(pipeline, pipelineData);
     return pipelineData.get();
