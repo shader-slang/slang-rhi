@@ -699,3 +699,123 @@ GPU_TEST_CASE("ray-tracing-intrinsics-payload-termination", CUDA | Vulkan | D3D1
         }
     }
 }
+
+GPU_TEST_CASE("ray-tracing-intrinsics-anyhit-state", CUDA | Vulkan | D3D12 | DontCreateDevice)
+{
+    // The three triangles use the same unequal vertex weights (u=1/4, v=1/8).
+    constexpr std::array<std::array<float, 3>, 3> hitPoints = {{
+        {0.25f, 0.125f, 1.0f},
+        {-0.125f, 0.25f, 1.0f},
+        {0.25f, -0.125f, 1.0f},
+    }};
+    // A power-of-two dominant component keeps the intersection in this exact fixture domain.
+    constexpr std::array<float, 3> direction = {0.5f, -0.25f, 2.0f};
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
+    {
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto testDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(testDevice != nullptr);
+        if (!testDevice->hasFeature(Feature::RayTracing))
+            SKIP("ray tracing not supported");
+
+        auto queue = testDevice->getQueue(QueueType::Graphics);
+        ThreeTriangleBLAS blas(testDevice, queue);
+        std::vector<AccelerationStructureInstanceDescGeneric> instances(2);
+        for (uint32_t index = 0; index < instances.size(); ++index)
+        {
+            auto& instance = instances[index];
+            instance.transform[0][0] = 1.0f;
+            instance.transform[1][1] = 1.0f;
+            instance.transform[2][2] = 1.0f;
+            instance.transform[0][3] = index == 0 ? 0.0f : 4.0f;
+            instance.instanceID = index == 0 ? 0xF00D : 0x1234;
+            instance.instanceMask = 0xFF;
+            instance.instanceContributionToHitGroupIndex = 0;
+            instance.accelerationStructure = blas.blas->getHandle();
+        }
+        TLAS tlas(testDevice, queue, instances);
+        RayTracingTestPipeline pipeline(
+            testDevice,
+            "test-ray-tracing-intrinsics",
+            {"rayGenAnyHitState"},
+            {{"closestHitStateNOP", "anyHitObserveState"}},
+            {"missAnyHitState"}
+        );
+
+        std::array<uint32_t, 114> initial;
+        initial.fill(0xa5a5a5a5);
+        initial.front() = 0x13579bdf;
+        initial.back() = 0x2468ace0;
+        BufferDesc desc = {};
+        desc.size = sizeof(initial);
+        desc.elementSize = sizeof(uint32_t);
+        desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        desc.defaultState = ResourceState::UnorderedAccess;
+        auto output = testDevice->createBuffer(desc, initial.data());
+        REQUIRE(output != nullptr);
+
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginRayTracingPass();
+        auto rootObject = pass->bindPipeline(pipeline.raytracingPipeline, pipeline.shaderTable);
+        ShaderCursor cursor(rootObject);
+        cursor["sceneBVH"].setBinding(tlas.tlas);
+        cursor["anyHitStateResults"].setBinding(output);
+        pass->dispatchRays(0, 7, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        ComPtr<ISlangBlob> blob;
+        REQUIRE_CALL(testDevice->readBuffer(output, 0, sizeof(initial), blob.writeRef()));
+        REQUIRE_EQ(blob->getBufferSize(), sizeof(initial));
+        const auto* actual = static_cast<const uint32_t*>(blob->getBufferPointer());
+        CHECK_EQ(actual[0], initial.front());
+        CHECK_EQ(actual[113], initial.back());
+        for (uint32_t ray = 0; ray < 7; ++ray)
+        {
+            CAPTURE(ray);
+            std::array<uint32_t, 16> expected;
+            for (uint32_t field = 0; field < expected.size(); ++field)
+                expected[field] = 0xdead0000 + field;
+            if (ray < 6)
+            {
+                const auto& point = hitPoints[ray % 3];
+                const float translation = ray < 3 ? 0.0f : 4.0f;
+                const std::array<float, 8> rayValues = {
+                    point[0] + translation - 2.0f * direction[0],
+                    point[1] - 2.0f * direction[1],
+                    point[2] - 2.0f * direction[2],
+                    direction[0],
+                    direction[1],
+                    direction[2],
+                    0.25f,
+                    2.0f,
+                };
+                for (uint32_t field = 0; field < rayValues.size(); ++field)
+                    memcpy(&expected[field], &rayValues[field], sizeof(uint32_t));
+                expected[8] = ray % 2 == 0 ? 2 : 10; // FORCE_NON_OPAQUE, optionally SKIP_CLOSEST_HIT_SHADER.
+                expected[9] = ray % 3;
+                expected[10] = ray / 3;
+                expected[11] = ray < 3 ? 0xF00D : 0x1234;
+                expected[12] = ray % 3 == 2 ? 254 : 255;
+                expected[13] = 0x3e800000; // Float32 1/4, weight of vertex 1.
+                expected[14] = 0x3e000000; // Float32 1/8, weight of vertex 2.
+                expected[15] = 1;
+            }
+            else
+            {
+                expected[15] = 2;
+            }
+            for (uint32_t field = 0; field < expected.size(); ++field)
+            {
+                CAPTURE(field);
+                CHECK_EQ(actual[1 + ray * 16 + field], expected[field]);
+            }
+        }
+    }
+}

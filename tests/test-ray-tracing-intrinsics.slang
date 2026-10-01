@@ -532,3 +532,115 @@ void rayGenPayloadTermination()
     terminationResults[2] = payload.marker;
     terminationResults[3] = payload.phase;
 }
+
+// Observe AnyHit state without allowing ClosestHit to supply any of the queried values.
+uniform RWStructuredBuffer<uint> anyHitStateResults;
+
+[raypayload]
+struct AnyHitStatePayload
+{
+    uint originX : read(caller) : write(caller, anyhit, miss);
+    uint originY : read(caller) : write(caller, anyhit, miss);
+    uint originZ : read(caller) : write(caller, anyhit, miss);
+    uint directionX : read(caller) : write(caller, anyhit, miss);
+    uint directionY : read(caller) : write(caller, anyhit, miss);
+    uint directionZ : read(caller) : write(caller, anyhit, miss);
+    uint tMin : read(caller) : write(caller, anyhit, miss);
+    uint tCurrent : read(caller) : write(caller, anyhit, miss);
+    uint flags : read(caller) : write(caller, anyhit, miss);
+    uint primitive : read(caller) : write(caller, anyhit, miss);
+    uint instanceIndex : read(caller) : write(caller, anyhit, miss);
+    uint instanceID : read(caller) : write(caller, anyhit, miss);
+    uint hitKind : read(caller) : write(caller, anyhit, miss);
+    uint barycentricU : read(caller) : write(caller, anyhit, miss);
+    uint barycentricV : read(caller) : write(caller, anyhit, miss);
+    uint phase : read(caller) : write(caller, anyhit, miss);
+};
+
+[shader("anyhit")]
+void anyHitObserveState(inout AnyHitStatePayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    payload.originX = asuint(WorldRayOrigin().x);
+    payload.originY = asuint(WorldRayOrigin().y);
+    payload.originZ = asuint(WorldRayOrigin().z);
+    payload.directionX = asuint(WorldRayDirection().x);
+    payload.directionY = asuint(WorldRayDirection().y);
+    payload.directionZ = asuint(WorldRayDirection().z);
+    payload.tMin = asuint(RayTMin());
+    payload.tCurrent = asuint(RayTCurrent());
+    payload.flags = RayFlags();
+    payload.primitive = PrimitiveIndex();
+    payload.instanceIndex = InstanceIndex();
+    payload.instanceID = InstanceID();
+    payload.hitKind = HitKind();
+    payload.barycentricU = asuint(attr.barycentrics.x);
+    payload.barycentricV = asuint(attr.barycentrics.y);
+    payload.phase = 1;
+}
+
+[shader("closesthit")]
+void closestHitStateNOP(inout AnyHitStatePayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+}
+
+[shader("miss")]
+void missAnyHitState(inout AnyHitStatePayload payload)
+{
+    payload.phase = 2;
+}
+
+[shader("raygeneration")]
+void rayGenAnyHitState()
+{
+    uint index = DispatchRaysIndex().x;
+    uint primitive = index % 3;
+    float3 target = primitive == 1 ? float3(-0.125, 0.25, 1.0) :
+        (primitive == 2 ? float3(0.25, -0.125, 1.0) : float3(0.25, 0.125, 1.0));
+    target.x += index >= 3 ? 4.0 : 0.0;
+    if (index == 6)
+        target.x = 10.0;
+
+    RayDesc ray;
+    // A power-of-two dominant component keeps the intersection in this exact fixture domain.
+    ray.Direction = float3(0.5, -0.25, 2.0);
+    ray.Origin = target - 2.0 * ray.Direction;
+    ray.TMin = 0.25;
+    ray.TMax = 4.0;
+    AnyHitStatePayload payload;
+    payload.originX = 0xdead0000;
+    payload.originY = 0xdead0001;
+    payload.originZ = 0xdead0002;
+    payload.directionX = 0xdead0003;
+    payload.directionY = 0xdead0004;
+    payload.directionZ = 0xdead0005;
+    payload.tMin = 0xdead0006;
+    payload.tCurrent = 0xdead0007;
+    payload.flags = 0xdead0008;
+    payload.primitive = 0xdead0009;
+    payload.instanceIndex = 0xdead000a;
+    payload.instanceID = 0xdead000b;
+    payload.hitKind = 0xdead000c;
+    payload.barycentricU = 0xdead000d;
+    payload.barycentricV = 0xdead000e;
+    payload.phase = 0xdead000f;
+    // The shared BLAS is opaque; force AnyHit so ClosestHit cannot silently stand in for it.
+    uint flags = RAY_FLAG_FORCE_NON_OPAQUE | (index % 2 == 1 ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : RAY_FLAG_NONE);
+    TraceRay(sceneBVH, flags, 0xff, 0, 0, 0, ray, payload);
+    uint offset = 1 + index * 16;
+    anyHitStateResults[offset + 0] = payload.originX;
+    anyHitStateResults[offset + 1] = payload.originY;
+    anyHitStateResults[offset + 2] = payload.originZ;
+    anyHitStateResults[offset + 3] = payload.directionX;
+    anyHitStateResults[offset + 4] = payload.directionY;
+    anyHitStateResults[offset + 5] = payload.directionZ;
+    anyHitStateResults[offset + 6] = payload.tMin;
+    anyHitStateResults[offset + 7] = payload.tCurrent;
+    anyHitStateResults[offset + 8] = payload.flags;
+    anyHitStateResults[offset + 9] = payload.primitive;
+    anyHitStateResults[offset + 10] = payload.instanceIndex;
+    anyHitStateResults[offset + 11] = payload.instanceID;
+    anyHitStateResults[offset + 12] = payload.hitKind;
+    anyHitStateResults[offset + 13] = payload.barycentricU;
+    anyHitStateResults[offset + 14] = payload.barycentricV;
+    anyHitStateResults[offset + 15] = payload.phase;
+}
