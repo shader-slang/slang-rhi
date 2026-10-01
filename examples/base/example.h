@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cctype>
 
 namespace rhi {
 
@@ -367,13 +368,6 @@ static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
 template<typename Example>
 static int main(int argc, const char** argv)
 {
-    if (!glfwInit())
-    {
-        LOG_ERROR("Failed to initialize GLFW");
-        return 1;
-    }
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
     std::vector<DeviceType> deviceTypes = {
         DeviceType::D3D11,
         DeviceType::D3D12,
@@ -384,6 +378,44 @@ static int main(int argc, const char** argv)
         // Exclude for now as WGPU backend is not fully functional
         // DeviceType::WGPU,
     };
+
+    if (argc > 1)
+    {
+        if (argc != 3 || std::string(argv[1]) != "--device")
+        {
+            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda>]", argv[0]);
+            return 1;
+        }
+        std::string requestedDevice = argv[2];
+        auto toLower = [](unsigned char c)
+        {
+            return char(std::tolower(c));
+        };
+        std::transform(requestedDevice.begin(), requestedDevice.end(), requestedDevice.begin(), toLower);
+        auto selectedDevice = std::find_if(
+            deviceTypes.begin(),
+            deviceTypes.end(),
+            [&](DeviceType type)
+            {
+                std::string name = getRHI()->getDeviceTypeName(type);
+                std::transform(name.begin(), name.end(), name.begin(), toLower);
+                return name == requestedDevice;
+            }
+        );
+        if (selectedDevice == deviceTypes.end())
+        {
+            LOG_ERROR("Unknown device: %s", argv[2]);
+            return 1;
+        }
+        deviceTypes = {*selectedDevice};
+    }
+
+    if (!glfwInit())
+    {
+        LOG_ERROR("Failed to initialize GLFW");
+        return 1;
+    }
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     std::vector<ExampleBase*>& examples = getExamples();
 
