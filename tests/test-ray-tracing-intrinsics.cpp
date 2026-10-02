@@ -819,3 +819,144 @@ GPU_TEST_CASE("ray-tracing-intrinsics-anyhit-state", CUDA | Vulkan | D3D12 | Don
         }
     }
 }
+
+GPU_TEST_CASE("ray-tracing-intrinsics-nested-call-shader", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+    // The geometry is not traced, but every backend still requires a complete ray-tracing
+    // pipeline and shader table for dispatch.
+    SingleTriangleBLAS blas(device, queue, false);
+    TLAS tlas(device, queue, blas.blas);
+    ResultBuffer resultBuf(device, sizeof(RayIntrinsicResult));
+
+    std::vector<const char*> raygenNames = {"rayGenShaderNestedCallShaderTest"};
+    std::vector<HitGroupProgramNames> hitGroupProgramNames = {{"closestHitNOP", nullptr}};
+    std::vector<const char*> missNames = {"missNOP"};
+
+    // The order defines the callable shader-table indices: callableInvokeNested is entry 0 and
+    // invokes callableNestedLeaf at entry 1.
+    std::vector<const char*> callableNames = {"callableInvokeNested", "callableNestedLeaf"};
+
+    OptixRayTracingPipelineDesc optixPipelineDesc = {};
+    optixPipelineDesc.maxDirectCallableDepthFromState = 2;
+    const void* pipelineNext =
+        device->getDeviceType() == DeviceType::CUDA ? static_cast<const void*>(&optixPipelineDesc) : nullptr;
+
+    RayTracingTestPipeline pipeline(
+        device,
+        "test-ray-tracing-intrinsics",
+        raygenNames,
+        hitGroupProgramNames,
+        missNames,
+        RayTracingPipelineFlags::None,
+        nullptr,
+        callableNames,
+        8,
+        pipelineNext
+    );
+
+    launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+
+    ComPtr<ISlangBlob> resultBlob;
+    resultBuf.getFromDevice(resultBlob.writeRef());
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Outer saved value: (14, 19, 22); leaf result: (7, 13, 23); sum: (21, 32, 45).
+    checkFloat3(result->value, {21.0f, 32.0f, 45.0f});
+}
+
+GPU_TEST_CASE("ray-tracing-callable-family", CUDA | DontCreateDevice)
+{
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
+    {
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto testDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(testDevice != nullptr);
+        if (!testDevice->hasFeature(Feature::RayTracing))
+            SKIP("ray tracing not supported");
+        auto queue = testDevice->getQueue(QueueType::Graphics);
+        SingleTriangleBLAS blas(testDevice, queue, false);
+        TLAS tlas(testDevice, queue, blas.blas);
+        OptixRayTracingPipelineDesc optixDesc = {};
+        optixDesc.maxDirectCallableDepthFromState = 2;
+        RayTracingTestPipeline pipeline(
+            testDevice,
+            "test-ray-tracing-callables",
+            {"raygenCallables"},
+            {{"hitCallables", nullptr}},
+            {"missCallables"},
+            RayTracingPipelineFlags::None,
+            nullptr,
+            {"callableAdd", "callableChain", "callableEmpty", "callableNestedEmpty", "callableOut"},
+            8,
+            &optixDesc,
+            PipelineCompilationPolicy::Deferred
+        );
+        // Compilation happens at binding, after the application changes its original options.
+        // Assert ownership first so a missing copy fails without launching with an undersized stack.
+        optixDesc.maxDirectCallableDepthFromState = 0;
+        auto retained = static_cast<const OptixRayTracingPipelineDesc*>(pipeline.raytracingPipeline->getDesc().next);
+        REQUIRE(retained != nullptr);
+        REQUIRE(retained != &optixDesc);
+        REQUIRE_EQ(retained->maxDirectCallableDepthFromState, 2);
+        std::array<float, 458> initial;
+        initial.fill(-1234.0f);
+        initial.front() = 13579.0f;
+        initial.back() = 24680.0f;
+        BufferDesc desc = {};
+        desc.size = sizeof(initial);
+        desc.elementSize = sizeof(float);
+        desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        desc.defaultState = ResourceState::UnorderedAccess;
+        auto output = testDevice->createBuffer(desc, initial.data());
+        REQUIRE(output != nullptr);
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginRayTracingPass();
+        auto root = pass->bindPipeline(pipeline.raytracingPipeline, pipeline.shaderTable);
+        ShaderCursor cursor(root);
+        cursor["sceneBVH"].setBinding(tlas.tlas);
+        cursor["callableResults"].setBinding(output);
+        uint32_t nestedIndex = 0;
+        cursor["nestedIndex"].setData(&nestedIndex, sizeof(nestedIndex));
+        pass->dispatchRays(0, 8, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        ComPtr<ISlangBlob> blob;
+        REQUIRE_CALL(testDevice->readBuffer(output, 0, sizeof(initial), blob.writeRef()));
+        REQUIRE_EQ(blob->getBufferSize(), sizeof(initial));
+        const auto* actual = static_cast<const float*>(blob->getBufferPointer());
+        CHECK_EQ(actual[0], initial.front());
+        CHECK_EQ(actual[457], initial.back());
+        for (uint32_t lane = 0; lane < 8; ++lane)
+        {
+            CAPTURE(lane);
+            for (uint32_t segment = 0; segment < 2; ++segment)
+            {
+                uint32_t stage = segment == 0 ? 0 : lane % 2 == 0 ? 1 : 2;
+                uint32_t seed = stage * 100 + lane;
+                uint32_t delta = lane % 2 == 0 ? 10 : 30;
+                for (uint32_t leaf = 0; leaf < 27; ++leaf)
+                {
+                    CAPTURE(segment);
+                    CAPTURE(leaf);
+                    // Even lanes toggle false once; odd lanes toggle true twice.
+                    float expected = leaf == 25 ? 1.0f : float(seed + leaf + delta);
+                    CHECK_EQ(actual[1 + (lane * 2 + segment) * 27 + leaf], expected);
+                }
+            }
+            CHECK_EQ(actual[433 + lane * 3], 71.0f);
+            CHECK_EQ(actual[434 + lane * 3], 83.0f);
+            CHECK_EQ(actual[435 + lane * 3], 97.0f);
+        }
+    }
+}

@@ -1066,7 +1066,9 @@ struct RayTracingTestPipeline
         RayTracingPipelineFlags flags = RayTracingPipelineFlags::None,
         const ShaderRecordOverwrite* hitGroupSbtData = nullptr,
         const std::vector<const char*>& callableNames = std::vector<const char*>(),
-        uint32_t maxAttributeSizeInBytes = 8
+        uint32_t maxAttributeSizeInBytes = 8,
+        const void* pipelineNext = nullptr,
+        PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1124,6 +1126,9 @@ struct RayTracingTestPipeline
         }
 
         RayTracingPipelineDesc rtpDesc = {};
+        // The pipeline owns any recognized options needed after this construction call.
+        rtpDesc.next = pipelineNext;
+        rtpDesc.compilationPolicy = compilationPolicy;
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = hitGroups.size();
         rtpDesc.hitGroups = hitGroups.data();
