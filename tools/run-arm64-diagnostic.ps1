@@ -25,7 +25,7 @@ function Invoke-Workload([string]$Name, [string[]]$TestArguments, [int]$Expected
     Write-Host "Starting workload: $Name"
     $destination = New-Item -ItemType Directory -Force "$diagnostics/$Name"
     # Capture access violations before doctest's unhandled-exception filter exits.
-    & $ProcDump -accepteula -ma -e 1 -f C0000005 -n 1 -k -x $destination.FullName `
+    & $ProcDump -accepteula -ma -e 1 -f C0000005 -n 1 -x $destination.FullName `
         $executable --no-breaks=1 @TestArguments 2>&1 |
         ForEach-Object { "$_" -replace "`0", '' } |
         Tee-Object -FilePath "$destination/process.log"
