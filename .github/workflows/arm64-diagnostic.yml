@@ -41,7 +41,7 @@ jobs:
           SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           cmake --preset default
-          -DSLANG_RHI_FETCH_SLANG_VERSION=2026.17.1
+          "-DSLANG_RHI_FETCH_SLANG_VERSION=2026.17.1"
           "-DCMAKE_C_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
           "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
           "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
