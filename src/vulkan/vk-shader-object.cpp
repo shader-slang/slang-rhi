@@ -287,8 +287,7 @@ Result BindingDataBuilder::bindAsRoot(
         m_bindingData->entryPointData = nullptr;
     }
 
-    m_preallocatedDescriptorSets = specializedLayout->m_preallocateDescriptorSets;
-    m_nextChildDescriptorSet = specializedLayout->m_firstChildDescriptorSet;
+    const auto* composition = specializedLayout->m_descriptorSetComposition.get();
 
     BindingOffset offset = {};
 
@@ -311,7 +310,9 @@ Result BindingDataBuilder::bindAsRoot(
     BindingOffset ordinaryDataBufferOffset = offset;
     SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(shaderObject, ordinaryDataBufferOffset, specializedLayout));
 
-    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(
+        bindAsValue(shaderObject, offset, specializedLayout, composition ? &composition->root : nullptr)
+    );
 
     for (size_t i = 0; i < entryPointCount; ++i)
     {
@@ -324,7 +325,13 @@ Result BindingDataBuilder::bindAsRoot(
         // `RootShaderObjectLayout` has already baked any offsets
         // from the global layout into the `entryPointInfo`.
 
-        SLANG_RETURN_ON_FAIL(bindAsEntryPoint(entryPoint, entryPointInfo.offset, entryPointLayout, (uint32_t)i));
+        SLANG_RETURN_ON_FAIL(bindAsEntryPoint(
+            entryPoint,
+            entryPointInfo.offset,
+            entryPointLayout,
+            (uint32_t)i,
+            composition ? &composition->entryPoints[i] : nullptr
+        ));
     }
 
     // Assign bindless descriptor set to the last slot if available.
@@ -343,13 +350,14 @@ Result BindingDataBuilder::bindAsEntryPoint(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
     EntryPointLayout* layout,
-    uint32_t entryPointIndex
+    uint32_t entryPointIndex,
+    const DescriptorSetPlacement* placement
 )
 {
     if (layout->getSlangLayout()->getStage() != SLANG_STAGE_RAY_GENERATION)
     {
         // For non-raygen entry points, ordinary data goes into push constants.
-        return bindAsPushConstantBuffer(shaderObject, inOffset, layout);
+        return bindAsPushConstantBuffer(shaderObject, inOffset, layout, placement);
     }
 
     // For raygen entry points, ordinary data is stored in the SBT instead.
@@ -362,7 +370,7 @@ Result BindingDataBuilder::bindAsEntryPoint(
         ::memcpy(epData.data, shaderObject->m_data.data(), epData.size);
     }
 
-    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, inOffset, layout));
+    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, inOffset, layout, placement));
 
     return SLANG_OK;
 }
@@ -370,7 +378,8 @@ Result BindingDataBuilder::bindAsEntryPoint(
 Result BindingDataBuilder::bindAsPushConstantBuffer(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
-    ShaderObjectLayoutImpl* specializedLayout
+    ShaderObjectLayoutImpl* specializedLayout,
+    const DescriptorSetPlacement* placement
 )
 {
     BindingOffset offset = inOffset;
@@ -398,7 +407,7 @@ Result BindingDataBuilder::bindAsPushConstantBuffer(
 
     // Resources and nested parameter blocks in the push-constant element type still
     // need their normal recursive binding treatment.
-    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout, placement));
 
     return SLANG_OK;
 }
@@ -441,7 +450,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
 Result BindingDataBuilder::bindAsValue(
     ShaderObject* shaderObject,
     const BindingOffset& offset,
-    ShaderObjectLayoutImpl* specializedLayout
+    ShaderObjectLayoutImpl* specializedLayout,
+    const DescriptorSetPlacement* placement
 )
 {
     // We start by iterating over the "simple" (non-sub-object) binding
@@ -633,7 +643,12 @@ Result BindingDataBuilder::bindAsValue(
                 // bindings it recursively contains.
                 //
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(
+                    subObject,
+                    objOffset,
+                    subObjectLayout,
+                    placement ? &placement->subObjects[subObjectIndex + i] : nullptr
+                ));
 
                 // When dealing with arrays of sub-objects, we need to make
                 // sure to increment the offset for each subsequent object
@@ -653,7 +668,12 @@ Result BindingDataBuilder::bindAsValue(
                 // instead (understandably).
                 //
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                SLANG_RETURN_ON_FAIL(bindAsParameterBlock(subObject, objOffset, subObjectLayout));
+                SLANG_RETURN_ON_FAIL(bindAsParameterBlock(
+                    subObject,
+                    objOffset,
+                    subObjectLayout,
+                    placement ? &placement->subObjects[subObjectIndex + i] : nullptr
+                ));
             }
         }
         break;
@@ -664,7 +684,12 @@ Result BindingDataBuilder::bindAsValue(
             for (uint32_t i = 0; i < count; ++i)
             {
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                SLANG_RETURN_ON_FAIL(bindAsPushConstantBuffer(subObject, objOffset, subObjectLayout));
+                SLANG_RETURN_ON_FAIL(bindAsPushConstantBuffer(
+                    subObject,
+                    objOffset,
+                    subObjectLayout,
+                    placement ? &placement->subObjects[subObjectIndex + i] : nullptr
+                ));
                 objOffset += rangeStride;
             }
         }
@@ -728,7 +753,8 @@ Result BindingDataBuilder::allocateDescriptorSets(
 Result BindingDataBuilder::bindAsParameterBlock(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
-    ShaderObjectLayoutImpl* specializedLayout
+    ShaderObjectLayoutImpl* specializedLayout,
+    const DescriptorSetPlacement* placement
 )
 {
     // Because we are binding into a nested parameter block,
@@ -737,25 +763,20 @@ Result BindingDataBuilder::bindAsParameterBlock(
     // not the sets for any parent object(s).
     //
     BindingOffset offset = inOffset;
-    offset.bindingSet = m_preallocatedDescriptorSets ? m_nextChildDescriptorSet : m_bindingData->descriptorSetCount;
+    offset.bindingSet = placement ? placement->firstSet : m_bindingData->descriptorSetCount;
     offset.binding = 0;
 
     // Note: Interface-type binding handling has been simplified
     // now that pending data layout APIs have been removed.
 
-    // Writing the bindings for a parameter block is relatively easy:
-    // we fill its sets like a `ConstantBuffer<X>`. For synthetic layouts,
-    // the root already allocated every set, including child sets that may
-    // share bindings with synthetic resources. Advance through the original
-    // reflected order instead of appending after the synthetic sets.
-    //
-    if (m_preallocatedDescriptorSets)
-        m_nextChildDescriptorSet += specializedLayout->getOwnDescriptorSetCount();
-    else
+    // A composed layout has already allocated these sets at the root. The
+    // occurrence's placement is explicit, so sibling binding order is irrelevant.
+    // Ordinary layouts continue allocating each parameter block's sets here.
+    if (!placement)
         SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
 
     SLANG_RHI_ASSERT(offset.bindingSet <= m_bindingData->descriptorSetCount);
-    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, offset, specializedLayout, placement));
 
     return SLANG_OK;
 }
@@ -763,7 +784,8 @@ Result BindingDataBuilder::bindAsParameterBlock(
 Result BindingDataBuilder::bindAsConstantBuffer(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
-    ShaderObjectLayoutImpl* specializedLayout
+    ShaderObjectLayoutImpl* specializedLayout,
+    const DescriptorSetPlacement* placement
 )
 {
     // To bind an object as a constant buffer, we first
@@ -778,7 +800,7 @@ Result BindingDataBuilder::bindAsConstantBuffer(
     //
     BindingOffset offset = inOffset;
     SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(shaderObject, /*inout*/ offset, specializedLayout));
-    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout));
+    SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout, placement));
     return SLANG_OK;
 }
 

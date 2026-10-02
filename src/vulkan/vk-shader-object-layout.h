@@ -1,6 +1,9 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-descriptor-set-composition.h"
+
+#include <memory>
 
 #include "core/static_vector.h"
 
@@ -304,12 +307,6 @@ protected:
         std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
         std::map<uint32_t, uint32_t> m_mapSpaceToDescriptorSetIndex;
 
-        // Ordinary programs keep the existing compact descriptor-set layout.
-        // Synthetic resources need explicit Vulkan set numbers, so the root
-        // layout switches to direct space-to-set indexing only when the feature
-        // is active.
-        bool m_preserveDescriptorSetSpaces = false;
-
         /// The number of descriptor sets allocated by child/descendent objects
         uint32_t m_childDescriptorSetCount = 0;
 
@@ -325,14 +322,6 @@ protected:
         uint32_t m_totalOrdinaryDataSize = 0;
 
         Result findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
-        Result _findOrAddCompactDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
-        Result _findOrAddPreservedDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
-        Result addDescriptorSetBinding(
-            uint32_t descriptorSetIndex,
-            const VkDescriptorSetLayoutBinding& bindingDesc,
-            const char* sourceLabel
-        );
-
         static VkDescriptorType _mapDescriptorType(slang::BindingType slangBindingType);
 
         /// Add any descriptor ranges implied by this object containing a leaf
@@ -439,7 +428,6 @@ public:
             , m_programLayout(programLayout)
             , m_syntheticResources(syntheticResources)
         {
-            m_preserveDescriptorSetSpaces = syntheticResources != nullptr;
         }
 
         Result build(RootShaderObjectLayoutImpl** outLayout);
@@ -448,9 +436,12 @@ public:
 
         Result addEntryPoint(EntryPointLayout* entryPointLayout);
         Result addSyntheticResources();
-        Result addChildDescriptorSets(
-            const std::vector<SubObjectRangeInfo>& subObjectRanges,
-            const std::vector<BindingRangeInfo>& bindingRanges
+        /// Compose reflected object occurrences into explicit descriptor-set placements.
+        Result composeDescriptorSets();
+        Result findOrAddComposedDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        Result addSyntheticDescriptorSetBinding(
+            uint32_t descriptorSetIndex,
+            const VkDescriptorSetLayoutBinding& binding
         );
         Result _addSyntheticResource(const SyntheticResourceBindingRecord& resource);
         Result _validateSyntheticResource(
@@ -470,7 +461,7 @@ public:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         SyntheticResourceBindingState* m_syntheticResources = nullptr;
-        uint32_t m_firstChildDescriptorSet = 0;
+        std::unique_ptr<DescriptorSetComposition> m_descriptorSetComposition;
         std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
     };
@@ -505,7 +496,7 @@ public:
 
 
 protected:
-    Result _init(const Builder* builder);
+    Result _init(Builder* builder);
 
     /// Add all the descriptor sets implied by this root object and sub-objects
     Result addAllDescriptorSets();
@@ -529,9 +520,8 @@ public:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
-    // Synthetic layouts allocate the complete descriptor-set tree at the root.
-    bool m_preallocateDescriptorSets = false;
-    uint32_t m_firstChildDescriptorSet = 0;
+    // Absent for ordinary layouts, which retain per-object descriptor allocation.
+    std::unique_ptr<DescriptorSetComposition> m_descriptorSetComposition;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     std::vector<VkPushConstantRange> m_allPushConstantRanges;

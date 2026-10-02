@@ -18,8 +18,6 @@ struct BindingDataBuilder
     BindingDataImpl* m_bindingData;
     TransientBufferArena* m_constantBufferArena;
     DescriptorSetAllocator* m_descriptorSetAllocator;
-    bool m_preallocatedDescriptorSets = false;
-    uint32_t m_nextChildDescriptorSet = 0;
 
     // TODO remove
     std::span<const VkPushConstantRange> m_pushConstantRanges;
@@ -37,14 +35,16 @@ struct BindingDataBuilder
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
         EntryPointLayout* specializedLayout,
-        uint32_t entryPointIndex
+        uint32_t entryPointIndex,
+        const DescriptorSetPlacement* placement
     );
 
     /// Bind this object as a `PushConstantBuffer<X>`.
     Result bindAsPushConstantBuffer(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 
     /// Bind the ordinary data buffer if needed.
@@ -63,7 +63,8 @@ struct BindingDataBuilder
     Result bindAsValue(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
@@ -78,14 +79,16 @@ struct BindingDataBuilder
     Result bindAsParameterBlock(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 };
 

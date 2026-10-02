@@ -35,14 +35,6 @@ Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, u
     if (!outDescriptorSetIndex)
         return SLANG_E_INVALID_ARG;
 
-    if (!m_preserveDescriptorSetSpaces)
-        return _findOrAddCompactDescriptorSet(space, outDescriptorSetIndex);
-
-    return _findOrAddPreservedDescriptorSet(space, outDescriptorSetIndex);
-}
-
-Result ShaderObjectLayoutImpl::Builder::_findOrAddCompactDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
-{
     auto it = m_mapSpaceToDescriptorSetIndex.find(space);
     if (it != m_mapSpaceToDescriptorSetIndex.end())
     {
@@ -68,7 +60,7 @@ Result ShaderObjectLayoutImpl::Builder::_findOrAddCompactDescriptorSet(uint32_t 
     return SLANG_OK;
 }
 
-Result ShaderObjectLayoutImpl::Builder::_findOrAddPreservedDescriptorSet(
+Result RootShaderObjectLayoutImpl::Builder::findOrAddComposedDescriptorSet(
     uint32_t space,
     uint32_t* outDescriptorSetIndex
 )
@@ -98,10 +90,9 @@ Result ShaderObjectLayoutImpl::Builder::_findOrAddPreservedDescriptorSet(
     return SLANG_OK;
 }
 
-Result ShaderObjectLayoutImpl::Builder::addDescriptorSetBinding(
+Result RootShaderObjectLayoutImpl::Builder::addSyntheticDescriptorSetBinding(
     uint32_t descriptorSetIndex,
-    const VkDescriptorSetLayoutBinding& bindingDesc,
-    const char* sourceLabel
+    const VkDescriptorSetLayoutBinding& bindingDesc
 )
 {
     auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
@@ -109,7 +100,11 @@ Result ShaderObjectLayoutImpl::Builder::addDescriptorSetBinding(
     {
         if (existingBinding.binding == bindingDesc.binding)
         {
-            m_device->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, sourceLabel);
+            m_device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Duplicate Vulkan descriptor binding between reflected and synthetic resources"
+            );
             return SLANG_E_INVALID_ARG;
         }
     }
@@ -255,11 +250,7 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
-            SLANG_RETURN_ON_FAIL(addDescriptorSetBinding(
-                descriptorSetIndex,
-                vkBindingRangeDesc,
-                "Duplicate Vulkan descriptor binding in reflected layout"
-            ));
+            m_descriptorSetBuildInfos[descriptorSetIndex].vkBindings.push_back(vkBindingRangeDesc);
         }
     }
 
@@ -383,11 +374,7 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
         vkBindingRangeDesc.descriptorCount = 1;
         vkBindingRangeDesc.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-        SLANG_RETURN_ON_FAIL(addDescriptorSetBinding(
-            descriptorSetIndex,
-            vkBindingRangeDesc,
-            "Duplicate Vulkan constant-buffer binding in reflected layout"
-        ));
+        m_descriptorSetBuildInfos[descriptorSetIndex].vkBindings.push_back(vkBindingRangeDesc);
     }
 
     return _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
@@ -831,14 +818,13 @@ Result RootShaderObjectLayoutImpl::create(
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
+Result RootShaderObjectLayoutImpl::_init(Builder* builder)
 {
     auto device = builder->m_device;
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
-    m_preallocateDescriptorSets = builder->m_syntheticResources != nullptr;
-    m_firstChildDescriptorSet = builder->m_firstChildDescriptorSet;
+    m_descriptorSetComposition = std::move(builder->m_descriptorSetComposition);
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
@@ -916,7 +902,7 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 {
-    if (m_preallocateDescriptorSets)
+    if (m_descriptorSetComposition)
     {
         for (const auto& set : getOwnDescriptorSets())
             m_vkDescriptorSetLayouts.push_back(set.descriptorSetLayout);
@@ -1144,53 +1130,16 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
         return SLANG_OK;
 
     // Collect reflected child sets before inserting synthetic resources or gaps.
-    // Both the pipeline layout and runtime binding use the original depth-first
-    // order for ParameterBlocks. Synthetic bindings can then share those sets
-    // without moving them or allocating a second, incompatible descriptor set.
-    m_firstChildDescriptorSet = (uint32_t)m_descriptorSetBuildInfos.size();
-    SLANG_RETURN_ON_FAIL(addChildDescriptorSets(m_subObjectRanges, m_bindingRanges));
-    for (const auto& entryPoint : m_entryPoints)
-        SLANG_RETURN_ON_FAIL(
-            addChildDescriptorSets(entryPoint.layout->getSubObjectRanges(), entryPoint.layout->m_bindingRanges)
-        );
-    m_childDescriptorSetCount = 0;
+    // Composition records each object occurrence's placement. Added bindings
+    // can share these sets without moving reflected bindings or requiring the
+    // runtime to repeat the layout builder's allocation order.
+    SLANG_RETURN_ON_FAIL(composeDescriptorSets());
 
     for (const auto& resource : m_syntheticResources->getInputs())
     {
         SLANG_RETURN_ON_FAIL(_addSyntheticResource(resource));
     }
 
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::addChildDescriptorSets(
-    const std::vector<SubObjectRangeInfo>& subObjectRanges,
-    const std::vector<BindingRangeInfo>& bindingRanges
-)
-{
-    for (const auto& subObject : subObjectRanges)
-    {
-        const auto& range = bindingRanges[subObject.bindingRangeIndex];
-        if (!subObject.layout || (range.bindingType != slang::BindingType::ParameterBlock &&
-                                  range.bindingType != slang::BindingType::ConstantBuffer &&
-                                  range.bindingType != slang::BindingType::PushConstant))
-            continue;
-        for (uint32_t i = 0; i < range.count; ++i)
-        {
-            if (range.bindingType == slang::BindingType::ParameterBlock)
-            {
-                for (const auto& set : subObject.layout->getOwnDescriptorSets())
-                {
-                    uint32_t index = 0;
-                    SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)m_descriptorSetBuildInfos.size(), &index));
-                    m_descriptorSetBuildInfos[index].vkBindings = set.vkBindings;
-                }
-            }
-            SLANG_RETURN_ON_FAIL(
-                addChildDescriptorSets(subObject.layout->getSubObjectRanges(), subObject.layout->m_bindingRanges)
-            );
-        }
-    }
     return SLANG_OK;
 }
 
@@ -1259,18 +1208,14 @@ Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
         return SLANG_E_INVALID_ARG;
 
     uint32_t descriptorSetIndex = 0;
-    SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
+    SLANG_RETURN_ON_FAIL(findOrAddComposedDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
 
     VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
     vkBindingRangeDesc.binding = (uint32_t)resource.binding;
     vkBindingRangeDesc.descriptorCount = resource.arraySize;
     vkBindingRangeDesc.descriptorType = descriptorType;
     vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-    SLANG_RETURN_ON_FAIL(addDescriptorSetBinding(
-        descriptorSetIndex,
-        vkBindingRangeDesc,
-        "Duplicate Vulkan descriptor binding between reflected and synthetic resources"
-    ));
+    SLANG_RETURN_ON_FAIL(addSyntheticDescriptorSetBinding(descriptorSetIndex, vkBindingRangeDesc));
 
     if (resource.arraySize > std::numeric_limits<uint32_t>::max() - m_slotCount)
         return SLANG_E_INVALID_ARG;

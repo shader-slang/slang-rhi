@@ -4,6 +4,12 @@
 
 #include <cstring>
 #include <string>
+#include <algorithm>
+
+#if SLANG_RHI_ENABLE_VULKAN
+#include "vulkan/vk-shader-object-layout.h"
+#include "vulkan/vk-shader-program.h"
+#endif
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -287,6 +293,143 @@ static ComPtr<IBuffer> createTestBuffer(
 }
 
 } // namespace
+
+#if SLANG_RHI_ENABLE_VULKAN
+// Compare the reflected portion of an augmented layout without relying on Vulkan
+// handle identity. The same shader must retain the same slots and offsets whether
+// the extension is absent, empty, or adds a binding alongside a child set.
+static void compareReflectedBindingLocations(vk::ShaderObjectLayoutImpl* a, vk::ShaderObjectLayoutImpl* b)
+{
+    REQUIRE_LE(a->getBindingRangeCount(), b->getBindingRangeCount());
+    for (uint32_t i = 0; i < a->getBindingRangeCount(); ++i)
+    {
+        const auto& x = a->getBindingRange(i);
+        const auto& y = b->getBindingRange(i);
+        CHECK(x.bindingType == y.bindingType);
+        CHECK_EQ(x.count, y.count);
+        CHECK_EQ(x.slotIndex, y.slotIndex);
+        CHECK_EQ(x.subObjectIndex, y.subObjectIndex);
+        CHECK_EQ(x.bindingOffset, y.bindingOffset);
+        CHECK_EQ(x.setOffset, y.setOffset);
+    }
+    REQUIRE_EQ(a->getSubObjectRanges().size(), b->getSubObjectRanges().size());
+    for (size_t i = 0; i < a->getSubObjectRanges().size(); ++i)
+    {
+        const auto& x = a->getSubObjectRange(uint32_t(i));
+        const auto& y = b->getSubObjectRange(uint32_t(i));
+        CHECK_EQ(x.bindingRangeIndex, y.bindingRangeIndex);
+        if (x.layout)
+        {
+            REQUIRE(y.layout);
+            compareReflectedBindingLocations(x.layout, y.layout);
+        }
+    }
+}
+
+GPU_TEST_CASE_EX("synthetic-resource-bindings-layout-composition", Vulkan, DebugLayerOptions{})
+{
+    bool array = false;
+    bool specialize = false;
+    SUBCASE("named parameter blocks") {}
+    SUBCASE("resource arrays in parameter blocks")
+    {
+        array = true;
+    }
+    SUBCASE("specialized program")
+    {
+        specialize = true;
+    }
+    std::string source =
+        array ? "struct Params { StructuredBuffer<uint> inputs[2]; };\n" : "struct Params { uint value; };\n";
+    source += "ParameterBlock<Params> left; ParameterBlock<Params> right;\n";
+    if (specialize)
+        source +=
+            "interface ITransform { uint apply(uint x); }; "
+            "struct Transform : ITransform { uint apply(uint x) { return x + 5; } };\n";
+    source += "RWStructuredBuffer<uint> output;\n[shader(\"compute\")][numthreads(1,1,1)]\n";
+    source += specialize ? "void computeMain(uniform ITransform transform) { output[0] = transform.apply("
+                         : "void computeMain() { output[0] = ";
+    source += array ? "left.inputs[0][0] + 2 * right.inputs[1][0]" : "left.value + 2 * right.value";
+    source += specialize ? "); }" : "; }";
+    SyntheticResourceBindingDesc resource = {};
+    resource.id = 1;
+    resource.bindingType = slang::BindingType::MutableRawBuffer;
+    resource.arraySize = 1;
+    resource.space = 1;
+    resource.binding = 11;
+    resource.access = SyntheticResourceAccess::ReadWrite;
+
+    ComPtr<IShaderProgram> programs[3];
+    REQUIRE_CALL(createComputeProgram(device, source, programs[0].writeRef()));
+    REQUIRE_CALL(createComputeProgramWithEmptySyntheticResourceDesc(device, source, programs[1].writeRef()));
+    REQUIRE_CALL(createComputeProgramWithSyntheticResource(device, source, resource, programs[2].writeRef()));
+    vk::RootShaderObjectLayoutImpl* layouts[3];
+    for (uint32_t i = 0; i < 3; ++i)
+        layouts[i] = static_cast<vk::ShaderProgramImpl*>(programs[i].get())->m_rootShaderObjectLayout;
+
+    CHECK_FALSE(layouts[0]->m_descriptorSetComposition);
+    CHECK_FALSE(layouts[1]->m_descriptorSetComposition);
+    REQUIRE(layouts[2]->m_descriptorSetComposition);
+    CHECK_EQ(layouts[0]->getOwnDescriptorSetCount(), layouts[1]->getOwnDescriptorSetCount());
+    CHECK_EQ(layouts[0]->getTotalDescriptorSetCount(), layouts[1]->getTotalDescriptorSetCount());
+    CHECK_EQ(layouts[0]->getTotalDescriptorSetCount(), layouts[2]->getTotalDescriptorSetCount());
+    compareReflectedBindingLocations(layouts[0], layouts[1]);
+    compareReflectedBindingLocations(layouts[0], layouts[2]);
+
+    // Force a different runtime traversal order without changing any slot or
+    // placement. A sequential child-set cursor would swap left and right here.
+    if (!specialize)
+        std::reverse(layouts[2]->m_subObjectRanges.begin(), layouts[2]->m_subObjectRanges.end());
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        CAPTURE(i);
+        ComPtr<IShaderObject> root;
+        REQUIRE_CALL(device->createRootShaderObject(programs[i], root.writeRef()));
+        if (specialize)
+        {
+            auto* type = layouts[i]->getSlangProgramLayout()->findTypeByName("Transform");
+            REQUIRE(type);
+            ComPtr<IShaderObject> transform;
+            REQUIRE_CALL(
+                device->createShaderObject(nullptr, type, ShaderObjectContainerType::None, transform.writeRef())
+            );
+            REQUIRE_CALL(ShaderCursor(root->getEntryPoint(0))["transform"].setObject(transform));
+        }
+        uint32_t left = 3, right = 11, zero = 0;
+        if (array)
+        {
+            auto leftInput = createTestBuffer(device, sizeof(left), &left);
+            auto rightInput = createTestBuffer(device, sizeof(right), &right);
+            for (const char* path : {"left.inputs[0]", "left.inputs[1]"})
+                REQUIRE_CALL(ShaderCursor(root).getPath(path).setBinding(leftInput));
+            for (const char* path : {"right.inputs[0]", "right.inputs[1]"})
+                REQUIRE_CALL(ShaderCursor(root).getPath(path).setBinding(rightInput));
+        }
+        else
+        {
+            REQUIRE_CALL(ShaderCursor(root).getPath("left.value").setData(&left, sizeof(left)));
+            REQUIRE_CALL(ShaderCursor(root).getPath("right.value").setData(&right, sizeof(right)));
+        }
+        auto output = createTestBuffer(device, sizeof(zero), &zero);
+        REQUIRE_CALL(ShaderCursor(root).getPath("output").setBinding(output));
+        if (i == 2)
+            REQUIRE_CALL(bindSyntheticResource(programs[i], root, resource.id, Binding(output)));
+        ComputePipelineDesc desc = {};
+        desc.program = programs[i];
+        auto pipeline = device->createComputePipeline(desc);
+        REQUIRE(pipeline);
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        pass->bindPipeline(pipeline, root);
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        queue->submit(encoder->finish());
+        queue->waitOnHost();
+        compareComputeResult(device, output, std::array<uint32_t, 1>{specialize ? 30u : 25u});
+    }
+}
+#endif
 
 // Ordinary shader programs must not expose ISyntheticShaderProgram.
 // The synthetic-resource path is opt-in and should add no observable API
