@@ -155,7 +155,7 @@ Result RootShaderObjectLayoutImpl::create(
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, programLayout);
     if (syntheticResources)
         SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(syntheticResources));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
