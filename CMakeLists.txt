@@ -924,6 +924,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
+        src/vulkan/vk-synthetic-bindings.cpp
         src/vulkan/vk-shader-object-layout.cpp
         src/vulkan/vk-shader-object.cpp
         src/vulkan/vk-shader-program.cpp

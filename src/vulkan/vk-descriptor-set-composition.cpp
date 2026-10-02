@@ -67,6 +67,36 @@ Result composeChildren(
 
 } // namespace
 
+Result RootShaderObjectLayoutImpl::Builder::findOrAddComposedDescriptorSet(
+    uint32_t space,
+    uint32_t* outDescriptorSetIndex
+)
+{
+    if (space >= kMaxDescriptorSets)
+    {
+        m_device->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Descriptor set space exceeds Vulkan layout limit"
+        );
+        return SLANG_E_INVALID_ARG;
+    }
+
+    const uint32_t neededCount = space + 1;
+    if (m_descriptorSetBuildInfos.size() < neededCount)
+    {
+        const uint32_t oldCount = (uint32_t)m_descriptorSetBuildInfos.size();
+        m_descriptorSetBuildInfos.resize(neededCount);
+        for (uint32_t i = oldCount; i < neededCount; ++i)
+        {
+            m_descriptorSetBuildInfos[i].space = (int32_t)i;
+        }
+    }
+
+    *outDescriptorSetIndex = space;
+    return SLANG_OK;
+}
+
 Result RootShaderObjectLayoutImpl::Builder::composeDescriptorSets()
 {
     // Root descriptor spaces are absolute. Preserve holes before appending the

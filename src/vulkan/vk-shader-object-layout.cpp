@@ -5,30 +5,7 @@
 #include "synthetic-resource-bindings.h"
 #include "vk-utils.h"
 
-#include <limits>
-
 namespace rhi::vk {
-
-namespace {
-
-bool syntheticResourceConsumesBindingCount(slang::BindingType bindingType)
-{
-    switch (bindingType)
-    {
-    case slang::BindingType::Sampler:
-    case slang::BindingType::CombinedTextureSampler:
-    case slang::BindingType::Texture:
-    case slang::BindingType::MutableTexture:
-    case slang::BindingType::TypedBuffer:
-    case slang::BindingType::MutableTypedBuffer:
-    case slang::BindingType::RayTracingAccelerationStructure:
-        return true;
-    default:
-        return false;
-    }
-}
-
-} // namespace
 
 Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
 {
@@ -57,59 +34,6 @@ Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, u
     *outDescriptorSetIndex = (uint32_t)m_descriptorSetBuildInfos.size();
     m_descriptorSetBuildInfos.push_back(info);
     m_mapSpaceToDescriptorSetIndex.emplace(space, *outDescriptorSetIndex);
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::findOrAddComposedDescriptorSet(
-    uint32_t space,
-    uint32_t* outDescriptorSetIndex
-)
-{
-    if (space >= kMaxDescriptorSets)
-    {
-        m_device->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "Descriptor set space exceeds Vulkan layout limit"
-        );
-        return SLANG_E_INVALID_ARG;
-    }
-
-    const uint32_t neededCount = space + 1;
-    if (m_descriptorSetBuildInfos.size() < neededCount)
-    {
-        const uint32_t oldCount = (uint32_t)m_descriptorSetBuildInfos.size();
-        m_descriptorSetBuildInfos.resize(neededCount);
-        for (uint32_t i = oldCount; i < neededCount; ++i)
-        {
-            m_descriptorSetBuildInfos[i].space = (int32_t)i;
-        }
-    }
-
-    *outDescriptorSetIndex = space;
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::addSyntheticDescriptorSetBinding(
-    uint32_t descriptorSetIndex,
-    const VkDescriptorSetLayoutBinding& bindingDesc
-)
-{
-    auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
-    for (const auto& existingBinding : descriptorSetInfo.vkBindings)
-    {
-        if (existingBinding.binding == bindingDesc.binding)
-        {
-            m_device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Layer,
-                "Duplicate Vulkan descriptor binding between reflected and synthetic resources"
-            );
-            return SLANG_E_INVALID_ARG;
-        }
-    }
-
-    descriptorSetInfo.vkBindings.push_back(bindingDesc);
     return SLANG_OK;
 }
 
@@ -417,9 +341,18 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer
     return _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
 }
 
-/// Add binding ranges to this shader object layout, as implied by the given
-/// `typeLayout`
+uint32_t ShaderObjectLayoutImpl::Builder::addResourceSlots(slang::BindingType bindingType, uint32_t count)
+{
+    uint32_t slotIndex = m_slotCount;
+    m_slotCount += count;
+    // Raw and structured buffers use resource slots but do not contribute to the
+    // ordinary builder's binding count. Keep this accounting shared with added ranges.
+    if (bindingType != slang::BindingType::RawBuffer && bindingType != slang::BindingType::MutableRawBuffer)
+        m_totalBindingCount += 1;
+    return slotIndex;
+}
 
+/// Add binding ranges implied by the reflected type layout.
 Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflection* typeLayout)
 {
     SlangInt bindingRangeCount = typeLayout->getBindingRangeCount();
@@ -450,29 +383,14 @@ Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflec
                 subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            slotIndex = m_slotCount;
-            m_slotCount += count;
+            slotIndex = addResourceSlots(slangBindingType, count);
             break;
-        case slang::BindingType::Sampler:
-            slotIndex = m_slotCount;
-            m_slotCount += count;
-            m_totalBindingCount += 1;
-            break;
-
-        case slang::BindingType::CombinedTextureSampler:
-            slotIndex = m_slotCount;
-            m_slotCount += count;
-            m_totalBindingCount += 1;
-            break;
-
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
             break;
 
         default:
-            slotIndex = m_slotCount;
-            m_slotCount += count;
-            m_totalBindingCount += 1;
+            slotIndex = addResourceSlots(slangBindingType, count);
             break;
         }
 
@@ -1122,139 +1040,6 @@ Result RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entr
 
     m_childDescriptorSetCount += entryPointLayout->getTotalDescriptorSetCount();
     return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
-{
-    if (!m_syntheticResources)
-        return SLANG_OK;
-
-    // Collect reflected child sets before inserting synthetic resources or gaps.
-    // Composition records each object occurrence's placement. Added bindings
-    // can share these sets without moving reflected bindings or requiring the
-    // runtime to repeat the layout builder's allocation order.
-    SLANG_RETURN_ON_FAIL(composeDescriptorSets());
-
-    for (const auto& resource : m_syntheticResources->getInputs())
-    {
-        SLANG_RETURN_ON_FAIL(_addSyntheticResource(resource));
-    }
-
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::_addSyntheticResource(const SyntheticResourceBindingRecord& resource)
-{
-    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
-    SLANG_RETURN_ON_FAIL(_validateSyntheticResource(resource, &descriptorType));
-
-    uint32_t bindingRangeIndex = 0;
-    SLANG_RETURN_ON_FAIL(_addSyntheticDescriptorRange(resource, descriptorType, &bindingRangeIndex));
-    _recordSyntheticBindingLocation(resource, bindingRangeIndex);
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::_validateSyntheticResource(
-    const SyntheticResourceBindingRecord& resource,
-    VkDescriptorType* outDescriptorType
-)
-{
-    if (!outDescriptorType)
-        return SLANG_E_INVALID_ARG;
-    if (resource.scope != SyntheticResourceScope::Global)
-        return SLANG_E_NOT_IMPLEMENTED;
-    if (resource.space < 0 || resource.binding < 0)
-        return SLANG_E_INVALID_ARG;
-
-    // Synthetic ranges have resource slots but no reflected subobject layout.
-    // Accept only types that the runtime resource-slot binding loop can write.
-    switch (resource.bindingType)
-    {
-    case slang::BindingType::Sampler:
-    case slang::BindingType::CombinedTextureSampler:
-    case slang::BindingType::Texture:
-    case slang::BindingType::MutableTexture:
-    case slang::BindingType::TypedBuffer:
-    case slang::BindingType::MutableTypedBuffer:
-    case slang::BindingType::RawBuffer:
-    case slang::BindingType::MutableRawBuffer:
-    case slang::BindingType::RayTracingAccelerationStructure:
-        break;
-    default:
-        return SLANG_E_NOT_IMPLEMENTED;
-    }
-
-    VkDescriptorType descriptorType = _mapDescriptorType(resource.bindingType);
-    if (descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
-        return SLANG_E_INVALID_ARG;
-
-    if (resource.bindingType == slang::BindingType::RayTracingAccelerationStructure &&
-        !m_device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-    {
-        return SLANG_E_NOT_AVAILABLE;
-    }
-
-    *outDescriptorType = descriptorType;
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
-    const SyntheticResourceBindingRecord& resource,
-    VkDescriptorType descriptorType,
-    uint32_t* outBindingRangeIndex
-)
-{
-    if (!outBindingRangeIndex)
-        return SLANG_E_INVALID_ARG;
-
-    uint32_t descriptorSetIndex = 0;
-    SLANG_RETURN_ON_FAIL(findOrAddComposedDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
-
-    VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
-    vkBindingRangeDesc.binding = (uint32_t)resource.binding;
-    vkBindingRangeDesc.descriptorCount = resource.arraySize;
-    vkBindingRangeDesc.descriptorType = descriptorType;
-    vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-    SLANG_RETURN_ON_FAIL(addSyntheticDescriptorSetBinding(descriptorSetIndex, vkBindingRangeDesc));
-
-    if (resource.arraySize > std::numeric_limits<uint32_t>::max() - m_slotCount)
-        return SLANG_E_INVALID_ARG;
-
-    uint32_t slotIndex = m_slotCount;
-    m_slotCount += resource.arraySize;
-
-    if (syntheticResourceConsumesBindingCount(resource.bindingType))
-        m_totalBindingCount += 1;
-
-    BindingRangeInfo bindingRangeInfo = {};
-    bindingRangeInfo.bindingType = resource.bindingType;
-    bindingRangeInfo.count = resource.arraySize;
-    bindingRangeInfo.slotIndex = slotIndex;
-    bindingRangeInfo.subObjectIndex = 0;
-    bindingRangeInfo.isSpecializable = false;
-    bindingRangeInfo.bindingOffset = (uint32_t)resource.binding;
-    bindingRangeInfo.setOffset = (uint32_t)resource.space;
-
-    *outBindingRangeIndex = (uint32_t)m_bindingRanges.size();
-    m_bindingRanges.push_back(bindingRangeInfo);
-    return SLANG_OK;
-}
-
-void RootShaderObjectLayoutImpl::Builder::_recordSyntheticBindingLocation(
-    const SyntheticResourceBindingRecord& resource,
-    uint32_t bindingRangeIndex
-)
-{
-    SyntheticBindingLocation location = {};
-    location.syntheticResourceID = resource.id;
-    location.bindingType = resource.bindingType;
-    location.arraySize = resource.arraySize;
-    location.scope = resource.scope;
-    location.entryPointIndex = resource.entryPointIndex;
-    location.offset.bindingRangeIndex = bindingRangeIndex;
-    location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
-
-    m_syntheticLocations.push_back(location);
 }
 
 } // namespace rhi::vk

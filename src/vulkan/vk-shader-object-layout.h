@@ -356,6 +356,9 @@ protected:
         /// `typeLayout`
         Result addBindingRanges(slang::TypeLayoutReflection* typeLayout);
 
+        /// Allocate resource slots and account for a reflected or added resource range.
+        uint32_t addResourceSlots(slang::BindingType bindingType, uint32_t count);
+
         Result setElementTypeLayout(slang::TypeLayoutReflection* typeLayout);
 
         Result build(ShaderObjectLayoutImpl** outLayout);

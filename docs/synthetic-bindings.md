@@ -86,3 +86,26 @@ types return `SLANG_E_NOT_IMPLEMENTED`; `Unknown` is an invalid descriptor.
 
 Unsupported backends still behave normally when no synthetic resource
 descriptor is provided.
+
+## Vulkan Layout Composition
+
+Vulkan permits an added binding to share a descriptor set with reflected
+resources, including resources in a parameter block, provided the binding number
+is unused. Explicit set numbers and gaps are preserved. A collision returns
+`SLANG_E_INVALID_ARG` with a diagnostic instead of terminating the application.
+
+Layout creation uses the descriptor-set composition code in
+`src/vulkan/vk-descriptor-set-composition.*` to record a placement for each object
+occurrence. For example, two `ParameterBlock<Params>` fields can share a type
+layout but occupy different sets. Their placements are indexed by reflected
+subobject slots, so runtime binding does not have to repeat the construction
+traversal order. Entry-point objects have their own placements.
+
+`src/vulkan/vk-synthetic-bindings.cpp` validates the additional records and adds
+ordinary resource ranges to that composed layout. Reflected and added ranges
+share resource-slot accounting. Descriptor writes and resource tracking use the
+existing binding path; they do not interpret synthetic IDs or coverage metadata.
+
+An absent or empty extension creates no composition object and retains ordinary
+per-object set allocation. Collision scans run only when adding explicit extra
+bindings, not when inserting ordinary reflected bindings.
