@@ -759,7 +759,7 @@ public:
         bool hasGlobalParams = false;
         for (const auto& module : program->m_modules)
         {
-            const char* ptxCode = static_cast<const char*>(module.code->getBufferPointer());
+            const char* ptxCode = module.code.c_str();
             if (std::strstr(ptxCode, "SLANG_globalParams"))
             {
                 hasGlobalParams = true;
@@ -817,8 +817,8 @@ public:
                         m_deviceContext,
                         &optixModuleCompileOptions,
                         &optixPipelineCompileOptions,
-                        static_cast<const char*>(module.code->getBufferPointer()),
-                        module.code->getBufferSize(),
+                        module.code.c_str(),
+                        module.code.size(),
                         logBuffers[i].data(),
                         &logSizes[i],
                         &optixModules[i],
@@ -859,8 +859,8 @@ public:
                     m_deviceContext,
                     &optixModuleCompileOptions,
                     &optixPipelineCompileOptions,
-                    static_cast<const char*>(module.code->getBufferPointer()),
-                    module.code->getBufferSize(),
+                    module.code.c_str(),
+                    module.code.size(),
                     nullptr,
                     0,
                     &optixModules[i]
