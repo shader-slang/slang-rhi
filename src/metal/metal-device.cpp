@@ -13,6 +13,7 @@
 #include "metal-shader-object-layout.h"
 #include "metal-shader-object.h"
 #include "metal-acceleration-structure.h"
+#include "metal-bindless-descriptor-set.h"
 
 #include "core/common.h"
 
@@ -42,6 +43,8 @@ DeviceImpl::~DeviceImpl()
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
+
+    m_bindlessDescriptorSet.setNull();
 
     if (m_queue)
     {
@@ -250,6 +253,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::ArgumentBufferTier2);
         addFeature(Feature::ParameterBlock);
+        // Bindless requires 64-bit native ids to live in argument buffers, which Tier 2 provides.
+        addFeature(Feature::Bindless);
     }
     if (m_hasResidencySet)
     {
@@ -358,6 +363,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_device.get()));
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
+
+    if (hasFeature(Feature::Bindless))
+    {
+        m_bindlessDescriptorSet = new BindlessDescriptorSet(this, desc.bindless);
+        SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
+    }
 
     return SLANG_OK;
 }
