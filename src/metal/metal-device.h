@@ -178,8 +178,8 @@ public:
     } m_accelerationStructures;
 
     uint32_t registerAccelerationStructure(MTL::AccelerationStructure* accelerationStructure);
-    Result initializeDummyAccelerationStructure();
     void unregisterAccelerationStructure(uint32_t index, MTL::AccelerationStructure* accelerationStructure);
+    Result initializeDummyAccelerationStructure();
     NS::Array* getAccelerationStructureArray();
     std::span<MTL::Resource* const> getAccelerationStructureResources();
 
