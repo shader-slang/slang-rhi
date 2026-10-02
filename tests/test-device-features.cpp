@@ -73,6 +73,31 @@ GPU_TEST_CASE("cuda-device-features", CUDA)
     );
 }
 
+GPU_TEST_CASE("cuda-optix-compiler-version", CUDA)
+{
+    const uint32_t version = device->getInfo().optixVersion;
+    if (!version)
+        SKIP("OptiX is unavailable");
+
+    DeviceDesc desc = {};
+    desc.deviceType = DeviceType::CUDA;
+    desc.adapter = getSelectedDeviceAdapter(DeviceType::CUDA);
+    desc.requiredOptixVersion = version;
+    slang::CompilerOptionEntry option = {};
+    option.name = slang::CompilerOptionName::OptixVersion;
+    option.value.kind = slang::CompilerOptionValueKind::Int;
+    option.value.intValue0 = version == 90000 ? 80100 : 90000;
+    desc.slang.compilerOptionEntries = &option;
+    desc.slang.compilerOptionEntryCount = 1;
+    ComPtr<IDevice> configured;
+    CHECK(getRHI()->createDevice(desc, configured.writeRef()) == SLANG_E_INVALID_ARG);
+    CHECK(!configured);
+
+    option.value.intValue0 = version;
+    REQUIRE_CALL(getRHI()->createDevice(desc, configured.writeRef()));
+    CHECK(configured->getInfo().optixVersion == version);
+}
+
 #if SLANG_RHI_ENABLE_METAL
 GPU_TEST_CASE("metal-device-capabilities", Metal)
 {

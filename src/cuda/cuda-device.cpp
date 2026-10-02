@@ -317,12 +317,34 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
 
     // Initialize slang context
+    // A caller may specify the same contract explicitly, but cannot override the SDK that
+    // created the context. Slang keeps the first value of repeated session options.
+    if (m_ctx.optixContext)
+    {
+        for (uint32_t i = 0; i < desc.slang.compilerOptionEntryCount; ++i)
+        {
+            const auto& option = desc.slang.compilerOptionEntries[i];
+            if (option.name == slang::CompilerOptionName::OptixVersion &&
+                (option.value.kind != slang::CompilerOptionValueKind::Int ||
+                 option.value.intValue0 != int(m_info.optixVersion)))
+                return SLANG_E_INVALID_ARG;
+        }
+    }
+
+    // Compile for the SDK that actually created the context, including automatic fallback.
+    slang::CompilerOptionEntry optixTarget = {};
+    optixTarget.name = slang::CompilerOptionName::OptixVersion;
+    optixTarget.value.kind = slang::CompilerOptionValueKind::Int;
+    optixTarget.value.intValue0 = m_info.optixVersion;
+    const auto optixOptions = m_ctx.optixContext ? std::span<const slang::CompilerOptionEntry>(&optixTarget, 1)
+                                                 : std::span<const slang::CompilerOptionEntry>();
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_PTX,
         nullptr,
         getCapabilities(),
-        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}}
+        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}},
+        optixOptions
     ));
 
     // Initialize format support table
