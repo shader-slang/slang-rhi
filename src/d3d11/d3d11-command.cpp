@@ -98,6 +98,8 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdHandOffShared(const commands::HandOffShared& cmd);
+    void cmdTakeOverShared(const commands::TakeOverShared& cmd);
 
     void invalidateState();
     void clearState();
@@ -900,6 +902,17 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     m_immediateContext->End(queryPool->getQuery(cmd.queryIndex));
     queryPool->setDisjointQuery(cmd.queryIndex, m_disjointQuery);
     queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
+}
+
+void CommandExecutor::cmdHandOffShared(const commands::HandOffShared&)
+{
+    // Only Vulkan tracks queue-family ownership of shared resources; other backends have nothing to
+    // transfer, so hand-off is a no-op.
+}
+
+void CommandExecutor::cmdTakeOverShared(const commands::TakeOverShared&)
+{
+    // No-op: see cmdHandOffShared.
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)

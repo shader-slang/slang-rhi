@@ -140,6 +140,8 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdHandOffShared(const commands::HandOffShared& cmd);
+    void cmdTakeOverShared(const commands::TakeOverShared& cmd);
 
     MTL::RenderCommandEncoder* getRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDesc);
     MTL::ComputeCommandEncoder* getComputeCommandEncoder();
@@ -1025,6 +1027,17 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     //     cmd.queryIndex,
     //     true
     // );
+}
+
+void CommandRecorder::cmdHandOffShared(const commands::HandOffShared&)
+{
+    // Only Vulkan tracks queue-family ownership of shared resources; other backends have nothing to
+    // transfer, so hand-off is a no-op.
+}
+
+void CommandRecorder::cmdTakeOverShared(const commands::TakeOverShared&)
+{
+    // No-op: see cmdHandOffShared.
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)

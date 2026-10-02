@@ -283,6 +283,8 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdHandOffShared(const commands::HandOffShared& cmd);
+    void cmdTakeOverShared(const commands::TakeOverShared& cmd);
 };
 
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
@@ -869,6 +871,17 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     query.anchorGeneration = m_timestampAnchorGeneration;
     query.resultData = 0;
     SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(query.event, m_stream));
+}
+
+void CommandExecutor::cmdHandOffShared(const commands::HandOffShared&)
+{
+    // Only Vulkan tracks queue-family ownership of shared resources; other backends have nothing to
+    // transfer, so hand-off is a no-op.
+}
+
+void CommandExecutor::cmdTakeOverShared(const commands::TakeOverShared&)
+{
+    // No-op: see cmdHandOffShared.
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)

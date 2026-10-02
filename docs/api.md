@@ -192,12 +192,16 @@
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setTextureState`                      | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `globalBarrier`                        | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `handOffShared` (1)                    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `takeOverShared` (1)                   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `pushDebugGroup`                       | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `popDebugGroup`                        | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `insertDebugMarker`                    | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `writeTimestamp`                       | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 | `finish`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`                      | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+
+(1) Strictly required only for resources shared with a Vulkan device, where these calls record the queue-family ownership transfer; on the other backends they succeed but emit no ownership-transfer barrier. We recommend calling them for every shared resource regardless of the target API, for portability.
 
 ## `IPassEncoder` interface
 
