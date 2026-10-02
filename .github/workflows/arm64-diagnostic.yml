@@ -19,6 +19,15 @@ concurrency:
 jobs:
   diagnostic:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'dev/skallweit/arm64-d3d12-crash-investigation'
+    name: diagnostic (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: current-release, revision: current, config: Release }
+          - { label: current-debug, revision: current, config: Debug }
+          - { label: before-884, revision: '16324a68', config: Release }
+          - { label: after-884, revision: '0bd799a7', config: Release }
     runs-on: windows-11-arm
     timeout-minutes: 60
     defaults:
@@ -29,6 +38,22 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
+
+      - name: Save identical diagnostic instrumentation
+        run: |
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/diagnostic-overlay" -Force | Out-Null
+          Copy-Item tests/main.cpp, tests/test-ray-tracing-raygen-entrypoint.cpp, tools/run-arm64-diagnostic.ps1 "$env:RUNNER_TEMP/diagnostic-overlay"
+
+      - uses: actions/checkout@v6
+        if: matrix.revision != 'current'
+        with:
+          ref: ${{ matrix.revision }}
+          submodules: recursive
+
+      - name: Apply identical diagnostic instrumentation
+        run: |
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/*.cpp" tests/
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/*.ps1" tools/
 
       - uses: step-security/msvc-dev-cmd@v1
         with:
@@ -48,7 +73,7 @@ jobs:
           "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
 
       - name: Build
-        run: cmake --build build --config Release --target slang-rhi-tests
+        run: cmake --build build --config ${{ matrix.config }} --target slang-rhi-tests
 
       - name: Install ProcDump
         run: |
@@ -57,18 +82,18 @@ jobs:
           Get-ChildItem "$env:RUNNER_TEMP/Procdump"
 
       - name: Run diagnostic workloads
-        run: ./tools/run-arm64-diagnostic.ps1 -ProcDump "$env:RUNNER_TEMP/Procdump/procdump64a.exe"
+        run: ./tools/run-arm64-diagnostic.ps1 -ProcDump "$env:RUNNER_TEMP/Procdump/procdump64a.exe" -BuildDirectory "build/${{ matrix.config }}"
 
       - name: Upload diagnostic artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: arm64-diagnostic-${{ github.run_attempt }}
+          name: arm64-diagnostic-${{ matrix.label }}-${{ github.run_attempt }}
           retention-days: 7
           path: |
             build/diagnostics/**
-            build/Release/*.pdb
-            build/Release/*.exe
-            build/Release/*.dll
-            build/Release/D3D12/**
+            build/${{ matrix.config }}/*.pdb
+            build/${{ matrix.config }}/*.exe
+            build/${{ matrix.config }}/*.dll
+            build/${{ matrix.config }}/D3D12/**
             build/CMakeCache.txt

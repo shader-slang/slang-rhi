@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$ProcDump,
-    [string]$BuildDirectory = 'build/Release'
+    [string]$BuildDirectory = 'build/Release',
+    [int]$RaygenRepeats = 1000,
+    [int]$GroupRepeats = 100
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,13 +43,12 @@ function Invoke-Workload([string]$Name, [string[]]$TestArguments, [int]$Expected
 
 Push-Location (Split-Path $executable)
 try {
-    Invoke-Workload 'full-suite' @('--check-devices', '--require-devices=d3d11,d3d12')
-    Invoke-Workload 'raygen-same-process' @('--test-case=ray-tracing-raygen-entrypoint-resources.d3d12', '--require-devices=d3d12', '--diagnostic-repeat=100') 400
-    Invoke-Workload 'raytracing-same-process' @('--test-case=ray-tracing*.d3d12', '--require-devices=d3d12', '--diagnostic-repeat=30') 120
+    Invoke-Workload 'raygen-same-process' @('--test-case=ray-tracing-raygen-entrypoint-resources.d3d12', '--require-devices=d3d12', "--diagnostic-repeat=$RaygenRepeats") (4 * $RaygenRepeats)
+    Invoke-Workload 'raytracing-same-process' @('--test-case=ray-tracing*.d3d12', '--require-devices=d3d12', "--diagnostic-repeat=$GroupRepeats") (4 * $GroupRepeats)
     for ($iteration = 1; $iteration -le 30; ++$iteration) {
         Invoke-Workload "raygen-fresh-process-$iteration" @('--test-case=ray-tracing-raygen-entrypoint-resources.d3d12', '--require-devices=d3d12')
     }
-    Invoke-Workload 'full-suite-repeat' @('--check-devices', '--require-devices=d3d11,d3d12', '--diagnostic-repeat=3') 12
+    Invoke-Workload 'full-suite' @('--check-devices', '--require-devices=d3d11,d3d12')
 }
 finally {
     Pop-Location
