@@ -531,29 +531,48 @@ GPU_TEST_CASE("ray-tracing-intrinsics-nested-call-shader", D3D12 | Vulkan | CUDA
     // invokes callableNestedLeaf at entry 1.
     std::vector<const char*> callableNames = {"callableInvokeNested", "callableNestedLeaf"};
 
-    OptixRayTracingPipelineDesc optixPipelineDesc = {};
-    optixPipelineDesc.maxDirectCallableDepthFromState = 2;
-    const void* pipelineNext =
-        device->getDeviceType() == DeviceType::CUDA ? static_cast<const void*>(&optixPipelineDesc) : nullptr;
+    for (auto compilationPolicy : {PipelineCompilationPolicy::Immediate, PipelineCompilationPolicy::Deferred})
+    {
+        CAPTURE(compilationPolicy);
+        OptixRayTracingPipelineDesc optixPipelineDesc = {};
+        optixPipelineDesc.maxDirectCallableDepthFromState = 2;
+        const void* pipelineNext =
+            device->getDeviceType() == DeviceType::CUDA ? static_cast<const void*>(&optixPipelineDesc) : nullptr;
 
-    RayTracingTestPipeline pipeline(
-        device,
-        "test-ray-tracing-intrinsics",
-        raygenNames,
-        hitGroupProgramNames,
-        missNames,
-        RayTracingPipelineFlags::None,
-        nullptr,
-        callableNames,
-        pipelineNext
-    );
+        RayTracingTestPipeline pipeline(
+            device,
+            "test-ray-tracing-intrinsics",
+            raygenNames,
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::None,
+            nullptr,
+            callableNames,
+            pipelineNext,
+            compilationPolicy
+        );
 
-    launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+        if (device->getDeviceType() == DeviceType::CUDA)
+        {
+            // Mutating the caller's options before deferred compilation must not change the pipeline.
+            // Check ownership before dispatch so the broken path fails without an undersized stack.
+            optixPipelineDesc.maxDirectCallableDepthFromState = 0;
+            const auto* retained =
+                static_cast<const OptixRayTracingPipelineDesc*>(pipeline.raytracingPipeline->getDesc().next);
+            REQUIRE(retained != nullptr);
+            REQUIRE(retained != &optixPipelineDesc);
+            CHECK_EQ(retained->next, nullptr);
+            REQUIRE_EQ(retained->maxDirectCallableDepthFromState, 2);
+            CHECK_EQ(retained->maxDirectCallableDepthFromTraversal, 0);
+        }
 
-    ComPtr<ISlangBlob> resultBlob;
-    resultBuf.getFromDevice(resultBlob.writeRef());
-    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
 
-    // Outer saved value: (14, 19, 22); leaf result: (7, 13, 23); sum: (21, 32, 45).
-    checkFloat3(result->value, {21.0f, 32.0f, 45.0f});
+        ComPtr<ISlangBlob> resultBlob;
+        resultBuf.getFromDevice(resultBlob.writeRef());
+        const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+        // Outer saved value: (14, 19, 22); leaf result: (7, 13, 23); sum: (21, 32, 45).
+        checkFloat3(result->value, {21.0f, 32.0f, 45.0f});
+    }
 }

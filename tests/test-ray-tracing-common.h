@@ -1045,7 +1045,8 @@ struct RayTracingTestPipeline
         RayTracingPipelineFlags flags = RayTracingPipelineFlags::None,
         const ShaderRecordOverwrite* hitGroupSbtData = nullptr,
         const std::vector<const char*>& callableNames = std::vector<const char*>(),
-        const void* pipelineNext = nullptr
+        const void* pipelineNext = nullptr,
+        PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1103,10 +1104,9 @@ struct RayTracingTestPipeline
         }
 
         RayTracingPipelineDesc rtpDesc = {};
-        // Tests can pass backend-specific pipeline options without duplicating this common
-        // ray-tracing setup. The chained structure only needs to remain alive for this synchronous
-        // pipeline-creation call.
+        // The pipeline owns any recognized options needed after this construction call.
         rtpDesc.next = pipelineNext;
+        rtpDesc.compilationPolicy = compilationPolicy;
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = hitGroups.size();
         rtpDesc.hitGroups = hitGroups.data();
