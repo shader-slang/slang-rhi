@@ -1,24 +1,40 @@
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
+#include "shader.h"
+#include "synthetic-resource-bindings.h"
 #include "vk-utils.h"
 
 namespace rhi::vk {
 
-uint32_t ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space)
+Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
 {
+    if (!outDescriptorSetIndex)
+        return SLANG_E_INVALID_ARG;
+
     auto it = m_mapSpaceToDescriptorSetIndex.find(space);
     if (it != m_mapSpaceToDescriptorSetIndex.end())
-        return it->second;
+    {
+        *outDescriptorSetIndex = it->second;
+        return SLANG_OK;
+    }
+
+    if (m_descriptorSetBuildInfos.size() >= kMaxDescriptorSets)
+    {
+        m_device->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Descriptor set count exceeds Vulkan layout limit"
+        );
+        return SLANG_E_INVALID_ARG;
+    }
 
     DescriptorSetInfo info = {};
-    info.space = space;
-
-    uint32_t index = m_descriptorSetBuildInfos.size();
+    info.space = (int32_t)space;
+    *outDescriptorSetIndex = (uint32_t)m_descriptorSetBuildInfos.size();
     m_descriptorSetBuildInfos.push_back(info);
-
-    m_mapSpaceToDescriptorSetIndex.emplace(space, index);
-    return index;
+    m_mapSpaceToDescriptorSetIndex.emplace(space, *outDescriptorSetIndex);
+    return SLANG_OK;
 }
 
 VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::BindingType slangBindingType)
@@ -59,7 +75,7 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
 /// Add any descriptor ranges implied by this object containing a leaf
 /// sub-object described by `typeLayout`, at the given `offset`.
 
-void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
+Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
     slang::TypeLayoutReflection* typeLayout,
     const BindingOffset& offset
 )
@@ -77,8 +93,10 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(i);
         if (descriptorRangeCount == 0)
             continue;
-        auto descriptorSetIndex =
-            findOrAddDescriptorSet(offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i));
+        uint32_t descriptorSetIndex = 0;
+        SLANG_RETURN_ON_FAIL(
+            findOrAddDescriptorSet(offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i), &descriptorSetIndex)
+        );
         SLANG_UNUSED(descriptorSetIndex);
     }
 
@@ -116,10 +134,11 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         if (descriptorRangeCount == 0)
             continue;
         auto slangDescriptorSetIndex = typeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
-        auto descriptorSetIndex = findOrAddDescriptorSet(
-            offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(slangDescriptorSetIndex)
-        );
-        auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
+        uint32_t descriptorSetIndex = 0;
+        SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet(
+            offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(slangDescriptorSetIndex),
+            &descriptorSetIndex
+        ));
 
         uint32_t firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
         for (uint32_t j = 0; j < descriptorRangeCount; ++j)
@@ -144,18 +163,18 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
             VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
             vkBindingRangeDesc.binding =
-                offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
+                offset.binding + uint32_t(typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
                                      slangDescriptorSetIndex,
                                      descriptorRangeIndex
-                                 );
-            vkBindingRangeDesc.descriptorCount = (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
+                                 ));
+            vkBindingRangeDesc.descriptorCount = uint32_t(typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
                 slangDescriptorSetIndex,
                 descriptorRangeIndex
-            );
+            ));
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
-            descriptorSetInfo.vkBindings.push_back(vkBindingRangeDesc);
+            m_descriptorSetBuildInfos[descriptorSetIndex].vkBindings.push_back(vkBindingRangeDesc);
         }
     }
 
@@ -211,7 +230,9 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             BindingOffset elementOffset = subObjectRangeOffset;
             elementOffset += BindingOffset(elementVarLayout);
 
-            _addDescriptorRangesAsConstantBuffer(elementTypeLayout, containerOffset, elementOffset);
+            SLANG_RETURN_ON_FAIL(
+                _addDescriptorRangesAsConstantBuffer(elementTypeLayout, containerOffset, elementOffset)
+            );
         }
         break;
 
@@ -241,11 +262,15 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             BindingOffset elementOffset = subObjectRangeOffset;
             elementOffset += BindingOffset(elementVarLayout);
 
-            _addDescriptorRangesAsPushConstantBuffer(elementTypeLayout, containerOffset, elementOffset);
+            SLANG_RETURN_ON_FAIL(
+                _addDescriptorRangesAsPushConstantBuffer(elementTypeLayout, containerOffset, elementOffset)
+            );
         }
         break;
         }
     }
+
+    return SLANG_OK;
 }
 
 /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
@@ -255,7 +280,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 /// should apply to the buffer itself and the contents of the buffer, respectively.
 ///
 
-void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
+Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
     slang::TypeLayoutReflection* elementTypeLayout,
     const BindingOffset& containerOffset,
     const BindingOffset& elementOffset
@@ -266,17 +291,17 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
     // object is bound as a stand alone parameter block.
     if (elementTypeLayout->getSize(SLANG_PARAMETER_CATEGORY_UNIFORM) != 0)
     {
-        auto descriptorSetIndex = findOrAddDescriptorSet(containerOffset.bindingSet);
-        auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
+        uint32_t descriptorSetIndex = 0;
+        SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet(containerOffset.bindingSet, &descriptorSetIndex));
         VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
         vkBindingRangeDesc.binding = containerOffset.binding;
         vkBindingRangeDesc.descriptorCount = 1;
         vkBindingRangeDesc.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-        descriptorSetInfo.vkBindings.push_back(vkBindingRangeDesc);
+        m_descriptorSetBuildInfos[descriptorSetIndex].vkBindings.push_back(vkBindingRangeDesc);
     }
 
-    _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
+    return _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
 }
 
 /// Add the descriptor ranges implied by a `PushConstantBuffer<X>` where `X` is
@@ -286,7 +311,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBuffer(
 /// should apply to the buffer itself and the contents of the buffer, respectively.
 ///
 
-void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer(
+Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer(
     slang::TypeLayoutReflection* elementTypeLayout,
     const BindingOffset& containerOffset,
     const BindingOffset& elementOffset
@@ -313,13 +338,22 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer(
         m_ownPushConstantRanges[pushConstantRangeIndex] = vkPushConstantRange;
     }
 
-    _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
+    return _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
 }
 
-/// Add binding ranges to this shader object layout, as implied by the given
-/// `typeLayout`
+uint32_t ShaderObjectLayoutImpl::Builder::addResourceSlots(slang::BindingType bindingType, uint32_t count)
+{
+    uint32_t slotIndex = m_slotCount;
+    m_slotCount += count;
+    // Raw and structured buffers use resource slots but do not contribute to the
+    // ordinary builder's binding count. Keep this accounting shared with added ranges.
+    if (bindingType != slang::BindingType::RawBuffer && bindingType != slang::BindingType::MutableRawBuffer)
+        m_totalBindingCount += 1;
+    return slotIndex;
+}
 
-void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflection* typeLayout)
+/// Add binding ranges implied by the reflected type layout.
+Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflection* typeLayout)
 {
     SlangInt bindingRangeCount = typeLayout->getBindingRangeCount();
     for (SlangInt r = 0; r < bindingRangeCount; ++r)
@@ -349,29 +383,14 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
                 subObjectIndex = m_subObjectCount;
                 m_subObjectCount += count;
             }
-            slotIndex = m_slotCount;
-            m_slotCount += count;
+            slotIndex = addResourceSlots(slangBindingType, count);
             break;
-        case slang::BindingType::Sampler:
-            slotIndex = m_slotCount;
-            m_slotCount += count;
-            m_totalBindingCount += 1;
-            break;
-
-        case slang::BindingType::CombinedTextureSampler:
-            slotIndex = m_slotCount;
-            m_slotCount += count;
-            m_totalBindingCount += 1;
-            break;
-
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
             break;
 
         default:
-            slotIndex = m_slotCount;
-            m_slotCount += count;
-            m_totalBindingCount += 1;
+            slotIndex = addResourceSlots(slangBindingType, count);
             break;
         }
 
@@ -437,11 +456,13 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             if (auto elementVarLayout = slangLeafTypeLayout->getElementVarLayout())
                 subTypeLayout = elementVarLayout->getTypeLayout();
             SLANG_RHI_ASSERT(subTypeLayout);
-            ShaderObjectLayoutImpl::createForElementType(
-                m_device,
-                m_session,
-                subTypeLayout,
-                subObjectLayout.writeRef()
+            SLANG_RETURN_ON_FAIL(
+                ShaderObjectLayoutImpl::createForElementType(
+                    m_device,
+                    m_session,
+                    subTypeLayout,
+                    subObjectLayout.writeRef()
+                )
             );
         }
         break;
@@ -497,6 +518,8 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
 
         m_subObjectRanges.push_back(subObjectRange);
     }
+
+    return SLANG_OK;
 }
 
 Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
@@ -511,7 +534,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     // to the descriptor ranges in the various sets, but not always
     // in a one-to-one fashion.
 
-    addBindingRanges(typeLayout);
+    SLANG_RETURN_ON_FAIL(addBindingRanges(typeLayout));
 
     // Note: This routine does not take responsibility for
     // adding descriptor ranges at all, because the exact way
@@ -538,7 +561,7 @@ Result ShaderObjectLayoutImpl::createForElementType(
 )
 {
     Builder builder(device, session);
-    builder.setElementTypeLayout(elementType);
+    SLANG_RETURN_ON_FAIL(builder.setElementTypeLayout(elementType));
 
     // When constructing a shader object layout directly from a reflected
     // type in Slang, we want to compute the descriptor sets and ranges
@@ -572,7 +595,9 @@ Result ShaderObjectLayoutImpl::createForElementType(
     // descriptor ranges as if things were declared as a `ConstantBuffer<X>`,
     // since that is how things will be laid out inside the parameter block.
     //
-    builder._addDescriptorRangesAsConstantBuffer(builder.m_elementTypeLayout, containerOffset, elementOffset);
+    SLANG_RETURN_ON_FAIL(
+        builder._addDescriptorRangesAsConstantBuffer(builder.m_elementTypeLayout, containerOffset, elementOffset)
+    );
     return builder.build(outLayout);
 }
 
@@ -634,16 +659,17 @@ Result EntryPointLayout::Builder::build(EntryPointLayout** outLayout)
     return SLANG_OK;
 }
 
-void EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* entryPointLayout)
+Result EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* entryPointLayout)
 {
     m_slangEntryPointLayout = entryPointLayout;
-    setElementTypeLayout(entryPointLayout->getTypeLayout());
+    SLANG_RETURN_ON_FAIL(setElementTypeLayout(entryPointLayout->getTypeLayout()));
     m_shaderStageFlag = translateShaderStage(entryPointLayout->getStage());
 
     // Note: we do not bother adding any descriptor sets/ranges here,
     // because the descriptor ranges of an entry point will simply
     // be allocated as part of the descriptor sets for the root
     // shader object.
+    return SLANG_OK;
 }
 
 Result EntryPointLayout::_init(const Builder* builder)
@@ -679,11 +705,12 @@ Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
+    SyntheticResourceBindingState* syntheticResources,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout);
-    builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
+    RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout, syntheticResources);
+    SLANG_RETURN_ON_FAIL(builder.addGlobalParams(programLayout->getGlobalParamsVarLayout()));
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
     for (SlangInt e = 0; e < entryPointCount; ++e)
@@ -691,25 +718,31 @@ Result RootShaderObjectLayoutImpl::create(
         auto slangEntryPoint = programLayout->getEntryPointByIndex(e);
 
         EntryPointLayout::Builder entryPointBuilder(device, program->getSession());
-        entryPointBuilder.addEntryPointParams(slangEntryPoint);
+        SLANG_RETURN_ON_FAIL(entryPointBuilder.addEntryPointParams(slangEntryPoint));
 
         RefPtr<EntryPointLayout> entryPointLayout;
         SLANG_RETURN_ON_FAIL(entryPointBuilder.build(entryPointLayout.writeRef()));
 
-        builder.addEntryPoint(entryPointLayout);
+        SLANG_RETURN_ON_FAIL(builder.addEntryPoint(entryPointLayout));
     }
 
+    if (syntheticResources)
+        SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
+
     SLANG_RETURN_ON_FAIL(builder.build(outLayout));
+    if (syntheticResources)
+        SLANG_RETURN_ON_FAIL(syntheticResources->setResolvedLocations(builder.m_syntheticLocations));
 
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
+Result RootShaderObjectLayoutImpl::_init(Builder* builder)
 {
     auto device = builder->m_device;
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
+    m_descriptorSetComposition = std::move(builder->m_descriptorSetComposition);
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
@@ -787,6 +820,13 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 {
+    if (m_descriptorSetComposition)
+    {
+        for (const auto& set : getOwnDescriptorSets())
+            m_vkDescriptorSetLayouts.push_back(set.descriptorSetLayout);
+        return SLANG_OK;
+    }
+
     SLANG_RETURN_ON_FAIL(addAllDescriptorSetsRec(this));
 
     // Note: the descriptor ranges/sets for direct entry point parameters
@@ -809,10 +849,9 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
 {
-    // TODO: This logic assumes that descriptor sets are all contiguous
-    // and have been allocated in a global order that matches the order
-    // of enumeration here.
-
+    // Descriptor sets are already ordered by the builder: normal programs use
+    // the existing compact order, while synthetic resources preserve explicit
+    // Vulkan set numbers so binding locations match the compiler metadata.
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
         m_vkDescriptorSetLayouts.push_back(descSetInfo.descriptorSetLayout);
@@ -898,15 +937,31 @@ Result RootShaderObjectLayoutImpl::addChildPushConstantRangesRec(ShaderObjectLay
 
 Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** outLayout)
 {
+    if (m_program->getSpecializationParamCount() == 0)
+    {
+        size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
+        if (m_device->m_bindlessDescriptorSet)
+            totalDescriptorSetCount++;
+        if (totalDescriptorSetCount > kMaxDescriptorSets)
+        {
+            m_device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Descriptor set count exceeds Vulkan layout limit"
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
     returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
-void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
+Result RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
 {
-    setElementTypeLayout(globalsLayout->getTypeLayout());
+    SLANG_RETURN_ON_FAIL(setElementTypeLayout(globalsLayout->getTypeLayout()));
 
     // We need to populate our descriptor sets/ranges with information
     // from the layout of the global scope.
@@ -929,10 +984,10 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     // deal with the possibility of a "default" constant buffer allocated
     // for global-scope parameters of uniform/ordinary type.
     //
-    _addDescriptorRangesAsValue(globalsLayout->getTypeLayout(), offset);
+    return _addDescriptorRangesAsValue(globalsLayout->getTypeLayout(), offset);
 }
 
-void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
+Result RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
 {
     auto slangEntryPointLayout = entryPointLayout->getSlangLayout();
     auto entryPointVarLayout = slangEntryPointLayout->getVarLayout();
@@ -970,7 +1025,7 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
                 BindingOffset elementOffset = entryPointOffset;
                 elementOffset += BindingOffset(elementVarLayout);
 
-                _addDescriptorRangesAsValue(elementVarLayout->getTypeLayout(), elementOffset);
+                SLANG_RETURN_ON_FAIL(_addDescriptorRangesAsValue(elementVarLayout->getTypeLayout(), elementOffset));
             }
         }
     }
@@ -978,12 +1033,13 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     {
         // For unwrapped raygen parameters and non-raygen entry points, process normally.
         // ConstantBuffer/PushConstant handling will set up push constants and descriptors.
-        _addDescriptorRangesAsValue(entryPointTypeLayout, entryPointOffset);
+        SLANG_RETURN_ON_FAIL(_addDescriptorRangesAsValue(entryPointTypeLayout, entryPointOffset));
     }
 
     m_entryPoints.push_back(info);
 
     m_childDescriptorSetCount += entryPointLayout->getTotalDescriptorSetCount();
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk

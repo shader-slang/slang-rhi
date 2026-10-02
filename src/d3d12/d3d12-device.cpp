@@ -1795,6 +1795,8 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
+    if (shaderProgram->getSyntheticResourceBindingState())
+        return SLANG_E_NOT_IMPLEMENTED;
     ComPtr<ID3DBlob> d3dDiagnosticBlob;
     auto rootShaderLayoutResult = RootShaderObjectLayoutImpl::create(
         this,

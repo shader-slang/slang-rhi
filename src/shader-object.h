@@ -177,6 +177,12 @@ public:
     virtual uint32_t getSlotCount() const = 0;
     virtual uint32_t getSubObjectCount() const = 0;
 
+    /// Total size (in bytes) required for the uniform/ordinary-data buffer
+    /// backing this layout. Backends that bind resources via uniform marshaling
+    /// (CUDA) override this when synthesized resources extend the layout beyond
+    /// the Slang element-type layout.
+    virtual size_t getUniformBufferSize() const { return m_elementTypeLayout ? m_elementTypeLayout->getSize() : 0; }
+
     virtual uint32_t getBindingRangeCount() const = 0;
     virtual const BindingRangeInfo& getBindingRange(uint32_t index) const = 0;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <slang-rhi.h>
+#include <slang-rhi/synthetic-bindings.h>
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -9,8 +9,11 @@
 #include "rhi-shared-fwd.h"
 #include "device-child.h"
 
+#include <string>
+#include <memory>
 #include <unordered_map>
 #include <mutex>
+#include <vector>
 
 namespace rhi {
 
@@ -44,6 +47,8 @@ struct CompiledEntryPoint
     Result result = SLANG_OK;
 };
 
+class SyntheticResourceBindingState;
+
 struct SpecializationKey
 {
     short_vector<ShaderComponentID> componentIDs;
@@ -66,11 +71,11 @@ struct SpecializationKey
 
 using ShaderProgramID = uint64_t;
 
-class ShaderProgram : public IShaderProgram, public DeviceChild
+class ShaderProgram : public IShaderProgram, public ISyntheticShaderProgram, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderProgram* getInterface(const Guid& guid);
+    void* getInterface(const Guid& guid);
 
     ShaderProgramDesc m_desc;
     StructHolder m_descHolder;
@@ -98,6 +103,10 @@ public:
     std::unordered_map<SpecializationKey, InternalRefPtr<ShaderProgram>, SpecializationKey::Hasher>
         m_specializedPrograms;
 
+    // Optional state for compiler-synthesized resources. Null for ordinary
+    // programs so the feature has no per-program vector/string storage cost.
+    std::unique_ptr<SyntheticResourceBindingState> m_syntheticResources;
+
     ShaderProgram(Device* device, const ShaderProgramDesc& desc);
     virtual ~ShaderProgram() override;
 
@@ -122,14 +131,31 @@ public:
 
     virtual Result createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode);
 
+    SyntheticResourceBindingState* getSyntheticResourceBindingState() { return m_syntheticResources.get(); }
+    const SyntheticResourceBindingState* getSyntheticResourceBindingState() const { return m_syntheticResources.get(); }
+
     // IShaderProgram interface
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) override;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
 
+    // ISyntheticShaderProgram interface
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getSyntheticBindingCount() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSyntheticBindingLocation(
+        uint32_t index,
+        SyntheticBindingLocation* outLocation
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL findSyntheticBindingLocationByID(
+        uint32_t syntheticResourceID,
+        SyntheticBindingLocation* outLocation
+    ) override;
+
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
 private:
+    uint32_t _getEntryPointCount() const;
+    Result _initSyntheticResourceDescs();
+
     bool _isSpecializable()
     {
         if (slangGlobalScope->getSpecializationParamCount() != 0)
