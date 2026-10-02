@@ -1,0 +1,74 @@
+name: arm64-diagnostic
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/arm64-diagnostic.yml
+      - tools/run-arm64-diagnostic.ps1
+      - tests/**
+      - src/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arm64-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostic:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'dev/skallweit/arm64-d3d12-crash-investigation'
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          submodules: recursive
+
+      - uses: step-security/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+
+      - uses: lukka/get-cmake@latest
+
+      - name: Configure Release with symbols
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          cmake --preset default
+          -DSLANG_RHI_FETCH_SLANG_VERSION=2026.17.1
+          "-DCMAKE_C_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
+          "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
+          "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
+          "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
+
+      - name: Build
+        run: cmake --build build --config Release --target slang-rhi-tests
+
+      - name: Install ProcDump
+        run: |
+          Invoke-WebRequest https://download.sysinternals.com/files/Procdump.zip -OutFile "$env:RUNNER_TEMP/Procdump.zip"
+          Expand-Archive "$env:RUNNER_TEMP/Procdump.zip" "$env:RUNNER_TEMP/Procdump"
+          Get-ChildItem "$env:RUNNER_TEMP/Procdump"
+
+      - name: Run diagnostic workloads
+        run: ./tools/run-arm64-diagnostic.ps1 -ProcDump "$env:RUNNER_TEMP/Procdump/procdump64a.exe"
+
+      - name: Upload diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-diagnostic-${{ github.run_attempt }}
+          retention-days: 7
+          path: |
+            build/diagnostics/**
+            build/Release/*.pdb
+            build/Release/*.exe
+            build/Release/*.dll
+            build/Release/D3D12/**
+            build/CMakeCache.txt

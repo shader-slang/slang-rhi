@@ -1,4 +1,5 @@
 #include "testing.h"
+#include <cstdio>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -13,62 +14,97 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint-resources", ALL)
     for (const char* entryPoint : {"rayGenResources", "rayGenConstantBuffer", "rayGenParameterBlock", "rayGenOffsets"})
     {
         CAPTURE(std::string(entryPoint));
-        const bool hasGlobals = strcmp(entryPoint, "rayGenOffsets") == 0;
-        const bool hasParameterGroup = !hasGlobals && strcmp(entryPoint, "rayGenResources") != 0;
-
-        ComPtr<IShaderProgram> program;
-        REQUIRE_CALL(loadProgram(
-            device,
-            hasGlobals ? "test-ray-tracing-raygen-entrypoint-offsets" : "test-ray-tracing-raygen-entrypoint",
-            entryPoint,
-            program.writeRef()
-        ));
-
-        RayTracingPipelineDesc pipelineDesc = {};
-        pipelineDesc.program = program;
-        auto pipeline = device->createRayTracingPipeline(pipelineDesc);
-        REQUIRE(pipeline != nullptr);
-
-        ShaderTableDesc shaderTableDesc = {};
-        shaderTableDesc.program = program;
-        shaderTableDesc.rayGenShaderCount = 1;
-        shaderTableDesc.rayGenShaderEntryPointNames = &entryPoint;
-        ComPtr<IShaderTable> shaderTable;
-        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
-
-        BufferDesc bufferDesc = {};
-        bufferDesc.size = (hasGlobals ? 2 : 1) * sizeof(uint32_t);
-        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
-        const uint32_t initialValues[] = {99, 99};
-        auto outputBuffer = device->createBuffer(bufferDesc, initialValues);
-        REQUIRE(outputBuffer != nullptr);
-
-        auto queue = device->getQueue(QueueType::Graphics);
-        auto commandEncoder = queue->createCommandEncoder();
-        auto passEncoder = commandEncoder->beginRayTracingPass();
-        auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
-        auto cursor = ShaderCursor(rootObject->getEntryPoint(0));
-        if (hasGlobals)
+        auto phase = [&](const char* name)
         {
-            // Global ordinary data and a resource move the entry point's descriptor base.
-            REQUIRE_CALL(ShaderCursor(rootObject)["bias"].setData<uint32_t>(45));
-            REQUIRE_CALL(ShaderCursor(rootObject)["globalOutput"].setBinding(outputBuffer));
-            REQUIRE_CALL(cursor["value"].setData<uint32_t>(12300));
-        }
-        if (hasParameterGroup)
+            std::fprintf(stderr, "[raygen] variant=%s phase=%s\n", entryPoint, name);
+            std::fflush(stderr);
+        };
+        phase("begin");
         {
-            cursor = cursor["params"];
-            REQUIRE_CALL(cursor["value"].setData<uint32_t>(12345));
-        }
-        REQUIRE_CALL(cursor["output"].setBinding(outputBuffer));
-        passEncoder->dispatchRays(0, 1, 1, 1);
-        passEncoder->end();
-        queue->submit(commandEncoder->finish());
+            const bool hasGlobals = strcmp(entryPoint, "rayGenOffsets") == 0;
+            const bool hasParameterGroup = !hasGlobals && strcmp(entryPoint, "rayGenResources") != 0;
 
-        if (hasGlobals)
-            compareComputeResult(device, outputBuffer, std::array<uint32_t, 2>{12345, 45});
-        else
-            compareComputeResult(device, outputBuffer, std::array<uint32_t, 1>{12345});
+            ComPtr<IShaderProgram> program;
+            REQUIRE_CALL(loadProgram(
+                device,
+                hasGlobals ? "test-ray-tracing-raygen-entrypoint-offsets" : "test-ray-tracing-raygen-entrypoint",
+                entryPoint,
+                program.writeRef()
+            ));
+            phase("program-created");
+
+            RayTracingPipelineDesc pipelineDesc = {};
+            pipelineDesc.program = program;
+            auto pipeline = device->createRayTracingPipeline(pipelineDesc);
+            REQUIRE(pipeline != nullptr);
+            phase("pipeline-created");
+
+            ShaderTableDesc shaderTableDesc = {};
+            shaderTableDesc.program = program;
+            shaderTableDesc.rayGenShaderCount = 1;
+            shaderTableDesc.rayGenShaderEntryPointNames = &entryPoint;
+            ComPtr<IShaderTable> shaderTable;
+            REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+
+            BufferDesc bufferDesc = {};
+            bufferDesc.size = (hasGlobals ? 2 : 1) * sizeof(uint32_t);
+            bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+            const uint32_t initialValues[] = {99, 99};
+            auto outputBuffer = device->createBuffer(bufferDesc, initialValues);
+            REQUIRE(outputBuffer != nullptr);
+            phase("resources-created");
+
+            auto queue = device->getQueue(QueueType::Graphics);
+            REQUIRE(queue != nullptr);
+            auto commandEncoder = queue->createCommandEncoder();
+            REQUIRE(commandEncoder != nullptr);
+            auto passEncoder = commandEncoder->beginRayTracingPass();
+            REQUIRE(passEncoder != nullptr);
+            auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
+            REQUIRE(rootObject != nullptr);
+            auto entryPointObject = rootObject->getEntryPoint(0);
+            REQUIRE(entryPointObject != nullptr);
+            auto cursor = ShaderCursor(entryPointObject);
+            REQUIRE(cursor.isValid());
+            entryPointObject.setNull();
+            phase("root-bound");
+            if (hasGlobals)
+            {
+                // Global ordinary data and a resource move the entry point's descriptor base.
+                REQUIRE(ShaderCursor(rootObject)["bias"].isValid());
+                REQUIRE(ShaderCursor(rootObject)["globalOutput"].isValid());
+                REQUIRE(cursor["value"].isValid());
+                REQUIRE_CALL(ShaderCursor(rootObject)["bias"].setData<uint32_t>(45));
+                REQUIRE_CALL(ShaderCursor(rootObject)["globalOutput"].setBinding(outputBuffer));
+                REQUIRE_CALL(cursor["value"].setData<uint32_t>(12300));
+            }
+            if (hasParameterGroup)
+            {
+                cursor = cursor["params"];
+                REQUIRE(cursor.isValid());
+                REQUIRE(cursor["value"].isValid());
+                REQUIRE_CALL(cursor["value"].setData<uint32_t>(12345));
+            }
+            REQUIRE(cursor["output"].isValid());
+            REQUIRE_CALL(cursor["output"].setBinding(outputBuffer));
+            phase("parameters-bound");
+            passEncoder->dispatchRays(0, 1, 1, 1);
+            passEncoder->end();
+            phase("dispatch-recorded");
+            auto commandBuffer = commandEncoder->finish();
+            REQUIRE(commandBuffer != nullptr);
+            phase("commands-finished");
+            REQUIRE_CALL(queue->submit(commandBuffer));
+            commandBuffer.setNull();
+            phase("submitted");
+
+            if (hasGlobals)
+                compareComputeResult(device, outputBuffer, std::array<uint32_t, 2>{12345, 45});
+            else
+                compareComputeResult(device, outputBuffer, std::array<uint32_t, 1>{12345});
+            phase("readback-complete");
+        }
+        phase("destroyed");
     }
 }
 

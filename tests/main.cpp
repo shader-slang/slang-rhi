@@ -193,6 +193,11 @@ int main(int argc, const char** argv)
     {
         doctest::Context context(argc, argv);
 
+        int diagnosticRepeat = 1;
+        doctest::parseIntOption(argc, argv, "diagnostic-repeat=", doctest::option_int, diagnosticRepeat);
+        if (diagnosticRepeat < 1 || diagnosticRepeat > 10000)
+            return 2;
+
         context.setOption("--reporters", "custom");
         context.setOption("--order-by", "name");
 
@@ -202,7 +207,16 @@ int main(int argc, const char** argv)
         // context.setOption("success", true);
 
         if (context.shouldExit() || rhi::testing::options().listDevices || rhi::testing::checkRequiredDevices())
-            result = context.run();
+        {
+            for (int iteration = 0; iteration < diagnosticRepeat; ++iteration)
+            {
+                std::fprintf(stderr, "[diagnostic] iteration=%d/%d begin\n", iteration + 1, diagnosticRepeat);
+                std::fflush(stderr);
+                result = context.run();
+                if (result != 0 || context.shouldExit())
+                    break;
+            }
+        }
 
         bool noSilentSkips = rhi::testing::checkNoSilentGpuSkips();
         if (result == 0 && !noSilentSkips)
@@ -242,5 +256,7 @@ int main(int argc, const char** argv)
     }
 #endif
 
+    std::fprintf(stderr, "[diagnostic] exit=%d\n", result);
+    std::fflush(stderr);
     return result;
 }
