@@ -159,7 +159,7 @@ public:
     /// The single command queue. Device-level operations (readBuffer,
     /// createBuffer, createTexture) use m_queue->m_queueFence to participate
     /// in the fence chain. See synchronization model in metal-command.h.
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
     ClearEngine m_clearEngine;
 

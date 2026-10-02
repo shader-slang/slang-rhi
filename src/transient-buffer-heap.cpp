@@ -93,9 +93,6 @@ Result TransientBufferHeap::allocatePageLocked(Size size, Page** outPage)
     if (!page->m_mappedData)
         return SLANG_FAIL;
 
-    // The queue-owned heap controls the buffer lifetime and the queue itself is device-owned.
-    page->m_buffer->breakStrongReferenceToDevice();
-
     m_nextPageId++;
     m_pageAllocationCount++;
     m_totalCapacity += size;

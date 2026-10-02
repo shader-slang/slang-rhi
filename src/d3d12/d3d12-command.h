@@ -22,8 +22,8 @@ public:
     uint64_t m_lastFinishedID = 0;
 
     std::mutex m_mutex;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
     // Deferred delete queue for GPU resources.
     // Resources are held here until the GPU has finished using them.
@@ -43,6 +43,10 @@ public:
     ~CommandQueueImpl();
 
     Result init(uint32_t queueIndex);
+    // Wait for GPU work and release command buffers before releasing device-owned heaps.
+    void waitAndReleaseCommandBuffers();
+    // Drain deferred deletes and destroy native queue services after command buffers and device-owned heaps are
+    // released.
     void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);

@@ -21,7 +21,7 @@ enum class PipelineType
 class Pipeline : public DeviceChild
 {
 public:
-    RefPtr<ShaderProgram> m_program;
+    InternalRefPtr<ShaderProgram> m_program;
 
     Pipeline(Device* device)
         : DeviceChild(device)
@@ -57,7 +57,7 @@ public:
 class VirtualRenderPipeline : public RenderPipeline
 {
 public:
-    RefPtr<Pipeline> m_concretePipeline;
+    InternalRefPtr<Pipeline> m_concretePipeline;
 
     VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc);
 
@@ -91,7 +91,7 @@ public:
 class VirtualComputePipeline : public ComputePipeline
 {
 public:
-    RefPtr<Pipeline> m_concretePipeline;
+    InternalRefPtr<Pipeline> m_concretePipeline;
 
     VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc);
 
@@ -125,7 +125,7 @@ public:
 class VirtualRayTracingPipeline : public RayTracingPipeline
 {
 public:
-    RefPtr<Pipeline> m_concretePipeline;
+    InternalRefPtr<Pipeline> m_concretePipeline;
 
     VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc);
 

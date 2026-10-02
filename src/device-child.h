@@ -14,14 +14,15 @@ public:
     template<typename T = Device>
     T* getDevice()
     {
-        return static_cast<T*>(m_device.get());
+        return static_cast<T*>(m_device);
     }
 
-    void breakStrongReferenceToDevice();
-    void establishStrongReferenceToDevice();
-
 protected:
-    BreakableReference<Device> m_device;
+    RefObject* getLifetimeOwner() const noexcept override;
+
+    // RefObject pins this device for each nonempty external lifetime. Internal owners
+    // must keep the device valid independently (including during device shutdown).
+    Device* m_device;
 };
 
 } // namespace rhi

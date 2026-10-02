@@ -1246,7 +1246,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     SLANG_RETURN_ON_FAIL(m_queue->init(0));
-    m_queue->setInternalReferenceCount(1);
 
     // Retrieve timestamp frequency.
     m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
@@ -1278,7 +1277,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -1668,8 +1667,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
-    view->m_texture = checked_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(checked_cast<TextureImpl*>(texture), desc);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -1829,7 +1827,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -2128,7 +2126,9 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)
         return SLANG_FAIL;
@@ -2152,7 +2152,9 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure | BufferUsage::MicromapStorage;
     bufferDesc.defaultState = ResourceState::MicromapRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
@@ -2291,6 +2293,13 @@ DeviceImpl::~DeviceImpl()
     }
 #endif
 
+    // Wait and release command-owned allocations while their heaps and device are still valid.
+    if (m_queue)
+    {
+        m_queue->waitAndReleaseCommandBuffers();
+    }
+
+    m_shaderCache.free();
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
 
     m_uploadHeap.release();
@@ -2328,7 +2337,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 } // namespace rhi::d3d12

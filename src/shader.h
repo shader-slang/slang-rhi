@@ -100,7 +100,8 @@ public:
     std::mutex m_compileMutex;
 
     std::mutex m_specializedProgramsMutex;
-    std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
+    std::unordered_map<SpecializationKey, InternalRefPtr<ShaderProgram>, SpecializationKey::Hasher>
+        m_specializedPrograms;
 
     // Optional state for compiler-synthesized resources. Null for ordinary
     // programs so the feature has no per-program vector/string storage cost.

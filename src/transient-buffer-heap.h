@@ -48,7 +48,7 @@ public:
         Page(uint64_t id, Buffer* buffer);
 
         uint64_t m_id = 0;
-        RefPtr<Buffer> m_buffer;
+        InternalRefPtr<Buffer> m_buffer;
         Size m_capacity = 0;
         Size m_nextOffset = 0;
         Size m_liveSize = 0;

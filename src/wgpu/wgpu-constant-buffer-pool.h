@@ -29,8 +29,8 @@ private:
 
     struct Page
     {
-        RefPtr<BufferImpl> buffer;
-        RefPtr<BufferImpl> stagingBuffer;
+        InternalRefPtr<BufferImpl> buffer;
+        InternalRefPtr<BufferImpl> stagingBuffer;
         size_t size = 0;
         uint8_t* mappedData = nullptr;
         size_t usedSize = 0;

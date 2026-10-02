@@ -537,7 +537,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     // This is used by the first image barrier to transition the texture from the correct state.
     m_textures[m_currentTextureIndex]->m_isSwapchainInitialState = true;
 
-    returnComPtr(outTexture, m_textures[m_currentTextureIndex]);
+    returnComPtrCopy(outTexture, m_textures[m_currentTextureIndex]);
     return SLANG_OK;
 }
 

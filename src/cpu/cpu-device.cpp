@@ -9,7 +9,13 @@
 
 namespace rhi::cpu {
 
-DeviceImpl::~DeviceImpl() {}
+DeviceImpl::~DeviceImpl()
+{
+    m_shaderCache.free();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
+    m_queue.setNull();
+}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
@@ -62,7 +68,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     ));
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
@@ -82,7 +87,7 @@ Result DeviceImpl::createShaderObjectLayout(
 )
 {
     RefPtr<ShaderObjectLayoutImpl> cpuLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
-    returnRefPtrMove(outLayout, cpuLayout);
+    returnRefPtr(outLayout, cpuLayout);
     return SLANG_OK;
 }
 
@@ -136,7 +141,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 

@@ -47,6 +47,12 @@ DeviceImpl::~DeviceImpl()
     {
         SLANG_CUDA_CTX_SCOPE(this);
 
+        // Wait and release command-owned allocations while their heaps and device are still valid.
+        if (m_queue)
+        {
+            m_queue->waitAndReleaseCommandBuffers();
+        }
+
         m_shaderCache.free();
         m_uploadHeap.release();
         m_readbackHeap.release();
@@ -341,7 +347,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     SLANG_RETURN_ON_FAIL(m_queue->init());
-    m_queue->setInternalReferenceCount(1);
 
     // Create 2 heaps. On CUDA both Upload and ReadBack just use host memory,
     // so we only need one for DeviceLocal and one for Upload/ReadBack.
@@ -352,13 +357,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     heapDesc.label = "Device upload heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_hostMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
-    m_hostMemHeap->breakStrongReferenceToDevice();
 
     heapDesc.memoryType = MemoryType::DeviceLocal;
     heapDesc.label = "Device local heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
-    m_deviceMemHeap->breakStrongReferenceToDevice();
 
     // Register heaps with the base Device class for reporting
     m_globalHeaps.push_back(m_hostMemHeap);
@@ -375,7 +378,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -425,7 +427,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> cudaLayout;
     cudaLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
-    returnRefPtrMove(outLayout, cudaLayout);
+    returnRefPtr(outLayout, cudaLayout);
     return SLANG_OK;
 }
 
@@ -485,7 +487,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
