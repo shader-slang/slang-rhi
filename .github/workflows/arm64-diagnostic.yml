@@ -24,8 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { label: before-884, revision: '16324a68af477baaede620e713644f5e9613b1a2', config: Release }
-          - { label: after-884, revision: '0bd799a7c04ea7dc5597ff811fb08fdb1b6fab43', config: Release }
+          - { label: original-888-direct, revision: '28b85ae546808fe92442944477efad19d0340fa0', config: Release }
     runs-on: windows-11-arm
     timeout-minutes: 60
     defaults:
@@ -50,7 +49,8 @@ jobs:
 
       - name: Apply identical diagnostic instrumentation
         run: |
-          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/*.cpp" tests/
+          # Keep the original raygen test body, including its original object lifetimes.
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/main.cpp" tests/
           Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/*.ps1" tools/
 
       - uses: step-security/msvc-dev-cmd@v1
@@ -66,21 +66,27 @@ jobs:
           cmake --preset default
           "-DSLANG_RHI_FETCH_SLANG_VERSION=2026.17.1"
           "-DCMAKE_C_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
-          "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
+          "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi /DDOCTEST_CONFIG_NO_WINDOWS_SEH"
           "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
           "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
 
       - name: Build
         run: cmake --build build --config ${{ matrix.config }} --target slang-rhi-tests
 
-      - name: Install ProcDump
+      - name: Enable Windows crash dumps
         run: |
-          Invoke-WebRequest https://download.sysinternals.com/files/Procdump.zip -OutFile "$env:RUNNER_TEMP/Procdump.zip"
-          Expand-Archive "$env:RUNNER_TEMP/Procdump.zip" "$env:RUNNER_TEMP/Procdump"
-          Get-ChildItem "$env:RUNNER_TEMP/Procdump"
+          $dumpFolder = (New-Item -ItemType Directory -Force build/diagnostics/dumps).FullName
+          $dumpKey = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\slang-rhi-tests.exe'
+          New-Item -Path $dumpKey -Force | Out-Null
+          New-ItemProperty -Path $dumpKey -Name DumpFolder -PropertyType ExpandString -Value $dumpFolder -Force | Out-Null
+          New-ItemProperty -Path $dumpKey -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
+          New-ItemProperty -Path $dumpKey -Name DumpCount -PropertyType DWord -Value 3 -Force | Out-Null
+          $werKey = 'HKCU:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+          New-Item -Path $werKey -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DontShowUI -PropertyType DWord -Value 1 -Force | Out-Null
 
       - name: Run diagnostic workloads
-        run: ./tools/run-arm64-diagnostic.ps1 -ProcDump "$env:RUNNER_TEMP/Procdump/procdump64a.exe" -BuildDirectory "build/${{ matrix.config }}"
+        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 1000 -FullProcesses 5
 
       - name: Upload diagnostic artifacts
         if: always()
