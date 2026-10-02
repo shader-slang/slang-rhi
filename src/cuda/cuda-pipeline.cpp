@@ -66,7 +66,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     };
     CUresult result = cuModuleLoadDataEx(
         &pipeline->m_module,
-        module.code->getBufferPointer(),
+        module.code.c_str(),
         SLANG_COUNT_OF(options),
         options,
         optionValues
@@ -83,7 +83,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code.c_str()), this);
 #endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     pipeline->m_entryPointName = module.entryPointName;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(

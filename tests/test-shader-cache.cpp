@@ -9,6 +9,27 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+// Cache blobs promise a byte span, not a trailing zero. Keep an invalid PTX suffix beyond
+// that span so CUDA tests detect consumers reading past the reported size deterministically.
+class CachedShaderBlob : public BlobBase
+{
+public:
+    explicit CachedShaderBlob(const std::vector<uint8_t>& data)
+        : m_size(data.size())
+        , m_data(data)
+    {
+        const char suffix[] = "\n!invalid PTX outside blob SLANG_globalParams\n";
+        m_data.insert(m_data.end(), suffix, suffix + sizeof(suffix));
+    }
+
+    virtual SLANG_NO_THROW const void* SLANG_MCALL getBufferPointer() override { return m_data.data(); }
+    virtual SLANG_NO_THROW size_t SLANG_MCALL getBufferSize() override { return m_size; }
+
+private:
+    size_t m_size;
+    std::vector<uint8_t> m_data;
+};
+
 class VirtualShaderCache : public IPersistentCache
 {
 public:
@@ -92,7 +113,7 @@ public:
             return SLANG_E_NOT_FOUND;
         }
         m_stats.hitCount++;
-        *outData = OwnedBlob::create(it->second.data.data(), it->second.data.size()).detach();
+        *outData = ComPtr<ISlangBlob>(new CachedShaderBlob(it->second.data)).detach();
         return SLANG_OK;
     }
 
@@ -213,6 +234,11 @@ struct ShaderCacheTest
         emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;
         emitSpirvDirectlyEntry.value.intValue0 = 1;
         entries.push_back(emitSpirvDirectlyEntry);
+        if (ctx->deviceType == DeviceType::CUDA)
+        {
+            const auto& cudaOptions = options().cudaCompilerOptions;
+            entries.insert(entries.end(), cudaOptions.begin(), cudaOptions.end());
+        }
         deviceDesc.slang.compilerOptionEntries = entries.data();
         deviceDesc.slang.compilerOptionEntryCount = entries.size();
 
@@ -958,4 +984,36 @@ GPU_TEST_CASE("shader-cache-graphics", D3D12 | Vulkan | DontCreateDevice)
 GPU_TEST_CASE("shader-cache-graphics-split", D3D12 | Vulkan | DontCreateDevice)
 {
     runTest<ShaderCacheTestGraphicsSplit>(ctx);
+}
+
+// Use a non-reserved entry name: CUDA source compilation renames `main`.
+struct ShaderCacheTestPtxSpan : ShaderCacheTest
+{
+    void runTests() override
+    {
+        writeShader(
+            R"(
+            [shader("compute")]
+            [numthreads(4, 1, 1)]
+            void computeMain(uint3 tid : SV_DispatchThreadID, uniform RWStructuredBuffer<float> buffer)
+            {
+                buffer[tid.x] += 1.0f;
+            }
+        )",
+            "shader-cache-ptx-span.slang"
+        );
+        for (uint32_t iteration = 0; iteration < 2; ++iteration)
+        {
+            createDevice();
+            runComputePipeline("shader-cache-ptx-span", "computeMain", {1.f, 2.f, 3.f, 4.f});
+            CHECK_EQ(getStats().missCount, 1);
+            CHECK_EQ(getStats().hitCount, iteration);
+            CHECK_EQ(getStats().entryCount, 1);
+        }
+    }
+};
+
+GPU_TEST_CASE("shader-cache-ptx-span", CUDA | DontCreateDevice)
+{
+    runTest<ShaderCacheTestPtxSpan>(ctx);
 }
