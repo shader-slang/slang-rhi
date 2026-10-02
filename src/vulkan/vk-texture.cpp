@@ -20,7 +20,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
-    m_defaultView.setNull();
+    destroyDefaultView();
     DeviceImpl* device = getDevice<DeviceImpl>();
     const auto& api = device->m_api;
     for (auto& view : m_views)
@@ -49,7 +49,6 @@ void TextureImpl::deleteThis()
         delete this;
         return;
     }
-    m_defaultView.setNull();
     m_sampler.setNull();
     getDevice<DeviceImpl>()->deferDelete(this);
 }
@@ -106,18 +105,6 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     }
 
     *outHandle = m_sharedHandle;
-    return SLANG_OK;
-}
-
-Result TextureImpl::getDefaultView(ITextureView** outTextureView)
-{
-    if (!m_defaultView)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
-        m_defaultView->setInternalReferenceCount(1);
-    }
-
-    returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
 
@@ -192,8 +179,9 @@ TextureImpl::View TextureImpl::getView(
     return view;
 }
 
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
+TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc)
+    : TextureView(texture, desc)
+    , m_texture(texture)
 {
 }
 
@@ -488,8 +476,7 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
-    view->m_texture = checked_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(checked_cast<TextureImpl*>(texture), desc);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);

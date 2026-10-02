@@ -15,22 +15,16 @@ public:
 
     // ITexture implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
 public:
     WGPUTexture m_texture = nullptr;
-    RefPtr<TextureViewImpl> m_defaultView;
 };
 
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc);
+    TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc);
     ~TextureViewImpl();
-
-    // RefObject implementation
-    virtual void makeExternal() override { m_texture.establishStrongReference(); }
-    virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
     // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -39,7 +33,8 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
 
 public:
-    BreakableReference<TextureImpl> m_texture;
+    // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
+    TextureImpl* m_texture;
     WGPUTextureView m_textureView = nullptr;
 };
 

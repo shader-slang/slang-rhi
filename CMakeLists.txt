@@ -1088,6 +1088,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
+        tests/test-ref-object.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp

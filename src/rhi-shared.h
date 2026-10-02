@@ -138,6 +138,7 @@ public:
 
 public:
     Texture(Device* device, const TextureDesc& desc);
+    ~Texture();
 
     SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
     bool isEntireTexture(const SubresourceRange& range);
@@ -160,6 +161,7 @@ public:
         const TextureViewDesc& desc,
         ITextureView** outTextureView
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSubresourceLayout(
         uint32_t mip,
@@ -176,8 +178,18 @@ public:
 public:
     TextureDesc m_desc;
     StructHolder m_descHolder;
-    RefPtr<Sampler> m_sampler;
+    InternalRefPtr<Sampler> m_sampler;
     NativeHandle m_sharedHandle;
+
+protected:
+    // Called at the start of each backend destructor, before releasing native storage.
+    void destroyDefaultView();
+
+private:
+    friend class TextureView;
+    // Owns the wrapper's storage, not a consumer reference. Published once; removed
+    // only during destruction. Atomic publication permits concurrent getDefaultView().
+    std::atomic<TextureView*> m_defaultView = nullptr;
 };
 
 class TextureView : public ITextureView, public Resource
@@ -187,7 +199,14 @@ public:
     ITextureView* getInterface(const Guid& guid);
 
 public:
-    TextureView(Device* device, const TextureViewDesc& desc);
+    TextureView(Texture* texture, const TextureViewDesc& desc);
+
+    // Each consumer reference retains the texture with the same ownership kind.
+    uint32_t addReference() override final;
+    uint32_t releaseReference() override final;
+    uint32_t addInternalReference() override final;
+    uint32_t releaseInternalReference() override final;
+    void deleteThis() override final;
 
     // ITextureView interface
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() override { return m_desc; }
@@ -202,10 +221,14 @@ public:
     // IResource interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+protected:
+    // External view references retain the device through the texture.
+    RefObject* getLifetimeOwner() const noexcept override final { return nullptr; }
+
 public:
     TextureViewDesc m_desc;
     StructHolder m_descHolder;
-    RefPtr<Sampler> m_sampler;
+    InternalRefPtr<Sampler> m_sampler;
 };
 
 class Sampler : public ISampler, public Resource

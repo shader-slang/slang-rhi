@@ -154,7 +154,7 @@ public:
         uint32_t count;
         m_swapChain->GetLastPresentCount(&count);
         uint32_t index = count % m_textures.size();
-        returnComPtr(outTexture, m_textures[index]);
+        returnComPtrCopy(outTexture, m_textures[index]);
         return SLANG_OK;
     }
 

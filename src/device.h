@@ -133,7 +133,7 @@ protected:
 
     std::mutex m_mutex;
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
+    std::unordered_map<PipelineKey, InternalRefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
 class NullDebugCallback : public IDebugCallback

@@ -146,10 +146,10 @@ DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
-    // Wait for all commands to finish and retire any active command buffers.
+    // Wait and release command buffers before releasing their device-owned heaps.
     if (m_queue)
     {
-        m_queue->waitOnHost();
+        m_queue->waitAndReleaseCommandBuffers();
     }
 
     // Check the device queue is valid else, we can't wait on it..
@@ -163,8 +163,6 @@ DeviceImpl::~DeviceImpl()
     m_uploadHeap.release();
     m_readbackHeap.release();
 
-    m_bindlessDescriptorSet.setNull();
-
     if (m_api.vkDestroySampler)
     {
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
@@ -176,6 +174,7 @@ DeviceImpl::~DeviceImpl()
         m_queue.setNull();
     }
     m_deviceQueue.destroy();
+    m_bindlessDescriptorSet.setNull();
 
     descriptorSetAllocator.close();
 
@@ -195,7 +194,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 VkBool32 DeviceImpl::handleDebugMessage(
@@ -1910,7 +1908,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
-    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
@@ -1928,7 +1925,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -2091,7 +2088,9 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
@@ -2135,7 +2134,9 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::MicromapStorage;
     bufferDesc.defaultState = ResourceState::MicromapRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     VkMicromapCreateInfoEXT createInfo = {VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.size = desc.size;
@@ -2650,7 +2651,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 

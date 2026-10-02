@@ -51,7 +51,7 @@ public:
 
     ComPtr<D3D12MA::Allocator> m_allocator;
 
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     RefPtr<CPUDescriptorHeap> m_cpuCbvSrvUavHeap;
     RefPtr<CPUDescriptorHeap> m_cpuRtvHeap;

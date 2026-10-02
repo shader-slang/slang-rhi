@@ -121,9 +121,6 @@ Result ConstantBufferPool::createPage(size_t size, Page& outPage)
 
     outPage.buffer = checked_cast<BufferImpl*>(buffer.get());
     outPage.stagingBuffer = checked_cast<BufferImpl*>(stagingBuffer.get());
-    // The buffers are owned by the pool.
-    outPage.buffer->breakStrongReferenceToDevice();
-    outPage.stagingBuffer->breakStrongReferenceToDevice();
     outPage.size = size;
     outPage.usedSize = 0;
     return SLANG_OK;

@@ -95,7 +95,8 @@ public:
     std::mutex m_compileMutex;
 
     std::mutex m_specializedProgramsMutex;
-    std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
+    std::unordered_map<SpecializationKey, InternalRefPtr<ShaderProgram>, SpecializationKey::Hasher>
+        m_specializedPrograms;
 
     ShaderProgram(Device* device, const ShaderProgramDesc& desc);
     virtual ~ShaderProgram() override;

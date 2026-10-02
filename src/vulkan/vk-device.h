@@ -290,7 +290,7 @@ public:
     bool m_cooperativeMatrixPropertiesInitialized = false;
     std::vector<CooperativeMatrixDesc> m_cooperativeMatrixFixedProperties;
     std::vector<CooperativeMatrixFlexibleProperty> m_cooperativeMatrixFlexibleProperties;
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     DescriptorSetAllocator descriptorSetAllocator;
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;

@@ -7,16 +7,23 @@
 #define VK_USE_PLATFORM_WIN32_KHR 1
 #elif SLANG_APPLE_FAMILY
 #define VK_USE_PLATFORM_METAL_EXT 1
-#elif SLANG_LINUX_FAMILY
-#if SLANG_ANDROID
+#elif SLANG_LINUX_FAMILY && SLANG_ANDROID
 #define VK_USE_PLATFORM_ANDROID_KHR 1
-#else
-#define VK_USE_PLATFORM_XLIB_KHR 1
-#endif
 #endif
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
+
+#if SLANG_LINUX_FAMILY && !SLANG_ANDROID
+// Defining VK_USE_PLATFORM_XLIB_KHR makes vulkan.h pull in X11/Xlib.h.
+// RHI only passes opaque handles to Vulkan, so declare the required Xlib types
+// here to build without X11 development headers while retaining presentation.
+// Keep unsigned long (not uint32_t) to preserve the Xlib ABI on 64-bit systems.
+typedef struct _XDisplay Display;
+typedef unsigned long Window;
+typedef unsigned long VisualID;
+#include <vulkan/vulkan_xlib.h>
+#endif
 
 // Undef xlib macros
 #ifdef Always

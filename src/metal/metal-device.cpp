@@ -33,6 +33,13 @@ DeviceImpl::~DeviceImpl()
         captureManager->stopCapture();
     }
 
+    // Wait and release command-owned allocations while their heaps and device are still valid.
+    if (m_queue)
+    {
+        m_queue->waitAndReleaseCommandBuffers();
+    }
+
+    m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
 
@@ -54,7 +61,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -149,7 +155,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_commandQueue);
-    m_queue->setInternalReferenceCount(1);
 
     // Setup capture manager.
     if (captureEnabled())
@@ -365,7 +370,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -575,7 +580,7 @@ Result DeviceImpl::createShaderObjectLayout(
 
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 

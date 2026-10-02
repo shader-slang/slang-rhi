@@ -526,7 +526,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -630,7 +630,7 @@ Result EntryPointLayout::Builder::build(EntryPointLayout** outLayout)
     RefPtr<EntryPointLayout> layout = new EntryPointLayout();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -900,7 +900,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 {
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -947,7 +947,8 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
 
     auto entryPointTypeLayout = entryPointVarLayout->getTypeLayout();
 
-    if (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION)
+    if (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION &&
+        entryPointTypeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer)
     {
         // For raygen entry points, ordinary data is stored in the shader binding table (SBT),
         // not in push constants or a constant buffer.
@@ -975,8 +976,8 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     }
     else
     {
-        // For non-raygen entry points, process normally. The ConstantBuffer/PushConstant
-        // handling in _addDescriptorRangesAsValue will set up push constants and descriptors.
+        // For unwrapped raygen parameters and non-raygen entry points, process normally.
+        // ConstantBuffer/PushConstant handling will set up push constants and descriptors.
         _addDescriptorRangesAsValue(entryPointTypeLayout, entryPointOffset);
     }
 
