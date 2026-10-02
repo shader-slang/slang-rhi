@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: arm64-diagnostic-${{ github.ref }}
+  group: arm64-diagnostic-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -24,10 +24,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { label: current-release, revision: current, config: Release }
-          - { label: current-debug, revision: current, config: Debug }
-          - { label: before-884, revision: '16324a68', config: Release }
-          - { label: after-884, revision: '0bd799a7', config: Release }
+          - { label: before-884, revision: '16324a68af477baaede620e713644f5e9613b1a2', config: Release }
+          - { label: after-884, revision: '0bd799a7c04ea7dc5597ff811fb08fdb1b6fab43', config: Release }
     runs-on: windows-11-arm
     timeout-minutes: 60
     defaults:
