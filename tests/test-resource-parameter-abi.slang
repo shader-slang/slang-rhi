@@ -298,3 +298,161 @@ void surfaceDimensionsMain(
     output[13] = height;
     output[14] = 0xc001c0de;
 }
+
+// Exercise recursive launch storage and whole-record helper forwarding independently of LLVM layout.
+#define AGGREGATE_ENTRY_TYPE(T, N)                                                                                     \
+    struct N                                                                                                           \
+    {                                                                                                                  \
+        T values[2][3];                                                                                                \
+        vector<T, 3> triples[2];                                                                                       \
+        vector<T, 2> pair;                                                                                             \
+        vector<T, 4> quad;                                                                                             \
+        T one[1];                                                                                                      \
+    };                                                                                                                 \
+    struct N##Envelope                                                                                                 \
+    {                                                                                                                  \
+        N records[2];                                                                                                  \
+    };                                                                                                                 \
+    [noinline] N##Envelope forward_##N(N##Envelope value)                                                              \
+    {                                                                                                                  \
+        return value;                                                                                                  \
+    }
+AGGREGATE_ENTRY_TYPE(int8_t, i8)
+AGGREGATE_ENTRY_TYPE(uint8_t, u8)
+AGGREGATE_ENTRY_TYPE(int16_t, i16)
+AGGREGATE_ENTRY_TYPE(uint16_t, u16)
+AGGREGATE_ENTRY_TYPE(int, i32)
+AGGREGATE_ENTRY_TYPE(uint, u32)
+AGGREGATE_ENTRY_TYPE(int64_t, i64)
+AGGREGATE_ENTRY_TYPE(uint64_t, u64)
+AGGREGATE_ENTRY_TYPE(half, h)
+AGGREGATE_ENTRY_TYPE(float, f)
+AGGREGATE_ENTRY_TYPE(double, d)
+AGGREGATE_ENTRY_TYPE(bool, b)
+
+struct UnchangedEntryFields
+{
+    uint4 integers;
+    double2 doubles;
+};
+struct MixedEntryFields
+{
+    half3 halves;
+    uint tag;
+    UnchangedEntryFields unchanged;
+    half tail[2];
+};
+[noinline] MixedEntryFields forwardMixed(MixedEntryFields value)
+{
+    return value;
+}
+
+struct EntryMatrices
+{
+    row_major float2x3 rows;
+    row_major float3x2 columns;
+};
+[noinline] EntryMatrices forwardMatrices(EntryMatrices value)
+{
+    return value;
+}
+
+[shader("compute")]
+[numthreads(1, 1, 1)]
+void aggregateEntryMain(
+    uniform uint head,
+    uniform int8_t direct_i8[2],
+    uniform i8Envelope aggregate_i8,
+    uniform uint tail_i8,
+    uniform uint8_t direct_u8[2],
+    uniform u8Envelope aggregate_u8,
+    uniform uint tail_u8,
+    uniform int16_t direct_i16[2],
+    uniform i16Envelope aggregate_i16,
+    uniform uint tail_i16,
+    uniform uint16_t direct_u16[2],
+    uniform u16Envelope aggregate_u16,
+    uniform uint tail_u16,
+    uniform int direct_i32[2],
+    uniform i32Envelope aggregate_i32,
+    uniform uint tail_i32,
+    uniform uint direct_u32[2],
+    uniform u32Envelope aggregate_u32,
+    uniform uint tail_u32,
+    uniform int64_t direct_i64[2],
+    uniform i64Envelope aggregate_i64,
+    uniform uint tail_i64,
+    uniform uint64_t direct_u64[2],
+    uniform u64Envelope aggregate_u64,
+    uniform uint tail_u64,
+    uniform half direct_h[2],
+    uniform hEnvelope aggregate_h,
+    uniform uint tail_h,
+    uniform float direct_f[2],
+    uniform fEnvelope aggregate_f,
+    uniform uint tail_f,
+    uniform double direct_d[2],
+    uniform dEnvelope aggregate_d,
+    uniform uint tail_d,
+    uniform bool direct_b[2],
+    uniform bEnvelope aggregate_b,
+    uniform uint tail_b,
+    uniform MixedEntryFields mixed,
+    uniform EntryMatrices matrices,
+    RWStructuredBuffer<uint64_t> output
+)
+{
+    uint word = 1;
+    output[word++] = head;
+#define OBSERVE_AGGREGATE(N)                                                                                           \
+    {                                                                                                                  \
+        output[word++] = uint64_t(direct_##N[0]);                                                                      \
+        output[word++] = uint64_t(direct_##N[1]);                                                                      \
+        N##Envelope value = forward_##N(aggregate_##N);                                                                \
+        for (uint r = 0; r < 2; ++r)                                                                                   \
+        {                                                                                                              \
+            for (uint i = 0; i < 2; ++i)                                                                               \
+                for (uint j = 0; j < 3; ++j)                                                                           \
+                    output[word++] = uint64_t(value.records[r].values[i][j]);                                          \
+            for (uint i = 0; i < 2; ++i)                                                                               \
+                for (uint j = 0; j < 3; ++j)                                                                           \
+                    output[word++] = uint64_t(value.records[r].triples[i][j]);                                         \
+            for (uint i = 0; i < 2; ++i)                                                                               \
+                output[word++] = uint64_t(value.records[r].pair[i]);                                                   \
+            for (uint i = 0; i < 4; ++i)                                                                               \
+                output[word++] = uint64_t(value.records[r].quad[i]);                                                   \
+            output[word++] = uint64_t(value.records[r].one[0]);                                                        \
+        }                                                                                                              \
+        output[word++] = tail_##N;                                                                                     \
+    }
+    OBSERVE_AGGREGATE(i8)
+    OBSERVE_AGGREGATE(u8)
+    OBSERVE_AGGREGATE(i16)
+    OBSERVE_AGGREGATE(u16)
+    OBSERVE_AGGREGATE(i32)
+    OBSERVE_AGGREGATE(u32)
+    OBSERVE_AGGREGATE(i64)
+    OBSERVE_AGGREGATE(u64)
+    OBSERVE_AGGREGATE(h)
+    OBSERVE_AGGREGATE(f)
+    OBSERVE_AGGREGATE(d)
+    OBSERVE_AGGREGATE(b)
+    MixedEntryFields mixedValue = forwardMixed(mixed);
+    for (uint i = 0; i < 3; ++i)
+        output[word++] = uint64_t(mixedValue.halves[i]);
+    output[word++] = mixedValue.tag;
+    for (uint i = 0; i < 4; ++i)
+        output[word++] = mixedValue.unchanged.integers[i];
+    for (uint i = 0; i < 2; ++i)
+        output[word++] = uint64_t(mixedValue.unchanged.doubles[i]);
+    for (uint i = 0; i < 2; ++i)
+        output[word++] = uint64_t(mixedValue.tail[i]);
+    EntryMatrices value = forwardMatrices(matrices);
+    for (uint r = 0; r < 2; ++r)
+        for (uint c = 0; c < 3; ++c)
+            output[word++] = uint64_t(value.rows[r][c]);
+    for (uint r = 0; r < 3; ++r)
+        for (uint c = 0; c < 2; ++c)
+            output[word++] = uint64_t(value.columns[r][c]);
+    output[word++] = 0xc001c0de;
+}

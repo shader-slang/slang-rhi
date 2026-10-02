@@ -564,3 +564,147 @@ GPU_TEST_CASE("surface-dimensions", CUDA | DontCreateDevice)
         checkBufferWords(device, output, expected.data(), expected.size());
     }
 }
+
+
+GPU_TEST_CASE("aggregate-entry-abi", CUDA | DontCreateDevice)
+{
+    constexpr const char* names[] = {"i8", "u8", "i16", "u16", "i32", "u32", "i64", "u64", "h", "f", "d", "b"};
+    constexpr size_t sizes[] = {1, 1, 2, 2, 4, 4, 8, 8, 2, 4, 8, 1};
+    for (auto optimization : {SLANG_OPTIMIZATION_LEVEL_NONE, SLANG_OPTIMIZATION_LEVEL_MAXIMAL})
+    {
+        CAPTURE(optimization);
+        DeviceExtraOptions options = {};
+        options.compilerOptions.push_back(slang::CompilerOptionEntry{
+            slang::CompilerOptionName::Optimization,
+            {slang::CompilerOptionValueKind::Int, static_cast<int32_t>(optimization)},
+        });
+        auto device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(device != nullptr);
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadProgram(device, "test-resource-parameter-abi", "aggregateEntryMain", program.writeRef()));
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        auto pipeline = device->createComputePipeline(pipelineDesc);
+        REQUIRE(pipeline != nullptr);
+        std::array<uint64_t, 520> initial;
+        initial.fill(UINT64_C(0xa5a5a5a5a5a5a5a5));
+        initial.front() = UINT64_C(0x13579bdf02468ace);
+        initial.back() = UINT64_C(0xfedcba9876543210);
+        auto expected = initial;
+        BufferDesc desc = {};
+        desc.size = sizeof(initial);
+        desc.elementSize = sizeof(uint64_t);
+        desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        auto output = device->createBuffer(desc, initial.data());
+        REQUIRE(output != nullptr);
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        auto rootObject = pass->bindPipeline(pipeline);
+        ShaderCursor cursor(rootObject->getEntryPoint(0));
+        size_t word = 1;
+        uint32_t head = 0x12345678;
+        REQUIRE_CALL(cursor["head"].setData(&head, sizeof(head)));
+        expected[word++] = head;
+        for (uint32_t family = 0; family < 12; ++family)
+        {
+            CAPTURE(names[family]);
+            auto direct = cursor[(std::string("direct_") + names[family]).c_str()];
+            auto aggregate = cursor[(std::string("aggregate_") + names[family]).c_str()];
+            // Poison all padding through reflection, then overwrite only semantic scalar lanes.
+            std::vector<uint8_t> poison(aggregate.getTypeLayout()->getSize(), 0x5a);
+            REQUIRE_CALL(aggregate.setData(poison.data(), poison.size()));
+            uint32_t serial = 0;
+            auto writeScalar = [&](ShaderCursor field)
+            {
+                const uint64_t value = 3 + serial++;
+                uint64_t bits = value;
+                uint64_t result = value;
+                if (family < 8 && family % 2 == 0)
+                    bits = result = uint64_t(-int64_t(value + (family == 6 ? UINT64_C(0x1234567800) : 0)));
+                else if (family < 8)
+                    bits = result = (UINT64_C(1) << (sizes[family] * 8 - 1)) | value;
+                else if (family == 8)
+                {
+                    // Exact integer Half values from 1 through 8, independently encoded by the host.
+                    constexpr uint16_t halfBits[] = {0x3c00, 0x4000, 0x4200, 0x4400, 0x4500, 0x4600, 0x4700, 0x4800};
+                    result = value % 8 + 1;
+                    bits = halfBits[result - 1];
+                }
+                else if (family == 9)
+                {
+                    float payload = float(value);
+                    memcpy(&bits, &payload, sizeof(payload));
+                }
+                else if (family == 10)
+                {
+                    double payload = double(value);
+                    memcpy(&bits, &payload, sizeof(payload));
+                }
+                else
+                    bits = result = value % 2;
+                REQUIRE_CALL(field.setData(&bits, sizes[family]));
+                expected[word++] = result;
+            };
+            for (uint32_t i = 0; i < 2; ++i)
+                writeScalar(direct[i]);
+            for (uint32_t r = 0; r < 2; ++r)
+            {
+                auto record = aggregate["records"][r];
+                for (uint32_t i = 0; i < 2; ++i)
+                    for (uint32_t j = 0; j < 3; ++j)
+                        writeScalar(record["values"][i][j]);
+                for (uint32_t i = 0; i < 2; ++i)
+                    for (uint32_t j = 0; j < 3; ++j)
+                        writeScalar(record["triples"][i][j]);
+                for (uint32_t i = 0; i < 2; ++i)
+                    writeScalar(record["pair"][i]);
+                for (uint32_t i = 0; i < 4; ++i)
+                    writeScalar(record["quad"][i]);
+                writeScalar(record["one"][0]);
+            }
+            uint32_t tail = 0xabc00000 + family;
+            REQUIRE_CALL(cursor[(std::string("tail_") + names[family]).c_str()].setData(&tail, sizeof(tail)));
+            expected[word++] = tail;
+        }
+        const uint16_t halves[] = {0x3c00, 0x4000, 0x4200};
+        const uint16_t halfTail[] = {0x4400, 0x4500};
+        const uint32_t tag = 91;
+        const uint32_t integers[] = {101, 102, 103, 104};
+        const double doubles[] = {201, 202};
+        auto mixed = cursor["mixed"];
+        std::vector<uint8_t> mixedPadding(mixed.getTypeLayout()->getSize(), 0x5a);
+        REQUIRE_CALL(mixed.setData(mixedPadding.data(), mixedPadding.size()));
+        REQUIRE_CALL(mixed["halves"].setData(halves, sizeof(halves)));
+        REQUIRE_CALL(mixed["tag"].setData(&tag, sizeof(tag)));
+        REQUIRE_CALL(mixed["unchanged"]["integers"].setData(integers, sizeof(integers)));
+        REQUIRE_CALL(mixed["unchanged"]["doubles"].setData(doubles, sizeof(doubles)));
+        REQUIRE_CALL(mixed["tail"].setData(halfTail, sizeof(halfTail)));
+        for (auto value : {1, 2, 3, 91, 101, 102, 103, 104, 201, 202, 4, 5})
+            expected[word++] = value;
+        const float rows[] = {11, 12, 13, 14, 15, 16};
+        const float columns[] = {21, 22, 23, 24, 25, 26};
+        REQUIRE_CALL(cursor["matrices"]["rows"].setData(rows, sizeof(rows)));
+        REQUIRE_CALL(cursor["matrices"]["columns"].setData(columns, sizeof(columns)));
+        for (uint64_t v = 11; v <= 16; ++v)
+            expected[word++] = v;
+        for (uint64_t v = 21; v <= 26; ++v)
+            expected[word++] = v;
+        expected[word++] = 0xc001c0de;
+        REQUIRE_EQ(word, expected.size() - 1);
+        REQUIRE_CALL(cursor["output"].setBinding(output));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        ComPtr<ISlangBlob> blob;
+        REQUIRE_CALL(device->readBuffer(output, 0, sizeof(initial), blob.writeRef()));
+        REQUIRE_EQ(blob->getBufferSize(), sizeof(initial));
+        auto actual = static_cast<const uint64_t*>(blob->getBufferPointer());
+        for (size_t i = 0; i < expected.size(); ++i)
+        {
+            CAPTURE(i);
+            CHECK_EQ(actual[i], expected[i]);
+        }
+    }
+}
