@@ -170,6 +170,7 @@ public:
     {
         std::vector<MTL::AccelerationStructure*> list;
         std::vector<uint32_t> freeList;
+        NS::SharedPtr<MTL::AccelerationStructure> dummy;
         NS::SharedPtr<NS::Array> array;
         bool arrayDirty = true;
         std::vector<MTL::Resource*> resources;
@@ -178,6 +179,7 @@ public:
 
     uint32_t registerAccelerationStructure(MTL::AccelerationStructure* accelerationStructure);
     void unregisterAccelerationStructure(uint32_t index, MTL::AccelerationStructure* accelerationStructure);
+    Result initializeDummyAccelerationStructure();
     NS::Array* getAccelerationStructureArray();
     std::span<MTL::Resource* const> getAccelerationStructureResources();
 

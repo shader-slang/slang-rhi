@@ -39,6 +39,11 @@ DeviceImpl::~DeviceImpl()
         m_queue->waitAndReleaseCommandBuffers();
     }
 
+    if (m_accelerationStructures.dummy)
+    {
+        unregisterResource(m_accelerationStructures.dummy.get());
+    }
+
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
@@ -462,16 +467,94 @@ void DeviceImpl::unregisterAccelerationStructure(uint32_t index, MTL::Accelerati
     m_accelerationStructures.resourcesDirty = true;
 }
 
+Result DeviceImpl::initializeDummyAccelerationStructure()
+{
+    if (m_accelerationStructures.dummy)
+    {
+        return SLANG_OK;
+    }
+    if (!m_device->supportsRaytracing())
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    // Build a private empty BLAS once, on first acceleration-structure creation.
+    // Metal requires a geometry descriptor even when it contains no triangles.
+    // Do not register it in the handle table: it only fills unused NSArray slots.
+    const float vertex[3] = {};
+    auto vertexBuffer = NS::TransferPtr(m_device->newBuffer(vertex, sizeof(vertex), MTL::ResourceStorageModeShared));
+    if (!vertexBuffer)
+    {
+        return SLANG_FAIL;
+    }
+
+    auto geometry = NS::TransferPtr(MTL::AccelerationStructureTriangleGeometryDescriptor::alloc()->init());
+    geometry->setVertexBuffer(vertexBuffer.get());
+    geometry->setVertexFormat(MTL::AttributeFormatFloat3);
+    geometry->setVertexStride(sizeof(vertex));
+    geometry->setTriangleCount(0);
+    const NS::Object* geometries[] = {geometry.get()};
+    auto geometryArray = NS::TransferPtr(NS::Array::alloc()->init(geometries, 1));
+    auto descriptor = NS::TransferPtr(MTL::PrimitiveAccelerationStructureDescriptor::alloc()->init());
+    descriptor->setGeometryDescriptors(geometryArray.get());
+    auto sizes = m_device->accelerationStructureSizes(descriptor.get());
+    auto dummy = NS::TransferPtr(m_device->newAccelerationStructure(sizes.accelerationStructureSize));
+    auto scratch = NS::TransferPtr(
+        m_device->newBuffer(max(sizes.buildScratchBufferSize, NS::UInteger(1)), MTL::ResourceStorageModePrivate)
+    );
+    if (!dummy || !scratch)
+    {
+        return SLANG_FAIL;
+    }
+
+    auto commandBuffer = NS::RetainPtr(m_commandQueue->commandBuffer());
+    if (!commandBuffer)
+    {
+        return SLANG_FAIL;
+    }
+    auto encoder = NS::RetainPtr(commandBuffer->accelerationStructureCommandEncoder());
+    if (!encoder)
+    {
+        return SLANG_FAIL;
+    }
+
+    encoder->waitForFence(m_queue->m_queueFence.get());
+    encoder->buildAccelerationStructure(dummy.get(), descriptor.get(), scratch.get(), 0);
+    encoder->updateFence(m_queue->m_queueFence.get());
+    encoder->endEncoding();
+    commandBuffer->commit();
+    commandBuffer->waitUntilCompleted();
+    if (commandBuffer->status() != MTL::CommandBufferStatusCompleted)
+    {
+        return SLANG_FAIL;
+    }
+
+    registerResource(dummy.get());
+    m_accelerationStructures.dummy = std::move(dummy);
+    m_accelerationStructures.resourcesDirty = true;
+    return SLANG_OK;
+}
+
 NS::Array* DeviceImpl::getAccelerationStructureArray()
 {
     if (m_accelerationStructures.arrayDirty)
     {
-        m_accelerationStructures.array = NS::TransferPtr(
-            NS::Array::alloc()->init(
-                (const NS::Object* const*)m_accelerationStructures.list.data(),
-                m_accelerationStructures.list.size()
-            )
-        );
+        // Instance descriptors use stable registry indices, so we cannot compact
+        // the holes left by released structures. NSArray rejects nil elements.
+        // Fill only this copy with the device's private empty BLAS. The registry
+        // keeps its holes for reuse, and valid instance descriptors never select
+        // them. The array alone creates no instances. NSArray retains the dummy
+        // for each hole, rather than adding placeholder references to a live AS.
+        auto structures = m_accelerationStructures.list;
+        for (auto& structure : structures)
+        {
+            if (!structure)
+            {
+                structure = m_accelerationStructures.dummy.get();
+            }
+        }
+        m_accelerationStructures.array =
+            NS::TransferPtr(NS::Array::alloc()->init((const NS::Object* const*)structures.data(), structures.size()));
         m_accelerationStructures.arrayDirty = false;
     }
     return m_accelerationStructures.array.get();
@@ -486,6 +569,10 @@ std::span<MTL::Resource* const> DeviceImpl::getAccelerationStructureResources()
         {
             if (as)
                 m_accelerationStructures.resources.push_back(as);
+        }
+        if (m_accelerationStructures.dummy)
+        {
+            m_accelerationStructures.resources.push_back(m_accelerationStructures.dummy.get());
         }
         m_accelerationStructures.resourcesDirty = false;
     }
