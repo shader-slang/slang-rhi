@@ -1385,7 +1385,8 @@ static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<InternalR
             {
                 // Only skip DeviceLocal buffers - these benefit from same-stream reuse
                 // Keep tracking Upload/ReadBack buffers as CPU may access them
-                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal)
+                // Keep tracking placed buffers: their heap memory is not freed in stream order
+                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal && !buffer->isPlaced())
                 {
                     continue; // Skip tracking - CUDA stream ordering provides safety
                 }
