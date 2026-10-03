@@ -411,6 +411,61 @@ TEST_CASE("ref-object-overlapping-external-lifetimes")
     CHECK_EQ(child->getExternalReferenceCount(), 0);
 }
 
+TEST_CASE("ref-object-concurrent-internal-references")
+{
+    constexpr uint32_t threadCount = 8;
+    constexpr uint32_t referencesPerThread = 4096;
+    LifetimeState state;
+    RefPtr<LifetimeOwner> owner = new LifetimeOwner(state);
+    LifetimeChild* child = new LifetimeChild(owner);
+    for (uint32_t i = 0; i < threadCount; ++i)
+        child->addReference();
+    CHECK_EQ(owner->getReferenceCount(), 2);
+
+    rhi::testing::Barrier start(threadCount);
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < threadCount; ++i)
+    {
+        threads.emplace_back(
+            [&]
+            {
+                start.arriveAndWait();
+                for (uint32_t j = 0; j < referencesPerThread; ++j)
+                    child->addInternalReference();
+                child->releaseReference();
+            }
+        );
+    }
+    for (auto& thread : threads)
+        thread.join();
+    threads.clear();
+
+    CHECK_EQ(child->getExternalReferenceCount(), 0);
+    CHECK_EQ(child->getInternalReferenceCount(), threadCount * referencesPerThread);
+    CHECK_EQ(owner->getReferenceCount(), 1);
+    CHECK_EQ(state.destroyed.load(), 0);
+
+    for (uint32_t i = 0; i < threadCount; ++i)
+    {
+        threads.emplace_back(
+            [&]
+            {
+                start.arriveAndWait();
+                for (uint32_t j = 0; j < referencesPerThread; ++j)
+                    child->releaseInternalReference();
+            }
+        );
+    }
+    for (auto& thread : threads)
+        thread.join();
+
+    CHECK_EQ(state.destroyed.load(), 1);
+    CHECK_EQ(owner->getReferenceCount(), 1);
+    owner.setNull();
+    CHECK_FALSE(state.ownerAlive);
+    CHECK_EQ(state.destroyedAfterOwner.load(), 0);
+}
+
 TEST_CASE("ref-object-parent-owned-cache-release-orders")
 {
     std::array<uint32_t, 4> order = {0, 1, 2, 3};
