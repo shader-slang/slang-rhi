@@ -73,20 +73,33 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{ matrix.config }} --target slang-rhi-tests
 
-      - name: Enable Windows crash dumps
+      - name: Install and verify postmortem crash capture
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           $dumpFolder = (New-Item -ItemType Directory -Force build/diagnostics/dumps).FullName
-          $dumpKey = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\slang-rhi-tests.exe'
-          New-Item -Path $dumpKey -Force | Out-Null
-          New-ItemProperty -Path $dumpKey -Name DumpFolder -PropertyType ExpandString -Value $dumpFolder -Force | Out-Null
-          New-ItemProperty -Path $dumpKey -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
-          New-ItemProperty -Path $dumpKey -Name DumpCount -PropertyType DWord -Value 3 -Force | Out-Null
-          $werKey = 'HKCU:\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
-          New-Item -Path $werKey -Force | Out-Null
-          New-ItemProperty -Path $werKey -Name DontShowUI -PropertyType DWord -Value 1 -Force | Out-Null
+          Invoke-WebRequest https://download.sysinternals.com/files/Procdump.zip -OutFile "$env:RUNNER_TEMP/Procdump.zip"
+          Expand-Archive "$env:RUNNER_TEMP/Procdump.zip" "$env:RUNNER_TEMP/Procdump"
+          & "$env:RUNNER_TEMP/Procdump/procdump64a.exe" -accepteula -ma -i $dumpFolder
+          if ($LASTEXITCODE -ne 0) { throw 'Could not install postmortem debugger' }
+          '#include <windows.h>' | Set-Content build/capture-selftest.c
+          'int main(void) { RaiseException(EXCEPTION_ACCESS_VIOLATION, EXCEPTION_NONCONTINUABLE, 0, 0); return 0; }' | Add-Content build/capture-selftest.c
+          cl /nologo /Zi build/capture-selftest.c /Febuild/capture-selftest.exe /Fobuild/capture-selftest.obj /Fdbuild/capture-selftest.pdb
+          if ($LASTEXITCODE -ne 0) { throw 'Could not build dump-capture self-test' }
+          $selfTest = Start-Process -FilePath (Resolve-Path build/capture-selftest.exe) -WindowStyle Hidden -PassThru
+          if (!$selfTest.WaitForExit(60000)) {
+            $selfTest.Kill()
+            throw 'Dump-capture self-test timed out'
+          }
+          $selfTestDumps = @(Get-ChildItem $dumpFolder -Filter '*.dmp')
+          if ($selfTest.ExitCode -eq 0 -or $selfTestDumps.Count -eq 0) {
+            throw "Crash capture failed self-test: exit=$($selfTest.ExitCode), dumps=$($selfTestDumps.Count)"
+          }
+          New-Item -ItemType Directory -Force build/capture-selftest | Out-Null
+          $selfTestDumps | Move-Item -Destination build/capture-selftest/
+          Write-Host "Verified postmortem capture: exit=$($selfTest.ExitCode), dumps=$($selfTestDumps.Count)"
 
       - name: Run diagnostic workloads
-        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 1000 -FullProcesses 5
+        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10
 
       - name: Upload diagnostic artifacts
         if: always()
@@ -96,6 +109,7 @@ jobs:
           retention-days: 7
           path: |
             build/diagnostics/**
+            build/capture-selftest/**
             build/${{ matrix.config }}/*.pdb
             build/${{ matrix.config }}/*.exe
             build/${{ matrix.config }}/*.dll

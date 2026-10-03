@@ -32,7 +32,7 @@ function Invoke-Workload([string]$Name, [string[]]$TestArguments, [int]$Expected
     Write-Host "Starting workload: $Name"
     $destination = New-Item -ItemType Directory -Force "$diagnostics/$Name"
     if ($Direct) {
-        # WER collects fatal exceptions; this build disables doctest's SEH handler.
+        # Postmortem capture leaves execution unattached; doctest's SEH handler is disabled.
         & $executable --no-breaks=1 @TestArguments 2>&1 |
             Tee-Object -FilePath "$destination/process.log"
     }
