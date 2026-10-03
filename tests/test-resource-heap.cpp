@@ -1276,3 +1276,54 @@ GPU_TEST_CASE("resource-heap-deferred-delete-pending-work", D3D12 | Vulkan | Met
 
     checkReleasedResources(leakedDevice, resourceCountBefore);
 }
+
+// Bind the placed buffer only to the shader: copy, upload and alias commands would retain it.
+GPU_TEST_CASE("resource-heap-shader-binding-retains-placed-buffer", D3D12 | Vulkan | Metal | CUDA)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-buffer-copy", "computeMain", shaderProgram.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    std::vector<uint32_t> data(32);
+    for (uint32_t i = 0; i < data.size(); ++i)
+        data[i] = 0xc0de0000u + i;
+    const BufferDesc desc = makeComputeBufferDesc(data.size() * sizeof(uint32_t), sizeof(uint32_t));
+    ComPtr<IBuffer> output;
+    REQUIRE_CALL(device->createBuffer(desc, nullptr, output.writeRef()));
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    // Drain deferred deletions from earlier tests.
+    REQUIRE_CALL(queue->waitOnHost());
+
+    ComPtr<ICommandBuffer> commandBuffer;
+    uint64_t resourceCountWhileRecorded = 0;
+    {
+        ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+        ComPtr<IBuffer> input = createPlacedBuffer(device, desc, heap, 0, data.data());
+
+        ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+        IComputePassEncoder* passEncoder = encoder->beginComputePass();
+        IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor cursor(rootObject);
+        REQUIRE_CALL(cursor["src"].setBinding(input));
+        REQUIRE_CALL(cursor["dst"].setBinding(output));
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
+        REQUIRE_CALL(encoder->finish(commandBuffer.writeRef()));
+        resourceCountWhileRecorded = gResourceCount.load();
+    }
+
+    // Drain deferred deletion before submitting; only the command buffer still retains the placed buffer.
+    REQUIRE_CALL(queue->waitOnHost());
+    CHECK_EQ(gResourceCount.load(), resourceCountWhileRecorded);
+
+    REQUIRE_CALL(queue->submit(commandBuffer));
+    REQUIRE_CALL(queue->waitOnHost());
+    commandBuffer.setNull();
+
+    compareComputeResult(device, output, std::span<uint32_t>(data));
+}
