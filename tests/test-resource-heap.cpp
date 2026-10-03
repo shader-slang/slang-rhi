@@ -8,6 +8,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <vector>
 
@@ -1150,21 +1151,40 @@ GPU_TEST_CASE("resource-heap-explicit-alignment", D3D12 | Vulkan | Metal | CUDA)
     CHECK(createPlacedBuffer(device, desc, heap, 0));
 }
 
-static void checkReleasedResources(Device* leakedDevice, uint64_t resourceCountBefore)
+static ComPtr<IDevice> createLifetimeTestDevice(GpuTestContext* ctx, bool enableValidation)
 {
-    const uint64_t resourceCountAfter = gResourceCount.load();
-    CHECK_EQ(resourceCountAfter, resourceCountBefore);
-    if (resourceCountAfter != resourceCountBefore)
+    DeviceDesc deviceDesc = {};
+    deviceDesc.deviceType = ctx->deviceType;
+    deviceDesc.adapter = getSelectedDeviceAdapter(ctx->deviceType);
+    deviceDesc.enableValidation = enableValidation;
+    deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
+    ComPtr<IDevice> testDevice;
+    REQUIRE_CALL(getRHI()->createDevice(deviceDesc, testDevice.writeRef()));
+    return testDevice;
+}
+
+// Heaps and devices are not Resources, so Debug builds also compare RefObject counts.
+struct LiveObjectCounts
+{
+    uint64_t resources = gResourceCount.load();
+#if SLANG_RHI_DEBUG
+    uint64_t objects = RefObject::getObjectCount();
+#endif
+
+    void checkReleased() const
     {
-        RefPtr<Device> cleanupDevice = leakedDevice;
-        REQUIRE_CALL(cleanupDevice->setCudaContextCurrent());
-        ComPtr<ICommandQueue> queue;
-        REQUIRE_CALL(cleanupDevice->getQueue(QueueType::Graphics, queue.writeRef()));
-        ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
-        REQUIRE_CALL(queue->submit(encoder->finish()));
-        REQUIRE_CALL(queue->waitOnHost());
+        CHECK_EQ(gResourceCount.load(), resources);
+#if SLANG_RHI_DEBUG
+        CHECK_EQ(RefObject::getObjectCount(), objects);
+#endif
     }
-    REQUIRE_EQ(gResourceCount.load(), resourceCountBefore);
+};
+
+static LiveObjectCounts countLiveObjectsAfterWarmup(GpuTestContext* ctx, bool enableValidation)
+{
+    ComPtr<IDevice> warmup = createLifetimeTestDevice(ctx, enableValidation);
+    warmup.setNull();
+    return LiveObjectCounts();
 }
 
 enum class ReleaseObject
@@ -1206,75 +1226,225 @@ GPU_TEST_CASE("resource-heap-deferred-delete-release-orders", D3D12 | Vulkan | M
         {ReleaseObject::Device, ReleaseObject::Heap, ReleaseObject::Resource},
     };
 
-    for (size_t orderIndex = 0; orderIndex < SLANG_COUNT_OF(releaseOrders); ++orderIndex)
+    for (bool enableValidation : {false, true})
     {
-        CAPTURE(orderIndex);
-        const uint64_t resourceCountBefore = gResourceCount.load();
-        device = createTestingDevice(ctx, ctx->deviceType, false);
-        REQUIRE(device);
-        Device* leakedDevice = getUnderlyingDevice(device);
-        BufferDesc desc = makeCopyBufferDesc(256);
-        ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
-        ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0);
+        CAPTURE(enableValidation);
+        const LiveObjectCounts before = countLiveObjectsAfterWarmup(ctx, enableValidation);
+        for (size_t orderIndex = 0; orderIndex < SLANG_COUNT_OF(releaseOrders); ++orderIndex)
+        {
+            CAPTURE(orderIndex);
+            {
+                ComPtr<IDevice> testDevice = createLifetimeTestDevice(ctx, enableValidation);
+                BufferDesc desc = makeCopyBufferDesc(256);
+                ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(testDevice, desc);
+                ComPtr<IResourceHeap> heap = createHeapForRequirements(testDevice, requirements);
+                ComPtr<IBuffer> buffer = createPlacedBuffer(testDevice, desc, heap, 0);
 
-        for (ReleaseObject object : releaseOrders[orderIndex])
-            releaseObject(object, buffer, heap, device);
-
-        checkReleasedResources(leakedDevice, resourceCountBefore);
+                for (ReleaseObject object : releaseOrders[orderIndex])
+                    releaseObject(object, buffer, heap, testDevice);
+            }
+            before.checkReleased();
+        }
     }
 }
 
 GPU_TEST_CASE("resource-heap-deferred-delete-shared-heap", D3D12 | Vulkan | Metal | CUDA | DontCreateDevice)
 {
-    const uint64_t resourceCountBefore = gResourceCount.load();
-    device = createTestingDevice(ctx, ctx->deviceType, false);
-    REQUIRE(device);
-    Device* leakedDevice = getUnderlyingDevice(device);
+    for (bool enableValidation : {false, true})
+    {
+        CAPTURE(enableValidation);
+        const LiveObjectCounts before = countLiveObjectsAfterWarmup(ctx, enableValidation);
+        // The buffers are interchangeable, so skip orders that release the second one first.
+        std::array<uint32_t, 4> order = {0, 1, 2, 3};
+        do
+        {
+            if (std::find(order.begin(), order.end(), 0u) > std::find(order.begin(), order.end(), 1u))
+                continue;
+            CAPTURE(order[0]);
+            CAPTURE(order[1]);
+            CAPTURE(order[2]);
+            CAPTURE(order[3]);
+            {
+                ComPtr<IDevice> testDevice = createLifetimeTestDevice(ctx, enableValidation);
+                BufferDesc desc = makeCopyBufferDesc(256);
+                ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(testDevice, desc);
+                const Offset secondOffset = alignUp(requirements.size, requirements.alignment);
+                ComPtr<IResourceHeap> heap =
+                    createHeapForRequirements(testDevice, requirements, secondOffset + requirements.size);
+                ComPtr<IBuffer> buffers[] = {
+                    createPlacedBuffer(testDevice, desc, heap, 0),
+                    createPlacedBuffer(testDevice, desc, heap, secondOffset),
+                };
 
-    BufferDesc desc = makeCopyBufferDesc(256);
-    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    const Offset secondOffset = alignUp(requirements.size, requirements.alignment);
-    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, secondOffset + requirements.size);
-    ComPtr<IBuffer> firstBuffer = createPlacedBuffer(device, desc, heap, 0);
-    ComPtr<IBuffer> secondBuffer = createPlacedBuffer(device, desc, heap, secondOffset);
+                for (uint32_t object : order)
+                {
+                    switch (object)
+                    {
+                    case 0:
+                    case 1:
+                        buffers[object].setNull();
+                        break;
+                    case 2:
+                        heap.setNull();
+                        break;
+                    case 3:
+                        testDevice.setNull();
+                        break;
+                    }
+                }
+            }
+            before.checkReleased();
+        }
+        while (std::next_permutation(order.begin(), order.end()));
+    }
+}
 
-    firstBuffer.setNull();
-    secondBuffer.setNull();
-    heap.setNull();
-    device.setNull();
+static void checkPlacedResourcesReleasedWithPendingWork(GpuTestContext* ctx, bool enableValidation, bool waitFirst)
+{
+    const LiveObjectCounts before = countLiveObjectsAfterWarmup(ctx, enableValidation);
+    {
+        ComPtr<IDevice> testDevice = createLifetimeTestDevice(ctx, enableValidation);
+        BufferDesc desc = makeCopyBufferDesc(256);
+        ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(testDevice, desc);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(testDevice, requirements);
+        ComPtr<IBuffer> bufferA = createPlacedBuffer(testDevice, desc, heap, 0);
+        ComPtr<IBuffer> bufferB = createPlacedBuffer(testDevice, desc, heap, 0);
 
-    checkReleasedResources(leakedDevice, resourceCountBefore);
+        const uint32_t dataA = 0x12345678;
+        const uint32_t dataB = 0x9abcdef0;
+        ComPtr<ICommandQueue> queue = testDevice->getQueue(QueueType::Graphics);
+        ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+        encoder->aliasResources(nullptr, bufferA);
+        REQUIRE_CALL(encoder->uploadBufferData(bufferA, 0, sizeof(dataA), &dataA));
+        encoder->aliasResources(bufferA, bufferB);
+        REQUIRE_CALL(encoder->uploadBufferData(bufferB, 0, sizeof(dataB), &dataB));
+        ComPtr<ICommandBuffer> commandBuffer = encoder->finish();
+        REQUIRE(commandBuffer);
+        encoder.setNull();
+        REQUIRE_CALL(queue->submit(commandBuffer));
+        commandBuffer.setNull();
+
+        bufferA.setNull();
+        bufferB.setNull();
+        heap.setNull();
+        if (waitFirst)
+        {
+            REQUIRE_CALL(queue->waitOnHost());
+            queue.setNull();
+            testDevice.setNull();
+        }
+        else
+        {
+            testDevice.setNull();
+            queue.setNull();
+        }
+    }
+    before.checkReleased();
 }
 
 GPU_TEST_CASE("resource-heap-deferred-delete-pending-work", D3D12 | Vulkan | Metal | CUDA | DontCreateDevice)
 {
-    const uint64_t resourceCountBefore = gResourceCount.load();
-    device = createTestingDevice(ctx, ctx->deviceType, false);
-    REQUIRE(device);
-    Device* leakedDevice = getUnderlyingDevice(device);
+    for (bool enableValidation : {false, true})
+    {
+        CAPTURE(enableValidation);
+        SUBCASE("wait-before-release")
+        {
+            checkPlacedResourcesReleasedWithPendingWork(ctx, enableValidation, true);
+        }
+        SUBCASE("release-without-wait")
+        {
+            checkPlacedResourcesReleasedWithPendingWork(ctx, enableValidation, false);
+        }
+    }
+}
 
-    BufferDesc desc = makeCopyBufferDesc(256);
-    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
-    ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0);
+static ComPtr<ITextureView> createPlacedTextureView(
+    IDevice* device,
+    bool defaultView,
+    ComPtr<IResourceHeap>& outHeap,
+    ComPtr<ITexture>& outTexture
+)
+{
+    TextureDesc desc = makeSampleTextureDesc(TextureUsage::RenderTarget);
+    ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, desc);
+    outHeap = createHeapForRequirements(device, requirements);
+    outTexture = createPlacedTexture(device, desc, outHeap, 0);
+    ComPtr<ITextureView> view = defaultView ? outTexture->getDefaultView() : outTexture->createView({});
+    REQUIRE(view);
+    return view;
+}
 
-    const uint32_t data = 0x12345678;
-    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
-    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
-    REQUIRE_CALL(encoder->uploadBufferData(buffer, 0, sizeof(data), &data));
-    ComPtr<ICommandBuffer> commandBuffer = encoder->finish();
-    encoder.setNull();
-    REQUIRE_CALL(queue->submit(commandBuffer));
-    commandBuffer.setNull();
+GPU_TEST_CASE("resource-heap-placed-texture-view-lifetime", D3D12 | Vulkan | Metal | DontCreateDevice)
+{
+    for (bool enableValidation : {false, true})
+    {
+        CAPTURE(enableValidation);
+        const LiveObjectCounts before = countLiveObjectsAfterWarmup(ctx, enableValidation);
+        for (bool defaultView : {false, true})
+        {
+            CAPTURE(defaultView);
 
-    buffer.setNull();
-    heap.setNull();
-    REQUIRE_CALL(queue->waitOnHost());
-    queue.setNull();
-    device.setNull();
+            {
+                ComPtr<IDevice> testDevice = createLifetimeTestDevice(ctx, enableValidation);
+                ComPtr<IResourceHeap> heap;
+                ComPtr<ITexture> texture;
+                ComPtr<ITextureView> view = createPlacedTextureView(testDevice, defaultView, heap, texture);
+                const TextureDesc desc = texture->getDesc();
+                texture.setNull();
+                heap.setNull();
+                testDevice.setNull();
 
-    checkReleasedResources(leakedDevice, resourceCountBefore);
+                ComPtr<ITexture> recovered(view->getTexture());
+                REQUIRE(recovered);
+                CHECK_EQ(recovered->getDesc().format, desc.format);
+                CHECK_EQ(recovered->getDesc().size.width, desc.size.width);
+                if (defaultView)
+                    CHECK_EQ(recovered->getDefaultView().get(), view.get());
+                view.setNull();
+                recovered.setNull();
+            }
+            before.checkReleased();
+
+            for (bool releaseDeviceFirst : {false, true})
+            {
+                CAPTURE(releaseDeviceFirst);
+                {
+                    ComPtr<IDevice> testDevice = createLifetimeTestDevice(ctx, enableValidation);
+                    ComPtr<IResourceHeap> heap;
+                    ComPtr<ITexture> texture;
+                    ComPtr<ITextureView> view = createPlacedTextureView(testDevice, defaultView, heap, texture);
+
+                    ComPtr<ICommandQueue> queue = testDevice->getQueue(QueueType::Graphics);
+                    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+                    encoder->aliasResources(nullptr, texture);
+                    RenderPassColorAttachment colorAttachment = {};
+                    colorAttachment.view = view;
+                    colorAttachment.loadOp = LoadOp::Clear;
+                    colorAttachment.storeOp = StoreOp::Store;
+                    RenderPassDesc renderPassDesc = {};
+                    renderPassDesc.colorAttachments = &colorAttachment;
+                    renderPassDesc.colorAttachmentCount = 1;
+                    IRenderPassEncoder* passEncoder = encoder->beginRenderPass(renderPassDesc);
+                    REQUIRE(passEncoder);
+                    passEncoder->end();
+                    ComPtr<ICommandBuffer> commandBuffer = encoder->finish();
+                    REQUIRE(commandBuffer);
+                    encoder.setNull();
+                    REQUIRE_CALL(queue->submit(commandBuffer));
+
+                    if (releaseDeviceFirst)
+                        testDevice.setNull();
+                    view.setNull();
+                    texture.setNull();
+                    heap.setNull();
+                    commandBuffer.setNull();
+                    queue.setNull();
+                    testDevice.setNull();
+                }
+                before.checkReleased();
+            }
+        }
+    }
 }
 
 // Bind the placed buffer only to the shader: copy, upload and alias commands would retain it.
