@@ -81,18 +81,11 @@ public:
         ++testing::gResourceCount;
     }
 
-    virtual ~Resource()
-    {
-        if (m_placementHeap)
-            m_placementHeap->releaseInternalReference();
-        --testing::gResourceCount;
-    }
+    virtual ~Resource() { --testing::gResourceCount; }
 
     void setPlacement(ResourceHeap* heap, Offset offset, const ResourceMemoryRequirements& requirements)
     {
-        SLANG_RHI_ASSERT(heap);
-        SLANG_RHI_ASSERT(!m_placementHeap);
-        heap->addInternalReference();
+        SLANG_RHI_ASSERT(heap && !m_placementHeap);
         m_placementHeap = heap;
         m_placementOffset = offset;
         m_placementRequirements = requirements;
@@ -101,7 +94,8 @@ public:
 
     bool isPlaced() const { return m_placementHeap != nullptr; }
 
-    ResourceHeap* m_placementHeap = nullptr;
+    // Not reset in deleteThis(): a resource awaiting deferred deletion still uses the heap memory.
+    InternalRefPtr<ResourceHeap> m_placementHeap;
     Offset m_placementOffset = 0;
     ResourceMemoryRequirements m_placementRequirements = {};
 };
