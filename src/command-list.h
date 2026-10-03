@@ -39,6 +39,7 @@
     x(SetRayTracingState) \
     x(DispatchRays) \
     x(BuildAccelerationStructure) \
+    x(BuildMicromap) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
     x(ExecuteClusterOperation) \
@@ -260,6 +261,13 @@ struct BuildAccelerationStructure
     const AccelerationStructureQueryDesc* queryDescs;
 };
 
+struct BuildMicromap
+{
+    MicromapBuildDesc desc;
+    IMicromap* dst;
+    BufferOffsetPair scratchBuffer;
+};
+
 struct CopyAccelerationStructure
 {
     IAccelerationStructure* dst;
@@ -408,7 +416,7 @@ public:
 
     CommandList(
         ArenaAllocator& allocator,
-        std::set<RefPtr<RefObject>>& trackedObjects,
+        std::set<InternalRefPtr<RefObject>>& trackedObjects,
         std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
     );
 
@@ -441,6 +449,7 @@ public:
     void write(commands::SetRayTracingState&& cmd);
     void write(commands::DispatchRays&& cmd);
     void write(commands::BuildAccelerationStructure&& cmd);
+    void write(commands::BuildMicromap&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);
     void write(commands::ExecuteClusterOperation&& cmd);
@@ -499,7 +508,7 @@ public:
 
 private:
     ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    std::set<InternalRefPtr<RefObject>>& m_trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer>& m_trackedExecuteCallbackObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;

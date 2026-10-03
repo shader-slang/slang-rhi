@@ -6,9 +6,11 @@ namespace rhi {
 
 class DeviceChild;
 class AccelerationStructure;
+class Micromap;
 class Buffer;
 class Resource;
 class Texture;
+class TextureView;
 class QueryPool;
 class InputLayout;
 class ShaderTable;

@@ -71,7 +71,7 @@ static Result resolveTimestampAnchor(CommandQueueImpl* queue, uint64_t generatio
 
 static bool isTimestampAnchorInUse(CommandQueueImpl* queue, uint64_t generation)
 {
-    for (const RefPtr<CommandBufferImpl>& commandBuffer : queue->m_commandBuffersInFlight)
+    for (const InternalRefPtr<CommandBufferImpl>& commandBuffer : queue->m_commandBuffersInFlight)
     {
         if (commandBuffer->m_timestampAnchorGeneration == generation)
         {
@@ -270,6 +270,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -780,6 +781,14 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     );
 }
 
+void CommandExecutor::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    if (!m_device->m_ctx.optixContext)
+        return;
+    m_device->m_ctx.optixContext
+        ->buildMicromap(m_stream, cmd.desc, checked_cast<MicromapImpl*>(cmd.dst), cmd.scratchBuffer);
+}
+
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     if (!m_device->m_ctx.optixContext)
@@ -910,7 +919,7 @@ Result CommandQueueImpl::init()
     return SLANG_OK;
 }
 
-void CommandQueueImpl::shutdown()
+void CommandQueueImpl::waitAndReleaseCommandBuffers()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
@@ -935,13 +944,21 @@ void CommandQueueImpl::shutdown()
     SLANG_RHI_ASSERT(retireCommandBuffers() == SLANG_OK);
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
 
+    // Release command-owned allocations before the device releases its staging heaps.
+    m_commandBuffersInFlight.clear();
+    m_commandBuffersPool.clear();
+}
+
+void CommandQueueImpl::shutdown()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty() && m_commandBuffersPool.empty());
+
     for (TimestampAnchor& anchor : m_timestampAnchors)
     {
         destroyTimestampAnchor(anchor);
     }
 
-    // Release all command buffers in order to release all resources they may hold.
-    m_commandBuffersPool.clear();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
@@ -975,7 +992,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
         {
             commandBuffer = m_commandBuffersPool.front();
             m_commandBuffersPool.pop_front();
-            commandBuffer->setInternalReferenceCount(0);
         }
         else
         {
@@ -987,7 +1003,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
-        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -999,16 +1014,7 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_commandBuffersPool.push_back(commandBuffer);
-        commandBuffer->setInternalReferenceCount(1);
     }
-}
-
-void CommandQueueImpl::retireCommandBufferLocked(CommandBufferImpl* commandBuffer)
-{
-    // NOTE: Caller must hold m_mutex!
-    commandBuffer->reset();
-    m_commandBuffersPool.push_back(commandBuffer);
-    commandBuffer->setInternalReferenceCount(1);
 }
 
 Result CommandQueueImpl::retireCommandBuffers()
@@ -1048,16 +1054,16 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
     }
 
     // Retire command buffers that have passed the submission ID
-    auto cbIt = m_commandBuffersInFlight.begin();
-    while (cbIt != m_commandBuffersInFlight.end())
+    while (!m_commandBuffersInFlight.empty())
     {
-        RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
+        auto current = m_commandBuffersInFlight.begin();
+        CommandBufferImpl* commandBuffer = current->get();
         if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
 
         SLANG_RETURN_ON_FAIL(resolveTimestampQueries(commandBuffer));
-        retireCommandBufferLocked(commandBuffer);
-        cbIt = m_commandBuffersInFlight.erase(cbIt);
+        commandBuffer->reset();
+        m_commandBuffersPool.splice(m_commandBuffersPool.end(), m_commandBuffersInFlight, current);
     }
 
     // Delete deferred resources that are no longer in use by the GPU.
@@ -1113,6 +1119,7 @@ void CommandQueueImpl::executeDeferredDeletes()
     std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
     while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
     {
+        // Destructors must not enqueue deferred deletes; release child resources in deleteThis().
         delete m_deferredDeleteQueue.front().resource;
         m_deferredDeleteQueue.pop();
     }
@@ -1360,7 +1367,7 @@ Result CommandEncoderImpl::init()
 /// Track resources for CUDA backend, skipping device-local buffers.
 /// Device-local buffers rely on CUDA stream FIFO ordering for safe reuse.
 /// We still track textures, upload/readback buffers, and other resources.
-static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
+static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<InternalRefPtr<RefObject>>& resources)
 {
     // Track slot resources, but skip device-local buffers
     for (const auto& slot : shaderObject->m_slots)
@@ -1396,7 +1403,7 @@ static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<Re
     }
 }
 
-static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<RefPtr<RefObject>>& resources)
+static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<InternalRefPtr<RefObject>>& resources)
 {
     trackResourcesForCUDA(rootObject, resources);
     for (const auto& entryPoint : rootObject->m_entryPoints)
@@ -1432,7 +1439,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

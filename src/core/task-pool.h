@@ -16,26 +16,16 @@ public:
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
-        TaskHandle* deps,
-        size_t depsCount,
         TaskGroupHandle group = nullptr
     ) override;
 
-    virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) override;
-
-    virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL waitAll() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTask(TaskHandle task) override;
 
     virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTaskGroup(TaskGroupHandle group) override;
 
 private:
     struct Task;
@@ -56,26 +46,16 @@ public:
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
-        TaskHandle* deps,
-        size_t depsCount,
         TaskGroupHandle group = nullptr
     ) override;
 
-    virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) override;
-
-    virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL waitAll() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTask(TaskHandle task) override;
 
     virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTaskGroup(TaskGroupHandle group) override;
 
 private:
     struct Task;

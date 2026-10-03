@@ -15,6 +15,7 @@
 #include "core/task-pool.h"
 #include "cooperative-vector-utils.h"
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <span>
@@ -26,6 +27,7 @@
 #define OPTIX_ENABLE_SDK_MIXING
 #include <optix.h>
 #include <optix_stubs.h>
+#include <optix_stack_size.h>
 
 #if (OPTIX_VERSION != EXPECTED_OPTIX_VERSION)
 #error "Invalid OptiX header version included"
@@ -71,6 +73,33 @@ void reportOptixError(OptixResult result, const char* call, const SourceLocation
             SLANG_RHI_ASSERT_FAILURE("OptiX call failed");                                                             \
         }                                                                                                              \
     }
+
+/// Accumulates one program group's stack requirements without crossing OptiX SDK wrappers.
+///
+/// The SDK's equivalent inline helper has external linkage in OptiX 8.0. When this source is
+/// instantiated for multiple SDK versions, a debug linker can coalesce those helpers and make a
+/// newer wrapper call the uninitialized 8.0 function table. Keeping this function local to each
+/// wrapper ensures that the stack query uses the function table selected for that SDK version.
+static OptixResult accumulateProgramGroupStackSizes(
+    OptixProgramGroup programGroup,
+    OptixPipeline pipeline,
+    OptixStackSizes& stackSizes
+)
+{
+    OptixStackSizes programStackSizes = {};
+    OptixResult result = optixProgramGroupGetStackSize(programGroup, &programStackSizes, pipeline);
+    if (result != OPTIX_SUCCESS)
+        return result;
+
+    stackSizes.cssRG = std::max(stackSizes.cssRG, programStackSizes.cssRG);
+    stackSizes.cssMS = std::max(stackSizes.cssMS, programStackSizes.cssMS);
+    stackSizes.cssCH = std::max(stackSizes.cssCH, programStackSizes.cssCH);
+    stackSizes.cssAH = std::max(stackSizes.cssAH, programStackSizes.cssAH);
+    stackSizes.cssIS = std::max(stackSizes.cssIS, programStackSizes.cssIS);
+    stackSizes.cssCC = std::max(stackSizes.cssCC, programStackSizes.cssCC);
+    stackSizes.dssDC = std::max(stackSizes.dssDC, programStackSizes.dssDC);
+    return OPTIX_SUCCESS;
+}
 
 inline OptixVertexFormat translateVertexFormat(Format format)
 {
@@ -231,6 +260,7 @@ public:
     stable_vector<unsigned int> flagList;
     std::vector<OptixBuildInput> buildInputs;
     OptixAccelBuildOptions buildOptions;
+    std::vector<std::vector<OptixOpacityMicromapUsageCount>> opacityMicromapUsageCounts;
 
     Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
@@ -302,6 +332,7 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::Triangles:
     {
+        opacityMicromapUsageCounts.resize(buildDesc.inputCount);
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
@@ -340,6 +371,40 @@ Result AccelerationStructureBuildDescConverter::convert(
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
             buildInput.triangleArray.transformFormat =
                 triangles.preTransformBuffer ? OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12 : OPTIX_TRANSFORM_FORMAT_NONE;
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+            {
+                if (!ommDesc->link.micromap || (ommDesc->link.usageCount > 0 && !ommDesc->link.usageCounts))
+                    return SLANG_E_INVALID_ARG;
+                std::vector<OptixOpacityMicromapUsageCount>& usageCounts = opacityMicromapUsageCounts[i];
+                usageCounts.resize(ommDesc->link.usageCount);
+                for (uint32_t j = 0; j < ommDesc->link.usageCount; ++j)
+                {
+                    usageCounts[j].count = ommDesc->link.usageCounts[j].count;
+                    usageCounts[j].subdivisionLevel = ommDesc->link.usageCounts[j].subdivisionLevel;
+                    usageCounts[j].format = (OptixOpacityMicromapFormat)ommDesc->link.usageCounts[j].format;
+                }
+                OptixBuildInputOpacityMicromap& omm = buildInput.triangleArray.opacityMicromap;
+                omm.indexingMode = ommDesc->link.indexingMode == MicromapIndexingMode::Indexed
+                                       ? OPTIX_OPACITY_MICROMAP_ARRAY_INDEXING_MODE_INDEXED
+                                       : OPTIX_OPACITY_MICROMAP_ARRAY_INDEXING_MODE_LINEAR;
+                omm.opacityMicromapArray = ommDesc->link.micromap->getDeviceAddress();
+                if (ommDesc->link.indexingMode == MicromapIndexingMode::Indexed)
+                {
+                    if (!ommDesc->link.indexBuffer)
+                        return SLANG_E_INVALID_ARG;
+                    omm.indexBuffer = ommDesc->link.indexBuffer.getDeviceAddress();
+                    if (ommDesc->link.indexFormat == MicromapIndexFormat::Uint16)
+                        omm.indexSizeInBytes = 2;
+                    else if (ommDesc->link.indexFormat == MicromapIndexFormat::Uint32)
+                        omm.indexSizeInBytes = 4;
+                    else
+                        return SLANG_E_INVALID_ARG;
+                    omm.indexStrideInBytes = ommDesc->link.indexStride;
+                }
+                omm.indexOffset = ommDesc->link.baseMicromapIndex;
+                omm.numMicromapUsageCounts = (uint32_t)usageCounts.size();
+                omm.micromapUsageCounts = usageCounts.data();
+            }
         }
         break;
     }
@@ -489,6 +554,14 @@ unsigned int AccelerationStructureBuildDescConverter::translateBuildFlags(Accele
     {
         result |= OPTIX_BUILD_FLAG_PREFER_FAST_TRACE;
     }
+    if (is_set(flags, AccelerationStructureBuildFlags::AllowOpacityMicromapUpdate))
+    {
+        result |= OPTIX_BUILD_FLAG_ALLOW_OPACITY_MICROMAP_UPDATE;
+    }
+    if (is_set(flags, AccelerationStructureBuildFlags::AllowDisableOpacityMicromaps))
+    {
+        result |= OPTIX_BUILD_FLAG_ALLOW_DISABLE_OPACITY_MICROMAPS;
+    }
     return result;
 }
 
@@ -608,8 +681,6 @@ Result executeOptixTasks(ITaskPool* taskPool, std::span<OptixTask> initialTasks)
                 {
                     delete static_cast<OptixTaskPayload*>(p);
                 },
-                nullptr,
-                0,
                 payload->group
             );
             payload->taskPool->releaseTask(handle);
@@ -627,16 +698,13 @@ Result executeOptixTasks(ITaskPool* taskPool, std::span<OptixTask> initialTasks)
             {
                 delete static_cast<OptixTaskPayload*>(p);
             },
-            nullptr,
-            0,
             group
         );
         taskPool->releaseTask(handle);
     }
 
     // Wait for all tasks (including recursively spawned sub-tasks) to complete.
-    taskPool->waitTaskGroup(group);
-    taskPool->releaseTaskGroup(group);
+    taskPool->waitAndReleaseTaskGroup(group);
 
     if (failed.load(std::memory_order_relaxed))
         return SLANG_FAIL;
@@ -691,7 +759,7 @@ public:
         bool hasGlobalParams = false;
         for (const auto& module : program->m_modules)
         {
-            const char* ptxCode = static_cast<const char*>(module.code->getBufferPointer());
+            const char* ptxCode = module.code.c_str();
             if (std::strstr(ptxCode, "SLANG_globalParams"))
             {
                 hasGlobalParams = true;
@@ -700,7 +768,9 @@ public:
         }
         optixPipelineCompileOptions.pipelineLaunchParamsVariableName = hasGlobalParams ? "SLANG_globalParams" : nullptr;
 
-        optixPipelineCompileOptions.usesPrimitiveTypeFlags = 0;
+        // Zero implicitly enables custom primitives and triangles. Keep both enabled when adding native types.
+        optixPipelineCompileOptions.usesPrimitiveTypeFlags =
+            OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM | OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
             optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
@@ -711,7 +781,8 @@ public:
             is_set(desc.flags, RayTracingPipelineFlags::EnableClusters) ? 1 : 0;
 #endif
 
-        optixPipelineCompileOptions.allowOpacityMicromaps = 0;
+        optixPipelineCompileOptions.allowOpacityMicromaps =
+            is_set(desc.flags, RayTracingPipelineFlags::EnableOpacityMicromaps) ? 1 : 0;
 
         OptixModuleCompileOptions optixModuleCompileOptions = {};
         optixModuleCompileOptions.maxRegisterCount = 0; // no limit
@@ -746,8 +817,8 @@ public:
                         m_deviceContext,
                         &optixModuleCompileOptions,
                         &optixPipelineCompileOptions,
-                        static_cast<const char*>(module.code->getBufferPointer()),
-                        module.code->getBufferSize(),
+                        module.code.c_str(),
+                        module.code.size(),
                         logBuffers[i].data(),
                         &logSizes[i],
                         &optixModules[i],
@@ -788,8 +859,8 @@ public:
                     m_deviceContext,
                     &optixModuleCompileOptions,
                     &optixPipelineCompileOptions,
-                    static_cast<const char*>(module.code->getBufferPointer()),
-                    module.code->getBufferSize(),
+                    module.code.c_str(),
+                    module.code.size(),
                     nullptr,
                     0,
                     &optixModules[i]
@@ -850,7 +921,11 @@ public:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
                 // TODO: support continuation callables
                 optixProgramGroupDesc.callables.moduleDC = optixModules[i];
-                entryFunctionName = "__callable__" + module.entryPointName;
+                // Slang emits callable-stage entry points as OptiX direct callables. Keep this
+                // prefix synchronized with CUDASourceEmitter::generateEntryPointNameImpl(); using
+                // the non-existent `__callable__` spelling makes program-group creation fail even
+                // though the requested source entry point was compiled successfully.
+                entryFunctionName = "__direct_callable__" + module.entryPointName;
                 optixProgramGroupDesc.callables.entryFunctionNameDC = entryFunctionName.data();
                 break;
             default:
@@ -983,6 +1058,70 @@ public:
             m_device
         );
 
+        // Transfer every OptiX object to the pipeline before configuring its stack. If one of the
+        // stack queries fails, normal RefPtr destruction releases the pipeline, program groups,
+        // and modules instead of leaking the partially configured pipeline.
+        RefPtr<PipelineImpl> pipeline = new PipelineImpl();
+        pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+        pipeline->m_modules = std::move(optixModules);
+        pipeline->m_programGroups = std::move(optixProgramGroups);
+        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
+        pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
+        pipeline->m_pipeline = optixPipeline;
+
+        // OptiX does not derive pipeline stack sizes from a linked call graph. Accumulate the
+        // requirements of every program group and combine them with the application-provided
+        // direct-call depth bounds. OptixStackSizes exposes one conservative direct-callable
+        // requirement, so use that upper bound for each call-site category that is enabled.
+        OptixStackSizes stackSizes = {};
+        for (OptixProgramGroup programGroup : pipeline->m_programGroups)
+        {
+            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                accumulateProgramGroupStackSizes(programGroup, optixPipeline, stackSizes),
+                m_device
+            );
+        }
+
+        OptixRayTracingPipelineDesc defaultOptixDesc = {};
+        const OptixRayTracingPipelineDesc* optixDesc = findStructInChain<OptixRayTracingPipelineDesc>(desc.next);
+        if (!optixDesc)
+            optixDesc = &defaultOptixDesc;
+
+        const unsigned int dssDCFromTraversal =
+            optixDesc->maxDirectCallableDepthFromTraversal > 0 ? stackSizes.dssDC : 0;
+        const unsigned int dssDCFromState = optixDesc->maxDirectCallableDepthFromState > 0 ? stackSizes.dssDC : 0;
+        unsigned int directCallableStackSizeFromTraversal = 0;
+        unsigned int directCallableStackSizeFromState = 0;
+        unsigned int continuationStackSize = 0;
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixUtilComputeStackSizesDCSplit(
+                &stackSizes,
+                dssDCFromTraversal,
+                dssDCFromState,
+                desc.maxRecursion,
+                0, // Continuation callable program groups are not currently supported.
+                optixDesc->maxDirectCallableDepthFromTraversal,
+                optixDesc->maxDirectCallableDepthFromState,
+                &directCallableStackSizeFromTraversal,
+                &directCallableStackSizeFromState,
+                &continuationStackSize
+            ),
+            m_device
+        );
+
+        // The backend currently permits exactly one IAS level above a GAS and does not support
+        // motion transforms, so every accepted traversable graph has a maximum depth of two.
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixPipelineSetStackSize(
+                optixPipeline,
+                directCallableStackSizeFromTraversal,
+                directCallableStackSizeFromState,
+                continuationStackSize,
+                2
+            ),
+            m_device
+        );
+
         // Report the pipeline creation time.
         if (shaderCompilationReporter)
         {
@@ -992,17 +1131,11 @@ public:
                 startTime,
                 Timer::now(),
                 false,
-                0
+                0,
+                nullptr
             );
         }
 
-        RefPtr<PipelineImpl> pipeline = new PipelineImpl();
-        pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
-        pipeline->m_modules = std::move(optixModules);
-        pipeline->m_programGroups = std::move(optixProgramGroups);
-        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
-        pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
-        pipeline->m_pipeline = optixPipeline;
         returnRefPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
@@ -1195,6 +1328,39 @@ public:
         return SLANG_OK;
     }
 
+    virtual Result getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes) override
+    {
+        if (desc.type != MicromapType::Opacity || !desc.dataBuffer || !desc.descriptorBuffer || !desc.histogram ||
+            desc.histogramCount == 0 || is_set(desc.flags, MicromapBuildFlags::AllowCompaction))
+            return SLANG_E_INVALID_ARG;
+        std::vector<OptixOpacityMicromapHistogramEntry> histogram(desc.histogramCount);
+        for (uint32_t i = 0; i < desc.histogramCount; ++i)
+        {
+            histogram[i].count = desc.histogram[i].count;
+            histogram[i].subdivisionLevel = desc.histogram[i].subdivisionLevel;
+            histogram[i].format = (OptixOpacityMicromapFormat)desc.histogram[i].format;
+        }
+        OptixOpacityMicromapArrayBuildInput input = {};
+        input.flags = 0;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastTrace))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_TRACE;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastBuild))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_BUILD;
+        input.inputBuffer = desc.dataBuffer.getDeviceAddress();
+        input.perMicromapDescBuffer = desc.descriptorBuffer.getDeviceAddress();
+        input.perMicromapDescStrideInBytes = desc.descriptorStride;
+        input.numMicromapHistogramEntries = desc.histogramCount;
+        input.micromapHistogramEntries = histogram.data();
+        OptixMicromapBufferSizes sizes = {};
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixOpacityMicromapArrayComputeMemoryUsage(m_deviceContext, &input, &sizes),
+            m_device
+        );
+        outSizes->micromapSize = sizes.outputSizeInBytes;
+        outSizes->scratchSize = sizes.tempSizeInBytes;
+        return SLANG_OK;
+    }
+
     virtual Result getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -1265,6 +1431,42 @@ public:
             emittedProperties.empty() ? nullptr : emittedProperties.data(),
             emittedProperties.size()
         ));
+    }
+
+    virtual void buildMicromap(
+        CUstream stream,
+        const MicromapBuildDesc& desc,
+        MicromapImpl* dst,
+        BufferOffsetPair scratchBuffer
+    ) override
+    {
+        if (desc.type != MicromapType::Opacity || !desc.dataBuffer || !desc.descriptorBuffer || !desc.histogram ||
+            desc.histogramCount == 0 || is_set(desc.flags, MicromapBuildFlags::AllowCompaction))
+            return;
+        std::vector<OptixOpacityMicromapHistogramEntry> histogram(desc.histogramCount);
+        for (uint32_t i = 0; i < desc.histogramCount; ++i)
+        {
+            histogram[i].count = desc.histogram[i].count;
+            histogram[i].subdivisionLevel = desc.histogram[i].subdivisionLevel;
+            histogram[i].format = (OptixOpacityMicromapFormat)desc.histogram[i].format;
+        }
+        OptixOpacityMicromapArrayBuildInput input = {};
+        input.flags = 0;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastTrace))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_TRACE;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastBuild))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_BUILD;
+        input.inputBuffer = desc.dataBuffer.getDeviceAddress();
+        input.perMicromapDescBuffer = desc.descriptorBuffer.getDeviceAddress();
+        input.perMicromapDescStrideInBytes = desc.descriptorStride;
+        input.numMicromapHistogramEntries = desc.histogramCount;
+        input.micromapHistogramEntries = histogram.data();
+        OptixMicromapBuffers buffers = {};
+        buffers.output = dst->m_buffer;
+        buffers.outputSizeInBytes = dst->m_desc.size;
+        buffers.temp = scratchBuffer.getDeviceAddress();
+        buffers.tempSizeInBytes = checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset;
+        SLANG_OPTIX_ASSERT_ON_FAIL(optixOpacityMicromapArrayBuild(m_deviceContext, stream, &input, &buffers));
     }
 
     virtual void copyAccelerationStructure(

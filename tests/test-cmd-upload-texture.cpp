@@ -44,6 +44,46 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | Metal | CUDA | WGPU)
     );
 }
 
+GPU_TEST_CASE("cmd-upload-texture-subresource-offset-alignment", D3D12 | Vulkan | Metal | CUDA | WGPU)
+{
+    TextureTestOptions options(device);
+    // The generated 33x17 texture has mip sizes that are not all multiples of
+    // D3D12's 512-byte placed-footprint alignment. Uploading all mips together
+    // verifies that each staged subresource starts at a valid backend offset.
+    options.addVariants(
+        TextureType::Texture2D,
+        std::vector<Format>{Format::RGBA8Unorm},
+        TTArray::Off,
+        TTMip::On,
+        TextureInitMode::None,
+        TTFmtDepth::Off,
+        TTPowerOf2::Off
+    );
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            TextureData& data = c->getTextureData();
+            data.initData(TextureInitMode::Random);
+
+            auto queue = c->getDevice()->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+            commandEncoder->uploadTextureData(
+                c->getTexture(),
+                {0, 1, 0, data.desc.mipCount},
+                {0, 0, 0},
+                Extent3D::kWholeTexture,
+                data.subresourceData.data(),
+                data.subresourceData.size()
+            );
+            queue->submit(commandEncoder->finish());
+
+            data.checkEqual(c->getTexture());
+        }
+    );
+}
+
 GPU_TEST_CASE("cmd-upload-texture-compressed-npot-mips", Metal | Vulkan | WGPU)
 {
     TextureTestOptions options(device);

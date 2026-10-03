@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "shader-cache.h"
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -6,20 +7,19 @@ using namespace rhi::testing;
 // List of retained blobs to prevent them from being released too early.
 static std::vector<ComPtr<ISlangBlob>> s_blobs;
 
+template<typename T>
+inline bool areArraysEqual(const T* a, size_t aCount, const T* b, size_t bCount)
+{
+    return aCount == bCount && (aCount == 0 || std::memcmp(a, b, aCount * sizeof(T)) == 0);
+}
+
 inline bool isEqual(const CompilationReport* a, const CompilationReport* b)
 {
-    return std::memcmp(a, b, offsetof(CompilationReport, entryPointReports)) == 0 &&
-           a->entryPointReportCount == b->entryPointReportCount && a->pipelineReportCount == b->pipelineReportCount &&
-           std::memcmp(
-               a->entryPointReports,
-               b->entryPointReports,
-               a->entryPointReportCount * sizeof(CompilationReport::EntryPointReport)
-           ) == 0 &&
-           std::memcmp(
-               a->pipelineReports,
-               b->pipelineReports,
-               a->pipelineReportCount * sizeof(CompilationReport::PipelineReport)
-           ) == 0;
+    if (std::memcmp(a, b, offsetof(CompilationReport, entryPointReports)) != 0)
+        return false;
+    if (!areArraysEqual(a->entryPointReports, a->entryPointReportCount, b->entryPointReports, b->entryPointReportCount))
+        return false;
+    return areArraysEqual(a->pipelineReports, a->pipelineReportCount, b->pipelineReports, b->pipelineReportCount);
 }
 
 inline ComPtr<IShaderProgram> createShaderProgram(IDevice* device)
@@ -140,6 +140,8 @@ GPU_TEST_CASE("compilation-report", ALL | DontCreateDevice)
     CHECK(report1b->createPipelineTime > 0.0);
     CHECK(report1b->entryPointReportCount == 1);
     CHECK(report1b->pipelineReportCount == 1);
+    CHECK(report1b->entryPointReports[0].cacheKey.type == CompilationReport::CacheKeyDigest::Type::None);
+    CHECK(report1b->pipelineReports[0].cacheKey.type == CompilationReport::CacheKeyDigest::Type::None);
 
     // The report should still be registered in the device.
     const CompilationReportList* reports1b = getCompilationReportList(device.get());
@@ -181,6 +183,8 @@ GPU_TEST_CASE("compilation-report", ALL | DontCreateDevice)
     CHECK(report2b->createPipelineTime > 0.0);
     CHECK(report2b->entryPointReportCount == 1);
     CHECK(report2b->pipelineReportCount == 1);
+    CHECK(report2b->entryPointReports[0].cacheKey.type == CompilationReport::CacheKeyDigest::Type::None);
+    CHECK(report2b->pipelineReports[0].cacheKey.type == report1b->pipelineReports[0].cacheKey.type);
 
     // The report should still be registered in the device.
     const CompilationReportList* reports2b = getCompilationReportList(device.get());
@@ -199,4 +203,36 @@ GPU_TEST_CASE("compilation-report", ALL | DontCreateDevice)
     CHECK(reports3->reportCount == 2);
     CHECK(isEqual(&reports3->reports[0], &report1c));
     CHECK(isEqual(&reports3->reports[1], report2b));
+}
+
+GPU_TEST_CASE("compilation-report-cache-keys", D3D12 | Vulkan | DontCreateDevice)
+{
+    ShaderCache shaderCache;
+    ShaderCache pipelineCache;
+    DeviceExtraOptions options = {};
+    options.enableCompilationReports = true;
+    options.persistentShaderCache = &shaderCache;
+    options.persistentPipelineCache = &pipelineCache;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+
+    if (!device->hasFeature(Feature::PipelineCache))
+    {
+        device = nullptr;
+        return;
+    }
+
+    ComPtr<IShaderProgram> shaderProgram = createShaderProgram(device.get());
+    ComPtr<IComputePipeline> pipeline = createPipeline(device.get(), shaderProgram.get());
+    dispatchPipeline(device.get(), pipeline.get());
+
+    const CompilationReport* report = getCompilationReport(shaderProgram.get());
+    REQUIRE(report->entryPointReportCount == 1);
+    REQUIRE(report->pipelineReportCount == 1);
+    CHECK(report->entryPointReports[0].cacheKey.type == CompilationReport::CacheKeyDigest::Type::SHA1);
+    CHECK(report->pipelineReports[0].cacheKey.type == CompilationReport::CacheKeyDigest::Type::SHA1);
+
+    pipeline = nullptr;
+    shaderProgram = nullptr;
+    device = nullptr;
 }

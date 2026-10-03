@@ -409,8 +409,13 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         {
         default:
         {
-            auto varLayout = slangLeafTypeLayout->getElementVarLayout();
-            auto subTypeLayout = varLayout->getTypeLayout();
+            // Parameter groups expose the relative element layout through their element
+            // variable. Other containers, such as structured buffers, only expose an
+            // element type layout.
+            auto subTypeLayout = slangLeafTypeLayout->getElementTypeLayout();
+            if (auto elementVarLayout = slangLeafTypeLayout->getElementVarLayout())
+                subTypeLayout = elementVarLayout->getTypeLayout();
+            SLANG_RHI_ASSERT(subTypeLayout);
             ShaderObjectLayoutImpl::createForElementType(
                 m_device,
                 m_session,
@@ -491,7 +496,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -593,7 +598,7 @@ Result EntryPointLayout::Builder::build(EntryPointLayout** outLayout)
     RefPtr<EntryPointLayout> layout = new EntryPointLayout();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -764,7 +769,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 {
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 

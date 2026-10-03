@@ -336,6 +336,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
+        case slang::BindingType::PushConstant:
             subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
@@ -374,7 +375,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             break;
         }
 
-        BindingRangeInfo bindingRangeInfo;
+        BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
@@ -429,8 +430,13 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         {
         default:
         {
-            auto varLayout = slangLeafTypeLayout->getElementVarLayout();
-            auto subTypeLayout = varLayout->getTypeLayout();
+            // Parameter groups expose the relative element layout through their element
+            // variable. Other containers, such as structured buffers, only expose an
+            // element type layout.
+            auto subTypeLayout = slangLeafTypeLayout->getElementTypeLayout();
+            if (auto elementVarLayout = slangLeafTypeLayout->getElementVarLayout())
+                subTypeLayout = elementVarLayout->getTypeLayout();
+            SLANG_RHI_ASSERT(subTypeLayout);
             ShaderObjectLayoutImpl::createForElementType(
                 m_device,
                 m_session,
@@ -467,6 +473,11 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             m_childDescriptorSetCount += subObjectLayout->getChildDescriptorSetCount();
             m_totalBindingCount += subObjectLayout->getTotalBindingCount();
             m_childPushConstantRangeCount += subObjectLayout->getTotalPushConstantRangeCount();
+            break;
+
+        case slang::BindingType::PushConstant:
+            m_childDescriptorSetCount += subObjectLayout->getChildDescriptorSetCount();
+            m_totalBindingCount += subObjectLayout->getTotalBindingCount();
             break;
 
         case slang::BindingType::ExistentialValue:
@@ -515,7 +526,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -619,7 +630,7 @@ Result EntryPointLayout::Builder::build(EntryPointLayout** outLayout)
     RefPtr<EntryPointLayout> layout = new EntryPointLayout();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -889,7 +900,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 {
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -936,7 +947,8 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
 
     auto entryPointTypeLayout = entryPointVarLayout->getTypeLayout();
 
-    if (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION)
+    if (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION &&
+        entryPointTypeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer)
     {
         // For raygen entry points, ordinary data is stored in the shader binding table (SBT),
         // not in push constants or a constant buffer.
@@ -964,8 +976,8 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     }
     else
     {
-        // For non-raygen entry points, process normally. The ConstantBuffer/PushConstant
-        // handling in _addDescriptorRangesAsValue will set up push constants and descriptors.
+        // For unwrapped raygen parameters and non-raygen entry points, process normally.
+        // ConstantBuffer/PushConstant handling will set up push constants and descriptors.
         _addDescriptorRangesAsValue(entryPointTypeLayout, entryPointOffset);
     }
 

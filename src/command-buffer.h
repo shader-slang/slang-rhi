@@ -11,6 +11,7 @@
 #include "reference.h"
 #include "command-list.h"
 #include "device-child.h"
+#include "transient-buffer-heap.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -39,9 +40,6 @@ public:
         m_type = type;
     }
 
-    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
-    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
-
     // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override
@@ -52,6 +50,7 @@ public:
 
 public:
     QueueType m_type;
+    TransientBufferHeap m_constantBufferHeap;
 };
 
 class RenderPassEncoder : public IRenderPassEncoder
@@ -339,6 +338,12 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL buildMicromap(
+        const MicromapBuildDesc& desc,
+        IMicromap* dst,
+        BufferOffsetPair scratchBuffer
+    ) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
@@ -400,9 +405,6 @@ public:
     }
     virtual ~CommandBuffer();
 
-    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
-    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
-
     virtual Result reset();
 
     void setDesc(const CommandBufferDesc& desc)
@@ -419,7 +421,7 @@ public:
     CommandBufferDesc m_desc;
     StructHolder m_descHolder;
     ArenaAllocator m_allocator;
-    std::set<RefPtr<RefObject>> m_trackedObjects;
+    std::set<InternalRefPtr<RefObject>> m_trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer> m_trackedExecuteCallbackObjects;
     CommandList m_commandList;
 

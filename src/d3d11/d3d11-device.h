@@ -13,6 +13,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     using Device::readBuffer;
 
     DeviceImpl();
@@ -100,7 +106,7 @@ public:
 public:
     std::string m_adapterName;
 
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<IDXGIAdapter> m_dxgiAdapter;

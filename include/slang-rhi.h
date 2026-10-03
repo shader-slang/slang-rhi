@@ -69,6 +69,8 @@ enum class StructType
     TextureViewDesc,
     SamplerDesc,
     AccelerationStructureDesc,
+    MicromapDesc,
+    AccelerationStructureOpacityMicromapDesc,
     FenceDesc,
     RenderPipelineDesc,
     ComputePipelineDesc,
@@ -85,6 +87,8 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    OptixRayTracingPipelineDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -127,6 +131,7 @@ enum class DeviceType
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingMotionBlur,                     "ray-tracing-motion-blur"                       ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    x(OpacityMicromap,                          "opacity-micromap"                              ) \
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
@@ -168,6 +173,12 @@ enum class DeviceType
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     x(ShaderAbort,                              "shader-abort"                                  ) \
+    /* VK_NV_cooperative_matrix2 subfeatures (reported independently) */                         \
+    x(CooperativeMatrixReductions,              "cooperative-matrix-reductions"                 ) \
+    x(CooperativeMatrixConversions,             "cooperative-matrix-conversions"                ) \
+    x(CooperativeMatrixPerElementOperations,    "cooperative-matrix-per-element-operations"     ) \
+    x(CooperativeMatrixTensorAddressing,        "cooperative-matrix-tensor-addressing"          ) \
+    x(CooperativeMatrixBlockLoads,              "cooperative-matrix-block-loads"                ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
@@ -198,6 +209,20 @@ struct CompilationReport
     /// Time point in nanoseconds.
     typedef uint64_t TimePoint;
 
+    struct CacheKeyDigest
+    {
+        /// Digest type, or None if a cache key is unavailable.
+        enum class Type : uint8_t
+        {
+            None,
+            SHA1,
+        };
+
+        Type type;
+        /// SHA-1 digest bytes, or zeroes when type is None.
+        uint8_t bytes[20];
+    };
+
     struct EntryPointReport
     {
         char name[128];
@@ -209,6 +234,8 @@ struct CompilationReport
         double compileDownstreamTime;
         bool isCached;
         size_t cacheSize;
+        /// Stable digest of the opaque persistent shader-cache key.
+        CacheKeyDigest cacheKey;
     };
 
     enum class PipelineType
@@ -226,6 +253,8 @@ struct CompilationReport
         double createTime;
         bool isCached;
         size_t cacheSize;
+        /// Stable digest of the opaque persistent pipeline-cache key.
+        CacheKeyDigest cacheKey;
     };
 
     /// Shader program label.
@@ -273,7 +302,8 @@ enum class LinkingStyle
 
 struct ShaderProgramDesc
 {
-    StructType type = StructType::ShaderProgramDesc;
+    static constexpr StructType kStructType = StructType::ShaderProgramDesc;
+    StructType type = kStructType;
     const void* next = nullptr;
 
     // TODO: Tess doesn't like this but doesn't know what to do about it
@@ -535,6 +565,9 @@ enum class ResourceState
     AccelerationStructureRead,
     AccelerationStructureWrite,
     AccelerationStructureBuildInput,
+    MicromapBuildInput,
+    MicromapRead,
+    MicromapWrite,
 };
 
 /// Describes how memory for the resource should be allocated for CPU access.
@@ -576,6 +609,7 @@ enum class NativeHandleType
     VkSampler = 0x0003000a,
     VkPipeline = 0x0003000b,
     VkSemaphore = 0x0003000c,
+    VkMicromapEXT = 0x0003000d,
 
     MTLDevice = 0x00040001,
     MTLCommandQueue = 0x00040002,
@@ -676,7 +710,8 @@ struct VertexStreamDesc
 
 struct InputLayoutDesc
 {
-    StructType structType = StructType::InputLayoutDesc;
+    static constexpr StructType kStructType = StructType::InputLayoutDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     const InputElementDesc* inputElements = nullptr;
@@ -731,14 +766,17 @@ enum class BufferUsage
     CopyDestination = (1 << 7),
     AccelerationStructure = (1 << 8),
     AccelerationStructureBuildInput = (1 << 9),
-    ShaderTable = (1 << 10),
-    Shared = (1 << 11),
+    MicromapBuildInput = (1 << 10),
+    MicromapStorage = (1 << 11),
+    ShaderTable = (1 << 12),
+    Shared = (1 << 13),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
 struct BufferDesc
 {
-    StructType structType = StructType::BufferDesc;
+    static constexpr StructType kStructType = StructType::BufferDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     /// Total size in bytes.
@@ -1006,7 +1044,8 @@ static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
 
 struct TextureDesc
 {
-    StructType structType = StructType::TextureDesc;
+    static constexpr StructType kStructType = StructType::TextureDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     TextureType type = TextureType::Texture2D;
@@ -1055,7 +1094,8 @@ struct TextureDesc
 
 struct TextureViewDesc
 {
-    StructType structType = StructType::TextureViewDesc;
+    static constexpr StructType kStructType = StructType::TextureViewDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     Format format = Format::Undefined;
@@ -1171,7 +1211,8 @@ enum class TextureReductionOp
 
 struct SamplerDesc
 {
-    StructType structType = StructType::SamplerDesc;
+    static constexpr StructType kStructType = StructType::SamplerDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     TextureFilteringMode minFilter = TextureFilteringMode::Linear;
@@ -1247,7 +1288,9 @@ enum class AccelerationStructureInstanceFlags : uint32_t
     TriangleFacingCullDisable = (1 << 0),
     TriangleFrontCounterClockwise = (1 << 1),
     ForceOpaque = (1 << 2),
-    NoOpaque = (1 << 3)
+    NoOpaque = (1 << 3),
+    ForceOpacityMicromap2State = (1 << 4),
+    DisableOpacityMicromaps = (1 << 5),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureInstanceFlags);
 
@@ -1318,6 +1361,9 @@ struct AccelerationStructureBuildInputTriangles
     BufferOffsetPair preTransformBuffer;
 
     AccelerationStructureGeometryFlags flags;
+
+    /// Optional chain of typed geometry extensions.
+    const void* next = nullptr;
 };
 
 struct AccelerationStructureBuildInputProceduralPrimitives
@@ -1414,7 +1460,9 @@ enum class AccelerationStructureBuildFlags
     PreferFastTrace = (1 << 2),
     PreferFastBuild = (1 << 3),
     MinimizeMemory = (1 << 4),
-    CreateMotion = (1 << 5)
+    CreateMotion = (1 << 5),
+    AllowOpacityMicromapUpdate = (1 << 6),
+    AllowDisableOpacityMicromaps = (1 << 7),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
 
@@ -1461,7 +1509,8 @@ enum class AccelerationStructureKind
 
 struct AccelerationStructureDesc
 {
-    StructType structType = StructType::AccelerationStructureDesc;
+    static constexpr StructType kStructType = StructType::AccelerationStructureDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
@@ -1482,6 +1531,117 @@ public:
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
+};
+
+// Micromaps
+
+enum class MicromapType
+{
+    Opacity,
+};
+
+enum class OpacityMicromapFormat : uint32_t
+{
+    TwoState = 1,
+    FourState = 2,
+};
+
+enum class OpacityMicromapSpecialIndex : int32_t
+{
+    FullyTransparent = -1,
+    FullyOpaque = -2,
+    FullyUnknownTransparent = -3,
+    FullyUnknownOpaque = -4,
+};
+
+/// Host-side count for one subdivision-level/format combination.
+struct MicromapUsageCount
+{
+    uint32_t count;
+    uint32_t subdivisionLevel;
+    uint32_t format;
+};
+
+enum class MicromapIndexingMode
+{
+    Linear,
+    Indexed,
+};
+
+enum class MicromapIndexFormat
+{
+    None,
+    Uint16,
+    Uint32,
+};
+
+struct AccelerationStructureMicromapLink
+{
+    /// The referenced micromap must remain alive while an acceleration structure built
+    /// with this link may be used.
+    class IMicromap* micromap = nullptr;
+    MicromapIndexingMode indexingMode = MicromapIndexingMode::Linear;
+    BufferOffsetPair indexBuffer;
+    MicromapIndexFormat indexFormat = MicromapIndexFormat::None;
+    uint32_t indexStride = 0;
+    uint32_t baseMicromapIndex = 0;
+
+    const MicromapUsageCount* usageCounts = nullptr;
+    uint32_t usageCount = 0;
+};
+
+struct AccelerationStructureOpacityMicromapDesc
+{
+    static constexpr StructType kStructType = StructType::AccelerationStructureOpacityMicromapDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+    AccelerationStructureMicromapLink link;
+};
+
+enum class MicromapBuildFlags : uint32_t
+{
+    None = 0,
+    PreferFastTrace = (1 << 0),
+    PreferFastBuild = (1 << 1),
+    AllowCompaction = (1 << 2),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(MicromapBuildFlags);
+
+struct MicromapBuildDesc
+{
+    MicromapType type = MicromapType::Opacity;
+    MicromapBuildFlags flags = MicromapBuildFlags::None;
+    BufferOffsetPair dataBuffer;
+    BufferOffsetPair descriptorBuffer;
+    uint32_t descriptorStride = sizeof(MicromapTriangleDesc);
+    const MicromapUsageCount* histogram = nullptr;
+    uint32_t histogramCount = 0;
+};
+
+struct MicromapSizes
+{
+    uint64_t micromapSize = 0;
+    uint64_t scratchSize = 0;
+};
+
+struct MicromapDesc
+{
+    static constexpr StructType kStructType = StructType::MicromapDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+    MicromapType type = MicromapType::Opacity;
+    uint64_t size = 0;
+    MicromapBuildFlags flags = MicromapBuildFlags::None;
+    const char* label = nullptr;
+};
+
+class IMicromap : public IResource
+{
+    SLANG_COM_INTERFACE(0xbda4e8ec, 0xf62c, 0x4ef6, {0xb0, 0x9f, 0x9e, 0x84, 0x5b, 0x1b, 0xf7, 0xe4});
+
+public:
+    virtual SLANG_NO_THROW const MicromapDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
 };
 
 // Cluster Acceleration Structure API
@@ -1628,7 +1788,8 @@ struct ClusterOperationSizes
 
 struct FenceDesc
 {
-    StructType structType = StructType::FenceDesc;
+    static constexpr StructType kStructType = StructType::FenceDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     uint64_t initialValue = 0;
@@ -1942,9 +2103,24 @@ struct MultisampleDesc
     bool alphaToOneEnable = false;
 };
 
+enum class PipelineCompilationPolicy
+{
+    /// Inherit the device's pipeline compilation behavior. Pipelines are compiled immediately on devices using
+    /// serial pipeline compilation and deferred on devices using parallel pipeline compilation.
+    Default,
+
+    /// Compile target code and create the backend pipeline during pipeline creation. Programs that require
+    /// specialization are always deferred.
+    Immediate,
+
+    /// Defer target code compilation and backend pipeline creation until the pipeline is used by a command encoder.
+    Deferred,
+};
+
 struct RenderPipelineDesc
 {
-    StructType structType = StructType::RenderPipelineDesc;
+    static constexpr StructType kStructType = StructType::RenderPipelineDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -1956,22 +2132,23 @@ struct RenderPipelineDesc
     RasterizerDesc rasterizer;
     MultisampleDesc multisample;
 
-    // Defer target code compilation of program to dispatch time.
-    bool deferTargetCompilation = false;
+    /// Controls when target code and the backend pipeline are compiled.
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
 };
 
 struct ComputePipelineDesc
 {
-    StructType structType = StructType::ComputePipelineDesc;
+    static constexpr StructType kStructType = StructType::ComputePipelineDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
 
-    // Defer target code compilation of program to dispatch time.
-    bool deferTargetCompilation = false;
+    /// Controls when target code and the backend pipeline are compiled.
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
 };
@@ -1985,6 +2162,7 @@ enum class RayTracingPipelineFlags
     EnableLinearSweptSpheres = (1 << 3),
     EnableClusters = (1 << 4),
     EnableMotion = (1 << 5),
+    EnableOpacityMicromaps = (1 << 6),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
@@ -1998,7 +2176,8 @@ struct HitGroupDesc
 
 struct RayTracingPipelineDesc
 {
-    StructType structType = StructType::RayTracingPipelineDesc;
+    static constexpr StructType kStructType = StructType::RayTracingPipelineDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -2009,10 +2188,35 @@ struct RayTracingPipelineDesc
     uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 
-    // Defer target code compilation of program to dispatch time.
-    bool deferTargetCompilation = false;
+    /// Controls when target code and the backend pipeline are compiled.
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
+};
+
+/// OptiX-specific stack limits for a ray-tracing pipeline.
+///
+/// Chain this structure through `RayTracingPipelineDesc::next` when an OptiX pipeline needs limits
+/// other than the defaults below. OptiX requires the maximum callable depth before it can allocate
+/// the pipeline stack. Slang reflection does not expose a finite bound for dynamic `CallShader`
+/// indices, so the application supplies that bound explicitly. Other backends ignore this
+/// descriptor.
+struct OptixRayTracingPipelineDesc
+{
+    static constexpr StructType kStructType = StructType::OptixRayTracingPipelineDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+
+    /// Maximum number of simultaneously active direct-callable frames for a call tree originating
+    /// in a ray-generation, miss, or closest-hit shader. For example, ray generation -> callable A
+    /// -> callable B requires a depth of 2. A value of 0 means that no state shader invokes a
+    /// direct callable. The default permits an existing pipeline to invoke one leaf callable.
+    uint32_t maxDirectCallableDepthFromState = 1;
+
+    /// Maximum number of simultaneously active direct-callable frames for a call tree originating
+    /// in an intersection or any-hit shader. A value of 0 means that traversal shaders do not
+    /// invoke direct callables.
+    uint32_t maxDirectCallableDepthFromTraversal = 0;
 };
 
 // Specifies the bytes to overwrite into a record in the shader table.
@@ -2028,7 +2232,8 @@ struct ShaderRecordOverwrite
 
 struct ShaderTableDesc
 {
-    StructType structType = StructType::ShaderTableDesc;
+    static constexpr StructType kStructType = StructType::ShaderTableDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
@@ -2249,7 +2454,8 @@ enum class QueryResultState
 
 struct QueryPoolDesc
 {
-    StructType structType = StructType::QueryPoolDesc;
+    static constexpr StructType kStructType = StructType::QueryPoolDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     QueryType type = QueryType::Timestamp;
@@ -2451,7 +2657,8 @@ struct MarkerColor
 
 struct CommandBufferDesc
 {
-    StructType structType = StructType::CommandBufferDesc;
+    static constexpr StructType kStructType = StructType::CommandBufferDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     /// The name of the command buffer for debugging purposes.
@@ -2543,7 +2750,8 @@ public:
 
 struct CommandEncoderDesc
 {
-    StructType structType = StructType::CommandEncoderDesc;
+    static constexpr StructType kStructType = StructType::CommandEncoderDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     /// The name of the command encoder for debugging purposes.
@@ -2704,6 +2912,12 @@ public:
         BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
+    ) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL buildMicromap(
+        const MicromapBuildDesc& desc,
+        IMicromap* dst,
+        BufferOffsetPair scratchBuffer
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
@@ -2896,8 +3110,8 @@ struct SurfaceInfo
 {
     /// The preferred format for the surface.
     Format preferredFormat;
-    /// The supported texture usage for the surface.
-    /// The actual support may be more limited depending on the format.
+    /// The surface-level upper bound for supported texture usage.
+    /// The actual support may be more limited depending on the selected format.
     TextureUsage supportedUsage;
     /// The list of supported formats for the surface.
     const Format* formats;
@@ -2909,7 +3123,8 @@ struct SurfaceConfig
 {
     /// Surface format. If left undefined, the preferred format is used.
     Format format = Format::Undefined;
-    /// Usage of the surface. If left undefined, the supported usage is used.
+    /// Usage of the surface. If left undefined, the backend selects a safe,
+    /// format-compatible subset of the supported usage.
     TextureUsage usage = TextureUsage::None;
     // size_t viewFormatCount;
     // const Format* viewFormats;
@@ -2977,7 +3192,8 @@ struct HeapCachingConfig
 
 struct HeapDesc
 {
-    StructType structType = StructType::HeapDesc;
+    static constexpr StructType kStructType = StructType::HeapDesc;
+    StructType structType = kStructType;
 
     /// Type of memory heap should reside in.
     MemoryType memoryType = MemoryType::DeviceLocal;
@@ -3197,6 +3413,8 @@ enum class DebugMessageSource
 class IDebugCallback
 {
 public:
+    /// May be called concurrently from multiple threads. Implementations must provide any required synchronization.
+    /// `message` is valid only for the duration of the call.
     virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
         DebugMessageType type,
         DebugMessageSource source,
@@ -3263,9 +3481,20 @@ enum class AftermathFlags
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AftermathFlags);
 
+enum class PipelineCompilationMode
+{
+    /// Compile pipelines using the default policy immediately and resolve explicitly deferred pipelines sequentially.
+    Serial,
+
+    /// Experimental: defer pipelines using the default policy and resolve deferred pipelines using available task
+    /// parallelism.
+    Parallel,
+};
+
 struct DeviceDesc
 {
-    StructType structType = StructType::DeviceDesc;
+    static constexpr StructType kStructType = StructType::DeviceDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     // The underlying API/Platform of the device.
@@ -3317,6 +3546,10 @@ struct DeviceDesc
 
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
+
+    /// Controls the default pipeline compilation policy and resolution of deferred pipelines encountered while
+    /// finishing a command encoder.
+    PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
 
     /// Enable launching CUDA kernels from inside graphics command buffers
     /// (Vulkan only, via VK_NVX_binary_import). On by default. Set to
@@ -3686,6 +3919,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -3695,6 +3933,8 @@ public:
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
     ) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(const MicromapDesc& desc, IMicromap** outMicromap) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
 
@@ -3814,28 +4054,28 @@ private:
 /// Deprecated alias for SLANG_RHI_DEVICE_SCOPE
 #define SLANG_DEVICE_SCOPE(device) SLANG_RHI_DEVICE_SCOPE(device)
 
-/// \brief Interface for a task pool that supports dependency-based scheduling.
+/// \brief Interface for asynchronous task execution.
 ///
 /// Tasks are submitted with `submitTask()`, which returns an opaque `TaskHandle`.
 /// Each task executes a user-provided function with an associated payload.
-/// Tasks may declare dependencies on other tasks, forming a directed acyclic graph (DAG).
-/// A task will not execute until all of its dependencies have completed.
 ///
 /// **Ownership model:**
 /// `submitTask()` returns a `TaskHandle` that the caller owns. The caller must eventually
-/// call `releaseTask()` to release this handle. The task pool also holds an internal
-/// reference while the task is pending or executing, so the task remains alive until
-/// both the pool and the caller have released their references.
+/// release it by calling either `releaseTask()` or `waitAndReleaseTask()`. Releasing a
+/// handle does not cancel or otherwise affect task execution.
 ///
 /// **Payload lifetime:**
-/// If a `payloadDeleter` is provided, it is called when the last reference to the task
-/// is released (i.e. after both the pool and the caller have released). The payload
-/// remains valid and accessible via `getTaskPayload()` until that point.
+/// If a `payloadDeleter` is provided, it is called after the task function returns and
+/// before the task is considered complete. The payload must remain valid until then.
 ///
-/// **Dependency rules:**
-/// - Dependencies must not form cycles, doing so might result in a deadlock.
-/// - A dependency task handle must still be valid (not yet released) when passed to `submitTask()`.
-/// - Once a task is submitted, its dependencies may be released immediately by the caller.
+/// **Thread safety:**
+/// - Methods may be called concurrently unless documented otherwise.
+/// - Task and task-group handles are specific to the pool that created them.
+/// - A handle must remain valid while any thread is using it. The caller must synchronize
+///   operations that consume the same handle.
+/// - The task pool must remain alive until all task and task-group handles it created are released.
+/// - Task functions may run on a pool worker, a thread waiting on the pool, or the submitting
+///   thread. Task functions and payload deleters must be thread-safe and must not throw exceptions.
 ///
 class ITaskPool : public ISlangUnknown
 {
@@ -3847,97 +4087,65 @@ public:
 
     /// \brief Submit a new task for execution.
     ///
-    /// Submits a task that will call `func(payload)` once all dependencies in `deps` have
-    /// completed. The returned `TaskHandle` must eventually be released with `releaseTask()`.
-    ///
-    /// If `depsCount` is 0, the task is immediately eligible for execution.
-    /// If any dependency is already complete at the time of submission, it is handled correctly.
+    /// Submits a task that will call `func(payload)`. The returned `TaskHandle` must eventually
+    /// be released with either `releaseTask()` or `waitAndReleaseTask()`.
     ///
     /// \param func Function to execute. Must not be null.
     /// \param payload Opaque data passed to `func`. May be null.
-    /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
-    /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
-    /// \param depsCount Number of entries in `deps`.
+    /// \param payloadDeleter Optional deleter called with `payload` after `func` returns. May be null if no cleanup is needed.
     /// \param group Optional task group handle. If non-null, the task is associated with the group.
-    /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
+    /// \return A handle to the submitted task.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
-        TaskHandle* deps,
-        size_t depsCount,
         TaskGroupHandle group = nullptr
     ) = 0;
 
-    /// \brief Get the payload associated with a task.
-    ///
-    /// Returns the `payload` pointer that was passed to `submitTask()`. The payload remains
-    /// valid until the task is fully released (i.e. after the caller calls `releaseTask()`
-    /// and the pool has finished executing the task).
-    ///
-    /// \param task Task handle. Must not be null.
-    /// \return The payload pointer.
-    virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) = 0;
-
     /// \brief Release the caller's reference to a task.
     ///
-    /// Releases the caller's ownership of the task handle. If this is the last reference
-    /// (i.e. the task has already completed and the pool has released its internal reference),
-    /// the task is destroyed.
-    ///
-    /// A task may be released before it has finished executing, the pool's internal reference
-    /// keeps it alive until completion.
+    /// Releases the caller's ownership of the task handle without waiting. The task may still
+    /// be pending or executing and will continue to completion.
     ///
     /// \param task Task handle to release. Must not be null. Must not be used after this call.
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) = 0;
 
-    /// \brief Block the calling thread until a task has finished executing.
+    /// \brief Wait for a task to finish and release its handle.
     ///
-    /// While waiting, the calling thread may execute pending tasks (work-stealing).
-    /// This makes it safe to call from a task callback without deadlock risk.
+    /// When called outside a task callback, the calling thread may execute pending tasks
+    /// (work-stealing). Calling this method from a task callback is only safe when the waited-on
+    /// task can make progress without the calling thread executing additional work.
     ///
-    /// \param task Task handle to wait on. Must not be null.
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
-
-    /// \brief Check whether a task has finished executing (non-blocking).
+    /// This call consumes `task`; the handle must not be used afterward.
     ///
-    /// \param task Task handle to check. Must not be null.
-    /// \return True if the task has completed, false if it is still pending or executing.
-    virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) = 0;
-
-    /// \brief Block the calling thread until all submitted tasks have finished.
-    ///
-    /// Waits for every task that has been submitted to this pool (and not yet completed)
-    /// to finish executing. Does not release any task handles.
-    /// While waiting, the calling thread may execute pending tasks (work-stealing).
-    virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
+    /// \param task Task handle to wait on and release. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTask(TaskHandle task) = 0;
 
     /// \brief Create a new task group for tracking a set of tasks.
     ///
     /// A task group tracks a dynamically growing set of tasks. Tasks are associated with a
     /// group by passing the group handle to `submitTask()`.
+    /// The group may only be used with the task pool that created it.
     ///
     /// \return An opaque handle to the task group.
     virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() = 0;
 
-    /// \brief Block the calling thread until all tasks in the group have completed.
+    /// \brief Wait for all tasks in a group to complete and release the group.
     ///
     /// While waiting, the calling thread may execute pending tasks (work-stealing).
-    /// This makes it safe to call from a task callback without deadlock risk.
+    /// When called outside a task callback, the calling thread may execute any ready task in
+    /// the pool. When called from a task callback, it executes only ready tasks from `group`.
+    /// Subject to the restrictions below, this makes it safe to call from a task callback.
+    /// A task must not wait on a group that contains the task itself. When called
+    /// from a task callback, tasks in the group must not depend on work outside
+    /// the group that cannot otherwise make progress.
     /// Must not be called while other threads are still submitting tasks to the group
     /// outside of task callbacks.
-    /// A group must not be reused after `waitTaskGroup` returns.
+    /// This call consumes `group`; the handle must not be used afterward. Only one thread may
+    /// wait on a group.
     ///
-    /// \param group Task group handle. Must not be null.
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) = 0;
-
-    /// \brief Release a task group.
-    ///
-    /// Must be called exactly once after `waitTaskGroup` returns. Calling with tasks
-    /// still pending is undefined behavior.
-    ///
-    /// \param group Task group handle. Must not be null.
-    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) = 0;
+    /// \param group Task group handle to wait on and release. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTaskGroup(TaskGroupHandle group) = 0;
 };
 
 class IPersistentCache : public ISlangUnknown
@@ -3945,7 +4153,15 @@ class IPersistentCache : public ISlangUnknown
     SLANG_COM_INTERFACE(0x68981742, 0x7fd6, 0x4700, {0x8a, 0x71, 0xe8, 0xea, 0x42, 0x91, 0x3b, 0x28});
 
 public:
+    /// Writes an entry to the cache.
+    /// Implementations must support concurrent calls to writeCache() and queryCache(), including when the cache is
+    /// shared by multiple devices or used for both shaders and pipelines.
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* data) = 0;
+
+    /// Queries an entry from the cache.
+    /// Implementations must support concurrent calls to writeCache() and queryCache(), including when the cache is
+    /// shared by multiple devices or used for both shaders and pipelines.
+    /// A returned blob must remain valid independently of subsequent cache calls.
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
@@ -4054,7 +4270,8 @@ public:
 // Extended descs.
 struct D3D12ExperimentalFeaturesDesc
 {
-    StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
+    static constexpr StructType kStructType = StructType::D3D12ExperimentalFeaturesDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     uint32_t featureCount = 0;
@@ -4065,7 +4282,8 @@ struct D3D12ExperimentalFeaturesDesc
 
 struct D3D12DeviceExtendedDesc
 {
-    StructType structType = StructType::D3D12DeviceExtendedDesc;
+    static constexpr StructType kStructType = StructType::D3D12DeviceExtendedDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     const char* rootParameterShaderAttributeName = nullptr;
@@ -4077,7 +4295,8 @@ struct D3D12DeviceExtendedDesc
 
 struct VulkanDeviceExtendedDesc
 {
-    StructType structType = StructType::VulkanDeviceExtendedDesc;
+    static constexpr StructType kStructType = StructType::VulkanDeviceExtendedDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;

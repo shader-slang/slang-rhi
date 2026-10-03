@@ -85,6 +85,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -833,6 +834,12 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructure);
 }
 
+void CommandExecutor::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(ICommandEncoder, buildMicromap);
+}
+
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -1100,7 +1107,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
         );
     }
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <map>
 #include <algorithm>
+#include <mutex>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -27,34 +28,29 @@ public:
         std::vector<uint8_t> data;
     };
 
-    std::map<Key, Entry> entries;
-    Stats stats;
-    uint32_t maxEntryCount = 1024;
-    uint32_t ticketCounter = 0;
-
     void clear()
     {
-        entries.clear();
-        stats = {};
-        maxEntryCount = 1024;
-        ticketCounter = 0;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_entries.clear();
+        m_stats = {};
+        m_maxEntryCount = 1024;
+        m_ticketCounter = 0;
+    }
+
+    Stats getStats() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_stats;
+    }
+
+    void setMaxEntryCount(uint32_t maxEntryCount)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_maxEntryCount = maxEntryCount;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key_, ISlangBlob* data_) override
     {
-        while (entries.size() >= maxEntryCount)
-        {
-            auto it = std::min_element(
-                entries.begin(),
-                entries.end(),
-                [](const auto& a, const auto& b)
-                {
-                    return a.second.ticket < b.second.ticket;
-                }
-            );
-            entries.erase(it);
-        }
-
         Key key(
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
@@ -63,8 +59,21 @@ public:
             static_cast<const uint8_t*>(data_->getBufferPointer()),
             static_cast<const uint8_t*>(data_->getBufferPointer()) + data_->getBufferSize()
         );
-        entries[key] = {ticketCounter++, data};
-        stats.entryCount = entries.size();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        while (m_entries.size() >= m_maxEntryCount)
+        {
+            auto it = std::min_element(
+                m_entries.begin(),
+                m_entries.end(),
+                [](const auto& a, const auto& b)
+                {
+                    return a.second.ticket < b.second.ticket;
+                }
+            );
+            m_entries.erase(it);
+        }
+        m_entries[key] = {m_ticketCounter++, data};
+        m_stats.entryCount = m_entries.size();
         return SLANG_OK;
     }
 
@@ -74,15 +83,16 @@ public:
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
         );
-        auto it = entries.find(key);
-        if (it == entries.end())
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_entries.find(key);
+        if (it == m_entries.end())
         {
-            stats.missCount++;
+            m_stats.missCount++;
             *outData = nullptr;
             return SLANG_E_NOT_FOUND;
         }
-        stats.hitCount++;
-        *outData = UnownedBlob::create(it->second.data.data(), it->second.data.size()).detach();
+        m_stats.hitCount++;
+        *outData = OwnedBlob::create(it->second.data.data(), it->second.data.size()).detach();
         return SLANG_OK;
     }
 
@@ -109,6 +119,13 @@ public:
         // if the ref count **was 1 before releasing** in order to free the object.
         return 2;
     }
+
+private:
+    mutable std::mutex m_mutex;
+    std::map<Key, Entry> m_entries;
+    Stats m_stats;
+    uint32_t m_maxEntryCount = 1024;
+    uint32_t m_ticketCounter = 0;
 };
 
 static VirtualShaderCache shaderCache;
@@ -287,7 +304,7 @@ struct ShaderCacheTest
         freeComputeResources();
     }
 
-    VirtualShaderCache::Stats getStats() { return shaderCache.stats; }
+    VirtualShaderCache::Stats getStats() { return shaderCache.getStats(); }
 
     void run(GpuTestContext* ctx_, std::string tempDirectory_)
     {
@@ -594,7 +611,7 @@ struct ShaderCacheTestEviction : ShaderCacheTest
 {
     void runTests()
     {
-        shaderCache.maxEntryCount = 2;
+        shaderCache.setMaxEntryCount(2);
 
         // Write shader source files.
         writeShader(computeShaderA, "shader-cache-compute-a.slang");

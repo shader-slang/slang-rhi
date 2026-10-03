@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <cstdint>
+#include <mutex>
 
 namespace rhi::testing {
 
@@ -15,8 +16,6 @@ class ShaderCache : public IPersistentCache
 public:
     using Key = std::vector<uint8_t>;
     using Data = std::vector<uint8_t>;
-
-    std::map<Key, Data> entries;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key_, ISlangBlob* data_) override
     {
@@ -28,7 +27,8 @@ public:
             static_cast<const uint8_t*>(data_->getBufferPointer()),
             static_cast<const uint8_t*>(data_->getBufferPointer()) + data_->getBufferSize()
         );
-        entries[key] = data;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_entries[key] = data;
         return SLANG_OK;
     }
 
@@ -38,13 +38,14 @@ public:
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
         );
-        auto it = entries.find(key);
-        if (it == entries.end())
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_entries.find(key);
+        if (it == m_entries.end())
         {
             *outData = nullptr;
             return SLANG_E_NOT_FOUND;
         }
-        *outData = UnownedBlob::create(it->second.data(), it->second.size()).detach();
+        *outData = OwnedBlob::create(it->second.data(), it->second.size()).detach();
         return SLANG_OK;
     }
 
@@ -71,6 +72,10 @@ public:
         // if the ref count **was 1 before releasing** in order to free the object.
         return 2;
     }
+
+private:
+    std::mutex m_mutex;
+    std::map<Key, Data> m_entries;
 };
 
 } // namespace rhi::testing

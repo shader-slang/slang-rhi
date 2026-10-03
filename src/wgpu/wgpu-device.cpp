@@ -278,7 +278,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
@@ -325,7 +324,7 @@ void DeviceImpl::initializeFormatSupport()
         }
 
         // Add flags depending on feature support.
-        if (format == Format::BGRA8UnormSrgb)
+        if (format == Format::BGRA8Unorm)
         {
             flags |= supportBGRA8UnormStorage ? STORAGE_WO : 0;
         }
@@ -577,7 +576,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 

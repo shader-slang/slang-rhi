@@ -13,7 +13,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
-    m_defaultView.setNull();
+    destroyDefaultView();
     if (m_texture && !m_isSwapchainTexture)
     {
         getDevice<DeviceImpl>()->unregisterResource(m_texture.get());
@@ -27,7 +27,6 @@ void TextureImpl::deleteThis()
         delete this;
         return;
     }
-    m_defaultView.setNull();
     m_sampler.setNull();
     getDevice<DeviceImpl>()->deferDelete(this);
 }
@@ -45,20 +44,9 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result TextureImpl::getDefaultView(ITextureView** outTextureView)
-{
-    if (!m_defaultView)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
-        m_defaultView->setInternalReferenceCount(1);
-    }
-
-    returnComPtr(outTextureView, m_defaultView);
-    return SLANG_OK;
-}
-
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
+TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc)
+    : TextureView(texture, desc)
+    , m_texture(texture)
 {
 }
 
@@ -227,7 +215,8 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
 
     if (handle.type != NativeHandleType::MTLTexture || handle.value == 0)
     {
-        return SLANG_E_INVALID_ARG;
+        *outTexture = nullptr;
+        return SLANG_E_INVALID_HANDLE;
     }
 
     MTL::Texture* nativeTexture = reinterpret_cast<MTL::Texture*>(handle.value);
@@ -266,8 +255,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     AUTORELEASEPOOL
 
     auto textureImpl = checked_cast<TextureImpl*>(texture);
-    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(this, desc);
-    viewImpl->m_texture = textureImpl;
+    RefPtr<TextureViewImpl> viewImpl = new TextureViewImpl(textureImpl, desc);
     if (viewImpl->m_desc.format == Format::Undefined)
         viewImpl->m_desc.format = viewImpl->m_texture->m_desc.format;
     viewImpl->m_desc.subresourceRange = viewImpl->m_texture->resolveSubresourceRange(desc.subresourceRange);

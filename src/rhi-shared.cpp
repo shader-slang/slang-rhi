@@ -128,7 +128,7 @@ Result calcSubresourceRegionLayout(
 
     size_t rowSize = math::divideRoundedUp(extent.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
     size_t rowCount = math::divideRoundedUp(extent.height, formatInfo.blockHeight);
-    size_t rowPitch = math::calcAligned2(rowSize, rowAlignment);
+    size_t rowPitch = math::calcAligned(rowSize, rowAlignment);
     size_t layerPitch = rowPitch * rowCount;
 
     outLayout->size = extent;
@@ -160,6 +160,12 @@ Texture::Texture(Device* device, const TextureDesc& desc)
 {
     m_descHolder.holdString(m_desc.label);
     m_sampler = checked_cast<Sampler*>(m_desc.sampler);
+}
+
+Texture::~Texture()
+{
+    // Backends must destroy the cached wrapper before their native texture.
+    SLANG_RHI_ASSERT(!m_defaultView.load());
 }
 
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
@@ -211,6 +217,33 @@ Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextur
     return m_device->createTextureView(this, desc, outTextureView);
 }
 
+Result Texture::getDefaultView(ITextureView** outTextureView)
+{
+    *outTextureView = nullptr;
+    TextureView* view = m_defaultView.load();
+    if (!view)
+    {
+        ComPtr<ITextureView> candidate;
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, candidate.writeRef()));
+        auto* candidateImpl = checked_cast<TextureView*>(candidate.get());
+        // Keep the candidate's initial reference until publication is complete. A
+        // losing candidate is an ordinary view and is destroyed by its final release.
+        if (m_defaultView.compare_exchange_strong(view, candidateImpl))
+            view = candidateImpl;
+    }
+    returnComPtrCopy(outTextureView, view);
+    return SLANG_OK;
+}
+
+void Texture::destroyDefaultView()
+{
+    // Consumer references (including final releases still finishing) pin the texture,
+    // so destruction can only reach a dormant view. This is not an eviction operation.
+    TextureView* view = m_defaultView.exchange(nullptr);
+    SLANG_RHI_ASSERT(!view || view->getReferenceCount() == 0);
+    delete view;
+}
+
 Result Texture::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
@@ -228,12 +261,52 @@ ITextureView* TextureView::getInterface(const Guid& guid)
     return nullptr;
 }
 
-TextureView::TextureView(Device* device, const TextureViewDesc& desc)
-    : Resource(device)
+TextureView::TextureView(Texture* texture, const TextureViewDesc& desc)
+    : Resource(texture->getDevice())
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
     m_sampler = checked_cast<Sampler*>(m_desc.sampler);
+}
+
+// getTexture() returns an immutable, borrowed association, initialized before the
+// first reference is acquired. Retain it before publishing each view reference;
+// release it only after the corresponding local release has finished.
+uint32_t TextureView::addReference()
+{
+    static_cast<Texture*>(getTexture())->addReference();
+    return RefObject::addReference();
+}
+
+uint32_t TextureView::releaseReference()
+{
+    auto* texture = static_cast<Texture*>(getTexture());
+    uint32_t remaining = RefObject::releaseReference(); // May delete an ordinary view.
+    texture->releaseReference();                        // May destroy the texture and its cached view.
+    return remaining;
+}
+
+uint32_t TextureView::addInternalReference()
+{
+    static_cast<Texture*>(getTexture())->addInternalReference();
+    return RefObject::addInternalReference();
+}
+
+uint32_t TextureView::releaseInternalReference()
+{
+    auto* texture = static_cast<Texture*>(getTexture());
+    uint32_t remaining = RefObject::releaseInternalReference(); // May delete an ordinary view.
+    texture->releaseInternalReference();                        // May destroy the texture and its cached view.
+    return remaining;
+}
+
+void TextureView::deleteThis()
+{
+    auto* texture = static_cast<Texture*>(getTexture());
+    // The texture owns its default wrapper's allocation, without contributing a
+    // reference. At zero consumers it stays constructed until texture destruction.
+    if (texture->m_defaultView.load() != this)
+        delete this;
 }
 
 Result TextureView::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
@@ -312,6 +385,24 @@ Result AccelerationStructure::getDescriptorHandle(DescriptorHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+// ----------------------------------------------------------------------------
+// Micromap
+// ----------------------------------------------------------------------------
+
+IMicromap* Micromap::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == IMicromap::getTypeGuid())
+        return static_cast<IMicromap*>(this);
+    return nullptr;
+}
+
+Micromap::Micromap(Device* device, const MicromapDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
 }
 
 // ----------------------------------------------------------------------------
@@ -558,6 +649,19 @@ void Surface::setInfo(const SurfaceInfo& info)
 void Surface::setConfig(const SurfaceConfig& config)
 {
     m_config = config;
+}
+
+Result Surface::validateConfig(const SurfaceConfig& config) const
+{
+    if (config.format != Format::Undefined && !contains(m_info.formats, m_info.formatCount, config.format))
+        return SLANG_E_INVALID_ARG;
+    if (config.usage != (config.usage & m_info.supportedUsage))
+        return SLANG_E_INVALID_ARG;
+    if (config.width == 0 || config.height == 0)
+        return SLANG_E_INVALID_ARG;
+    if (config.desiredImageCount == 0)
+        return SLANG_E_INVALID_ARG;
+    return SLANG_OK;
 }
 
 // ----------------------------------------------------------------------------
