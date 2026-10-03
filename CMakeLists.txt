@@ -218,6 +218,16 @@ if(NOT DEFINED SLANG_RHI_VULKAN_HEADERS_URL)
     set(SLANG_RHI_VULKAN_HEADERS_URL_HASH "SHA256=ac260b9d0bacbdff95c6eda03f9af48a4d235eeba76b2bc55db26e970219687e")
 endif()
 
+# TinyBVH 1.9.0. The CPU backend disables SIMD, so only the platform-neutral headers are needed.
+if(NOT DEFINED SLANG_RHI_TINYBVH_URL)
+    set(SLANG_RHI_TINYBVH_URL "https://raw.githubusercontent.com/jbikker/tinybvh/4b8509fd26b29801c8f79386cf8a1ce5713070fb/tiny_bvh.h")
+    set(SLANG_RHI_TINYBVH_URL_HASH "SHA256=4e8af9a04a60f87ac531e2b4543e2965221bccde4897b12ffd2d3419f1a9b8ed")
+endif()
+if(NOT DEFINED SLANG_RHI_TINYBVH_BASE_URL)
+    set(SLANG_RHI_TINYBVH_BASE_URL "https://raw.githubusercontent.com/jbikker/tinybvh/4b8509fd26b29801c8f79386cf8a1ce5713070fb/tiny_bvh_base.h")
+    set(SLANG_RHI_TINYBVH_BASE_URL_HASH "SHA256=9c9b8e15682950e98d7ed27eec62d2e2fc73c10060ca039927af52a654a93bff")
+endif()
+
 # Metal C++ headers
 if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
     set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS15.2_iOS18.2.zip")
@@ -825,18 +835,21 @@ if(SLANG_RHI_ENABLE_CPU)
     )
 
     if(SLANG_RHI_ENABLE_CPU_RAY_QUERY)
-        set(SLANG_RHI_TINYBVH_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/tinybvh")
-        if(NOT EXISTS "${SLANG_RHI_TINYBVH_INCLUDE_DIR}/tiny_bvh.h")
-            message(
-                FATAL_ERROR
-                "The TinyBVH submodule is not initialized. "
-                "Run `git submodule update --init --recursive`."
-            )
-        endif()
+        FetchContent_Declare(tinybvh
+            URL "${SLANG_RHI_TINYBVH_URL}"
+            URL_HASH "${SLANG_RHI_TINYBVH_URL_HASH}"
+            DOWNLOAD_NO_EXTRACT TRUE
+        )
+        FetchContent_Declare(tinybvh_base
+            URL "${SLANG_RHI_TINYBVH_BASE_URL}"
+            URL_HASH "${SLANG_RHI_TINYBVH_BASE_URL_HASH}"
+            DOWNLOAD_NO_EXTRACT TRUE
+        )
+        FetchContent_MakeAvailable(tinybvh tinybvh_base)
         target_sources(slang-rhi PRIVATE src/cpu/cpu-acceleration-structure.cpp)
         target_include_directories(
             slang-rhi
-            SYSTEM PRIVATE "${SLANG_RHI_TINYBVH_INCLUDE_DIR}"
+            SYSTEM PRIVATE "${tinybvh_SOURCE_DIR}" "${tinybvh_base_SOURCE_DIR}"
         )
         target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_ENABLE_CPU_RAY_QUERY)
     endif()

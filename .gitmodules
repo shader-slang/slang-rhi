@@ -1,3 +1,0 @@
-[submodule "external/tinybvh"]
-	path = external/tinybvh
-	url = https://github.com/jbikker/tinybvh.git
