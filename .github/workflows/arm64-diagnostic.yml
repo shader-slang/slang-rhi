@@ -1,0 +1,111 @@
+name: arm64-diagnostic
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/arm64-diagnostic.yml
+      - tools/run-arm64-diagnostic.ps1
+      - tests/**
+      - src/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arm64-diagnostic-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostic:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'dev/skallweit/arm64-d3d12-crash-investigation'
+    name: diagnostic (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: original-888-direct, revision: '28b85ae546808fe92442944477efad19d0340fa0', config: Release }
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          submodules: recursive
+
+      - name: Save identical diagnostic instrumentation
+        run: |
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/diagnostic-overlay" -Force | Out-Null
+          Copy-Item tests/main.cpp, tests/diagnostic-crash.h, tools/run-arm64-diagnostic.ps1 "$env:RUNNER_TEMP/diagnostic-overlay"
+
+      - uses: actions/checkout@v6
+        if: matrix.revision != 'current'
+        with:
+          ref: ${{ matrix.revision }}
+          submodules: recursive
+
+      - name: Apply identical diagnostic instrumentation
+        run: |
+          # Keep the original raygen test body, including its original object lifetimes.
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/main.cpp" tests/
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/diagnostic-crash.h" tests/
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/*.ps1" tools/
+
+      - uses: step-security/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+
+      - uses: lukka/get-cmake@latest
+
+      - name: Configure Release with symbols
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          cmake --preset default
+          "-DSLANG_RHI_FETCH_SLANG_VERSION=2026.17.1"
+          "-DCMAKE_C_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi"
+          "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi /DDOCTEST_CONFIG_NO_WINDOWS_SEH"
+          "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
+          "-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO"
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.config }} --target slang-rhi-tests
+
+      - name: Verify first-chance crash capture
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $dumpFolder = (New-Item -ItemType Directory -Force build/diagnostics/dumps).FullName
+          $env:RHI_DIAGNOSTIC_DUMP_DIRECTORY = $dumpFolder
+          "RHI_DIAGNOSTIC_DUMP_DIRECTORY=$dumpFolder" | Add-Content $env:GITHUB_ENV
+          & "./build/${{ matrix.config }}/slang-rhi-tests.exe" --diagnostic-crash-selftest
+          $selfTestExit = $LASTEXITCODE
+          $selfTestDumps = @(Get-ChildItem $dumpFolder -Filter '*.dmp')
+          if ($selfTestExit -ne 3 -or $selfTestDumps.Count -ne 1 -or $selfTestDumps[0].Length -lt 1024) {
+            throw "Crash capture failed self-test: exit=$selfTestExit, dumps=$($selfTestDumps.Count)"
+          }
+          New-Item -ItemType Directory -Force build/capture-selftest | Out-Null
+          $selfTestDumps | Move-Item -Destination build/capture-selftest/
+          Write-Host "Verified first-chance capture of handled AV: exit=$selfTestExit, dumps=$($selfTestDumps.Count)"
+          # The deliberately handled access violation returns 3; the step itself passed.
+          exit 0
+
+      - name: Run diagnostic workloads
+        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10
+
+      - name: Upload diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-diagnostic-${{ matrix.label }}-${{ github.run_attempt }}
+          retention-days: 7
+          path: |
+            build/diagnostics/**
+            build/capture-selftest/**
+            build/${{ matrix.config }}/*.pdb
+            build/${{ matrix.config }}/*.exe
+            build/${{ matrix.config }}/*.dll
+            build/${{ matrix.config }}/D3D12/**
+            build/CMakeCache.txt
