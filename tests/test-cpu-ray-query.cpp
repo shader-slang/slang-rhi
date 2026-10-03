@@ -224,6 +224,15 @@ GPU_TEST_CASE("cpu-ray-query-triangle-state-machine", CPU)
     CHECK(query.RayTMin() == doctest::Approx(0.0f));
     CHECK(query.CandidateTriangleBarycentrics().x == doctest::Approx(0.25f));
     CHECK(query.CandidateTriangleBarycentrics().y == doctest::Approx(0.25f));
+    // A suspended copy owns its traversal cursor. Advancing or resetting it must not affect
+    // the original query, including when the two queries are interleaved.
+    slang_prelude::RayQuery<0> copiedQuery = query;
+    CHECK_FALSE(copiedQuery.Proceed());
+    CHECK(copiedQuery.CommittedRayT() == doctest::Approx(2.0f));
+    copiedQuery.TraceRayInline(shaderHandle, 0, 0x1, ray);
+    REQUIRE(copiedQuery.Proceed());
+    CHECK(copiedQuery.CandidateTriangleRayT() == doctest::Approx(1.0f));
+
     query.CommitNonOpaqueTriangleHit();
     CHECK_FALSE(query.Proceed());
     CHECK_FALSE(query.Proceed());
@@ -378,6 +387,9 @@ GPU_TEST_CASE("cpu-ray-query-triangle-state-machine", CPU)
     abortedQuery.Abort();
     CHECK_FALSE(abortedQuery.Proceed());
     CHECK(abortedQuery.CommittedStatus() == slang_prelude::SLANG_RAY_QUERY_COMMITTED_NOTHING);
+    abortedQuery.TraceRayInline(shaderHandle, slang_prelude::SLANG_RAY_QUERY_FLAG_FORCE_NON_OPAQUE, 0x1, ray);
+    REQUIRE(abortedQuery.Proceed());
+    CHECK(abortedQuery.CandidateTriangleRayT() == doctest::Approx(1.0f));
 
     AccelerationStructureBuildInput unsupportedInput = {};
     unsupportedInput.type = AccelerationStructureBuildInputType::Spheres;

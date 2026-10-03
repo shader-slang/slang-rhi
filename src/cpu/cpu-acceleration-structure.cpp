@@ -20,6 +20,54 @@ namespace rhi::cpu {
 
 namespace {
 
+// A view of the query's provider-private words. References keep traversal in-place without
+// type-punning the storage or constructing objects that would need cleanup on Abort or reset.
+struct TraversalState
+{
+    enum Phase : uint32_t
+    {
+        Uninitialized,
+        TLAS,
+        BLAS,
+    };
+    static constexpr uint32_t kTLASStackCapacity = 64;
+    static constexpr uint32_t kBLASStackCapacity = 256;
+    static constexpr uint32_t kInvalidNode = 0xffffffffu;
+    static_assert(8 + kTLASStackCapacity + kBLASStackCapacity <= slang_prelude::RayQueryState::kProviderDataCapacity);
+
+    uint32_t& phase;
+    uint32_t& tlasNode;
+    uint32_t& tlasLeafOffset;
+    uint32_t& tlasStackSize;
+    uint32_t& blasNode;
+    uint32_t& blasLeafOffset;
+    uint32_t& blasStackSize;
+    uint32_t& currentInstanceIndex;
+    uint32_t* tlasStack;
+    uint32_t* blasStack;
+
+    explicit TraversalState(uint32_t* data)
+        : phase(data[0])
+        , tlasNode(data[1])
+        , tlasLeafOffset(data[2])
+        , tlasStackSize(data[3])
+        , blasNode(data[4])
+        , blasLeafOffset(data[5])
+        , blasStackSize(data[6])
+        , currentInstanceIndex(data[7])
+        , tlasStack(data + 8)
+        , blasStack(data + 8 + kTLASStackCapacity)
+    {
+        // TraceRayInline zeroes the words. Initialize BVH-specific cursors on the first callback.
+        if (phase == Uninitialized)
+        {
+            phase = TLAS;
+            tlasNode = 0;
+            blasNode = kInvalidNode;
+        }
+    }
+};
+
 struct Float3
 {
     float x;
@@ -278,11 +326,7 @@ bool intersectTriangle(
 void completeTraversal(slang_prelude::RayQueryState* state)
 {
     state->candidatePending = 0;
-    state->traversalPhase = slang_prelude::SLANG_RAY_QUERY_TRAVERSAL_COMPLETE;
-    state->tlasNode = slang_prelude::RayQueryState::kInvalidNode;
-    state->blasNode = slang_prelude::RayQueryState::kInvalidNode;
-    state->tlasStackSize = 0;
-    state->blasStackSize = 0;
+    state->traversalComplete = 1;
 }
 
 } // namespace
@@ -764,6 +808,10 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
         completeTraversal(state);
         return false;
     }
+    if (state->traversalComplete)
+        return false;
+
+    TraversalState traversal(state->providerData);
 
     const Float3 worldRayOrigin = {
         state->worldRayOrigin[0],
@@ -776,25 +824,25 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
         state->worldRayDirection[2],
     };
 
-    while (state->traversalPhase != SLANG_RAY_QUERY_TRAVERSAL_COMPLETE)
+    while (!state->traversalComplete)
     {
         const float rayTMax =
             state->committedStatus != SLANG_RAY_QUERY_COMMITTED_NOTHING ? state->committed.rayT : state->rayTMax;
 
-        if (state->traversalPhase == SLANG_RAY_QUERY_TRAVERSAL_TLAS)
+        if (traversal.phase == TraversalState::TLAS)
         {
-            if (state->tlasNode == RayQueryState::kInvalidNode)
+            if (traversal.tlasNode == TraversalState::kInvalidNode)
             {
-                if (state->tlasStackSize == 0)
+                if (traversal.tlasStackSize == 0)
                 {
                     completeTraversal(state);
                     return false;
                 }
-                state->tlasNode = state->tlasStack[--state->tlasStackSize];
-                state->tlasLeafOffset = 0;
+                traversal.tlasNode = traversal.tlasStack[--traversal.tlasStackSize];
+                traversal.tlasLeafOffset = 0;
             }
 
-            const tinybvh::BVH::BVHNode& node = m_impl->bvh.bvhNode[state->tlasNode];
+            const tinybvh::BVH::BVHNode& node = m_impl->bvh.bvhNode[traversal.tlasNode];
             if (!node.isLeaf())
             {
                 const uint32_t leftIndex = node.leftFirst;
@@ -822,10 +870,10 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
                     rightEntry
                 );
 
-                state->tlasNode = RayQueryState::kInvalidNode;
+                traversal.tlasNode = TraversalState::kInvalidNode;
                 if (hitLeft && hitRight)
                 {
-                    if (state->tlasStackSize >= RayQueryState::kTLASStackCapacity)
+                    if (traversal.tlasStackSize >= TraversalState::kTLASStackCapacity)
                     {
                         SLANG_RHI_ASSERT_FAILURE("CPU RayQuery TLAS traversal stack overflow");
                         completeTraversal(state);
@@ -833,30 +881,30 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
                     }
                     if (leftEntry <= rightEntry)
                     {
-                        state->tlasNode = leftIndex;
-                        state->tlasStack[state->tlasStackSize++] = rightIndex;
+                        traversal.tlasNode = leftIndex;
+                        traversal.tlasStack[traversal.tlasStackSize++] = rightIndex;
                     }
                     else
                     {
-                        state->tlasNode = rightIndex;
-                        state->tlasStack[state->tlasStackSize++] = leftIndex;
+                        traversal.tlasNode = rightIndex;
+                        traversal.tlasStack[traversal.tlasStackSize++] = leftIndex;
                     }
                 }
                 else if (hitLeft)
                 {
-                    state->tlasNode = leftIndex;
+                    traversal.tlasNode = leftIndex;
                 }
                 else if (hitRight)
                 {
-                    state->tlasNode = rightIndex;
+                    traversal.tlasNode = rightIndex;
                 }
                 continue;
             }
 
             bool enteredBottomLevel = false;
-            while (state->tlasLeafOffset < node.triCount)
+            while (traversal.tlasLeafOffset < node.triCount)
             {
-                const uint32_t instanceIndex = m_impl->bvh.primIdx[node.leftFirst + state->tlasLeafOffset++];
+                const uint32_t instanceIndex = m_impl->bvh.primIdx[node.leftFirst + traversal.tlasLeafOffset++];
                 const Impl::Instance& instance = m_impl->instances[instanceIndex];
                 if ((instance.instanceMask & state->instanceInclusionMask) == 0)
                     continue;
@@ -869,39 +917,39 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
                     continue;
                 }
 
-                state->currentInstanceIndex = instanceIndex;
-                state->blasNode = 0;
-                state->blasLeafOffset = 0;
-                state->blasStackSize = 0;
-                state->traversalPhase = SLANG_RAY_QUERY_TRAVERSAL_BLAS;
+                traversal.currentInstanceIndex = instanceIndex;
+                traversal.blasNode = 0;
+                traversal.blasLeafOffset = 0;
+                traversal.blasStackSize = 0;
+                traversal.phase = TraversalState::BLAS;
                 enteredBottomLevel = true;
                 break;
             }
             if (!enteredBottomLevel)
             {
-                state->tlasNode = RayQueryState::kInvalidNode;
-                state->tlasLeafOffset = 0;
+                traversal.tlasNode = TraversalState::kInvalidNode;
+                traversal.tlasLeafOffset = 0;
             }
             continue;
         }
 
-        const Impl::Instance& instance = m_impl->instances[state->currentInstanceIndex];
+        const Impl::Instance& instance = m_impl->instances[traversal.currentInstanceIndex];
         const Impl& bottomLevel = *instance.bottomLevel->m_impl;
         const Float3 objectRayOrigin = transformPoint(instance.worldToObject, worldRayOrigin);
         const Float3 objectRayDirection = transformVector(instance.worldToObject, worldRayDirection);
 
-        if (state->blasNode == RayQueryState::kInvalidNode)
+        if (traversal.blasNode == TraversalState::kInvalidNode)
         {
-            if (state->blasStackSize == 0)
+            if (traversal.blasStackSize == 0)
             {
-                state->traversalPhase = SLANG_RAY_QUERY_TRAVERSAL_TLAS;
+                traversal.phase = TraversalState::TLAS;
                 continue;
             }
-            state->blasNode = state->blasStack[--state->blasStackSize];
-            state->blasLeafOffset = 0;
+            traversal.blasNode = traversal.blasStack[--traversal.blasStackSize];
+            traversal.blasLeafOffset = 0;
         }
 
-        const tinybvh::BVH::BVHNode& node = bottomLevel.bvh.bvhNode[state->blasNode];
+        const tinybvh::BVH::BVHNode& node = bottomLevel.bvh.bvhNode[traversal.blasNode];
         if (!node.isLeaf())
         {
             const uint32_t leftIndex = node.leftFirst;
@@ -929,10 +977,10 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
                 rightEntry
             );
 
-            state->blasNode = RayQueryState::kInvalidNode;
+            traversal.blasNode = TraversalState::kInvalidNode;
             if (hitLeft && hitRight)
             {
-                if (state->blasStackSize >= RayQueryState::kBLASStackCapacity)
+                if (traversal.blasStackSize >= TraversalState::kBLASStackCapacity)
                 {
                     SLANG_RHI_ASSERT_FAILURE("CPU RayQuery BLAS traversal stack overflow");
                     completeTraversal(state);
@@ -940,29 +988,29 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
                 }
                 if (leftEntry <= rightEntry)
                 {
-                    state->blasNode = leftIndex;
-                    state->blasStack[state->blasStackSize++] = rightIndex;
+                    traversal.blasNode = leftIndex;
+                    traversal.blasStack[traversal.blasStackSize++] = rightIndex;
                 }
                 else
                 {
-                    state->blasNode = rightIndex;
-                    state->blasStack[state->blasStackSize++] = leftIndex;
+                    traversal.blasNode = rightIndex;
+                    traversal.blasStack[traversal.blasStackSize++] = leftIndex;
                 }
             }
             else if (hitLeft)
             {
-                state->blasNode = leftIndex;
+                traversal.blasNode = leftIndex;
             }
             else if (hitRight)
             {
-                state->blasNode = rightIndex;
+                traversal.blasNode = rightIndex;
             }
             continue;
         }
 
-        while (state->blasLeafOffset < node.triCount)
+        while (traversal.blasLeafOffset < node.triCount)
         {
-            const uint32_t primitiveIndex = bottomLevel.bvh.primIdx[node.leftFirst + state->blasLeafOffset++];
+            const uint32_t primitiveIndex = bottomLevel.bvh.primIdx[node.leftFirst + traversal.blasLeafOffset++];
 
             if (bottomLevel.geometryKind == Impl::GeometryKind::ProceduralPrimitives)
             {
@@ -1002,7 +1050,7 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
                 hit.objectRayDirection[2] = objectRayDirection.z;
                 std::memcpy(hit.objectToWorld, instance.objectToWorld, sizeof(hit.objectToWorld));
                 std::memcpy(hit.worldToObject, instance.worldToObject, sizeof(hit.worldToObject));
-                hit.instanceIndex = state->currentInstanceIndex;
+                hit.instanceIndex = traversal.currentInstanceIndex;
                 hit.instanceID = instance.instanceID;
                 hit.instanceContributionToHitGroupIndex = instance.instanceContributionToHitGroupIndex;
                 hit.geometryIndex = primitive.geometryIndex;
@@ -1082,7 +1130,7 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
             hit.objectRayDirection[2] = objectRayDirection.z;
             std::memcpy(hit.objectToWorld, instance.objectToWorld, sizeof(hit.objectToWorld));
             std::memcpy(hit.worldToObject, instance.worldToObject, sizeof(hit.worldToObject));
-            hit.instanceIndex = state->currentInstanceIndex;
+            hit.instanceIndex = traversal.currentInstanceIndex;
             hit.instanceID = instance.instanceID;
             hit.instanceContributionToHitGroupIndex = instance.instanceContributionToHitGroupIndex;
             hit.geometryIndex = triangle.geometryIndex;
@@ -1110,8 +1158,8 @@ bool AccelerationStructureImpl::proceed(slang_prelude::RayQueryState* state) con
             return true;
         }
 
-        state->blasNode = RayQueryState::kInvalidNode;
-        state->blasLeafOffset = 0;
+        traversal.blasNode = TraversalState::kInvalidNode;
+        traversal.blasLeafOffset = 0;
     }
 
     return false;
