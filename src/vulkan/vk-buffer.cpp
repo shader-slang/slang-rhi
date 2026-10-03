@@ -534,7 +534,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (bufferImpl->m_placementHeap)
     {
-        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(bufferImpl->m_placementHeap);
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(bufferImpl->m_placementHeap.get());
         if (!heap->m_mapped)
             return SLANG_FAIL;
         *outData = static_cast<uint8_t*>(heap->m_mapped) + bufferImpl->m_placementOffset;
