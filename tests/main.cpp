@@ -10,6 +10,7 @@
 #include <charconv>
 #include <cstdio>
 #include <string_view>
+#include "diagnostic-crash.h"
 
 // Due to current issues in slang we don't enable Agility SDK yet
 SLANG_RHI_EXPORT_AGILITY_SDK
@@ -59,6 +60,14 @@ bool checkRequiredDevices()
 
 int main(int argc, const char** argv)
 {
+#ifdef _WIN32
+    if (argc > 1 && std::strcmp(argv[1], "--diagnostic-write-dump") == 0)
+        return diagnostic_crash::writeDump(argc, argv);
+    if (!diagnostic_crash::install())
+        return 2;
+    if (argc > 1 && std::strcmp(argv[1], "--diagnostic-crash-selftest") == 0)
+        return diagnostic_crash::selfTest();
+#endif
     // Store path to the executable.
     rhi::testing::exePath() = argv[0];
 
