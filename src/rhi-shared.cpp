@@ -39,6 +39,26 @@ Fence::Fence(Device* device, const FenceDesc& desc)
 }
 
 
+Buffer* asBuffer(IResource* resource)
+{
+    if (!resource)
+        return nullptr;
+    ComPtr<IBuffer> buffer;
+    if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
+        return checked_cast<Buffer*>(buffer.get());
+    return nullptr;
+}
+
+Texture* asTexture(IResource* resource)
+{
+    if (!resource)
+        return nullptr;
+    ComPtr<ITexture> texture;
+    if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
+        return checked_cast<Texture*>(texture.get());
+    return nullptr;
+}
+
 // ----------------------------------------------------------------------------
 // Buffer
 // ----------------------------------------------------------------------------
@@ -54,6 +74,8 @@ Buffer::Buffer(Device* device, const BufferDesc& desc)
     : Resource(device)
     , m_desc(desc)
 {
+    // Descriptor extension chains are creation-only and remain owned by the caller.
+    m_desc.next = nullptr;
     m_descHolder.holdString(m_desc.label);
 }
 
@@ -158,6 +180,8 @@ Texture::Texture(Device* device, const TextureDesc& desc)
     : Resource(device)
     , m_desc(desc)
 {
+    // Descriptor extension chains are creation-only and remain owned by the caller.
+    m_desc.next = nullptr;
     m_descHolder.holdString(m_desc.label);
     m_sampler = checked_cast<Sampler*>(m_desc.sampler);
 }
