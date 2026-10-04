@@ -172,6 +172,8 @@ endif()
 
 # Backend options
 cmake_dependent_option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON "SLANG_RHI_HAS_CPU" OFF)
+# SLANG_RHI_ENABLE_CPU_RAY_QUERY is declared after Slang is configured because its default
+# depends on whether the selected Slang package provides the shared CPU RayQuery ABI.
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D12 "Enable D3D12 backend" ON "SLANG_RHI_HAS_D3D12" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLANG_RHI_HAS_AGILITY_SDK" OFF)
@@ -264,6 +266,16 @@ endif()
 if(NOT DEFINED SLANG_RHI_VULKAN_HEADERS_URL)
     set(SLANG_RHI_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.347.zip")
     set(SLANG_RHI_VULKAN_HEADERS_URL_HASH "SHA256=ac260b9d0bacbdff95c6eda03f9af48a4d235eeba76b2bc55db26e970219687e")
+endif()
+
+# TinyBVH 1.9.0. The CPU backend disables SIMD, so only the platform-neutral headers are needed.
+if(NOT DEFINED SLANG_RHI_TINYBVH_URL)
+    set(SLANG_RHI_TINYBVH_URL "https://raw.githubusercontent.com/jbikker/tinybvh/4b8509fd26b29801c8f79386cf8a1ce5713070fb/tiny_bvh.h")
+    set(SLANG_RHI_TINYBVH_URL_HASH "SHA256=4e8af9a04a60f87ac531e2b4543e2965221bccde4897b12ffd2d3419f1a9b8ed")
+endif()
+if(NOT DEFINED SLANG_RHI_TINYBVH_BASE_URL)
+    set(SLANG_RHI_TINYBVH_BASE_URL "https://raw.githubusercontent.com/jbikker/tinybvh/4b8509fd26b29801c8f79386cf8a1ce5713070fb/tiny_bvh_base.h")
+    set(SLANG_RHI_TINYBVH_BASE_URL_HASH "SHA256=9c9b8e15682950e98d7ed27eec62d2e2fc73c10060ca039927af52a654a93bff")
 endif()
 
 # Metal C++ headers
@@ -530,6 +542,32 @@ endif()
 target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR})
 if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
+endif()
+
+# CPU RayQuery and generated C++ share an ABI provided by Slang's prelude. Keep standalone builds
+# compatible with older released Slang packages by defaulting the feature to off when that header
+# is absent. An explicit request still fails rather than silently producing a CPU device without
+# the requested feature.
+set(SLANG_RHI_CPU_RAY_QUERY_ABI_AVAILABLE OFF)
+if(
+    EXISTS "${SLANG_RHI_SLANG_INCLUDE_DIR}/slang-cpp-ray-query.h"
+    OR EXISTS "${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude/slang-cpp-ray-query.h"
+)
+    set(SLANG_RHI_CPU_RAY_QUERY_ABI_AVAILABLE ON)
+endif()
+cmake_dependent_option(
+    SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    "Enable RayQuery support in the CPU backend"
+    ${SLANG_RHI_CPU_RAY_QUERY_ABI_AVAILABLE}
+    "SLANG_RHI_ENABLE_CPU"
+    OFF
+)
+if(SLANG_RHI_ENABLE_CPU_RAY_QUERY AND NOT SLANG_RHI_CPU_RAY_QUERY_ABI_AVAILABLE)
+    message(
+        FATAL_ERROR
+        "SLANG_RHI_ENABLE_CPU_RAY_QUERY requires a Slang package that provides "
+        "slang-cpp-ray-query.h"
+    )
 endif()
 
 # Fetch & setup DirectXShaderCompiler
@@ -852,6 +890,26 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-shader-program.cpp
         src/cpu/cpu-texture.cpp
     )
+
+    if(SLANG_RHI_ENABLE_CPU_RAY_QUERY)
+        FetchContent_Declare(tinybvh
+            URL "${SLANG_RHI_TINYBVH_URL}"
+            URL_HASH "${SLANG_RHI_TINYBVH_URL_HASH}"
+            DOWNLOAD_NO_EXTRACT TRUE
+        )
+        FetchContent_Declare(tinybvh_base
+            URL "${SLANG_RHI_TINYBVH_BASE_URL}"
+            URL_HASH "${SLANG_RHI_TINYBVH_BASE_URL_HASH}"
+            DOWNLOAD_NO_EXTRACT TRUE
+        )
+        FetchContent_MakeAvailable(tinybvh tinybvh_base)
+        target_sources(slang-rhi PRIVATE src/cpu/cpu-acceleration-structure.cpp)
+        target_include_directories(
+            slang-rhi
+            SYSTEM PRIVATE "${tinybvh_SOURCE_DIR}" "${tinybvh_base_SOURCE_DIR}"
+        )
+        target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_ENABLE_CPU_RAY_QUERY)
+    endif()
 endif()
 
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
@@ -1121,6 +1179,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-ray-tracing-sphere.cpp
         tests/test-ray-tracing-transform-query.cpp
         tests/test-ray-tracing.cpp
+        tests/test-ray-query-cts.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
@@ -1169,6 +1228,10 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    if(SLANG_RHI_ENABLE_CPU_RAY_QUERY)
+        target_sources(slang-rhi-tests PRIVATE tests/test-cpu-ray-query.cpp)
+        target_compile_definitions(slang-rhi-tests PRIVATE SLANG_RHI_ENABLE_CPU_RAY_QUERY)
+    endif()
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
     endif()
