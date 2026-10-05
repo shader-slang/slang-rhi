@@ -511,7 +511,13 @@ bool checkNoSilentGpuSkips();
 inline bool hasBrokenD3D12WarpRayTracingParser(IDevice* device)
 {
 #if defined(_M_ARM64) || defined(__aarch64__)
-    return device && device->getDeviceType() == DeviceType::D3D12 && device->hasFeature(Feature::SoftwareDevice);
+    if (!device || device->getDeviceType() != DeviceType::D3D12)
+        return false;
+
+    // Some ARM64 DXGI configurations do not mark the Basic Render Driver as a software adapter.
+    const char* adapterName = device->getInfo().adapterName;
+    return device->hasFeature(Feature::SoftwareDevice) ||
+           (adapterName && std::strstr(adapterName, "Microsoft Basic Render Driver"));
 #else
     (void)device;
     return false;
