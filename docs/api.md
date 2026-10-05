@@ -285,7 +285,7 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 
-## OptiX callable stack limits
+## OptiX pipeline configuration
 
 CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through
 `RayTracingPipelineDesc::next`. The default permits one direct-callable frame from
@@ -295,3 +295,33 @@ callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls
 intersection/any-hit and defaults to zero. These limits are independent of
 `maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
 The pipeline copies these options, including when compilation is deferred.
+
+`traversableGraphFlags` specifies the graph shapes a pipeline may traverse. Its default,
+`OptixTraversableGraphFlags::AllowSingleLevelInstancing`, preserves the existing specialization
+for a TLAS directly above BLASes. `AllowSingleGAS` permits tracing a bare BLAS; the two restricted
+flags may be combined. `AllowAny` permits general graphs and can also be necessary when
+reconstructing saved hit objects with explicit transform lists. Ordinary instance matrices do
+not require general graphs. This option does not enable motion blur or add motion support.
+
+`maxTraversableGraphDepth` counts traversables along a path: BLAS is depth 1, TLAS -> BLAS is
+2, and TLAS -> TLAS -> BLAS is 3. Its default of zero chooses the device limit for `AllowAny`,
+1 for `AllowSingleGAS`, or 2 whenever `AllowSingleLevelInstancing` is enabled. An explicit
+bound must fit the device limit and be at least 2 if the policy permits single-level instancing.
+The backend rejects unknown flag bits and invalid bounds when compiling the native pipeline.
+It does not inspect the scene to verify the application's declared topology or depth.
+
+For example, a pipeline that needs general traversal state but only traces TLAS -> BLAS can use:
+
+```cpp
+OptixRayTracingPipelineDesc optixDesc = {};
+optixDesc.traversableGraphFlags = OptixTraversableGraphFlags::AllowAny;
+optixDesc.maxTraversableGraphDepth = 2;
+RayTracingPipelineDesc pipelineDesc = {};
+pipelineDesc.next = &optixDesc;
+// Set program, hit groups, payload size and recursion for the application.
+```
+
+These graph limits are independent of shader ray recursion and path-tracer bounce counts.
+Restricted flags enable OptiX specialization; changing only the depth bound is not a guarantee
+of a performance improvement. The extension's existing owned copy also retains the new graph
+fields for deferred compilation.

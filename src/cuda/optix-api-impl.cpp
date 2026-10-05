@@ -733,6 +733,52 @@ public:
 
     virtual void* getOptixDeviceContext() const override { return m_deviceContext; }
 
+    // Resolves the application's graph contract before allocating any native pipeline objects.
+    // A restricted contract supplies its own depth bound; general graphs default to the device
+    // limit because the pipeline is not tied to a particular scene. For example, opting into
+    // AllowAny permits IAS -> IAS -> GAS, while an explicit depth of 3 budgets that topology.
+    Result getTraversableGraphOptions(
+        const OptixRayTracingPipelineDesc& desc,
+        unsigned int& graphFlags,
+        unsigned int& graphDepth
+    )
+    {
+        const auto supportedFlags =
+            OptixTraversableGraphFlags::AllowSingleGAS | OptixTraversableGraphFlags::AllowSingleLevelInstancing;
+        if (is_set(desc.traversableGraphFlags, ~supportedFlags))
+            return SLANG_E_INVALID_ARG;
+
+        graphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY;
+        unsigned int minimumDepth = 1;
+        if (is_set(desc.traversableGraphFlags, OptixTraversableGraphFlags::AllowSingleGAS))
+            graphFlags |= OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
+        if (is_set(desc.traversableGraphFlags, OptixTraversableGraphFlags::AllowSingleLevelInstancing))
+        {
+            graphFlags |= OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
+            minimumDepth = 2;
+        }
+
+        unsigned int deviceDepthLimit = 0;
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixDeviceContextGetProperty(
+                m_deviceContext,
+                OPTIX_DEVICE_PROPERTY_LIMIT_MAX_TRAVERSABLE_GRAPH_DEPTH,
+                &deviceDepthLimit,
+                sizeof(deviceDepthLimit)
+            ),
+            m_device
+        );
+        graphDepth = desc.maxTraversableGraphDepth;
+        if (graphDepth == 0)
+        {
+            graphDepth =
+                desc.traversableGraphFlags == OptixTraversableGraphFlags::AllowAny ? deviceDepthLimit : minimumDepth;
+        }
+        if (graphDepth < minimumDepth || graphDepth > deviceDepthLimit)
+            return SLANG_E_INVALID_ARG;
+        return SLANG_OK;
+    }
+
     virtual Result createPipeline(
         const RayTracingPipelineDesc& desc,
         ShaderCompilationReporter* shaderCompilationReporter,
@@ -744,9 +790,18 @@ public:
         ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
         SLANG_RHI_ASSERT(!program->m_modules.empty());
 
+        OptixRayTracingPipelineDesc defaultOptixDesc = {};
+        const OptixRayTracingPipelineDesc* optixDesc = findStructInChain<OptixRayTracingPipelineDesc>(desc.next);
+        if (!optixDesc)
+            optixDesc = &defaultOptixDesc;
+
+        unsigned int graphFlags = 0;
+        unsigned int graphDepth = 0;
+        SLANG_RETURN_ON_FAIL(getTraversableGraphOptions(*optixDesc, graphFlags, graphDepth));
+
         OptixPipelineCompileOptions optixPipelineCompileOptions = {};
         optixPipelineCompileOptions.usesMotionBlur = 0;
-        optixPipelineCompileOptions.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
+        optixPipelineCompileOptions.traversableGraphFlags = graphFlags;
         optixPipelineCompileOptions.numPayloadValues =
             (desc.maxRayPayloadSize + sizeof(uint32_t) - 1) / sizeof(uint32_t);
         optixPipelineCompileOptions.numAttributeValues =
@@ -1082,11 +1137,6 @@ public:
             );
         }
 
-        OptixRayTracingPipelineDesc defaultOptixDesc = {};
-        const OptixRayTracingPipelineDesc* optixDesc = findStructInChain<OptixRayTracingPipelineDesc>(desc.next);
-        if (!optixDesc)
-            optixDesc = &defaultOptixDesc;
-
         const unsigned int dssDCFromTraversal =
             optixDesc->maxDirectCallableDepthFromTraversal > 0 ? stackSizes.dssDC : 0;
         const unsigned int dssDCFromState = optixDesc->maxDirectCallableDepthFromState > 0 ? stackSizes.dssDC : 0;
@@ -1109,15 +1159,13 @@ public:
             m_device
         );
 
-        // The backend currently permits exactly one IAS level above a GAS and does not support
-        // motion transforms, so every accepted traversable graph has a maximum depth of two.
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixPipelineSetStackSize(
                 optixPipeline,
                 directCallableStackSizeFromTraversal,
                 directCallableStackSizeFromState,
                 continuationStackSize,
-                2
+                graphDepth
             ),
             m_device
         );

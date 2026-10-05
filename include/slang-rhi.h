@@ -2194,7 +2194,21 @@ struct RayTracingPipelineDesc
     const char* label = nullptr;
 };
 
-/// OptiX-specific stack limits for a ray-tracing pipeline.
+/// Traversable graph shapes an OptiX ray-tracing pipeline may use.
+/// The two restricted flags may be combined to permit both shapes. AllowAny is zero and must be
+/// selected on its own. These flags describe acceleration-structure topology, not ray recursion.
+enum class OptixTraversableGraphFlags
+{
+    AllowAny = 0,
+    /// A geometry acceleration structure (GAS/BLAS) without instances or transform traversables.
+    AllowSingleGAS = (1 << 0),
+    /// One instance acceleration structure (IAS/TLAS) directly above a GAS. Ordinary instance
+    /// matrices are permitted, but additional instance levels and transform traversables are not.
+    AllowSingleLevelInstancing = (1 << 1),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(OptixTraversableGraphFlags);
+
+/// OptiX-specific graph configuration and stack limits for a ray-tracing pipeline.
 ///
 /// Chain this structure through `RayTracingPipelineDesc::next` when an OptiX pipeline needs limits
 /// other than the defaults below. OptiX requires the maximum callable depth before it can allocate
@@ -2217,6 +2231,18 @@ struct OptixRayTracingPipelineDesc
     /// in an intersection or any-hit shader. A value of 0 means that traversal shaders do not
     /// invoke direct callables.
     uint32_t maxDirectCallableDepthFromTraversal = 0;
+
+    /// Graph shapes used by this pipeline. The default preserves single-level instancing
+    /// specialization. Select AllowAny for general graphs or hit-object reconstruction that needs
+    /// general traversal state. Every trace must satisfy the selected graph contract.
+    OptixTraversableGraphFlags traversableGraphFlags = OptixTraversableGraphFlags::AllowSingleLevelInstancing;
+
+    /// Maximum traversable graph depth, independently of maxRecursion and callable depths.
+    /// A GAS has depth 1; IAS -> GAS has depth 2; IAS -> IAS -> GAS has depth 3.
+    /// Zero selects 1 for AllowSingleGAS, 2 when AllowSingleLevelInstancing is enabled, or the
+    /// device limit for AllowAny. An explicit bound must be within the device limit and at least
+    /// 2 when single-level instancing is enabled. All traversals must fit this bound.
+    uint32_t maxTraversableGraphDepth = 0;
 };
 
 // Specifies the bytes to overwrite into a record in the shader table.

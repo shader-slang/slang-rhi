@@ -1105,6 +1105,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-nvrtc.cpp
         tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
+        tests/test-optix-graph-policy.cpp
         tests/test-parallel-pipeline-creation.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
