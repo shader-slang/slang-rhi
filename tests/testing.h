@@ -510,7 +510,7 @@ bool checkNoSilentGpuSkips();
 /// bitcode buffer. See https://github.com/shader-slang/slang-rhi/pull/889.
 inline bool hasBrokenD3D12WarpRayTracingParser(IDevice* device)
 {
-#if SLANG_PROCESSOR_ARM_64
+#if defined(_M_ARM64) || defined(__aarch64__)
     return device && device->getDeviceType() == DeviceType::D3D12 && device->hasFeature(Feature::SoftwareDevice);
 #else
     (void)device;
