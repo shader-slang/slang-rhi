@@ -115,10 +115,13 @@ bool createDiagnosticGuardedCopy(ShaderBinary& shader, size_t trailingBytes)
 
     uint8_t* destination = guard - trailingBytes - shader.code.size();
     std::memcpy(destination, shader.code.data(), shader.code.size());
-    shader.diagnosticAllocation = std::shared_ptr<void>(allocation, [](void* pointer)
-    {
-        VirtualFree(pointer, 0, MEM_RELEASE);
-    });
+    shader.diagnosticAllocation = std::shared_ptr<void>(
+        allocation,
+        [](void* pointer)
+        {
+            VirtualFree(pointer, 0, MEM_RELEASE);
+        }
+    );
     shader.diagnosticCode = destination;
     std::fprintf(
         stderr,
