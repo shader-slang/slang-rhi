@@ -1,0 +1,105 @@
+name: arm64-dump-analysis
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/arm64-dump-analysis.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'dev/skallweit/arm64-d3d12-crash-investigation'
+    runs-on: windows-11-arm
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Download zero- and 64-byte guard dumps
+        uses: actions/download-artifact@v4
+        with:
+          name: arm64-diagnostic-original-888-direct-1
+          path: artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: '37282345743'
+
+      - name: Analyze dumps
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactRoot = (Resolve-Path artifact).Path
+          $debuggerRoots = @(
+            "${env:ProgramFiles(x86)}/Windows Kits/10/Debuggers/arm64",
+            "${env:ProgramFiles(x86)}/Windows Kits/10/Debuggers/x64",
+            "${env:ProgramFiles}/Windows Kits/10/Debuggers/arm64",
+            "${env:ProgramFiles}/Windows Kits/10/Debuggers/x64"
+          )
+          $cdb = $debuggerRoots |
+            ForEach-Object { Join-Path $_ 'cdb.exe' } |
+            Where-Object { Test-Path -LiteralPath $_ } |
+            Select-Object -First 1
+          if (!$cdb) {
+            $cdb = Get-ChildItem 'C:/Program Files*' -Filter cdb.exe -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (!$cdb) {
+            throw 'Could not find cdb.exe on the ARM64 runner.'
+          }
+          Write-Host "Using debugger: $cdb"
+
+          $symbolCache = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/symbols"
+          $localSymbolDirectories = Get-ChildItem $artifactRoot -Filter '*.pdb' -Recurse |
+            Select-Object -ExpandProperty DirectoryName -Unique
+          $symbolPath = (@($localSymbolDirectories) + "srv*$($symbolCache.FullName)*https://msdl.microsoft.com/download/symbols") -join ';'
+          $analysisDirectory = New-Item -ItemType Directory -Force analysis
+          $dumps = @(Get-ChildItem $artifactRoot -Filter '*.dmp' -Recurse |
+            Where-Object { $_.FullName -match 'diagnostics-guard-(0|64)' })
+          if ($dumps.Count -ne 2) {
+            throw "Expected two real-crash dumps, found $($dumps.Count)."
+          }
+
+          foreach ($dump in $dumps) {
+            $conditionRoot = $dump.Directory.Parent.FullName
+            $crashLog = Get-ChildItem $conditionRoot -Filter process.log -Recurse |
+              Select-String -Pattern 'access-violation.*address=([0-9A-Fa-f]+)' |
+              Select-Object -Last 1
+            $faultAddress = if ($crashLog) { $crashLog.Matches[0].Groups[1].Value } else { $null }
+            $condition = Split-Path $conditionRoot -Leaf
+            $output = Join-Path $analysisDirectory "$condition.txt"
+            $commands = @(
+              '.lines',
+              '.reload /f',
+              '.exr -1',
+              '.ecxr',
+              'r',
+              'kv',
+              'ub @pc L20',
+              'u @pc L20',
+              '!address -summary',
+              'lmvm d3d10warp'
+            )
+            if ($faultAddress) {
+              $commands += "!address 0x$faultAddress"
+              $commands += "!heap -p -a 0x$faultAddress"
+              $commands += "dq (0x$faultAddress-80) L20"
+            }
+            $commands += 'q'
+            Write-Host "Analyzing $($dump.FullName), recorded fault address 0x$faultAddress"
+            & $cdb -z $dump.FullName -y $symbolPath -c ($commands -join '; ') 2>&1 |
+              Tee-Object -FilePath $output
+            if ($LASTEXITCODE -ne 0) {
+              throw "CDB failed for $($dump.FullName): exit=$LASTEXITCODE"
+            }
+          }
+
+      - name: Upload debugger reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-guard-page-dump-analysis
+          path: analysis/**
+          retention-days: 7
