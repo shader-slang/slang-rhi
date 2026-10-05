@@ -17,6 +17,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-workaround:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'dev/skallweit/arm64-d3d12-crash-investigation'
+    name: validate ARM64 WARP workaround
+    runs-on: windows-11-arm
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: step-security/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+
+      - uses: lukka/get-cmake@latest
+
+      - name: Configure
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cmake --preset default "-DSLANG_RHI_FETCH_SLANG_VERSION=2026.17.1"
+
+      - name: Build
+        run: cmake --build build --config Release --target slang-rhi-tests
+
+      - name: Verify ray-tracing test is skipped on WARP
+        run: |
+          & ./build/Release/slang-rhi-tests.exe `
+            --test-case=ray-tracing-raygen-entrypoint-resources.d3d12 `
+            --require-devices=d3d12 2>&1 | Tee-Object -Variable testOutput
+          $testExitCode = $LASTEXITCODE
+          if ($testExitCode -ne 0) {
+            throw "Test process failed with exit code $testExitCode"
+          }
+          if (($testOutput -join "`n") -notmatch 'ARM64 WARP has a DXIL parser buffer-overread bug') {
+            throw "The ARM64 WARP workaround did not skip the ray-tracing test"
+          }
+
   diagnostic:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'dev/skallweit/arm64-d3d12-crash-investigation'
     name: diagnostic (${{ matrix.label }})
