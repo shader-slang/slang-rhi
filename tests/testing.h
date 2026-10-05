@@ -504,6 +504,20 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
 void reportGpuTestExecuted(DeviceType deviceType);
 bool checkNoSilentGpuSkips();
 
+/// ARM64 WARP 10.0.26100.9278 has a DXIL parser bug during ray-tracing pipeline creation.
+/// It appears to use the DXIL program size, which includes the 24-byte program header, as the
+/// bitcode payload length. Its internal BitstreamCursor can consequently read past the copied
+/// bitcode buffer. See https://github.com/shader-slang/slang-rhi/pull/889.
+inline bool hasBrokenD3D12WarpRayTracingParser(IDevice* device)
+{
+#if SLANG_PROCESSOR_ARM_64
+    return device && device->getDeviceType() == DeviceType::D3D12 && device->hasFeature(Feature::SoftwareDevice);
+#else
+    (void)device;
+    return false;
+#endif
+}
+
 } // namespace rhi::testing
 
 #define GPU_TEST_CASE_IMPL(name, func, flags, debugLayerOptions)                                                       \
@@ -561,6 +575,16 @@ bool checkNoSilentGpuSkips();
     {                                                                                                                  \
         ::rhi::testing::reportSkip(::doctest::getContextOptions()->currentTest, "" reason);                            \
         return;                                                                                                        \
+    }                                                                                                                  \
+    while (0)
+
+#define REQUIRE_RAY_TRACING_SUPPORT(device)                                                                            \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (::rhi::testing::hasBrokenD3D12WarpRayTracingParser(device))                                                \
+            SKIP("ARM64 WARP has a DXIL parser buffer-overread bug during ray-tracing pipeline creation");             \
+        if (!(device)->hasFeature(::rhi::Feature::RayTracing))                                                         \
+            SKIP("ray tracing not supported");                                                                         \
     }                                                                                                                  \
     while (0)
 

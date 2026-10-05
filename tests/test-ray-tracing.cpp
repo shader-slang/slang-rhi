@@ -124,8 +124,7 @@ struct RayTracingTriangleIntersectionTest
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
@@ -157,8 +156,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 
 GPU_TEST_CASE("ray-tracing-native-primitive-flags", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
@@ -246,8 +244,7 @@ GPU_TEST_CASE("ray-tracing-native-primitive-flags", ALL)
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
@@ -279,8 +276,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection-vertex-motion", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
 
@@ -326,8 +322,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-vertex-motion", ALL)
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
 
@@ -369,8 +364,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection-srt-motion", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
 

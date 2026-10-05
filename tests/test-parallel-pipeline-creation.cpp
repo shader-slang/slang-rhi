@@ -299,8 +299,7 @@ GPU_TEST_CASE("parallel-pipeline-creation-cuda-ray-tracing", CUDA | DontCreateDe
     options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     runDeferredCudaRayTracingPipelineBatch(device);
 }

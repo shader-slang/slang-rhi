@@ -159,8 +159,7 @@ struct RayTracingMotionBlurTriangleTest
 
 GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     constexpr std::array<float, 3> kExpectedObjectRayOrigin =
         applyPointTransform(kWorldToObjectTransform, kRayOriginWorld);
@@ -188,8 +187,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -210,8 +208,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     constexpr std::array<float, 3> kExpectedObjectRayDirection =
         applyVectorTransform(kWorldToObjectTransform, kWorldRayDirection);
@@ -239,8 +236,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-direction", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -261,8 +257,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-direction", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-accept-hit-and-end-search", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -280,8 +275,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-accept-hit-and-end-search", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-ignore-hit", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -299,8 +293,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ignore-hit", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-hit-kind", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -316,8 +309,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-kind", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-ray-tmin", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -333,8 +325,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-tmin", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-ray-tcurrent", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -351,8 +342,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-tcurrent", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-ray-flags", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -369,8 +359,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-flags", ALL)
 // OptiX doesn't support geometry index
 GPU_TEST_CASE("ray-tracing-intrinsics-geometry-index", ALL & ~CUDA)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -387,8 +376,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-geometry-index", ALL & ~CUDA)
 // Only supported for glsl and spirv backends
 GPU_TEST_CASE("ray-tracing-intrinsics-hit-triangle-vertex-position", Vulkan)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -414,8 +402,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-triangle-vertex-position", Vulkan)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-ray-current-time", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
 
@@ -433,8 +420,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-current-time", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-instance-id", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -450,8 +436,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-instance-id", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-instance-index", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -467,8 +452,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-instance-index", ALL)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
@@ -512,8 +496,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
 
 GPU_TEST_CASE("ray-tracing-intrinsics-nested-call-shader", D3D12 | Vulkan | CUDA)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 

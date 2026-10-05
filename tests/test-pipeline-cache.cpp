@@ -495,8 +495,7 @@ struct PipelineCacheTestRayTracing : PipelineCacheTest
         createDevice();
         if (!device->hasFeature(Feature::PipelineCache))
             SKIP("Pipeline cache is not supported on this device type.");
-        if (!device->hasFeature(Feature::RayTracing))
-            SKIP("Ray tracing is not supported on this device type.");
+        REQUIRE_RAY_TRACING_SUPPORT(device);
         runRayTracingPipeline("rayGenA", 1, 1, RayTracingPipelineFlags::None, {1, 2, 3, 4});
         runRayTracingPipeline("rayGenB", 10, 1, RayTracingPipelineFlags::None, {10, 12, 14, 16});
         runRayTracingPipeline("rayGenA", 100, 2, RayTracingPipelineFlags::None, {100, 101, 102, 103});

@@ -168,8 +168,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-rg", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -186,8 +185,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ch", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -209,8 +207,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ms", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -232,8 +229,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-rg", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -255,8 +251,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ch", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -278,8 +273,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ms", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -301,8 +295,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-rg", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -324,8 +317,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ch", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -347,8 +339,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ms", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -370,8 +361,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-front-face", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -393,8 +383,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-back-face", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -416,8 +405,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-custom", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -439,8 +427,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-custom", ALL)
 // D3D12 is disabled due to https://github.com/shader-slang/slang/issues/8615
 GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-origin", ALL & ~CUDA & ~D3D12)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -465,8 +452,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-origin", ALL & ~CUDA &
 // Disabled under CUDA/OptiX and D3D12 due to https://github.com/shader-slang/slang/issues/8615
 GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-direction", ALL & ~CUDA & ~D3D12)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -497,8 +483,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
     REQUIRE(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -520,8 +505,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-miss", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -538,8 +522,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-miss", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
@@ -569,8 +552,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-hit", ALL | DontCreateDevice)
     device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
     REQUIRE(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
@@ -595,8 +577,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-trace-motion-ray", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
@@ -628,8 +609,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-ray-desc", ALL)
         !device->hasCapability(Capability::hlsl_nvapi))
         SKIP("Skipping due to slang bug");
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -646,8 +626,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-instance-id", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -664,8 +643,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-instance-id", ALL)
 // Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/9509
 GPU_TEST_CASE("ray-tracing-hitobject-set-and-get-shader-table-index", CUDA /*| D3D12*/)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -690,8 +668,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-load-local-root-table-constant", D3D12 | CU
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
 
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
@@ -711,8 +688,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-load-local-root-table-constant", D3D12 | CU
 
 GPU_TEST_CASE("ray-tracing-hitobject-get-shader-record-buffer-handle", Vulkan)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 

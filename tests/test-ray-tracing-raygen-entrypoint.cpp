@@ -8,8 +8,7 @@ using namespace rhi::testing;
 // parameter groups must still retain their own ordinary data and descriptor sets.
 GPU_TEST_CASE("ray-tracing-raygen-entrypoint-resources", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     for (const char* entryPoint : {"rayGenResources", "rayGenConstantBuffer", "rayGenParameterBlock", "rayGenOffsets"})
     {
@@ -112,8 +111,7 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint-resources", ALL)
 // and entry point parameters are passed correctly.
 GPU_TEST_CASE("ray-tracing-raygen-entrypoint", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     ComPtr<IShaderProgram> program;
     REQUIRE_CALL(loadProgram(device, "test-ray-tracing-raygen-entrypoint", {"rayGenA", "rayGenB"}, program.writeRef()));
@@ -184,8 +182,7 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint", ALL)
 // that parameters are updated correctly on subsequent dispatches.
 GPU_TEST_CASE("ray-tracing-raygen-entrypoint-2", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     if (device->getDeviceType() == DeviceType::CUDA)
         SKIP("CUDA/OptiX uses __ldg to load entrypoint parameters which uses non-coherent read-only data cache");

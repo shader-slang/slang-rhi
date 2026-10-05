@@ -8,8 +8,7 @@ using namespace rhi::testing;
 // parameters.
 GPU_TEST_CASE("ray-tracing-shader-table-multi-pipeline", ALL)
 {
-    if (!device->hasFeature(Feature::RayTracing))
-        SKIP("ray tracing not supported");
+    REQUIRE_RAY_TRACING_SUPPORT(device);
 
     if (device->getDeviceType() == DeviceType::CUDA)
         SKIP("CUDA/OptiX uses __ldg to load entrypoint parameters which uses non-coherent read-only data cache");
