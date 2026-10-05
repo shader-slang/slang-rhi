@@ -818,7 +818,9 @@ static void testCoverageMetadata(
     const char* declarations = "RWStructuredBuffer<uint> outBuffer;",
     const char* outputPath = "outBuffer",
     int32_t coverageSpace = 3,
-    bool entryPointParameter = false
+    bool entryPointParameter = false,
+    const char* inputPath = nullptr,
+    uint32_t expectedChildSet = 0
 )
 {
     static constexpr uint32_t kCoverageBinding = 11;
@@ -842,7 +844,10 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
     }
     )";
     shaderSource += outputPath;
-    shaderSource += "[0] = accum;\n}\n";
+    shaderSource += "[0] = accum";
+    if (inputPath)
+        shaderSource += std::string(" + ") + inputPath;
+    shaderSource += ";\n}\n";
 
     DeviceExtraOptions extraOptions = {};
     if (requestedCounterByteWidth == 4)
@@ -918,6 +923,20 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
     REQUIRE(location.debugName != nullptr);
     CHECK_EQ(std::strcmp(location.debugName, "__slang_coverage"), 0);
 
+#if SLANG_RHI_ENABLE_VULKAN
+    if (inputPath && ctx->deviceType == DeviceType::Vulkan)
+    {
+        // Check placement before creating a pipeline: a wrong set would make
+        // the pipeline invalid, so it must never reach dispatch in this test.
+        auto* layout = static_cast<vk::ShaderProgramImpl*>(shaderProgram.get())->m_rootShaderObjectLayout.get();
+        REQUIRE(layout->m_descriptorSetComposition);
+        const auto& placement = entryPointParameter ? layout->m_descriptorSetComposition->entryPoints[0]
+                                                    : layout->m_descriptorSetComposition->root;
+        REQUIRE_GT(placement.subObjects.size(), 0u);
+        REQUIRE_EQ(placement.subObjects[0].firstSet, expectedChildSet);
+    }
+#endif
+
     ComPtr<IComputePipeline> pipeline;
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram;
@@ -925,6 +944,11 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
 
     ComPtr<IShaderObject> rootObject;
     REQUIRE_CALL(localDevice->createRootShaderObject(shaderProgram.get(), rootObject.writeRef()));
+    const uint32_t inputValue = 7;
+    if (inputPath)
+    {
+        REQUIRE_CALL(ShaderCursor(rootObject).getPath(inputPath).setData(&inputValue, sizeof(inputValue)));
+    }
 
     const uint32_t initialOutput = 0;
     auto outputBuffer = createTestBuffer(localDevice, sizeof(uint32_t), &initialOutput);
@@ -936,8 +960,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
     auto coverageBuffer =
         createTestBuffer(localDevice, initialCoverage.size(), initialCoverage.data(), counterByteWidth);
 
-    ShaderCursor outputCursor =
-        entryPointParameter ? ShaderCursor(rootObject->getEntryPoint(0)) : ShaderCursor(rootObject);
+    ShaderCursor outputCursor(rootObject);
     REQUIRE_CALL(outputCursor.getPath(outputPath).setBinding(outputBuffer));
     REQUIRE_CALL(
         bindSyntheticResource(shaderProgram.get(), rootObject.get(), syntheticResources[0].id, Binding(coverageBuffer))
@@ -955,7 +978,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
 
-        compareComputeResult(localDevice, outputBuffer, std::array<uint32_t, 1>{10u});
+        compareComputeResult(localDevice, outputBuffer, std::array<uint32_t, 1>{10u + (inputPath ? inputValue : 0u)});
 
         ComPtr<ISlangBlob> coverageBlob;
         REQUIRE_CALL(localDevice->readBuffer(coverageBuffer, 0, initialCoverage.size(), coverageBlob.writeRef()));
@@ -1016,6 +1039,41 @@ GPU_TEST_CASE("synthetic-resource-bindings-parameter-block", Vulkan | DontCreate
             space
         );
     }
+}
+
+// A reflected root binding at set 3 must not move the compiler-assigned child
+// from set 0 to set 4. Use real coverage metadata sharing the root's set.
+GPU_TEST_CASE("synthetic-resource-bindings-sparse-root-child", Vulkan | DontCreateDevice)
+{
+    std::string declarations;
+    const char* inputPath = "params.value";
+    uint32_t expectedChildSet = 0;
+    bool entryPoint = false;
+    SUBCASE("child before reflected root set")
+    {
+        declarations = "struct Params { uint value; }; ParameterBlock<Params> params; ";
+    }
+    SUBCASE("child between reflected root sets")
+    {
+        // The global uniform buffer occupies set 0, the child set 1, and
+        // outBuffer set 3. Root vector size is not the child's set number.
+        declarations = "uniform uint globalPadding; struct Params { uint value; }; ParameterBlock<Params> params; ";
+        expectedChildSet = 1;
+    }
+    SUBCASE("nested children before reflected root set")
+    {
+        declarations =
+            "struct Inner { uint value; }; "
+            "struct Params { uint padding; ParameterBlock<Inner> inner; }; ParameterBlock<Params> params; ";
+        inputPath = "params.inner.value";
+    }
+    SUBCASE("entry-point child before reflected root set")
+    {
+        declarations = "struct Params { uint value; }; ";
+        entryPoint = true;
+    }
+    declarations += "[[vk::binding(0, 3)]] RWStructuredBuffer<uint> outBuffer;";
+    testCoverageMetadata(ctx, 4, declarations.c_str(), "outBuffer", 3, entryPoint, inputPath, expectedChildSet);
 }
 
 GPU_TEST_CASE("synthetic-resource-bindings-nested-parameter-block", Vulkan | DontCreateDevice)

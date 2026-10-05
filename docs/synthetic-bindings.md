@@ -101,6 +101,12 @@ layout but occupy different sets. Their placements are indexed by reflected
 subobject slots, so runtime binding does not have to repeat the construction
 traversal order. Entry-point objects have their own placements.
 
+Placements preserve Slang's register-space offsets, including nested container
+and entry-point offsets. For example, a parameter block at set 0 stays at set 0
+when a root buffer explicitly occupies set 3; expanding the root layout to cover
+set 3 does not move the child after that set. Children can fill gaps between root
+sets, and added bindings can share those sets at unused binding numbers.
+
 `src/vulkan/vk-synthetic-bindings.cpp` validates the additional records and adds
 ordinary resource ranges to that composed layout. Reflected and added ranges
 share resource-slot accounting. Descriptor writes and resource tracking use the
