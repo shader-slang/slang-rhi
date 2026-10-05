@@ -9,6 +9,7 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint-resources", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     for (const char* entryPoint : {"rayGenResources", "rayGenConstantBuffer", "rayGenParameterBlock", "rayGenOffsets"})
     {
@@ -78,6 +79,7 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<IShaderProgram> program;
     REQUIRE_CALL(loadProgram(device, "test-ray-tracing-raygen-entrypoint", {"rayGenA", "rayGenB"}, program.writeRef()));
@@ -153,6 +155,7 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint-2", ALL)
 
     if (device->getDeviceType() == DeviceType::CUDA)
         SKIP("CUDA/OptiX uses __ldg to load entrypoint parameters which uses non-coherent read-only data cache");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<IShaderProgram> program;
     REQUIRE_CALL(loadProgram(device, "test-ray-tracing-raygen-entrypoint", {"rayGenA", "rayGenB"}, program.writeRef()));
