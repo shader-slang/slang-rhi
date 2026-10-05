@@ -77,23 +77,71 @@ jobs:
               '.ecxr',
               'r',
               'kv',
-              'ub @pc L20',
-              'u @pc L20',
-              '!address -summary',
+              'uf d3d10warp!llvm::BitstreamCursor::fillCurWord',
+              'x d3d10warp!*RawMemoryObject*readBytes*',
               'lmvm d3d10warp'
             )
-            if ($faultAddress) {
-              $commands += "!address 0x$faultAddress"
-              $commands += "!heap -p -a 0x$faultAddress"
-              $commands += "dq (0x$faultAddress-80) L20"
-            }
             $commands += 'q'
             Write-Host "Analyzing $($dump.FullName), recorded fault address 0x$faultAddress"
             & $cdb -z $dump.FullName -y $symbolPath -c ($commands -join '; ') 2>&1 |
-              Tee-Object -FilePath $output
+              Set-Content -Path $output
             if ($LASTEXITCODE -ne 0) {
               throw "CDB failed for $($dump.FullName): exit=$LASTEXITCODE"
             }
+
+            $exceptionParameter = Select-String -Path $output -Pattern 'Parameter\[1\]:\s+([0-9A-Fa-f`]+)' |
+              Select-Object -First 1
+            $sourceRegister = Select-String -Path $output -Pattern '\bx1=([0-9A-Fa-f`]+)' |
+              Select-Object -First 1
+            $rawReadSymbol = Select-String -Path $output -Pattern '^([0-9A-Fa-f`]+)\s+d3d10warp!.*RawMemoryObject::readBytes' |
+              Select-Object -First 1
+            if ($exceptionParameter -and $sourceRegister) {
+              $faultAddress = $exceptionParameter.Matches[0].Groups[1].Value.Replace('`', '')
+              $sourceAddress = $sourceRegister.Matches[0].Groups[1].Value.Replace('`', '')
+              $memoryCommands = @(
+                '.ecxr',
+                "!address 0x$faultAddress",
+                "!address 0x$sourceAddress",
+                "!heap -p -a 0x$sourceAddress",
+                "!heap -x 0x$sourceAddress",
+                "db (0x$faultAddress-40) L40"
+              )
+              if ($rawReadSymbol) {
+                $rawReadAddress = $rawReadSymbol.Matches[0].Groups[1].Value.Replace('`', '')
+                $memoryCommands += "uf 0x$rawReadAddress"
+              }
+              $memoryCommands += 'q'
+              & $cdb -z $dump.FullName -y $symbolPath -c ($memoryCommands -join '; ') 2>&1 |
+                Add-Content -Path $output
+              if ($LASTEXITCODE -ne 0) {
+                throw "CDB memory analysis failed for $($dump.FullName): exit=$LASTEXITCODE"
+              }
+            }
+
+            Write-Host "===== $condition concise analysis ====="
+            Select-String -Path $output -Pattern @(
+              'ExceptionAddress:',
+              'ExceptionCode:',
+              'Parameter\[[01]\]:',
+              'Attempt to read',
+              '^\s*x[0-9]+=|\s+x[0-9]+=',
+              'ucrtbase!_memcpy',
+              'RawMemoryObject::readBytes',
+              'BitstreamCursor::fillCurWord',
+              'BitcodeReader::',
+              'parseBitcodeFile',
+              'CompileShaderDXILLibrary',
+              'MEMORY_BASIC_INFORMATION',
+              'Base Address:',
+              'End Address:',
+              'Region Size:',
+              'State:',
+              'Protect:',
+              'Usage:',
+              'Heap Address',
+              'allocation',
+              '^\s*[0-9A-Fa-f`]+\s+[0-9A-Fa-f]{8}\s+'
+            ) | ForEach-Object { $_.Line }
           }
 
       - name: Upload debugger reports
