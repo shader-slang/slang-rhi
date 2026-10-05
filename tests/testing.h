@@ -537,19 +537,6 @@ bool checkNoSilentGpuSkips();
 #define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
     GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
 
-// TODO: Slang current emits invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled.
-// https://github.com/shader-slang/slang/issues/11903
-#define SKIP_D3D12_NVAPI_WITH_SM_6_9(device)                                                                           \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        if (device && device->getDeviceType() == ::rhi::DeviceType::D3D12 &&                                           \
-            device->hasFeature(::rhi::Feature::SM_6_9) && device->hasCapability(::rhi::Capability::hlsl_nvapi))        \
-        {                                                                                                              \
-            SKIP("Slang generates invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled");                    \
-        }                                                                                                              \
-    }                                                                                                                  \
-    while (0)
-
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
 
@@ -561,6 +548,52 @@ bool checkNoSilentGpuSkips();
     {                                                                                                                  \
         ::rhi::testing::reportSkip(::doctest::getContextOptions()->currentTest, "" reason);                            \
         return;                                                                                                        \
+    }                                                                                                                  \
+    while (0)
+
+namespace rhi::testing {
+inline bool isAffectedArm64Warp(IDevice* device)
+{
+#if defined(_M_ARM64) || defined(__aarch64__)
+    if (!device || device->getDeviceType() != DeviceType::D3D12)
+        return false;
+
+    // Some ARM64 DXGI configurations do not mark the Basic Render Driver as a software adapter.
+    const char* adapterName = device->getInfo().adapterName;
+    return device->hasFeature(Feature::SoftwareDevice) ||
+           (adapterName && std::strstr(adapterName, "Microsoft Basic Render Driver"));
+#else
+    (void)device;
+    return false;
+#endif
+}
+} // namespace rhi::testing
+
+// WARP 10.0.26100.9278 on ARM64 has a DXIL parser bug during ray-tracing pipeline creation. It
+// appears to use the DXIL program size, which includes the 24-byte program header, as the bitcode
+// payload length. Its internal BitstreamCursor consequently reads four bytes past the copied
+// bitcode buffer. Caller-side padding cannot help because WARP first copies the bitcode into that
+// internal buffer. See https://github.com/shader-slang/slang-rhi/pull/889.
+// TODO: Remove this skip once supported Windows ARM64 builds contain a fixed WARP. The device API
+// does not expose the WARP binary version, so the workaround currently covers all ARM64 WARP.
+#define SKIP_IF_ARM64_WARP(device)                                                                                     \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (::rhi::testing::isAffectedArm64Warp(device))                                                               \
+            SKIP("ARM64 WARP has a DXIL parser buffer-overread bug during ray-tracing pipeline creation");             \
+    }                                                                                                                  \
+    while (0)
+
+// TODO: Slang current emits invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled.
+// https://github.com/shader-slang/slang/issues/11903
+#define SKIP_IF_D3D12_NVAPI_WITH_SM_6_9(device)                                                                        \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (device && device->getDeviceType() == ::rhi::DeviceType::D3D12 &&                                           \
+            device->hasFeature(::rhi::Feature::SM_6_9) && device->hasCapability(::rhi::Capability::hlsl_nvapi))        \
+        {                                                                                                              \
+            SKIP("Slang generates invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled");                    \
+        }                                                                                                              \
     }                                                                                                                  \
     while (0)
 

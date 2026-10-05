@@ -126,6 +126,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
@@ -159,6 +160,7 @@ GPU_TEST_CASE("ray-tracing-native-primitive-flags", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
@@ -248,6 +250,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
@@ -283,6 +286,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-vertex-motion", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     SingleTriangleVertexMotionBLAS blas(device, queue);
@@ -330,6 +334,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     SingleTriangleBLAS blas(device, queue);
@@ -373,6 +378,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-srt-motion", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     SingleTriangleBLAS blas(device, queue);
