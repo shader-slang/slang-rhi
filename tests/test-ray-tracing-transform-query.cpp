@@ -126,6 +126,7 @@ GPU_TEST_CASE("ray-tracing-transform-object-to-world-3x4", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSingleTriangleTest test;
     test.init(device);
@@ -147,6 +148,7 @@ GPU_TEST_CASE("ray-tracing-transform-world-to-object-3x4", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSingleTriangleTest test;
     test.init(device);
@@ -168,6 +170,7 @@ GPU_TEST_CASE("ray-tracing-transform-object-to-world-4x3", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSingleTriangleTest test;
     test.init(device);
@@ -189,6 +192,7 @@ GPU_TEST_CASE("ray-tracing-transform-world-to-object-4x3", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSingleTriangleTest test;
     test.init(device);
@@ -215,6 +219,7 @@ GPU_TEST_CASE("ray-tracing-transform-hitobject-world-to-object", ALL & ~D3D12)
         SKIP("shader execution reordering not supported");
     if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
         SKIP("OptiX 9.0 or higher is required for this test");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSingleTriangleTest test;
     test.init(device);
@@ -241,6 +246,7 @@ GPU_TEST_CASE("ray-tracing-transform-hitobject-object-to-world", ALL & ~D3D12)
         SKIP("shader execution reordering not supported");
     if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
         SKIP("OptiX 9.0 or higher is required for this test");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSingleTriangleTest test;
     test.init(device);

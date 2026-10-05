@@ -161,6 +161,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     constexpr std::array<float, 3> kExpectedObjectRayOrigin =
         applyPointTransform(kWorldToObjectTransform, kRayOriginWorld);
@@ -190,6 +191,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -212,6 +214,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     constexpr std::array<float, 3> kExpectedObjectRayDirection =
         applyVectorTransform(kWorldToObjectTransform, kWorldRayDirection);
@@ -241,6 +244,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-direction", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -263,6 +267,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-accept-hit-and-end-search", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -282,6 +287,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ignore-hit", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -301,6 +307,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-kind", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -318,6 +325,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-tmin", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -335,6 +343,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-tcurrent", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -353,6 +362,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-flags", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -371,6 +381,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-geometry-index", ALL & ~CUDA)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -389,6 +400,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-hit-triangle-vertex-position", Vulkan)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -418,6 +430,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ray-current-time", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingMotionBlurTriangleTest test;
     test.init(device);
@@ -435,6 +448,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-instance-id", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -452,6 +466,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-instance-index", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingTriangleTest test;
     test.init(device);
@@ -469,6 +484,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
@@ -508,4 +524,72 @@ GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
 
     // Check that callable shader wrote the expected value
     checkFloat3(result->value, {1.0f, 2.0f, 3.0f});
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-nested-call-shader", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+    // The geometry is not traced, but every backend still requires a complete ray-tracing
+    // pipeline and shader table for dispatch.
+    SingleTriangleBLAS blas(device, queue, false);
+    TLAS tlas(device, queue, blas.blas);
+    ResultBuffer resultBuf(device, sizeof(RayIntrinsicResult));
+
+    std::vector<const char*> raygenNames = {"rayGenShaderNestedCallShaderTest"};
+    std::vector<HitGroupProgramNames> hitGroupProgramNames = {{"closestHitNOP", nullptr}};
+    std::vector<const char*> missNames = {"missNOP"};
+
+    // The order defines the callable shader-table indices: callableInvokeNested is entry 0 and
+    // invokes callableNestedLeaf at entry 1.
+    std::vector<const char*> callableNames = {"callableInvokeNested", "callableNestedLeaf"};
+
+    for (auto compilationPolicy : {PipelineCompilationPolicy::Immediate, PipelineCompilationPolicy::Deferred})
+    {
+        CAPTURE(compilationPolicy);
+        OptixRayTracingPipelineDesc optixPipelineDesc = {};
+        optixPipelineDesc.maxDirectCallableDepthFromState = 2;
+        const void* pipelineNext =
+            device->getDeviceType() == DeviceType::CUDA ? static_cast<const void*>(&optixPipelineDesc) : nullptr;
+
+        RayTracingTestPipeline pipeline(
+            device,
+            "test-ray-tracing-intrinsics",
+            raygenNames,
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::None,
+            nullptr,
+            callableNames,
+            pipelineNext,
+            compilationPolicy
+        );
+
+        if (device->getDeviceType() == DeviceType::CUDA)
+        {
+            // Mutating the caller's options before deferred compilation must not change the pipeline.
+            // Check ownership before dispatch so the broken path fails without an undersized stack.
+            optixPipelineDesc.maxDirectCallableDepthFromState = 0;
+            const auto* retained =
+                static_cast<const OptixRayTracingPipelineDesc*>(pipeline.raytracingPipeline->getDesc().next);
+            REQUIRE(retained != nullptr);
+            REQUIRE(retained != &optixPipelineDesc);
+            CHECK_EQ(retained->next, nullptr);
+            REQUIRE_EQ(retained->maxDirectCallableDepthFromState, 2);
+            CHECK_EQ(retained->maxDirectCallableDepthFromTraversal, 0);
+        }
+
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+
+        ComPtr<ISlangBlob> resultBlob;
+        resultBuf.getFromDevice(resultBlob.writeRef());
+        const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+        // Outer saved value: (14, 19, 22); leaf result: (7, 13, 23); sum: (21, 32, 45).
+        checkFloat3(result->value, {21.0f, 32.0f, 45.0f});
+    }
 }

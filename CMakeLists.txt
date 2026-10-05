@@ -1053,6 +1053,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
         tests/test-acceleration-structure-creation-with-validation.cpp
+        tests/test-acceleration-structure-lifetime.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-device-features.cpp

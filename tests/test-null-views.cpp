@@ -162,3 +162,52 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
 
     compareComputeResult(device, result, std::array{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 5.f});
 }
+
+GPU_TEST_CASE("typed-buffer-binding-neighbors", CUDA)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-typed-buffer-binding", "computeMain", program.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = 16;
+    bufferDesc.elementSize = 4;
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    auto output = device->createBuffer(bufferDesc);
+    bufferDesc.format = Format::R32Float;
+    auto readBinding = device->createBuffer(bufferDesc);
+    bufferDesc.format = Format::RGBA32Uint;
+    bufferDesc.elementSize = 16;
+    auto writeBinding = device->createBuffer(bufferDesc);
+    REQUIRE(readBinding != nullptr);
+    REQUIRE(writeBinding != nullptr);
+    REQUIRE(output != nullptr);
+    uint32_t expected[] = {0x12345678u, 0xabcdef01u, 0x87654321u, 0x10fedcbau};
+    auto queue = device->getQueue(QueueType::Graphics);
+    for (bool nullBinding : {false, true})
+    {
+        CAPTURE(nullBinding);
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        auto root = pass->bindPipeline(pipeline);
+        ShaderCursor cursor(root);
+        // Bind guards first: a spurious count write from either typed binding would erase them.
+        cursor["readGuard"].setData(expected, 8);
+        cursor["writeGuard"].setData(expected + 2, 8);
+        cursor["result"].setBinding(output);
+        cursor["readBinding"].setBinding(nullBinding ? nullptr : readBinding.get());
+        cursor["writeBinding"].setBinding(nullBinding ? nullptr : writeBinding.get());
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(
+            device,
+            output,
+            std::span<uint8_t>(reinterpret_cast<uint8_t*>(expected), sizeof(expected))
+        );
+    }
+}

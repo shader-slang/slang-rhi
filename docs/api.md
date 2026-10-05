@@ -311,3 +311,14 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `report`           | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+
+## OptiX callable stack limits
+
+CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through
+`RayTracingPipelineDesc::next`. The default permits one direct-callable frame from
+ray generation, miss or closest-hit. Set `maxDirectCallableDepthFromState` to the
+maximum simultaneous `CallShader` nesting depth (two for a callable invoking another
+callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls from
+intersection/any-hit and defaults to zero. These limits are independent of
+`maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
+The pipeline copies these options, including when compilation is deferred.
