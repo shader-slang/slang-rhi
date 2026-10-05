@@ -56,6 +56,12 @@ static LONG CALLBACK handle(EXCEPTION_POINTERS* exception)
 {
     if (exception->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
         return EXCEPTION_CONTINUE_SEARCH;
+    ULONG_PTR accessType = exception->ExceptionRecord->NumberParameters >= 1
+                               ? exception->ExceptionRecord->ExceptionInformation[0]
+                               : ULONG_PTR(-1);
+    void* accessedAddress = exception->ExceptionRecord->NumberParameters >= 2
+                                ? reinterpret_cast<void*>(exception->ExceptionRecord->ExceptionInformation[1])
+                                : nullptr;
     if (InterlockedCompareExchange(&capturing, 1, 0) != 0)
     {
         WaitForSingleObject(captured, 60000);
@@ -99,8 +105,11 @@ static LONG CALLBACK handle(EXCEPTION_POINTERS* exception)
         GetExitCodeProcess(helper.hProcess, &exitCode);
         std::fprintf(
             stderr,
-            "[diagnostic] first-chance AV at=%p thread=%lu helper-wait=%lu helper-exit=%lu\n",
+            "[diagnostic] first-chance AV instruction=%p access=%llu address=%p thread=%lu helper-wait=%lu "
+            "helper-exit=%lu\n",
             exception->ExceptionRecord->ExceptionAddress,
+            static_cast<unsigned long long>(accessType),
+            accessedAddress,
             threadId,
             wait,
             exitCode

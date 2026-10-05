@@ -14,6 +14,10 @@ $PSNativeCommandUseErrorActionPreference = $false
 $executable = Join-Path (Resolve-Path $BuildDirectory) 'slang-rhi-tests.exe'
 $diagnostics = New-Item -ItemType Directory -Force "build/$DiagnosticDirectory"
 $diagnostics = $diagnostics.FullName
+if ($Direct) {
+    $dumpFolder = (New-Item -ItemType Directory -Force "$diagnostics/dumps").FullName
+    $env:RHI_DIAGNOSTIC_DUMP_DIRECTORY = $dumpFolder
+}
 if (!$Direct) {
     $ProcDump = (Resolve-Path $ProcDump).Path
 }

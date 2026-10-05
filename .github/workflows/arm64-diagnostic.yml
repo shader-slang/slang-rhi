@@ -102,19 +102,19 @@ jobs:
           RHI_DIAGNOSTIC_SHADER_TRAILING_BYTES: 0
         run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10 -DiagnosticDirectory diagnostics-guard-0
 
-      - name: Run guard-page experiment with 24 readable trailing bytes
-        id: guard24
+      - name: Run guard-page experiment with 64 readable trailing bytes
+        id: guard64
         continue-on-error: true
         env:
-          RHI_DIAGNOSTIC_SHADER_TRAILING_BYTES: 24
-        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10 -DiagnosticDirectory diagnostics-guard-24
+          RHI_DIAGNOSTIC_SHADER_TRAILING_BYTES: 64
+        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10 -DiagnosticDirectory diagnostics-guard-64
 
       - name: Record guard-page experiment outcomes
         if: always()
         run: |
           @{
             noTrailingBytes = '${{ steps.guard0.outcome }}'
-            trailingBytes24 = '${{ steps.guard24.outcome }}'
+            trailingBytes64 = '${{ steps.guard64.outcome }}'
           } | ConvertTo-Json | Set-Content build/guard-page-summary.json
           Get-Content build/guard-page-summary.json
 
@@ -126,7 +126,7 @@ jobs:
           retention-days: 7
           path: |
             build/diagnostics-guard-0/**
-            build/diagnostics-guard-24/**
+            build/diagnostics-guard-64/**
             build/guard-page-summary.json
             build/capture-selftest/**
             build/${{ matrix.config }}/*.pdb
