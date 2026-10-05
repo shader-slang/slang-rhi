@@ -353,13 +353,13 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             switch (shaderBin.stage)
             {
             case SLANG_STAGE_FRAGMENT:
-                meshDesc.PS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                meshDesc.PS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             case SLANG_STAGE_AMPLIFICATION:
-                meshDesc.AS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                meshDesc.AS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             case SLANG_STAGE_MESH:
-                meshDesc.MS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                meshDesc.MS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             default:
                 handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Unsupported shader stage.");
@@ -382,19 +382,19 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             switch (shaderBin.stage)
             {
             case SLANG_STAGE_VERTEX:
-                graphicsDesc.VS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                graphicsDesc.VS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             case SLANG_STAGE_FRAGMENT:
-                graphicsDesc.PS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                graphicsDesc.PS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             case SLANG_STAGE_DOMAIN:
-                graphicsDesc.DS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                graphicsDesc.DS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             case SLANG_STAGE_HULL:
-                graphicsDesc.HS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                graphicsDesc.HS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             case SLANG_STAGE_GEOMETRY:
-                graphicsDesc.GS = {shaderBin.code.data(), SIZE_T(shaderBin.code.size())};
+                graphicsDesc.GS = {shaderBin.data(), SIZE_T(shaderBin.code.size())};
                 break;
             default:
                 handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Unsupported shader stage.");
@@ -505,7 +505,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     computeDesc.pRootSignature = desc.d3d12RootSignatureOverride
                                      ? static_cast<ID3D12RootSignature*>(desc.d3d12RootSignatureOverride)
                                      : program->m_rootObjectLayout->m_rootSignature;
-    computeDesc.CS = {program->m_shaders[0].code.data(), SIZE_T(program->m_shaders[0].code.size())};
+    computeDesc.CS = {program->m_shaders[0].data(), SIZE_T(program->m_shaders[0].code.size())};
 
     ComPtr<ID3D12PipelineState> pipelineState;
     ComPtr<ISlangBlob> cacheKey;
@@ -635,7 +635,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     {
         D3D12_DXIL_LIBRARY_DESC library = {};
         library.DXILLibrary.BytecodeLength = shader.code.size();
-        library.DXILLibrary.pShaderBytecode = shader.code.data();
+        library.DXILLibrary.pShaderBytecode = shader.data();
         library.NumExports = 1;
         D3D12_EXPORT_DESC exportDesc = {};
         exportDesc.Name = getWStr(shader.entryPointName.c_str());

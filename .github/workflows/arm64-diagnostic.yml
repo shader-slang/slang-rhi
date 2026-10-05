@@ -26,7 +26,7 @@ jobs:
         include:
           - { label: original-888-direct, revision: '28b85ae546808fe92442944477efad19d0340fa0', config: Release }
     runs-on: windows-11-arm
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         shell: pwsh
@@ -39,7 +39,9 @@ jobs:
       - name: Save identical diagnostic instrumentation
         run: |
           New-Item -ItemType Directory "$env:RUNNER_TEMP/diagnostic-overlay" -Force | Out-Null
+          New-Item -ItemType Directory "$env:RUNNER_TEMP/diagnostic-overlay/src/d3d12" -Force | Out-Null
           Copy-Item tests/main.cpp, tests/diagnostic-crash.h, tools/run-arm64-diagnostic.ps1 "$env:RUNNER_TEMP/diagnostic-overlay"
+          Copy-Item src/d3d12/d3d12-shader-program.cpp, src/d3d12/d3d12-shader-program.h, src/d3d12/d3d12-pipeline.cpp "$env:RUNNER_TEMP/diagnostic-overlay/src/d3d12"
 
       - uses: actions/checkout@v6
         if: matrix.revision != 'current'
@@ -53,6 +55,7 @@ jobs:
           Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/main.cpp" tests/
           Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/diagnostic-crash.h" tests/
           Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/*.ps1" tools/
+          Copy-Item "$env:RUNNER_TEMP/diagnostic-overlay/src/d3d12/*" src/d3d12/
 
       - uses: step-security/msvc-dev-cmd@v1
         with:
@@ -92,8 +95,28 @@ jobs:
           # The deliberately handled access violation returns 3; the step itself passed.
           exit 0
 
-      - name: Run diagnostic workloads
-        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10
+      - name: Run guard-page experiment without readable trailing bytes
+        id: guard0
+        continue-on-error: true
+        env:
+          RHI_DIAGNOSTIC_SHADER_TRAILING_BYTES: 0
+        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10 -DiagnosticDirectory diagnostics-guard-0
+
+      - name: Run guard-page experiment with 24 readable trailing bytes
+        id: guard24
+        continue-on-error: true
+        env:
+          RHI_DIAGNOSTIC_SHADER_TRAILING_BYTES: 24
+        run: ./tools/run-arm64-diagnostic.ps1 -Direct -BuildDirectory "build/${{ matrix.config }}" -RaygenRepeats 1 -GroupRepeats 1 -FreshProcesses 0 -FullProcesses 10 -DiagnosticDirectory diagnostics-guard-24
+
+      - name: Record guard-page experiment outcomes
+        if: always()
+        run: |
+          @{
+            noTrailingBytes = '${{ steps.guard0.outcome }}'
+            trailingBytes24 = '${{ steps.guard24.outcome }}'
+          } | ConvertTo-Json | Set-Content build/guard-page-summary.json
+          Get-Content build/guard-page-summary.json
 
       - name: Upload diagnostic artifacts
         if: always()
@@ -102,7 +125,9 @@ jobs:
           name: arm64-diagnostic-${{ matrix.label }}-${{ github.run_attempt }}
           retention-days: 7
           path: |
-            build/diagnostics/**
+            build/diagnostics-guard-0/**
+            build/diagnostics-guard-24/**
+            build/guard-page-summary.json
             build/capture-selftest/**
             build/${{ matrix.config }}/*.pdb
             build/${{ matrix.config }}/*.exe

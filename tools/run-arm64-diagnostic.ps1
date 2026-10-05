@@ -5,13 +5,14 @@ param(
     [int]$GroupRepeats = 100,
     [int]$FreshProcesses = 30,
     [int]$FullProcesses = 1,
+    [string]$DiagnosticDirectory = 'diagnostics',
     [switch]$Direct
 )
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $executable = Join-Path (Resolve-Path $BuildDirectory) 'slang-rhi-tests.exe'
-$diagnostics = New-Item -ItemType Directory -Force 'build/diagnostics'
+$diagnostics = New-Item -ItemType Directory -Force "build/$DiagnosticDirectory"
 $diagnostics = $diagnostics.FullName
 if (!$Direct) {
     $ProcDump = (Resolve-Path $ProcDump).Path
