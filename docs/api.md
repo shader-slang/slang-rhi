@@ -123,6 +123,33 @@
 | `finalize`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `isFinalized`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 
+## `ISyntheticShaderProgram` interface
+
+Optional API declared in
+[`synthetic-bindings.md`](synthetic-bindings.md) and
+`<slang-rhi/synthetic-bindings.h>`.
+
+| API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getSyntheticBindingCount`         | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `getSyntheticBindingLocation`      | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `findSyntheticBindingLocationByID` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Shader program synthetic resource descriptors
+
+CUDA and Vulkan currently support only `SyntheticResourceScope::Global`.
+Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creation.
+
+| Descriptor path                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `ShaderProgramSyntheticResourcesDesc` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Synthetic binding helper
+
+| Helper API                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------------------|-----|------|-------|-------|--------|-------|------|
+| `bindSyntheticResource(...)`  | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
 ## `IShaderTable` interface
 
 ## `IPipeline` interface

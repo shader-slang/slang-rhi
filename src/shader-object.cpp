@@ -510,7 +510,7 @@ Result ShaderObject::init(ShaderObjectLayout* layout, ShaderProgram* program)
     }
     else
     {
-        uniformSize = layout->getElementTypeLayout()->getSize();
+        uniformSize = layout->getUniformBufferSize();
     }
 
     if (uniformSize)

@@ -89,6 +89,9 @@ enum class StructType
     VulkanDeviceExtendedDesc,
 
     OptixRayTracingPipelineDesc,
+
+    // Optional extension declared in <slang-rhi/synthetic-bindings.h>.
+    ShaderProgramSyntheticResourcesDesc,
 };
 
 // TODO: Implementation or backend or something else?

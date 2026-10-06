@@ -2,6 +2,12 @@
 
 #include "cuda-base.h"
 
+#include <algorithm>
+
+namespace rhi {
+class SyntheticResourceBindingState;
+} // namespace rhi
+
 namespace rhi::cuda {
 
 struct BindingOffset
@@ -42,12 +48,17 @@ public:
 
     uint32_t m_slotCount = 0;
     uint32_t m_subObjectCount = 0;
+    size_t m_uniformBufferSize = 0;
 
     ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
     // ShaderObjectLayout interface
     virtual uint32_t getSlotCount() const override { return m_slotCount; }
     virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; }
+    virtual size_t getUniformBufferSize() const override
+    {
+        return std::max(Super::getUniformBufferSize(), m_uniformBufferSize);
+    }
 
     virtual uint32_t getBindingRangeCount() const override { return m_bindingRanges.size(); }
     virtual const BindingRangeInfo& getBindingRange(uint32_t index) const override { return m_bindingRanges[index]; }
@@ -78,7 +89,12 @@ public:
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
 
-    RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout);
+    static Result create(
+        Device* device,
+        slang::ProgramLayout* programLayout,
+        SyntheticResourceBindingState* syntheticResources,
+        RootShaderObjectLayoutImpl** outLayout
+    );
 
     int getEntryPointIndex(std::string_view entryPointName);
     void getEntryPointThreadGroupSize(int entryPointIndex, uint32_t* threadGroupSizes);
@@ -90,6 +106,11 @@ public:
     {
         return m_entryPoints[index].layout;
     }
+
+private:
+    RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout);
+
+    Result _addSyntheticResources(SyntheticResourceBindingState* syntheticResources);
 };
 
 } // namespace rhi::cuda

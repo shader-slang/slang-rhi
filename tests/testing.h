@@ -325,6 +325,7 @@ const char* deviceTypeToString(DeviceType deviceType);
 
 struct DeviceExtraOptions
 {
+    IDebugCallback* debugCallback = nullptr;
     std::vector<const char*> searchPaths;
     std::vector<slang::CompilerOptionEntry> compilerOptions;
     IPersistentCache* persistentShaderCache = nullptr;

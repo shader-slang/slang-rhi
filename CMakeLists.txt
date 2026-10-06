@@ -809,6 +809,7 @@ target_sources(slang-rhi PRIVATE
     src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
+    src/synthetic-resource-bindings.cpp
     src/transient-buffer-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
@@ -914,6 +915,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
+        src/vulkan/vk-descriptor-set-composition.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -922,6 +924,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
+        src/vulkan/vk-synthetic-bindings.cpp
         src/vulkan/vk-shader-object-layout.cpp
         src/vulkan/vk-shader-object.cpp
         src/vulkan/vk-shader-program.cpp
@@ -1138,6 +1141,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
         tests/test-surface.cpp
+        tests/test-synthetic-resource-bindings.cpp
         tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
         tests/test-texture-from-handle.cpp
