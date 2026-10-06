@@ -2,7 +2,20 @@
 
 #include "rhi-shared.h"
 
+#include <atomic>
+
 namespace rhi {
+
+namespace {
+std::atomic<uint64_t> s_nextPipelineCacheId{1};
+}
+
+Pipeline::Pipeline(Device* device)
+    : DeviceChild(device)
+    , m_specializationCacheId(s_nextPipelineCacheId.fetch_add(1, std::memory_order_relaxed))
+{
+    SLANG_RHI_ASSERT(m_specializationCacheId != 0);
+}
 
 // ----------------------------------------------------------------------------
 // RenderPipeline
