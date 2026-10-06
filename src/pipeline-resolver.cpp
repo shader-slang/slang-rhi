@@ -219,8 +219,7 @@ private:
                 continue;
             }
 
-            PipelineKey key = {};
-            key.pipeline = pipeline;
+            PipelineKey key(pipeline);
             if (pipeline->m_program->isSpecializable())
             {
                 if (!specializationArgs)

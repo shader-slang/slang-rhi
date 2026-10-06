@@ -23,15 +23,21 @@ class Pipeline : public DeviceChild
 public:
     InternalRefPtr<ShaderProgram> m_program;
 
-    Pipeline(Device* device)
-        : DeviceChild(device)
-    {
-    }
+    Pipeline(Device* device);
+    Pipeline(const Pipeline&) = delete;
+    Pipeline& operator=(const Pipeline&) = delete;
+
+    /// Identifies this pipeline lifetime in specialization caches, even after
+    /// destruction allows another pipeline to reuse its memory address.
+    uint64_t getSpecializationCacheId() const { return m_specializationCacheId; }
 
     virtual PipelineType getType() const = 0;
     virtual bool isVirtual() const { return false; }
     virtual Pipeline* getConcretePipeline() const { return nullptr; }
     virtual void setConcretePipeline(Pipeline* pipeline) {}
+
+private:
+    const uint64_t m_specializationCacheId;
 };
 
 class RenderPipeline : public IRenderPipeline, public Pipeline
