@@ -56,7 +56,7 @@ Allocate `getCounterCount() * elementByteWidth` bytes. Slang defaults to
 need an explicit `TraceCoverageCounterByteWidth = 4` compiler option.
 
 CUDA synthetic descriptors must provide enough uniform storage for each
-resource: a minimum `uniformStride` of 16 bytes for buffers (pointer and
+resource: a minimum `uniformStride` of 16 bytes for raw/structured buffers (pointer and
 count), or 8 bytes for texture and acceleration-structure handles.
 
 ## Backend Support
@@ -70,8 +70,11 @@ Global scope means the resource is bound on the root shader object, not that
 coverage is restricted to any particular function or entry point.
 
 Vulkan supports synthetic buffers, textures, samplers, combined texture/samplers,
-and acceleration structures (when supported by the device). CUDA supports buffers,
-textures, combined texture/samplers, and acceleration structures. Other binding
+and acceleration structures (when supported by the device). CUDA supports raw/structured
+buffers, textures, combined texture/samplers, and acceleration structures. CUDA rejects
+`TypedBuffer` and `MutableTypedBuffer` with `SLANG_E_NOT_IMPLEMENTED`, regardless of
+`uniformStride`: their required texture/surface handles are not implemented by the
+buffer binding writer. Coverage uses the supported `MutableRawBuffer` type. Other binding
 types return `SLANG_E_NOT_IMPLEMENTED`; `Unknown` is an invalid descriptor.
 
 | Backend | Support |

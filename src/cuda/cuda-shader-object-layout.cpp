@@ -170,12 +170,16 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(SyntheticResourceBindi
         switch (resource.bindingType)
         {
         case slang::BindingType::RawBuffer:
-        case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableRawBuffer:
-        case slang::BindingType::MutableTypedBuffer:
-            // CUDA buffers marshal both a device pointer and an element count.
+            // Raw/structured buffers marshal a device pointer and an element count.
             minimumStride = 2 * sizeof(uint64_t);
             break;
+        case slang::BindingType::TypedBuffer:
+        case slang::BindingType::MutableTypedBuffer:
+            // Typed buffers require texture/surface handles, which the CUDA
+            // buffer binding writer does not implement. Extra storage cannot
+            // make its device-pointer representation a usable typed binding.
+            return SLANG_E_NOT_IMPLEMENTED;
         case slang::BindingType::Texture:
         case slang::BindingType::MutableTexture:
         case slang::BindingType::CombinedTextureSampler:

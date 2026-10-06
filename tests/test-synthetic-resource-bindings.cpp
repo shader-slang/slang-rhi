@@ -701,13 +701,27 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         desc.bindingType = slang::BindingType::Sampler;
         checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
 
+        // Typed buffers are unsupported regardless of whether the descriptor
+        // reserves a handle-sized slot or a pointer/count-sized slot.
+        for (auto bindingType : {slang::BindingType::TypedBuffer, slang::BindingType::MutableTypedBuffer})
+        {
+            for (int32_t stride : {8, 16})
+            {
+                CAPTURE(bindingType);
+                CAPTURE(stride);
+                desc = makeSyntheticResourceDesc();
+                desc.bindingType = bindingType;
+                desc.uniformOffset = 4096;
+                desc.uniformStride = stride;
+                checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
+            }
+        }
+
         // Reject descriptors that would allocate less than the CUDA binding
         // writer's pointer/count pair or texture/acceleration-structure handle.
         for (auto bindingType :
              {slang::BindingType::RawBuffer,
               slang::BindingType::MutableRawBuffer,
-              slang::BindingType::TypedBuffer,
-              slang::BindingType::MutableTypedBuffer,
               slang::BindingType::Texture,
               slang::BindingType::MutableTexture,
               slang::BindingType::CombinedTextureSampler,
@@ -717,8 +731,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
             desc.bindingType = bindingType;
             desc.uniformOffset = 4096;
             const bool isBuffer =
-                bindingType == slang::BindingType::RawBuffer || bindingType == slang::BindingType::MutableRawBuffer ||
-                bindingType == slang::BindingType::TypedBuffer || bindingType == slang::BindingType::MutableTypedBuffer;
+                bindingType == slang::BindingType::RawBuffer || bindingType == slang::BindingType::MutableRawBuffer;
             desc.uniformStride = isBuffer ? 15 : 7;
             checkCreateFails(desc, SLANG_E_INVALID_ARG);
             desc.uniformStride++;
