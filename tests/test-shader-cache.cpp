@@ -16,6 +16,8 @@ TEST_CASE("shader-cache-pipeline-address-reuse")
 {
     ShaderCache cache;
     ComputePipelineDesc desc = {};
+    // These pipelines only exercise cache identity. Their constructors do not
+    // dereference the device, so no device is needed for this test.
     std::optional<VirtualComputePipeline> source;
     source.emplace(nullptr, desc);
     Pipeline* address = &*source;
