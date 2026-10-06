@@ -91,6 +91,11 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
+PipelineKey::PipelineKey(Pipeline* pipeline)
+    : pipelineId(pipeline->getSpecializationCacheId())
+{
+}
+
 RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -274,8 +279,7 @@ Result Device::getConcretePipeline(
 
     // If the pipeline is specializable, collect specialization arguments from bound shader objects
     // and lookup the cache.
-    PipelineKey pipelineKey;
-    pipelineKey.pipeline = pipeline;
+    PipelineKey pipelineKey(pipeline);
     if (isSpecializable)
     {
         if (!specializationArgs)

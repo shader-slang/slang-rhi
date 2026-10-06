@@ -83,18 +83,22 @@ struct ComponentKey
 
 struct PipelineKey
 {
-    Pipeline* pipeline;
+    // Cache entries can outlive their source pipeline. A recycled address must
+    // not identify a new pipeline as an old one with the same specialization.
+    uint64_t pipelineId = 0;
     short_vector<ShaderComponentID> specializationArgs;
-    size_t hash;
+    size_t hash = 0;
+    PipelineKey() = default;
+    explicit PipelineKey(Pipeline* pipeline);
     void updateHash()
     {
-        hash = std::hash<void*>()(pipeline);
+        hash = std::hash<uint64_t>()(pipelineId);
         for (auto& arg : specializationArgs)
             hash_combine(hash, arg);
     }
     bool operator==(const PipelineKey& other) const
     {
-        if (pipeline != other.pipeline)
+        if (pipelineId != other.pipelineId)
             return false;
         if (specializationArgs.size() != other.specializationArgs.size())
             return false;
