@@ -70,7 +70,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 #if !SLANG_WINDOWS_FAMILY
     return SLANG_E_NOT_AVAILABLE;
 #else
-    if (!m_sharedHandle)
+    if (m_sharedHandle)
     {
         *outHandle = m_sharedHandle.get();
         return SLANG_OK;

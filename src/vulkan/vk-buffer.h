@@ -62,7 +62,7 @@ public:
 
 public:
     VKBufferHandleRAII m_buffer;
-    DeviceAddress m_deviceAddress = 0;
+    std::atomic<DeviceAddress> m_deviceAddress{0};
 
     struct ViewKey
     {

@@ -25,7 +25,7 @@ public:
 
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
     InternalRefPtr<BufferImpl> m_buffer;
-    DeviceAddress m_deviceAddress = 0;
+    std::atomic<DeviceAddress> m_deviceAddress{0};
     AtomicDescriptorHandle m_descriptorHandle;
 };
 

@@ -47,9 +47,10 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
 {
-    if (m_deviceAddress)
+    DeviceAddress address = m_deviceAddress.load(std::memory_order_acquire);
+    if (address)
     {
-        return m_deviceAddress;
+        return address;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
@@ -61,16 +62,17 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
 
     std::lock_guard<std::mutex> lock(device->m_accelerationStructureMutex);
 
-    if (!m_deviceAddress)
+    address = m_deviceAddress.load(std::memory_order_acquire);
+    if (!address)
     {
         VkAccelerationStructureDeviceAddressInfoKHR info = {};
         info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
         info.accelerationStructure = m_vkHandle;
-        m_deviceAddress =
-            (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+        address = (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+        m_deviceAddress.store(address, std::memory_order_release);
     }
 
-    return m_deviceAddress;
+    return address;
 }
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)

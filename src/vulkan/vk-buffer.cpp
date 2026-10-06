@@ -244,9 +244,10 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    if (m_deviceAddress != 0)
+    DeviceAddress address = m_deviceAddress.load(std::memory_order_acquire);
+    if (address != 0)
     {
-        return m_deviceAddress;
+        return address;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
@@ -259,15 +260,17 @@ DeviceAddress BufferImpl::getDeviceAddress()
 
     std::lock_guard<std::mutex> lock(device->m_bufferMutex);
 
-    if (!m_deviceAddress)
+    address = m_deviceAddress.load(std::memory_order_acquire);
+    if (!address)
     {
         VkBufferDeviceAddressInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
         info.buffer = m_buffer.m_buffer;
-        m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+        address = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+        m_deviceAddress.store(address, std::memory_order_release);
     }
 
-    return m_deviceAddress;
+    return address;
 }
 
 Result BufferImpl::getDescriptorHandle(

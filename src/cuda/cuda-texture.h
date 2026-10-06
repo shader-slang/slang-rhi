@@ -102,9 +102,13 @@ public:
 public:
     CUtexObject getTexObject()
     {
-        if (!m_cudaTexObj)
-            m_cudaTexObj = m_texture->getTexObject(m_desc.format, m_samplerSettings, m_desc.subresourceRange);
-        return m_cudaTexObj;
+        CUtexObject texObject = m_cudaTexObj.load(std::memory_order_acquire);
+        if (!texObject)
+        {
+            texObject = m_texture->getTexObject(m_desc.format, m_samplerSettings, m_desc.subresourceRange);
+            m_cudaTexObj.store(texObject, std::memory_order_release);
+        }
+        return texObject;
     }
 
     CUtexObject getTexObjectWithSamplerSettings(const SamplerSettings& samplerSettings)
@@ -114,16 +118,20 @@ public:
 
     CUsurfObject getSurfObject()
     {
-        if (!m_cudaSurfObj)
-            m_cudaSurfObj = m_texture->getSurfObject(m_desc.subresourceRange);
-        return m_cudaSurfObj;
+        CUsurfObject surfObject = m_cudaSurfObj.load(std::memory_order_acquire);
+        if (!surfObject)
+        {
+            surfObject = m_texture->getSurfObject(m_desc.subresourceRange);
+            m_cudaSurfObj.store(surfObject, std::memory_order_release);
+        }
+        return surfObject;
     }
 
     // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
     TextureImpl* m_texture;
     SamplerSettings m_samplerSettings;
-    CUtexObject m_cudaTexObj = 0;
-    CUsurfObject m_cudaSurfObj = 0;
+    std::atomic<CUtexObject> m_cudaTexObj{0};
+    std::atomic<CUsurfObject> m_cudaSurfObj{0};
 };
 
 } // namespace rhi::cuda
