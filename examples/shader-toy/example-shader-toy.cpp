@@ -102,7 +102,7 @@ public:
             textureDesc.size.height = height;
             textureDesc.format = Format::RGBA32Float;
             textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::ShaderResource | TextureUsage::CopySource;
-            m_device->createTexture(textureDesc, nullptr, m_texture.writeRef());
+            SLANG_RETURN_ON_FAIL(m_device->createTexture(textureDesc, nullptr, m_texture.writeRef()));
         }
 
         // Start command encoding
@@ -129,10 +129,10 @@ public:
         passEncoder->end();
 
         // Blit result to the surface image
-        m_blitter->blit(image, m_texture, commandEncoder);
+        SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_texture, commandEncoder));
 
         // Submit command buffer
-        m_queue->submit(commandEncoder->finish());
+        SLANG_RETURN_ON_FAIL(m_queue->submit(commandEncoder->finish()));
 
         m_frame += 1;
 
