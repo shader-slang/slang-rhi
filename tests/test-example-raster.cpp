@@ -91,9 +91,7 @@ TEST_CASE("example-raster-smoothing")
     CHECK(creases > 100);
 }
 
-// WGPU is also excluded by the example launcher until its storage-texture
-// binding path supports this workload.
-GPU_TEST_CASE("example-raster-render", D3D11 | D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("example-raster-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     if (!device->hasFeature(Feature::Rasterization))
         SKIP("Rasterization is not supported");

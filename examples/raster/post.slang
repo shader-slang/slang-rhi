@@ -1,6 +1,6 @@
 Texture2D<float4> source;
 SamplerState linearSampler;
-[format("rgba16f")] RWTexture2D<float4> destination;
+[format("rgba16f")] WTexture2D<float4> destination;
 uint bloomPass;
 
 [shader("compute")][numthreads(8, 8, 1)] void bloomMain(uint3 tid : SV_DispatchThreadID)
@@ -38,7 +38,7 @@ uint bloomPass;
             color += source.SampleLevel(linearSampler, uv - i * direction, 0).rgb * weights[i];
         }
     }
-    destination[tid.xy] = float4(color, 1);
+    destination.Store(tid.xy, float4(color, 1));
 }
 
 Texture2D<float4> bloom;

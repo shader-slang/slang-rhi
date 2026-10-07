@@ -20,6 +20,7 @@ on the GPU; slang-rhi tracks their dependencies between passes.
 cmake --preset default
 cmake --build build --config Debug --target example-raster
 ./build/Debug/example-raster --device vulkan
+./build/Debug/example-raster --device wgpu
 ```
 
 On Windows, the executable has the `.exe` suffix. Omit `--device` to open
@@ -49,9 +50,14 @@ are recreated when restored.
 
 The example requires a surface and rasterization, sampled D32 depth, and RGBA16F
 render-target, sampling, and storage-write support. CPU and CUDA are skipped
-because they do not provide rasterization. The shared launcher currently
-excludes WebGPU. D3D11, D3D12, and Vulkan have been tested on Windows; Metal
+because they do not provide rasterization. WebGPU is available explicitly with
+`--device wgpu`; the launcher's default backend list does not include it yet.
+D3D11, D3D12, Vulkan, and native WebGPU (Dawn) have been tested on Windows; Metal
 uses the same rendering path but has not been validated on this machine.
+
+The shaders declare the shadow map as `DepthTexture2D` and the bloom output as
+`[format("rgba16f")] WTexture2D<float4>` so WebGPU can validate depth sampling
+and the storage texture's format and access mode.
 
 Lighting uses a GGX direct-light BRDF and a simple hemispherical ambient term.
 There is no environment-map preprocessing, anti-aliasing pass, asset-loading

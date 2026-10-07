@@ -5,7 +5,7 @@ namespace rhi::wgpu {
 
 inline WGPUTextureViewDimension getViewDimension(SlangResourceShape shape)
 {
-    switch (shape)
+    switch (shape & ~(SLANG_TEXTURE_SHADOW_FLAG | SLANG_TEXTURE_MULTISAMPLE_FLAG))
     {
     case SLANG_TEXTURE_1D:
         return WGPUTextureViewDimension_1D;
@@ -32,7 +32,7 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     {
         scalarType = type->getElementType()->getScalarType();
     }
-    switch (type->getScalarType())
+    switch (scalarType)
     {
     case slang::TypeReflection::ScalarType::None:
         return WGPUTextureSampleType_Float;
@@ -57,6 +57,36 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
         break;
     }
     return WGPUTextureSampleType_Undefined;
+}
+
+static WGPUTextureFormat getStorageTextureFormat(SlangImageFormat format)
+{
+    switch (format)
+    {
+#define FORMAT(slangFormat, wgpuFormat)                                                                                \
+    case SLANG_IMAGE_FORMAT_##slangFormat:                                                                             \
+        return WGPUTextureFormat_##wgpuFormat;
+        FORMAT(rgba32f, RGBA32Float)
+        FORMAT(rgba32i, RGBA32Sint)
+        FORMAT(rgba32ui, RGBA32Uint)
+        FORMAT(rgba16f, RGBA16Float)
+        FORMAT(rgba16i, RGBA16Sint)
+        FORMAT(rgba16ui, RGBA16Uint)
+        FORMAT(rgba8, RGBA8Unorm)
+        FORMAT(rgba8_snorm, RGBA8Snorm)
+        FORMAT(rgba8i, RGBA8Sint)
+        FORMAT(rgba8ui, RGBA8Uint)
+        FORMAT(bgra8, BGRA8Unorm)
+        FORMAT(rg32f, RG32Float)
+        FORMAT(rg32i, RG32Sint)
+        FORMAT(rg32ui, RG32Uint)
+        FORMAT(r32f, R32Float)
+        FORMAT(r32i, R32Sint)
+        FORMAT(r32ui, R32Uint)
+#undef FORMAT
+    default:
+        return WGPUTextureFormat_Undefined;
+    }
 }
 
 uint32_t ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space)
@@ -167,26 +197,41 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             switch (slangDescriptorType)
             {
             case slang::BindingType::Sampler:
-                // TODO: figure out sampler type
-                entry.sampler.type = WGPUSamplerBindingType_Filtering;
+                // Slang exposes both sampler kinds as SamplerState reflection;
+                // their built-in type names distinguish comparison samplers.
+                entry.sampler.type = leafType->getName() && !std::strcmp(leafType->getName(), "SamplerComparisonState")
+                                         ? WGPUSamplerBindingType_Comparison
+                                         : WGPUSamplerBindingType_Filtering;
                 break;
             case slang::BindingType::CombinedTextureSampler:
                 SLANG_RHI_ASSERT_FAILURE("CombinedTextureSampler is not supported");
                 break;
             case slang::BindingType::Texture:
-                entry.texture.sampleType = getSampleType(leafType->getResourceResultType());
+                entry.texture.sampleType = (leafType->getResourceShape() & SLANG_TEXTURE_SHADOW_FLAG)
+                                               ? WGPUTextureSampleType_Depth
+                                               : getSampleType(leafType->getResourceResultType());
                 entry.texture.viewDimension = getViewDimension(leafType->getResourceShape());
                 entry.texture.multisampled = (leafType->getResourceShape() & SLANG_TEXTURE_MULTISAMPLE_FLAG) ? 1 : 0;
                 break;
             case slang::BindingType::MutableTexture:
-                // WGPUStorageTextureAccess_Undefined = 0x00000000,
-                // WGPUStorageTextureAccess_WriteOnly = 0x00000001,
-                // WGPUStorageTextureAccess_ReadOnly = 0x00000002,
-                // WGPUStorageTextureAccess_ReadWrite = 0x00000003,
-                entry.storageTexture.access = WGPUStorageTextureAccess_Undefined;
-                entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-                // WGPUTextureFormat format;
-                entry.storageTexture.viewDimension = getViewDimension(typeLayout->getType()->getResourceShape());
+                entry.visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+                switch (leafType->getResourceAccess())
+                {
+                case SLANG_RESOURCE_ACCESS_WRITE:
+                    entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+                    break;
+                case SLANG_RESOURCE_ACCESS_READ:
+                    entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
+                    break;
+                case SLANG_RESOURCE_ACCESS_READ_WRITE:
+                    entry.storageTexture.access = WGPUStorageTextureAccess_ReadWrite;
+                    break;
+                default:
+                    break;
+                }
+                entry.storageTexture.format =
+                    getStorageTextureFormat(typeLayout->getBindingRangeImageFormat(bindingRangeIndex));
+                entry.storageTexture.viewDimension = getViewDimension(leafType->getResourceShape());
                 break;
             case slang::BindingType::TypedBuffer:
             case slang::BindingType::RawBuffer:
@@ -546,13 +591,7 @@ Result ShaderObjectLayoutImpl::createForElementType(
     return builder.build(outLayout);
 }
 
-ShaderObjectLayoutImpl::~ShaderObjectLayoutImpl()
-{
-    for (auto& descSetInfo : m_descriptorSetInfos)
-    {
-        getDevice()->m_ctx.api.wgpuBindGroupLayoutRelease(descSetInfo.bindGroupLayout);
-    }
-}
+ShaderObjectLayoutImpl::~ShaderObjectLayoutImpl() = default;
 
 Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 {
@@ -572,19 +611,8 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 
     m_containerType = builder->m_containerType;
 
-    // Create WGPUBindGroupLayout for all descriptor sets.
-    for (auto& descriptorSetInfo : m_descriptorSetInfos)
-    {
-        WGPUBindGroupLayoutDescriptor bindGroupLayoutDesc = {};
-        bindGroupLayoutDesc.entries = descriptorSetInfo.entries.data();
-        bindGroupLayoutDesc.entryCount = (uint32_t)descriptorSetInfo.entries.size();
-        descriptorSetInfo.bindGroupLayout =
-            device->m_ctx.api.wgpuDeviceCreateBindGroupLayout(device->m_ctx.device, &bindGroupLayoutDesc);
-        if (!descriptorSetInfo.bindGroupLayout)
-        {
-            return SLANG_FAIL;
-        }
-    }
+    // Native layouts are created at the root, where compiled resource usage and
+    // shader stage visibility are known for this program.
     return SLANG_OK;
 }
 
@@ -627,6 +655,8 @@ RootShaderObjectLayoutImpl::~RootShaderObjectLayoutImpl()
     {
         m_device->m_ctx.api.wgpuPipelineLayoutRelease(m_pipelineLayout);
     }
+    for (auto layout : m_bindGroupLayouts)
+        m_device->m_ctx.api.wgpuBindGroupLayoutRelease(layout);
 }
 
 Result RootShaderObjectLayoutImpl::create(
@@ -669,26 +699,114 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     m_entryPoints = _Move(builder->m_entryPoints);
     m_device = device;
 
-    // If the program has unbound specialization parameters,
-    // then we will avoid creating a final Vulkan pipeline layout.
-    //
-    // TODO: We should really create the information necessary
-    // for binding as part of a separate object, so that we have
-    // a clean seperation between what is needed for writing into
-    // a shader object vs. what is needed for binding it to the
-    // pipeline. We eventually need to be able to create bindable
-    // state objects from unspecialized programs, in order to
-    // support dynamic dispatch.
-    //
+    // Binding layouts must wait until specialization is complete.
     if (m_program->getSpecializationParamCount() != 0)
         return SLANG_OK;
 
-    // Otherwise, we need to create a final (bindable) layout.
-    //
-    // We will use a recursive walk to collect all the `VkDescriptorSetLayout`s
-    // that are required for the global scope, sub-objects, and entry points.
-    //
+    // Collect reflected entries now; native layouts are finalized after shader
+    // compilation when the first pipeline is created.
     SLANG_RETURN_ON_FAIL(addAllDescriptorSets());
+
+    return SLANG_OK;
+}
+
+Result RootShaderObjectLayoutImpl::ensurePipelineLayout()
+{
+    std::call_once(
+        m_pipelineLayoutOnce,
+        [&]()
+        {
+            m_pipelineLayoutResult = createPipelineLayout();
+        }
+    );
+    return m_pipelineLayoutResult;
+}
+
+Result RootShaderObjectLayoutImpl::createPipelineLayout()
+{
+    auto device = m_device;
+
+    // WGSL modules omit unused globals. WebGPU also requires every binding in
+    // an explicit layout to be populated, even when the shader does not use it.
+    // Query compiled metadata rather than requiring dummy resources from callers.
+    std::vector<ComPtr<slang::IMetadata>> metadata(m_programLayout->getEntryPointCount());
+    std::vector<WGPUShaderStage> stages(metadata.size());
+    for (size_t i = 0; i < metadata.size(); ++i)
+    {
+        ComPtr<ISlangBlob> diagnostics;
+        Result result = m_program->getEntryPointMetadata(i, 0, metadata[i].writeRef(), diagnostics.writeRef());
+        if (SLANG_FAILED(result))
+        {
+            if (diagnostics)
+                device->printError((const char*)diagnostics->getBufferPointer());
+            return result;
+        }
+        switch (m_programLayout->getEntryPointByIndex(i)->getStage())
+        {
+        case SLANG_STAGE_VERTEX:
+            stages[i] = WGPUShaderStage_Vertex;
+            break;
+        case SLANG_STAGE_FRAGMENT:
+            stages[i] = WGPUShaderStage_Fragment;
+            break;
+        case SLANG_STAGE_COMPUTE:
+            stages[i] = WGPUShaderStage_Compute;
+            break;
+        default:
+            return SLANG_E_NOT_AVAILABLE;
+        }
+    }
+    for (size_t set = 0; set < m_bindGroupLayoutEntries.size(); ++set)
+    {
+        auto& entries = m_bindGroupLayoutEntries[set];
+        for (auto& entry : entries)
+        {
+            entry.visibility = WGPUShaderStage_None;
+            for (size_t i = 0; i < metadata.size(); ++i)
+            {
+                bool used = false;
+                SLANG_RETURN_ON_FAIL(
+                    metadata[i]->isParameterLocationUsed(
+                        SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT,
+                        set,
+                        entry.binding,
+                        used
+                    )
+                );
+                if (used)
+                    entry.visibility |= stages[i];
+            }
+        }
+        entries.erase(
+            std::remove_if(
+                entries.begin(),
+                entries.end(),
+                [](const auto& entry)
+                {
+                    return entry.visibility == WGPUShaderStage_None;
+                }
+            ),
+            entries.end()
+        );
+        for (const auto& entry : entries)
+        {
+            if (entry.storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed &&
+                entry.storageTexture.format == WGPUTextureFormat_Undefined)
+            {
+                device->printError("WebGPU storage texture requires a supported explicit [format] annotation.");
+                return SLANG_E_NOT_AVAILABLE;
+            }
+        }
+        WGPUBindGroupLayoutDescriptor desc = {};
+        desc.entries = entries.data();
+        desc.entryCount = entries.size();
+        auto layout = device->m_ctx.api.wgpuDeviceCreateBindGroupLayout(device->m_ctx.device, &desc);
+        if (!layout)
+            return SLANG_FAIL;
+        m_bindGroupLayouts.push_back(layout);
+        if (device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
+            return SLANG_FAIL;
+    }
 
     // Once we've collected the information across the entire
     // tree of sub-objects
@@ -698,6 +816,8 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     pipelineLayoutDesc.bindGroupLayouts = m_bindGroupLayouts.data();
     pipelineLayoutDesc.bindGroupLayoutCount = (uint32_t)m_bindGroupLayouts.size();
     m_pipelineLayout = m_device->m_ctx.api.wgpuDeviceCreatePipelineLayout(m_device->m_ctx.device, &pipelineLayoutDesc);
+    if (device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
+        return SLANG_FAIL;
     return m_pipelineLayout ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -733,7 +853,9 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImp
 
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
-        m_bindGroupLayouts.push_back(descSetInfo.bindGroupLayout);
+        if (m_bindGroupLayoutEntries.size() == kMaxDescriptorSets)
+            return SLANG_E_NOT_AVAILABLE;
+        m_bindGroupLayoutEntries.push_back(descSetInfo.entries);
     }
 
     SLANG_RETURN_ON_FAIL(addChildDescriptorSetsRec(layout));

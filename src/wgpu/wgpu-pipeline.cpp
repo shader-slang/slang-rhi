@@ -35,6 +35,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
+    SLANG_RETURN_ON_FAIL(program->m_rootObjectLayout->ensurePipelineLayout());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     ShaderProgramImpl::Module* vertexModule = program->findModule(SlangStage::SLANG_STAGE_VERTEX);
     ShaderProgramImpl::Module* fragmentModule = program->findModule(SlangStage::SLANG_STAGE_FRAGMENT);
@@ -49,8 +50,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     pipelineDesc.vertex.module = vertexModule->module;
     pipelineDesc.vertex.entryPoint = translateString(vertexModule->entryPointName.c_str());
-    pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
-    pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
+    if (inputLayout)
+    {
+        pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
+        pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
+    }
 
     pipelineDesc.primitive.topology = translatePrimitiveTopology(desc.primitiveTopology);
     // TODO support strip topologies
@@ -178,6 +182,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
+    SLANG_RETURN_ON_FAIL(program->m_rootObjectLayout->ensurePipelineLayout());
     ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
     if (!computeModule)
     {

@@ -390,15 +390,16 @@ static int main(int argc, const char** argv)
         DeviceType::Metal,
         DeviceType::CPU,
         DeviceType::CUDA,
-        // Exclude for now as WGPU backend is not fully functional
-        // DeviceType::WGPU,
+        DeviceType::WGPU,
+        // WGPU is opt-in while support across the examples is incomplete.
     };
 
     if (argc > 1)
     {
+        deviceTypes.push_back(DeviceType::WGPU);
         if (argc != 3 || std::string(argv[1]) != "--device")
         {
-            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda>]", argv[0]);
+            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda|wgpu>]", argv[0]);
             return 1;
         }
         std::string requestedDevice = argv[2];

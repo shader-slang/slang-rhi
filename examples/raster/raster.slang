@@ -16,7 +16,7 @@ struct Material
 
 ConstantBuffer<Frame> frame;
 ConstantBuffer<Material> material;
-Texture2D<float> shadowMap;
+DepthTexture2D shadowMap;
 SamplerComparisonState shadowSampler;
 
 struct Vertex

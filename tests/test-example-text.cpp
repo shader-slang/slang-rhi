@@ -40,7 +40,7 @@ TEST_CASE("example-text-capacity")
     REQUIRE_CALL(text.addText("B", {0, 0}, 1));
 }
 
-GPU_TEST_CASE("example-text-render", D3D11 | D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("example-text-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     if (!device->hasFeature(Feature::Rasterization))
         SKIP("Rasterization is not supported");
