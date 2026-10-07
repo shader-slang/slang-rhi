@@ -1102,6 +1102,8 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-link-time-options.cpp
         tests/test-link-time-type.cpp
         tests/test-math.cpp
+        tests/test-example-math.cpp
+        tests/test-example-path-tracer.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
@@ -1203,6 +1205,8 @@ if(SLANG_RHI_BUILD_EXAMPLES)
                 PRIVATE
                 EXAMPLE_DIR="${EXAMPLE_DIR}"
                 SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+                SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+                SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
                 $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
                 $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
                 $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
@@ -1210,6 +1214,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
             target_link_libraries(${name} PRIVATE slang-rhi slang glfw slang-rhi-warnings)
         endfunction()
 
+        add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
         add_example(example-surface examples/surface/example-surface.cpp)
         add_example(example-triangle examples/triangle/example-triangle.cpp)
