@@ -60,6 +60,7 @@ struct SurfaceTest
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         this->window = glfwCreateWindow(512, 512, "test-surface", nullptr, nullptr);
+        REQUIRE(this->window);
 
         this->device = device_;
         this->queue = device->getQueue(QueueType::Graphics);
@@ -115,11 +116,12 @@ struct SurfaceTest
         {
             glfwPollEvents();
             ComPtr<ITexture> texture = surface->acquireNextImage();
+            REQUIRE(texture);
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
-            surface->present();
+            REQUIRE_CALL(surface->present());
         }
 
         // Resize window.
@@ -132,17 +134,19 @@ struct SurfaceTest
         {
             glfwPollEvents();
             ComPtr<ITexture> texture = surface->acquireNextImage();
+            REQUIRE(texture);
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
-            surface->present();
+            REQUIRE_CALL(surface->present());
         }
 
         // Minimize window & unconfigure surface.
         glfwIconifyWindow(window);
         queue->waitOnHost();
         REQUIRE_CALL(surface->unconfigure());
+        CHECK(surface->getConfig() == nullptr);
         for (uint32_t i = 0; i < kFrameCount; ++i)
         {
             glfwPollEvents();
@@ -158,11 +162,12 @@ struct SurfaceTest
         {
             glfwPollEvents();
             ComPtr<ITexture> texture = surface->acquireNextImage();
+            REQUIRE(texture);
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
             CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
-            surface->present();
+            REQUIRE_CALL(surface->present());
         }
 
         queue->waitOnHost();
@@ -327,7 +332,7 @@ struct ComputeSurfaceTest : SurfaceTest
         cursor["texture"].setBinding(allowUnorderedAccess ? texture : renderTexture);
         uint32_t dim[2] = {width, height};
         cursor["dim"].setData(dim, sizeof(dim));
-        passEncoder->dispatchCompute(width, height, 1);
+        passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
         passEncoder->end();
         if (!allowUnorderedAccess)
         {
@@ -342,7 +347,7 @@ struct ComputeSurfaceTest : SurfaceTest
                 Extent3D::kWholeTexture
             );
         }
-        queue->submit(commandEncoder->finish());
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
     }
 };
 
