@@ -9,12 +9,19 @@ not a commitment to implement every idea.
 
 - Surface and triangle examples introduce presentation and basic rasterization.
 - ShaderToy demonstrates compute-to-texture rendering and interactive shaders.
+- The [raster logo example](../examples/raster/README.md) demonstrates indexed
+  geometry, depth testing, metallic/roughness shading, PCF shadow mapping, HDR
+  rendering, compute bloom, and tone mapping. Its logo mesh and material data
+  are independent of the renderer for later reuse in the path tracer.
+  It also includes crease-aware smooth normals, a filtered procedural ground
+  pattern, and a reusable bitmap-text HUD with application-loop FPS reporting.
 - The path tracer demonstrates triangle acceleration structures, ray tracing,
   accumulation, and tone mapping. It currently has ray-pipeline and compute
   ray-query paths selected through `USE_RAYTRACING_PIPELINE`.
 
-The largest general-purpose gaps are persistent simulation and practical raster
-rendering with multiple passes. Advanced ray-tracing examples could additionally
+The largest remaining general-purpose gap is persistent simulation. The raster
+logo example supplies a compact introduction to practical multipass rendering.
+Advanced ray-tracing examples could additionally
 show geometry and acceleration-structure capabilities beyond triangle tracing.
 
 ## Priorities and collection size
@@ -77,6 +84,10 @@ choice when including CUDA in the same visualization is a priority. Choose this
 or particles initially; both fill the persistent-simulation gap.
 
 ### Material and lighting playground
+
+**Implemented starting point:** `examples/raster` provides the logo scene, one
+shadow map, solid-color materials, HDR tone mapping, and optional bloom. The
+broader ideas below remain possible extensions rather than requirements for it.
 
 **Scene:** A small procedural scene with textured objects, a movable light,
 shadows, and optional bloom. Share camera and light controls across windows.
