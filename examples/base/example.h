@@ -84,6 +84,8 @@ public:
     Result createWindow(IDevice* device, const char* title, uint32_t width = 640, uint32_t height = 360);
     // Destroys the window.
     void destroyWindow();
+    // Returns whether the window has been asked to close.
+    bool shouldClose() const;
 
     // Creates a surface for the window with the specified format.
     // Use Format::Undefined to use the preferred format.
@@ -116,6 +118,15 @@ static std::vector<ExampleBase*>& getExamples()
 }
 
 static ExampleBase* mainExample = nullptr;
+
+static void setMainExample(ExampleBase* example)
+{
+    if (mainExample)
+        glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_FALSE);
+    mainExample = example;
+    if (mainExample)
+        glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_TRUE);
+}
 
 } // namespace detail
 
@@ -152,8 +163,7 @@ Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t wi
         deviceInfo.adapterName
     );
 
-    bool isMainExample = (this == detail::mainExample);
-    glfwWindowHint(GLFW_RESIZABLE, isMainExample ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
     if (!m_window)
@@ -181,6 +191,11 @@ void ExampleBase::destroyWindow()
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
+}
+
+bool ExampleBase::shouldClose() const
+{
+    return m_window && glfwWindowShouldClose(m_window) != 0;
 }
 
 Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
@@ -418,6 +433,7 @@ static int main(int argc, const char** argv)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     std::vector<ExampleBase*>& examples = getExamples();
+    int exitCode = 0;
 
     // Create an example for each supported device type
     for (DeviceType deviceType : deviceTypes)
@@ -425,11 +441,6 @@ static int main(int argc, const char** argv)
         if (rhi::getRHI()->isDeviceTypeSupported(deviceType))
         {
             Example* example = new Example();
-            ExampleBase* prevMainExample = mainExample;
-            if (!mainExample)
-            {
-                mainExample = example;
-            }
             Result result = example->init(deviceType);
             if (SLANG_FAILED(result))
             {
@@ -450,16 +461,20 @@ static int main(int argc, const char** argv)
                     );
                 }
                 else
+                {
+                    exitCode = 1;
                     LOG_ERROR(
                         "Could not initialize %s example (0x%08x).",
                         getRHI()->getDeviceTypeName(deviceType),
                         unsigned(result)
                     );
-                mainExample = prevMainExample;
+                }
                 delete example;
                 continue;
             }
             examples.push_back(example);
+            if (!mainExample)
+                setMainExample(example);
         }
         else
         {
@@ -469,54 +484,49 @@ static int main(int argc, const char** argv)
 
     layoutWindows();
 
-    int exitCode = examples.empty() ? 1 : 0;
-    if (examples.size() > 0)
+    if (examples.empty())
+        exitCode = 1;
+
+    while (!examples.empty())
     {
-        while (true)
+        glfwPollEvents();
+
+        double time = glfwGetTime();
+        bool shouldClose = false;
+
+        for (auto it = examples.begin(); it != examples.end();)
         {
-            bool shouldClose = false;
-            for (ExampleBase* example : examples)
+            ExampleBase* example = *it;
+            shouldClose |= example->shouldClose();
+            Result result = example->update(time);
+            if (SLANG_SUCCEEDED(result))
+                result = example->draw();
+            if (SLANG_FAILED(result))
             {
-                if (glfwWindowShouldClose(example->m_window))
-                {
-                    shouldClose = true;
-                    break;
-                }
+                LOG_ERROR(
+                    "%s: example frame failed (0x%08x).",
+                    getRHI()->getDeviceTypeName(example->m_deviceType),
+                    unsigned(result)
+                );
+                exitCode = 1;
+                it = examples.erase(it);
+                if (mainExample == example)
+                    setMainExample(examples.empty() ? nullptr : examples.front());
+                example->shutdown();
+                delete example;
+                layoutWindows();
             }
-            if (shouldClose)
-            {
-                break;
-            }
-
-            glfwPollEvents();
-
-            double time = glfwGetTime();
-
-            for (ExampleBase* example : examples)
-            {
-                Result result = example->update(time);
-                if (SLANG_SUCCEEDED(result))
-                    result = example->draw();
-                if (SLANG_FAILED(result))
-                {
-                    LOG_ERROR(
-                        "%s: example frame failed (0x%08x).",
-                        getRHI()->getDeviceTypeName(example->m_deviceType),
-                        unsigned(result)
-                    );
-                    exitCode = 1;
-                    break;
-                }
-            }
-            if (exitCode != 0)
-                break;
+            else
+                ++it;
         }
+        if (shouldClose)
+            break;
+    }
 
-        for (ExampleBase* example : examples)
-        {
-            example->shutdown();
-            delete example;
-        }
+    for (ExampleBase* example : examples)
+    {
+        example->shutdown();
+        delete example;
     }
 
     examples.clear();
