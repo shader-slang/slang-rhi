@@ -62,38 +62,35 @@ Result BindlessDescriptorSet::allocBufferHandle(
     DescriptorHandle* outHandle
 )
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
-
+    *outHandle = {};
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    D3D12_CPU_DESCRIPTOR_HANDLE source;
+    DescriptorHandleType type;
+    // Resolve resource views before taking the shared allocator lock.
     switch (access)
     {
     case DescriptorHandleAccess::Read:
-        m_device->m_device->CopyDescriptorsSimple(
-            1,
-            m_srvUavAllocation.getCpuHandle(slot),
-            bufferImpl->getSRV(format, 0, range),
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
-        outHandle->type = DescriptorHandleType::Buffer;
+        source = bufferImpl->getSRV(format, 0, range);
+        type = DescriptorHandleType::Buffer;
         break;
     case DescriptorHandleAccess::ReadWrite:
-        m_device->m_device->CopyDescriptorsSimple(
-            1,
-            m_srvUavAllocation.getCpuHandle(slot),
-            bufferImpl->getUAV(format, 0, range),
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
-        outHandle->type = DescriptorHandleType::RWBuffer;
+        source = bufferImpl->getUAV(format, 0, range);
+        type = DescriptorHandleType::RWBuffer;
         break;
     default:
         return SLANG_E_INVALID_ARG;
     }
 
-    outHandle->value = m_srvUavHeapOffset + slot;
-
+    std::lock_guard<std::mutex> lock(m_mutex);
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
+    m_device->m_device->CopyDescriptorsSimple(
+        1,
+        m_srvUavAllocation.getCpuHandle(slot),
+        source,
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+    );
+    *outHandle = DescriptorHandle{type, m_srvUavHeapOffset + slot};
     return SLANG_OK;
 }
 
@@ -103,43 +100,41 @@ Result BindlessDescriptorSet::allocTextureHandle(
     DescriptorHandle* outHandle
 )
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
-
+    *outHandle = {};
     TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
+    D3D12_CPU_DESCRIPTOR_HANDLE source;
+    DescriptorHandleType type;
+    // Resolve resource views before taking the shared allocator lock.
     switch (access)
     {
     case DescriptorHandleAccess::Read:
-        m_device->m_device->CopyDescriptorsSimple(
-            1,
-            m_srvUavAllocation.getCpuHandle(m_firstTextureHandle + slot),
-            textureViewImpl->getSRV(),
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
-        outHandle->type = DescriptorHandleType::Texture;
+        source = textureViewImpl->getSRV();
+        type = DescriptorHandleType::Texture;
         break;
     case DescriptorHandleAccess::ReadWrite:
-        m_device->m_device->CopyDescriptorsSimple(
-            1,
-            m_srvUavAllocation.getCpuHandle(m_firstTextureHandle + slot),
-            textureViewImpl->getUAV(),
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-        );
-        outHandle->type = DescriptorHandleType::RWTexture;
+        source = textureViewImpl->getUAV();
+        type = DescriptorHandleType::RWTexture;
         break;
     default:
         return SLANG_E_INVALID_ARG;
     }
 
-    outHandle->value = m_srvUavHeapOffset + m_firstTextureHandle + slot;
-
+    std::lock_guard<std::mutex> lock(m_mutex);
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
+    m_device->m_device->CopyDescriptorsSimple(
+        1,
+        m_srvUavAllocation.getCpuHandle(m_firstTextureHandle + slot),
+        source,
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+    );
+    *outHandle = DescriptorHandle{type, m_srvUavHeapOffset + m_firstTextureHandle + slot};
     return SLANG_OK;
 }
 
 Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle)
 {
+    *outHandle = {};
     std::lock_guard<std::mutex> lock(m_mutex);
 
     uint32_t slot;
@@ -164,6 +159,7 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     DescriptorHandle* outHandle
 )
 {
+    *outHandle = {};
     std::lock_guard<std::mutex> lock(m_mutex);
 
     uint32_t slot;

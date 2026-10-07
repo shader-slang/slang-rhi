@@ -1,14 +1,19 @@
 #include "testing.h"
 #include "barrier.h"
 #include "slang-rhi-config.h"
+#include "rhi-shared.h"
 
 #if SLANG_RHI_ENABLE_VULKAN
 #include "vulkan/vk-device.h"
 #include "vulkan/vk-buffer.h"
 #include "vulkan/vk-acceleration-structure.h"
+#include "vulkan/vk-bindless-descriptor-set.h"
+#include "vulkan/vk-texture.h"
+#include "vulkan/vk-sampler.h"
 #endif
 
 #include <thread>
+#include <set>
 #include <utility>
 
 using namespace rhi;
@@ -47,6 +52,56 @@ void checkConcurrentValues(IDevice* device, GetValue getValue, CheckValue checkV
 }
 
 } // namespace
+
+TEST_CASE_TEMPLATE("resource-thread-safety-published-handle", Handle, NativeHandle, DescriptorHandle)
+{
+    using Type = decltype(Handle{}.type);
+    // Both handle enums have a valid type at 1. A zero value is also a valid
+    // descriptor slot, so validity must depend on the type rather than the value.
+    const Type type = Type(1);
+    for (uint64_t value : {uint64_t(0), uint64_t(0x123456789abcdef0)})
+    {
+        for (uint32_t round = 0; round < 16; ++round)
+        {
+            PublishedHandle<Handle> published;
+            Handle empty{type, 42};
+            CHECK_FALSE(published.tryGet(&empty));
+            CHECK(empty.type == Type::Undefined);
+            CHECK_EQ(empty.value, 0);
+
+            Barrier start(8);
+            std::atomic<uint32_t> errors{0};
+            std::vector<std::thread> threads;
+            for (uint32_t i = 0; i < 8; ++i)
+            {
+                threads.emplace_back(
+                    [&, i]
+                    {
+                        start.arriveAndWait();
+                        if (i == 0)
+                            published.publish(type, value);
+                        for (uint32_t j = 0; j < 256; ++j)
+                        {
+                            Handle handle;
+                            if (published.tryGet(&handle))
+                            {
+                                if (handle.type != type || handle.value != value)
+                                    ++errors;
+                            }
+                            else if (handle.type != Type::Undefined || handle.value != 0)
+                                ++errors;
+                        }
+                    }
+                );
+            }
+            for (auto& thread : threads)
+                thread.join();
+            CHECK_EQ(errors.load(), 0);
+            CHECK(published.get().type == type);
+            CHECK_EQ(published.get().value, value);
+        }
+    }
+}
 
 GPU_TEST_CASE("resource-thread-safety-texture-shared-handle", D3D12)
 {
@@ -102,7 +157,184 @@ destroyAccelerationStructure(VkDevice, VkAccelerationStructureKHR, const VkAlloc
 {
 }
 
+// Exercise the real view caches and descriptor allocator without a GPU. Driver
+// handles are opaque tokens; the host allocation/publication code is unchanged.
+std::atomic<uintptr_t> nextView{1};
+std::atomic<uint32_t> descriptorWrites{0};
+
+template<typename Handle>
+VKAPI_ATTR void VKAPI_CALL ignoreDestroy(VkDevice, Handle, const VkAllocationCallbacks*)
+{
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+createBufferView(VkDevice, const VkBufferViewCreateInfo*, const VkAllocationCallbacks*, VkBufferView* view)
+{
+    *view = (VkBufferView)nextView.fetch_add(1);
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+createImageView(VkDevice, const VkImageViewCreateInfo*, const VkAllocationCallbacks*, VkImageView* view)
+{
+    *view = (VkImageView)nextView.fetch_add(1);
+    return VK_SUCCESS;
+}
+
+VKAPI_ATTR void VKAPI_CALL
+updateDescriptors(VkDevice, uint32_t count, const VkWriteDescriptorSet*, uint32_t, const VkCopyDescriptorSet*)
+{
+    descriptorWrites += count;
+}
+
 } // namespace
+
+TEST_CASE("resource-thread-safety-bindless-allocation-and-reuse")
+{
+    constexpr uint32_t threadCount = 8;
+    constexpr uint32_t rounds = 16;
+    vk::DeviceImpl device;
+    auto& api = device.m_api;
+    api.vkCreateBufferView = createBufferView;
+    api.vkCreateImageView = createImageView;
+    api.vkDestroyBufferView = ignoreDestroy<VkBufferView>;
+    api.vkDestroyImageView = ignoreDestroy<VkImageView>;
+    api.vkDestroyBuffer = ignoreDestroy<VkBuffer>;
+    api.vkFreeMemory = ignoreDestroy<VkDeviceMemory>;
+    api.vkDestroySampler = ignoreDestroy<VkSampler>;
+    api.vkUpdateDescriptorSets = updateDescriptors;
+
+    vk::BindlessDescriptorSet descriptors(&device, {});
+    descriptors.m_bufferAllocator.capacity = threadCount;
+    descriptors.m_textureAllocator.capacity = threadCount;
+    descriptors.m_samplerAllocator.capacity = threadCount;
+    descriptors.m_firstTextureHandle = threadCount;
+    descriptors.m_firstAccelerationStructureHandle = 2 * threadCount;
+
+    using Handles = std::array<DescriptorHandle, 3>;
+    std::array<std::array<Handles, threadCount>, rounds> snapshots{};
+    Barrier phase(threadCount);
+    std::atomic<uint32_t> errors{0};
+    descriptorWrites = 0;
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < threadCount; ++i)
+    {
+        threads.emplace_back(
+            [&, i]
+            {
+                BufferDesc bufferDesc = {};
+                bufferDesc.size = 256;
+                vk::BufferImpl buffer(&device, bufferDesc);
+                buffer.m_buffer.m_api = &api;
+                buffer.m_buffer.m_buffer = VK_NULL_HANDLE;
+                buffer.m_buffer.m_memory = VK_NULL_HANDLE;
+                TextureDesc textureDesc = {};
+                textureDesc.format = Format::R32Float;
+                vk::TextureImpl texture(&device, textureDesc);
+                texture.m_shouldDestroyImage = false;
+                texture.m_vkformat = VK_FORMAT_R32_SFLOAT;
+                TextureViewDesc viewDesc = {};
+                viewDesc.format = Format::R32Float;
+                viewDesc.subresourceRange = {0, 1, 0, 1};
+                vk::TextureViewImpl view(&texture, viewDesc);
+                vk::SamplerImpl sampler(&device, {});
+                sampler.m_sampler = VK_NULL_HANDLE;
+
+                auto allocate = [&](uint32_t kind, DescriptorHandle* out)
+                {
+                    switch (kind)
+                    {
+                    case 0:
+                        return descriptors
+                            .allocBufferHandle(&buffer, DescriptorHandleAccess::Read, Format::R32Float, {0, 256}, out);
+                    case 1:
+                        return descriptors.allocTextureHandle(&view, DescriptorHandleAccess::Read, out);
+                    default:
+                        return descriptors.allocSamplerHandle(&sampler, out);
+                    }
+                };
+                auto checkResult = [&](Result result, Result expected)
+                {
+                    if (result != expected)
+                        ++errors;
+                };
+
+                for (uint32_t round = 0; round < rounds; ++round)
+                {
+                    phase.arriveAndWait();
+                    // Invalid access must not reserve a slot or publish a handle.
+                    DescriptorHandle invalid;
+                    checkResult(
+                        descriptors.allocBufferHandle(
+                            &buffer,
+                            DescriptorHandleAccess(99),
+                            Format::Undefined,
+                            {0, 256},
+                            &invalid
+                        ),
+                        SLANG_E_INVALID_ARG
+                    );
+                    checkResult(
+                        descriptors.allocTextureHandle(&view, DescriptorHandleAccess(99), &invalid),
+                        SLANG_E_INVALID_ARG
+                    );
+                    if (invalid)
+                        ++errors;
+
+                    for (uint32_t j = 0; j < 3; ++j)
+                    {
+                        uint32_t kind = (i + j) % 3;
+                        checkResult(allocate(kind, &snapshots[round][i][kind]), SLANG_OK);
+                    }
+                    phase.arriveAndWait();
+                    // All slots are live. Failure must leave the allocators usable.
+                    for (uint32_t kind = 0; kind < 3; ++kind)
+                    {
+                        DescriptorHandle extra;
+                        checkResult(allocate(kind, &extra), SLANG_E_OUT_OF_MEMORY);
+                        if (extra)
+                            ++errors;
+                    }
+                    phase.arriveAndWait();
+                    for (const auto& handle : snapshots[round][i])
+                        checkResult(descriptors.freeHandle(handle), SLANG_OK);
+                    phase.arriveAndWait();
+                    // Interleave allocation and free across threads and resource types.
+                    for (uint32_t j = 0; j < 32; ++j)
+                    {
+                        DescriptorHandle handle;
+                        Result result = allocate((i + j) % 3, &handle);
+                        checkResult(result, SLANG_OK);
+                        if (SLANG_SUCCEEDED(result))
+                            checkResult(descriptors.freeHandle(handle), SLANG_OK);
+                    }
+                }
+            }
+        );
+    }
+    for (auto& thread : threads)
+        thread.join();
+
+    CHECK_EQ(errors.load(), 0);
+    CHECK_EQ(descriptorWrites.load(), rounds * threadCount * (3 + 32));
+    for (const auto& snapshot : snapshots)
+    {
+        std::set<uint64_t> resources;
+        std::set<uint64_t> samplers;
+        for (const auto& handles : snapshot)
+        {
+            CHECK(handles[0].type == DescriptorHandleType::Buffer);
+            CHECK(handles[1].type == DescriptorHandleType::Texture);
+            CHECK(handles[2].type == DescriptorHandleType::Sampler);
+            CHECK(resources.insert(handles[0].value).second);
+            CHECK(resources.insert(handles[1].value).second);
+            CHECK(samplers.insert(handles[2].value).second);
+        }
+    }
+    CHECK_EQ(descriptors.m_bufferAllocator.freeSlots.size(), threadCount);
+    CHECK_EQ(descriptors.m_textureAllocator.freeSlots.size(), threadCount);
+    CHECK_EQ(descriptors.m_samplerAllocator.freeSlots.size(), threadCount);
+}
 
 // Stub only the driver queries so the real cache code can run under TSAN without
 // requiring GPU address or ray-tracing support. Stack objects own no native storage.
@@ -208,5 +440,96 @@ GPU_TEST_CASE("resource-thread-safety-texture-descriptor-handle", CUDA)
                 }
             }
         );
+    }
+}
+
+GPU_TEST_CASE("resource-thread-safety-bindless-mixed-resources", D3D12 | Vulkan)
+{
+    if (!device->hasFeature(Feature::Bindless))
+        SKIP("Bindless is not supported");
+
+    constexpr uint32_t threadCount = 8;
+    struct Resources
+    {
+        ComPtr<IBuffer> buffer;
+        ComPtr<ITexture> texture;
+        ComPtr<ITextureView> view;
+        ComPtr<ISampler> sampler;
+        std::array<DescriptorHandle, 3> handles;
+    };
+    std::array<Resources, threadCount> resources;
+    // Create resources serially: this test only promises concurrent descriptor access.
+    for (auto& r : resources)
+    {
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = 256;
+        bufferDesc.format = Format::R32Float;
+        bufferDesc.usage = BufferUsage::ShaderResource;
+        r.buffer = device->createBuffer(bufferDesc);
+        REQUIRE(r.buffer);
+        TextureDesc textureDesc = {};
+        textureDesc.format = Format::R32Float;
+        textureDesc.usage = TextureUsage::ShaderResource;
+        r.texture = device->createTexture(textureDesc);
+        REQUIRE(r.texture);
+        r.view = r.texture->createView({});
+        REQUIRE(r.view);
+        r.sampler = device->createSampler({});
+        REQUIRE(r.sampler);
+    }
+
+    Barrier start(threadCount);
+    std::atomic<uint32_t> errors{0};
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < threadCount; ++i)
+    {
+        threads.emplace_back(
+            [&, i]
+            {
+                DeviceScope scope(device);
+                auto& r = resources[i];
+                start.arriveAndWait();
+                for (uint32_t round = 0; round < 32; ++round)
+                {
+                    for (uint32_t j = 0; j < 3; ++j)
+                    {
+                        uint32_t kind = (i + j) % 3;
+                        DescriptorHandle handle;
+                        Result result;
+                        if (kind == 0)
+                            result = r.buffer->getDescriptorHandle(
+                                DescriptorHandleAccess::Read,
+                                Format::R32Float,
+                                kEntireBuffer,
+                                &handle
+                            );
+                        else if (kind == 1)
+                            result = r.view->getDescriptorHandle(DescriptorHandleAccess::Read, &handle);
+                        else
+                            result = r.sampler->getDescriptorHandle(&handle);
+                        if (SLANG_FAILED(result) || !handle)
+                            ++errors;
+                        if (round == 0)
+                            r.handles[kind] = handle;
+                        else if (r.handles[kind].type != handle.type || r.handles[kind].value != handle.value)
+                            ++errors;
+                    }
+                }
+            }
+        );
+    }
+    for (auto& thread : threads)
+        thread.join();
+    CHECK_EQ(errors.load(), 0);
+    std::set<uint64_t> resourceHandles;
+    std::set<uint64_t> samplerHandles;
+    for (const auto& r : resources)
+    {
+        CHECK(r.handles[0].type == DescriptorHandleType::Buffer);
+        CHECK(r.handles[1].type == DescriptorHandleType::Texture);
+        CHECK(r.handles[2].type == DescriptorHandleType::Sampler);
+        CHECK(resourceHandles.insert(r.handles[0].value).second);
+        CHECK(resourceHandles.insert(r.handles[1].value).second);
+        CHECK(samplerHandles.insert(r.handles[2].value).second);
     }
 }

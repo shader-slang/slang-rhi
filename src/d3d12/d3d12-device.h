@@ -287,18 +287,20 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE getNullDescriptor(slang::BindingType bindingType, SlangResourceShape resourceShape);
     D3D12_CPU_DESCRIPTOR_HANDLE getNullSamplerDescriptor();
 
-    // Mutexes shared among resources for synchronizing per-resource operations that require CPU-side state tracking,
-    // such as view and descriptor allocation and caching. These are used to avoid the overhead of a mutex per resource,
-    // while still allowing for concurrent access to multiple resources.
-    std::mutex m_bufferMutex;
-    std::mutex m_bufferViewMutex;
-    std::mutex m_bufferDescriptorMutex;
-    std::mutex m_textureMutex;
-    std::mutex m_textureViewMutex;
-    std::mutex m_textureDescriptorMutex;
-    std::mutex m_samplerMutex;
-    std::mutex m_accelerationStructureMutex;
-    std::mutex m_fenceMutex;
+    // Shared across resources to bound lock storage; each domain serializes across resources.
+    // Descriptor cache locks may enter view cache locks (then D3D12 CPU descriptor heaps),
+    // or BindlessDescriptorSet::m_mutex after view resolution has returned. The bindless
+    // lock must never enter resource cache locks. Shared-handle initialization is independent.
+    // Destruction has exclusive resource ownership but still locks shared allocators.
+    std::mutex m_bufferSharedHandleMutex;          // Buffer shared-handle publication.
+    std::mutex m_bufferViewMutex;                  // Buffer view maps.
+    std::mutex m_bufferDescriptorMutex;            // Buffer descriptor-handle maps.
+    std::mutex m_textureSharedHandleMutex;         // Texture shared-handle publication.
+    std::mutex m_textureViewMutex;                 // Texture view maps.
+    std::mutex m_textureDescriptorMutex;           // Texture-view descriptor publication.
+    std::mutex m_samplerDescriptorMutex;           // Sampler descriptor publication.
+    std::mutex m_accelerationStructureHandleMutex; // AS descriptor publication.
+    std::mutex m_fenceSharedHandleMutex;           // Fence shared-handle publication.
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const D3D12ExperimentalFeaturesDesc* desc);

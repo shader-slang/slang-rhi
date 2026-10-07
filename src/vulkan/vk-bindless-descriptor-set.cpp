@@ -166,10 +166,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
     DescriptorHandle* outHandle
 )
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
+    *outHandle = {};
+    DescriptorHandle handle;
 
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
@@ -177,15 +175,14 @@ Result BindlessDescriptorSet::allocBufferHandle(
     write.dstSet = m_descriptorSet;
     write.dstBinding = kResourceBinding;
     write.descriptorCount = 1;
-    write.dstArrayElement = slot;
 
     switch (access)
     {
     case DescriptorHandleAccess::Read:
-        outHandle->type = DescriptorHandleType::Buffer;
+        handle.type = DescriptorHandleType::Buffer;
         break;
     case DescriptorHandleAccess::ReadWrite:
-        outHandle->type = DescriptorHandleType::RWBuffer;
+        handle.type = DescriptorHandleType::RWBuffer;
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -211,10 +208,17 @@ Result BindlessDescriptorSet::allocBufferHandle(
         write.pTexelBufferView = &bufferView;
     }
 
+    // Resource views are resolved before taking the shared allocator lock.
+    std::lock_guard<std::mutex> lock(m_mutex);
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
+    write.dstArrayElement = slot;
+
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->value = slot;
+    handle.value = slot;
+    *outHandle = handle;
 
     return SLANG_OK;
 }
@@ -225,10 +229,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
     DescriptorHandle* outHandle
 )
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
+    *outHandle = {};
+    DescriptorHandle handle;
 
     TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
 
@@ -236,17 +238,16 @@ Result BindlessDescriptorSet::allocTextureHandle(
     write.dstSet = m_descriptorSet;
     write.dstBinding = kResourceBinding;
     write.descriptorCount = 1;
-    write.dstArrayElement = m_firstTextureHandle + slot;
 
     switch (access)
     {
     case DescriptorHandleAccess::Read:
         write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        outHandle->type = DescriptorHandleType::Texture;
+        handle.type = DescriptorHandleType::Texture;
         break;
     case DescriptorHandleAccess::ReadWrite:
         write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        outHandle->type = DescriptorHandleType::RWTexture;
+        handle.type = DescriptorHandleType::RWTexture;
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -258,16 +259,24 @@ Result BindlessDescriptorSet::allocTextureHandle(
         access == DescriptorHandleAccess::Read ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
     write.pImageInfo = &imageInfo;
 
+    // Resource views are resolved before taking the shared allocator lock.
+    std::lock_guard<std::mutex> lock(m_mutex);
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
+    write.dstArrayElement = m_firstTextureHandle + slot;
+
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->value = m_firstTextureHandle + slot;
+    handle.value = m_firstTextureHandle + slot;
+    *outHandle = handle;
 
     return SLANG_OK;
 }
 
 Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle)
 {
+    *outHandle = {};
     std::lock_guard<std::mutex> lock(m_mutex);
 
     uint32_t slot;
@@ -302,10 +311,8 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     DescriptorHandle* outHandle
 )
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_combinedTextureSamplerAllocator.allocate(&slot));
+    *outHandle = {};
+    DescriptorHandle handle;
 
     TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
     SamplerImpl* samplerImpl = checked_cast<SamplerImpl*>(sampler);
@@ -314,7 +321,6 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     write.dstSet = m_descriptorSet;
     write.dstBinding = kCombinedImageSamplerBinding;
     write.descriptorCount = 1;
-    write.dstArrayElement = slot;
     write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
     VkDescriptorImageInfo imageInfo = {};
@@ -323,11 +329,18 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     imageInfo.sampler = samplerImpl->m_sampler;
     write.pImageInfo = &imageInfo;
 
+    // Resource views are resolved before taking the shared allocator lock.
+    std::lock_guard<std::mutex> lock(m_mutex);
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_combinedTextureSamplerAllocator.allocate(&slot));
+    write.dstArrayElement = slot;
+
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
-    outHandle->value = slot;
+    handle.type = DescriptorHandleType::CombinedTextureSampler;
+    handle.value = slot;
+    *outHandle = handle;
 
     return SLANG_OK;
 }
@@ -337,6 +350,7 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     DescriptorHandle* outHandle
 )
 {
+    *outHandle = {};
     std::lock_guard<std::mutex> lock(m_mutex);
 
     uint32_t slot;

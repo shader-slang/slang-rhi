@@ -113,7 +113,7 @@ public:
 
     // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
     TextureImpl* m_texture;
-    AtomicDescriptorHandle m_descriptorHandle[2];
+    PublishedDescriptorHandle m_descriptorHandle[2];
     D3D12_CPU_DESCRIPTOR_HANDLE m_srv = {};
     D3D12_CPU_DESCRIPTOR_HANDLE m_uav = {};
     D3D12_CPU_DESCRIPTOR_HANDLE m_rtv = {};

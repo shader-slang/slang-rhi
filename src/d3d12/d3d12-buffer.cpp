@@ -60,15 +60,14 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (m_sharedHandle)
+    if (m_sharedHandle.tryGet(outHandle))
     {
-        *outHandle = m_sharedHandle.get();
         return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_bufferMutex);
+    std::lock_guard<std::mutex> lock(device->m_bufferSharedHandleMutex);
 
     // If a shared handle doesn't exist, create one and store it.
     if (!m_sharedHandle)
@@ -78,7 +77,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
             device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle),
             device
         );
-        m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
+        m_sharedHandle.publish(NativeHandleType::Win32, (uint64_t)handle);
     }
 
     *outHandle = m_sharedHandle.get();

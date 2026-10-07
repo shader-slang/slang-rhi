@@ -94,7 +94,7 @@ public:
     // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
     TextureImpl* m_texture;
     /// Descriptor handles (texture read, texture write, combined texture/sampler).
-    AtomicDescriptorHandle m_descriptorHandle[3];
+    PublishedDescriptorHandle m_descriptorHandle[3];
 };
 
 } // namespace rhi::vk

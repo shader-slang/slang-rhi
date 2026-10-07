@@ -26,7 +26,7 @@ public:
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
     InternalRefPtr<BufferImpl> m_buffer;
     std::atomic<DeviceAddress> m_deviceAddress{0};
-    AtomicDescriptorHandle m_descriptorHandle;
+    PublishedDescriptorHandle m_descriptorHandle;
 };
 
 class MicromapImpl : public Micromap

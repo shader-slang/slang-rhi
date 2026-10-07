@@ -60,7 +60,7 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
         return 0;
     }
 
-    std::lock_guard<std::mutex> lock(device->m_accelerationStructureMutex);
+    std::lock_guard<std::mutex> lock(device->m_accelerationStructureHandleMutex);
 
     address = m_deviceAddress.load(std::memory_order_acquire);
     if (!address)
@@ -77,9 +77,8 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    if (m_descriptorHandle)
+    if (m_descriptorHandle.tryGet(outHandle))
     {
-        *outHandle = m_descriptorHandle.get();
         return SLANG_OK;
     }
 
@@ -90,13 +89,13 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    std::lock_guard<std::mutex> lock(device->m_accelerationStructureMutex);
+    std::lock_guard<std::mutex> lock(device->m_accelerationStructureHandleMutex);
 
     if (!m_descriptorHandle)
     {
         DescriptorHandle tmp;
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &tmp));
-        m_descriptorHandle.set(tmp);
+        m_descriptorHandle.publish(tmp);
     }
 
     *outHandle = m_descriptorHandle.get();

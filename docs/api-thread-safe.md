@@ -1,5 +1,44 @@
 # API thread-safe status
 
+## Concurrency contract
+
+`yes` means concurrent calls to the marked operations on the same object are
+supported, provided the caller keeps the object and its dependencies alive.
+`no` means the operation requires external synchronization; `n/a` means it is not
+implemented for that backend. A `yes` entry does not permit overlapping an
+operation marked `no` that accesses the same state.
+
+These entries describe host-side API access. They do not synchronize GPU resource
+usage, queue submissions, resource transitions, or mapped-memory reads and writes.
+Callers must retain a reference for the duration of every call and synchronize
+changes to their own shared smart-pointer variables. Final destruction must not
+overlap access to that object.
+
+Returning a descriptor, Slang session, queue, or native handle safely does not make
+operations on the returned value thread-safe. In particular, resource descriptors
+must not be mutated concurrently with resource operations. A cached handle remains
+owned by its resource; callers must not close or free it independently.
+
+Command encoders and shader objects require external synchronization. Separate
+encoders also use shared device and resource state, so their independence alone
+does not establish support for parallel recording. The resource-cache locks below
+are not a blanket guarantee for concurrent device or queue operations.
+
+## Resource-cache implementation
+
+Device-level mutexes bound lock storage independently of resource count. Each
+mutex serializes its domain across all resources, including cache hits in view
+maps. Published handles have an atomic fast path; publication happens once under
+the corresponding mutex and the payload is immutable afterward.
+
+In D3D12 and Vulkan, resource descriptor-cache locks may acquire view-cache locks
+while resolving a source view. D3D12 view creation may then acquire a CPU descriptor
+heap lock. View resolution finishes before acquiring the bindless-set lock, which
+protects slot allocators and descriptor writes. The bindless-set lock must never
+acquire resource-cache locks. Shared-handle initialization is independent of that
+ordering. Resource destruction has exclusive access to its own caches but must
+still synchronize access to shared allocators.
+
 ## `IDevice` interface
 
 | API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |

@@ -35,14 +35,9 @@ public:
     InternalRefPtr<HeapImpl> m_deviceMemHeap;
     InternalRefPtr<HeapImpl> m_hostMemHeap;
 
-    // Mutexes shared among resources for synchronizing per-resource operations that require CPU-side state tracking,
-    // such as view and descriptor allocation and caching. These are used to avoid the overhead of a mutex per resource,
-    // while still allowing for concurrent access to multiple resources.
-    std::mutex m_bufferMutex;
-    std::mutex m_textureMutex;
-    std::mutex m_textureViewMutex;
-    std::mutex m_samplerMutex;
-    std::mutex m_accelerationStructureMutex;
+    // Shared across resources to bound lock storage. View lookups and creation
+    // serialize across textures. This lock does not acquire other resource locks.
+    std::mutex m_textureViewMutex; // Texture view maps (including CUDA surface objects).
 
 public:
     using Device::readBuffer;

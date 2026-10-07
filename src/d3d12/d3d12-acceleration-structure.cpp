@@ -49,32 +49,25 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    if (m_descriptorHandle)
+    if (m_descriptorHandle.tryGet(outHandle))
     {
-        *outHandle = m_descriptorHandle.get();
         return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
-
-    if (m_descriptorHandle)
-    {
-        *outHandle = m_descriptorHandle.get();
-        return SLANG_OK;
-    }
 
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    std::lock_guard lock(device->m_accelerationStructureMutex);
+    std::lock_guard lock(device->m_accelerationStructureHandleMutex);
 
     if (!m_descriptorHandle)
     {
         DescriptorHandle tmp;
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &tmp));
-        m_descriptorHandle.set(tmp);
+        m_descriptorHandle.publish(tmp);
     }
 
     *outHandle = m_descriptorHandle.get();

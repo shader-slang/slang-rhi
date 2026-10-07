@@ -20,7 +20,7 @@ public:
 
 public:
     CPUDescriptorAllocation m_descriptor;
-    AtomicDescriptorHandle m_descriptorHandle;
+    PublishedDescriptorHandle m_descriptorHandle;
 };
 
 } // namespace rhi::d3d12
