@@ -2,11 +2,13 @@
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
-#include "../src/enum-strings.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <execution>
 #include <limits>
 #include <mutex>
+#include <string>
 #include <vector>
 
 // ---------------------------------------------------------------------------------------
@@ -63,7 +65,33 @@ public:
     ) override
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        printf("[%s] (%s) %s\n", enumToString(type), enumToString(source), message);
+        const char* typeName = "Unknown";
+        switch (type)
+        {
+        case DebugMessageType::Info:
+            typeName = "Info";
+            break;
+        case DebugMessageType::Warning:
+            typeName = "Warning";
+            break;
+        case DebugMessageType::Error:
+            typeName = "Error";
+            break;
+        }
+        const char* sourceName = "Unknown";
+        switch (source)
+        {
+        case DebugMessageSource::Layer:
+            sourceName = "Layer";
+            break;
+        case DebugMessageSource::Driver:
+            sourceName = "Driver";
+            break;
+        case DebugMessageSource::Slang:
+            sourceName = "Slang";
+            break;
+        }
+        printf("[%s] (%s) %s\n", typeName, sourceName, message);
         fflush(stdout);
     }
 

@@ -130,6 +130,45 @@ jobs:
           flag-name: ${{ matrix.os }}-${{ matrix.platform }}
           parallel: true
 
+  shared:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        config: [Debug, Release]
+        include:
+          - { os: windows-latest, devices: "cpu d3d11 d3d12" }
+          - { os: ubuntu-latest, devices: "vulkan wgpu" }
+          - { os: macos-latest, devices: "cpu metal wgpu" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - name: Setup MSVC
+        if: runner.os == 'Windows'
+        uses: step-security/msvc-dev-cmd@v1
+      - name: Setup lavapipe
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-lavapipe
+      - name: Setup CMake/Ninja
+        uses: lukka/get-cmake@latest
+      - name: Configure shared library
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          cmake --preset default -B build-shared
+          -DSLANG_RHI_BUILD_SHARED=ON
+          -DSLANG_RHI_BUILD_TESTS_WITH_GLFW=OFF
+      - name: Build shared library and public API tests
+        run: cmake --build build-shared --config ${{ matrix.config }}
+      - name: Public API tests
+        run: ./build-shared/${{ matrix.config }}/slang-rhi-public-api-tests ${{ matrix.devices }}
+      - name: Relocated installation test
+        run: >-
+          python tools/test-installed-library.py --build-dir build-shared
+          --config ${{ matrix.config }} --devices ${{ matrix.devices }}
+
   finish:
     needs: build
     if: ${{ always() }}

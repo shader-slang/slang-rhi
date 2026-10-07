@@ -310,12 +310,27 @@ if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
     set(SLANG_RHI_SHARED ON)
     target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_SHARED_EXPORT)
+    set_target_properties(slang-rhi PROPERTIES
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
 else()
     add_library(slang-rhi STATIC)
     set(SLANG_RHI_SHARED OFF)
 endif()
 
 set(SLANG_RHI_COPY_FILES "")
+
+# Runtime-loaded dependencies must be installed beside the RHI library.
+set(SLANG_RHI_INSTALL_RUNTIME_DIR ${CMAKE_INSTALL_BINDIR})
+if(UNIX AND SLANG_RHI_BUILD_SHARED)
+    set(SLANG_RHI_INSTALL_RUNTIME_DIR ${CMAKE_INSTALL_LIBDIR})
+    if(APPLE)
+        set_property(TARGET slang-rhi APPEND PROPERTY INSTALL_RPATH "@loader_path")
+    else()
+        set_property(TARGET slang-rhi APPEND PROPERTY INSTALL_RPATH "$ORIGIN")
+    endif()
+endif()
 
 # Function to copy a file to the binary output directory
 macro(copy_file IN_FILE OUT_DIR)
@@ -344,7 +359,7 @@ macro(copy_file IN_FILE OUT_DIR)
         endif()
 
         if(SLANG_RHI_INSTALL)
-            install(FILES ${IN_FILE} DESTINATION ${CMAKE_INSTALL_BINDIR}/${OUT_DIR})
+            install(FILES ${IN_FILE} DESTINATION ${SLANG_RHI_INSTALL_RUNTIME_DIR}/${OUT_DIR})
         endif()
     endif()
 endmacro()
@@ -482,6 +497,22 @@ endif()
 # Always link to slang, either the fetched one or the one provided by the parent project.
 target_link_libraries(slang-rhi PUBLIC slang)
 
+# The shared library itself uses threads and the dynamic loader, even when
+# neither tests nor examples are built.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(Threads REQUIRED)
+    target_link_libraries(slang-rhi PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+endif()
+
+# Preserve Slang's versioned libraries and symlinks in standalone Unix installs.
+# An externally supplied Slang remains the embedding application's responsibility.
+if(SLANG_RHI_INSTALL AND SLANG_RHI_BUILD_SHARED AND SLANG_RHI_FETCH_SLANG AND UNIX AND NOT EMSCRIPTEN)
+    install(DIRECTORY ${SLANG_RHI_SLANG_BINARY_DIR}/lib/
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        FILES_MATCHING PATTERN "*.so*" PATTERN "*.dylib"
+    )
+endif()
+
 # Setup D3D12MemoryAllocator
 if(SLANG_RHI_ENABLE_D3D12)
     add_library(slang-rhi-d3d12ma STATIC)
@@ -507,6 +538,7 @@ endif()
 # Setup VulkanMemoryAllocator
 if(SLANG_RHI_ENABLE_VULKAN)
     add_library(slang-rhi-vma STATIC)
+    set_target_properties(slang-rhi-vma PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_sources(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/vma/vk_mem_alloc.cpp)
     target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
     target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
@@ -836,7 +868,7 @@ if(APPLE)
     target_sources(slang-rhi PRIVATE
         src/cocoa-util.mm
     )
-    target_link_libraries(slang-rhi INTERFACE "-framework Foundation" "-framework QuartzCore")
+    target_link_libraries(slang-rhi PUBLIC "-framework Foundation" "-framework QuartzCore")
 endif()
 
 if(SLANG_RHI_ENABLE_CPU)
@@ -1031,6 +1063,18 @@ target_compile_definitions(slang-rhi
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+if(SLANG_RHI_BUILD_TESTS AND NOT EMSCRIPTEN)
+    enable_testing()
+    # This consumer deliberately has no src/ include path or implementation
+    # sources. It also serves as the independently built installed-library test.
+    add_executable(slang-rhi-public-api-tests tests/public-api/main.cpp)
+    target_compile_features(slang-rhi-public-api-tests PRIVATE cxx_std_17)
+    target_link_libraries(slang-rhi-public-api-tests PRIVATE
+        slang-rhi slang-rhi-warnings slang-rhi-warnings-as-errors
+    )
+    add_test(NAME slang-rhi-public-api COMMAND slang-rhi-public-api-tests)
+endif()
 
 # Tests currently require linking statically due to reaching into internal details of the RHI implementation.
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
@@ -1282,6 +1326,7 @@ endif()
 if(SLANG_RHI_INSTALL)
     install(
         TARGETS slang-rhi
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )

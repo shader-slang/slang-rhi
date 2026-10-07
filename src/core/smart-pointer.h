@@ -51,7 +51,7 @@ struct RefObjectTracker
 namespace rhi {
 
 // Base class for all reference-counted objects
-class SLANG_RHI_API RefObject
+class RefObject
 {
 private:
     // Low 32 bits: external references. High 32 bits: internal references.

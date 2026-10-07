@@ -2,6 +2,9 @@
 
 #define SLANG_RHI_USE_DYNAMIC_CUDA 1
 
+// The loader functions and cu* function-pointer globals are only available to
+// consumers linking slang-rhi statically. The CUDA types below can also be used
+// with the shared library (for example, with the OptiX denoiser API).
 extern "C" bool rhiCudaDriverApiInit();
 extern "C" void rhiCudaDriverApiShutdown();
 

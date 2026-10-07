@@ -28,7 +28,9 @@ Result API::init()
 #endif
 
     // We expect dawn to be in the same directory as the slang-rhi library (or the executable/library linking to it).
-    const char* rhiPathStr = findSharedLibraryPath((void*)&getRHI);
+    // Use a non-inline entry point: an inline wrapper can resolve to a consumer
+    // executable instead of the shared library on platforms with interposition.
+    const char* rhiPathStr = findSharedLibraryPath((void*)&rhiGetInstance);
     if (!rhiPathStr)
     {
         return SLANG_FAIL;
