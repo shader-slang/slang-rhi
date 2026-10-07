@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cctype>
 
 namespace rhi {
 
@@ -65,6 +66,17 @@ public:
     // Returns the current mouse Y position.
     float getMouseY() const { return m_mousePos[1]; }
 
+    // Device management
+
+    // Create a device and retain the missing features if the example requires
+    // features that this backend does not support.
+    Result createDevice(
+        DeviceType deviceType,
+        std::vector<Feature> requiredFeatures,
+        std::vector<std::pair<std::string, std::string>> preprocessorMacros,
+        IDevice** outDevice
+    );
+
     // Window management
 
     // Creates a window with the specified title and size.
@@ -72,12 +84,16 @@ public:
     Result createWindow(IDevice* device, const char* title, uint32_t width = 640, uint32_t height = 360);
     // Destroys the window.
     void destroyWindow();
+    // Returns whether the window has been asked to close.
+    bool shouldClose() const;
 
     // Creates a surface for the window with the specified format.
     // Use Format::Undefined to use the preferred format.
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
 
 public:
+    DeviceType m_deviceType = DeviceType::Default;
+    std::vector<Feature> m_missingFeatures;
     GLFWwindow* m_window = nullptr;
 
     float m_mousePos[2] = {0.0f, 0.0f};
@@ -103,12 +119,35 @@ static std::vector<ExampleBase*>& getExamples()
 
 static ExampleBase* mainExample = nullptr;
 
+static void setMainExample(ExampleBase* example)
+{
+    if (mainExample)
+        glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_FALSE);
+    mainExample = example;
+    if (mainExample)
+        glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_TRUE);
+}
+
 } // namespace detail
 
 
 ExampleBase::~ExampleBase()
 {
     destroyWindow();
+}
+
+Result ExampleBase::createDevice(
+    DeviceType deviceType,
+    std::vector<Feature> requiredFeatures,
+    std::vector<std::pair<std::string, std::string>> preprocessorMacros,
+    IDevice** outDevice
+)
+{
+    SLANG_RETURN_ON_FAIL(
+        rhi::createDevice(deviceType, requiredFeatures, preprocessorMacros, outDevice, &m_missingFeatures)
+    );
+    m_deviceType = (*outDevice)->getDeviceType();
+    return SLANG_OK;
 }
 
 Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t width, uint32_t height)
@@ -124,8 +163,7 @@ Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t wi
         deviceInfo.adapterName
     );
 
-    bool isMainExample = (this == detail::mainExample);
-    glfwWindowHint(GLFW_RESIZABLE, isMainExample ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
     if (!m_window)
@@ -153,6 +191,11 @@ void ExampleBase::destroyWindow()
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
+}
+
+bool ExampleBase::shouldClose() const
+{
+    return m_window && glfwWindowShouldClose(m_window) != 0;
 }
 
 Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
@@ -340,9 +383,6 @@ static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
 template<typename Example>
 static int main(int argc, const char** argv)
 {
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
     std::vector<DeviceType> deviceTypes = {
         DeviceType::D3D11,
         DeviceType::D3D12,
@@ -354,7 +394,46 @@ static int main(int argc, const char** argv)
         // DeviceType::WGPU,
     };
 
+    if (argc > 1)
+    {
+        if (argc != 3 || std::string(argv[1]) != "--device")
+        {
+            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda>]", argv[0]);
+            return 1;
+        }
+        std::string requestedDevice = argv[2];
+        auto toLower = [](unsigned char c)
+        {
+            return char(std::tolower(c));
+        };
+        std::transform(requestedDevice.begin(), requestedDevice.end(), requestedDevice.begin(), toLower);
+        auto selectedDevice = std::find_if(
+            deviceTypes.begin(),
+            deviceTypes.end(),
+            [&](DeviceType type)
+            {
+                std::string name = getRHI()->getDeviceTypeName(type);
+                std::transform(name.begin(), name.end(), name.begin(), toLower);
+                return name == requestedDevice;
+            }
+        );
+        if (selectedDevice == deviceTypes.end())
+        {
+            LOG_ERROR("Unknown device: %s", argv[2]);
+            return 1;
+        }
+        deviceTypes = {*selectedDevice};
+    }
+
+    if (!glfwInit())
+    {
+        LOG_ERROR("Failed to initialize GLFW");
+        return 1;
+    }
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
     std::vector<ExampleBase*>& examples = getExamples();
+    int exitCode = 0;
 
     // Create an example for each supported device type
     for (DeviceType deviceType : deviceTypes)
@@ -362,63 +441,100 @@ static int main(int argc, const char** argv)
         if (rhi::getRHI()->isDeviceTypeSupported(deviceType))
         {
             Example* example = new Example();
-            ExampleBase* prevMainExample = mainExample;
-            if (!mainExample)
+            Result result = example->init(deviceType);
+            if (SLANG_FAILED(result))
             {
-                mainExample = example;
-            }
-            if (SLANG_FAILED(example->init(deviceType)))
-            {
-                mainExample = prevMainExample;
+                if (result == SLANG_E_NOT_AVAILABLE && !example->m_missingFeatures.empty())
+                {
+                    std::string missingFeatures;
+                    for (Feature feature : example->m_missingFeatures)
+                    {
+                        if (!missingFeatures.empty())
+                            missingFeatures += ", ";
+                        const char* name = getRHI()->getFeatureName(feature);
+                        missingFeatures += name ? name : "unknown";
+                    }
+                    LOG_INFO(
+                        "%s: skipped (missing required features: %s).",
+                        getRHI()->getDeviceTypeName(deviceType),
+                        missingFeatures.c_str()
+                    );
+                }
+                else
+                {
+                    exitCode = 1;
+                    LOG_ERROR(
+                        "Could not initialize %s example (0x%08x).",
+                        getRHI()->getDeviceTypeName(deviceType),
+                        unsigned(result)
+                    );
+                }
                 delete example;
                 continue;
             }
             examples.push_back(example);
+            if (!mainExample)
+                setMainExample(example);
+        }
+        else
+        {
+            LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
         }
     }
 
     layoutWindows();
 
-    if (examples.size() > 0)
+    if (examples.empty())
+        exitCode = 1;
+
+    while (!examples.empty())
     {
-        while (true)
+        glfwPollEvents();
+
+        double time = glfwGetTime();
+        bool shouldClose = false;
+
+        for (auto it = examples.begin(); it != examples.end();)
         {
-            bool shouldClose = false;
-            for (ExampleBase* example : examples)
+            ExampleBase* example = *it;
+            shouldClose |= example->shouldClose();
+            Result result = example->update(time);
+            if (SLANG_SUCCEEDED(result))
+                result = example->draw();
+            if (SLANG_FAILED(result))
             {
-                if (glfwWindowShouldClose(example->m_window))
-                {
-                    shouldClose = true;
-                    break;
-                }
+                LOG_ERROR(
+                    "%s: example frame failed (0x%08x).",
+                    getRHI()->getDeviceTypeName(example->m_deviceType),
+                    unsigned(result)
+                );
+                exitCode = 1;
+                it = examples.erase(it);
+                if (mainExample == example)
+                    setMainExample(examples.empty() ? nullptr : examples.front());
+                example->shutdown();
+                delete example;
+                layoutWindows();
             }
-            if (shouldClose)
-            {
-                break;
-            }
-
-            glfwPollEvents();
-
-            double time = glfwGetTime();
-
-            for (ExampleBase* example : examples)
-            {
-                // TODO: handle errors
-                example->update(time);
-                example->draw();
-            }
+            else
+                ++it;
         }
-
-        for (ExampleBase* example : examples)
-        {
-            example->shutdown();
-            delete example;
-        }
+        if (shouldClose)
+            break;
     }
+
+    for (ExampleBase* example : examples)
+    {
+        example->shutdown();
+        delete example;
+    }
+
+    examples.clear();
+    mainExample = nullptr;
 
     glfwTerminate();
 
-    return 0;
+    return exitCode;
 }
 
 } // namespace detail

@@ -2,12 +2,44 @@
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
-#include "../src/enum-strings.h"
+#include "../../src/enum-strings.h"
 
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 #include <execution>
 #include <limits>
 #include <mutex>
+#include <string>
 #include <vector>
+
+// ---------------------------------------------------------------------------------------
+// Logging
+// ---------------------------------------------------------------------------------------
+
+namespace rhi::detail {
+
+inline void logMessage(DebugMessageType type, const char* format, ...)
+{
+    // Driver callbacks may log concurrently with the example.
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+    FILE* stream = type == DebugMessageType::Info ? stdout : stderr;
+    std::fprintf(stream, "[%s] ", enumToString(type));
+    va_list args;
+    va_start(args, format);
+    std::vfprintf(stream, format, args);
+    va_end(args);
+    std::fputc('\n', stream);
+    std::fflush(stream);
+}
+
+} // namespace rhi::detail
+
+// printf-style formatting; the logger adds the level prefix and trailing newline.
+#define LOG_INFO(...) ::rhi::detail::logMessage(::rhi::DebugMessageType::Info, __VA_ARGS__)
+#define LOG_WARNING(...) ::rhi::detail::logMessage(::rhi::DebugMessageType::Warning, __VA_ARGS__)
+#define LOG_ERROR(...) ::rhi::detail::logMessage(::rhi::DebugMessageType::Error, __VA_ARGS__)
 
 // ---------------------------------------------------------------------------------------
 // Asserts
@@ -18,8 +50,8 @@
     {                                                                                                                  \
         if (!(cond))                                                                                                   \
         {                                                                                                              \
-            fprintf(stderr, "Assertion failed: %s (%s:%d): %s\n", #cond, __FILE__, __LINE__, msg);                     \
-            abort();                                                                                                   \
+            LOG_ERROR("Assertion failed: %s (%s:%d): %s", #cond, __FILE__, __LINE__, msg);                             \
+            std::abort();                                                                                              \
         }                                                                                                              \
     }                                                                                                                  \
     while (0)
@@ -52,29 +84,28 @@ namespace rhi {
 // Debug printer
 // ---------------------------------------------------------------------------------------
 
-// A simple implementation of IDebugCallback that prints messages to stdout.
+// Forward RHI and driver messages through the example logger.
 class DebugPrinter : public IDebugCallback
 {
 public:
+    explicit DebugPrinter(DebugMessageType minimumType)
+        : m_minimumType(minimumType)
+    {
+    }
+
     virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
         DebugMessageType type,
         DebugMessageSource source,
         const char* message
     ) override
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        printf("[%s] (%s) %s\n", enumToString(type), enumToString(source), message);
-        fflush(stdout);
-    }
-
-    static DebugPrinter* getInstance()
-    {
-        static DebugPrinter instance;
-        return &instance;
+        if (type < m_minimumType)
+            return;
+        detail::logMessage(type, "(%s) %s", enumToString(source), message);
     }
 
 private:
-    std::mutex m_mutex;
+    DebugMessageType m_minimumType;
 };
 
 // ---------------------------------------------------------------------------------------
@@ -85,9 +116,14 @@ inline Result createDevice(
     DeviceType deviceType,
     std::vector<Feature> requiredFeatures,
     std::vector<std::pair<std::string, std::string>> preprocessorMacros,
-    IDevice** outDevice
+    IDevice** outDevice,
+    std::vector<Feature>* outMissingFeatures = nullptr
 )
 {
+    *outDevice = nullptr;
+    if (outMissingFeatures)
+        outMissingFeatures->clear();
+
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
@@ -95,7 +131,8 @@ inline Result createDevice(
     debugLayerOptions.coreValidation = true;
     getRHI()->setDebugLayerOptions(debugLayerOptions);
     deviceDesc.enableValidation = true;
-    deviceDesc.debugCallback = DebugPrinter::getInstance();
+    static DebugPrinter debugPrinter(DebugMessageType::Warning);
+    deviceDesc.debugCallback = &debugPrinter;
 #endif
     const char* searchPaths[] = {EXAMPLE_DIR};
     deviceDesc.slang.searchPaths = searchPaths;
@@ -109,13 +146,29 @@ inline Result createDevice(
         desc.value = macro.second.c_str();
         preprocessorMacrosDescs.push_back(desc);
     }
+
     deviceDesc.slang.preprocessorMacros = preprocessorMacrosDescs.data();
     deviceDesc.slang.preprocessorMacroCount = preprocessorMacrosDescs.size();
 
-    deviceDesc.requiredFeatureCount = static_cast<uint32_t>(requiredFeatures.size());
-    deviceDesc.requiredFeatures = requiredFeatures.data();
+    // Check example requirements after creation so an unsupported example is
+    // reported once, rather than as a separate device error for each feature.
+    ComPtr<IDevice> device;
+    SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, device.writeRef()));
+    bool hasMissingFeatures = false;
+    for (Feature feature : requiredFeatures)
+    {
+        if (!device->hasFeature(feature))
+        {
+            hasMissingFeatures = true;
+            if (outMissingFeatures)
+                outMissingFeatures->push_back(feature);
+        }
+    }
+    if (hasMissingFeatures)
+        return SLANG_E_NOT_AVAILABLE;
 
-    return getRHI()->createDevice(deviceDesc, outDevice);
+    *outDevice = device.detach();
+    return SLANG_OK;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -127,7 +180,7 @@ inline Result createDevice(
         if (diagnostics)                                                                                               \
         {                                                                                                              \
             const char* msg = (const char*)diagnostics->getBufferPointer();                                            \
-            printf("%s\n", msg);                                                                                       \
+            LOG_INFO("%s", msg);                                                                                       \
         }                                                                                                              \
     }
 
@@ -153,7 +206,7 @@ inline Result _createProgram(
     PRINT_DIAGNOSTICS(diagnostics);
     if (!module)
     {
-        printf("Failed to load Slang module from '%s'\n", pathOrSource);
+        LOG_ERROR("Failed to load Slang module from '%s'", pathOrSource);
         return SLANG_FAIL;
     }
     std::vector<slang::IComponentType*> entryPoints;
@@ -162,7 +215,7 @@ inline Result _createProgram(
         slang::IEntryPoint* entryPoint;
         if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, &entryPoint)))
         {
-            printf("Failed to find entry point '%s' in module '%s'\n", entryPointName, pathOrSource);
+            LOG_ERROR("Failed to find entry point '%s' in module '%s'", entryPointName, pathOrSource);
             return SLANG_FAIL;
         }
         entryPoints.push_back(entryPoint);
@@ -176,7 +229,7 @@ inline Result _createProgram(
     PRINT_DIAGNOSTICS(diagnostics);
     if (!(*outProgram))
     {
-        printf("Failed to create program for module '%s'\n", pathOrSource);
+        LOG_ERROR("Failed to create program for module '%s'", pathOrSource);
         return SLANG_FAIL;
     }
     return SLANG_OK;
