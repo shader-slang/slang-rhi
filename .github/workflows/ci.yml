@@ -116,22 +116,51 @@ jobs:
         working-directory: build/${{matrix.config}}
 
       - name: Coverage Report
+        id: coverage
         if: contains(matrix.flags, 'coverage')
         continue-on-error: true
         run: cmake --build build --config ${{matrix.config}} --target coverage
 
-      - name: Upload Coveralls
-        if: contains(matrix.flags, 'coverage')
+      - name: Upload coverage artifact
+        if: steps.coverage.outcome == 'success'
         continue-on-error: true
-        uses: coverallsapp/github-action@v2
+        uses: actions/upload-artifact@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ${{ github.workspace }}/build/coverage.lcov
-          flag-name: ${{ matrix.os }}-${{ matrix.platform }}
-          parallel: true
+          name: coverage-${{ matrix.os }}-${{ matrix.platform }}
+          path: build/coverage.lcov
+          if-no-files-found: error
+          overwrite: true
+
+  coverage:
+    needs: build
+    if: ${{ always() }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flag: [windows-x86_64, linux-x86_64, macos-aarch64]
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Download coverage artifact
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-${{ matrix.flag }}
+        path: coverage
+        merge-multiple: true
+
+    - name: Upload Coveralls
+      if: hashFiles('coverage/coverage.lcov') != ''
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        file: coverage/coverage.lcov
+        flag-name: ${{ matrix.flag }}
+        parallel: true
 
   finish:
-    needs: build
+    needs: coverage
     if: ${{ always() }}
     continue-on-error: true
     runs-on: ubuntu-latest
