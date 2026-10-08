@@ -265,3 +265,36 @@ GPU_TEST_CASE("resolve-resource-simple", D3D11 | D3D12 | Vulkan | Metal)
     test.init(device);
     test.run();
 }
+
+// Use a multisample-compatible WebGPU format. In addition to preserving solid
+// colors, the diagonal boundaries must resolve to fractional sample coverage.
+GPU_TEST_CASE("resolve-resource-rgba8", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    BaseResolveResourceTest test;
+    test.init(device);
+    BaseResolveResourceTest::TextureInfo info = {{kWidth, kHeight, 1}, 1, 1, nullptr};
+    test.createRequiredResources(info, info, Format::RGBA8Unorm);
+    test.submitGPUWork({0, 1, 0, 1}, {0, 1, 0, 1}, info.extent);
+    ComPtr<ISlangBlob> data;
+    SubresourceLayout layout;
+    REQUIRE_CALL(device->readTexture(test.dstTexture, 0, 0, data.writeRef(), &layout));
+    auto pixel = [&](uint32_t x, uint32_t y)
+    {
+        return static_cast<const uint8_t*>(data->getBufferPointer()) + y * layout.rowPitch + x * 4;
+    };
+    // Fully covered interiors of the four triangles.
+    const uint32_t x[] = {127, 64, 127, 191};
+    const uint32_t y[] = {64, 127, 191, 127};
+    const uint8_t expected[4][4] = {{255, 0, 0, 255}, {0, 255, 0, 255}, {0, 0, 255, 255}, {0, 0, 0, 255}};
+    for (uint32_t i = 0; i < 4; ++i)
+        for (uint32_t c = 0; c < 4; ++c)
+            CHECK(pixel(x[i], y[i])[c] == expected[i][c]);
+    // The red/green diagonal crosses this pixel. A missing resolve leaves zeros;
+    // a single-sample render has only one of the two colors.
+    CHECK(pixel(64, 64)[0] > 0);
+    CHECK(pixel(64, 64)[0] < 255);
+    CHECK(pixel(64, 64)[1] > 0);
+    CHECK(pixel(64, 64)[1] < 255);
+    CHECK(pixel(64, 64)[2] == 0);
+    CHECK(pixel(64, 64)[3] == 255);
+}

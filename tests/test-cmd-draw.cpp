@@ -494,3 +494,58 @@ GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
 {
     testDraw<DrawIndexedIndirectTest>(device);
 }
+
+GPU_TEST_CASE("cmd-draw-change-vertex-buffer", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    BaseDrawTest test;
+    test.init(device);
+    test.createRequiredResources();
+    Vertex mirrored[kVertexCount];
+    std::memcpy(mirrored, kVertexData, sizeof(mirrored));
+    for (auto& vertex : mirrored)
+        vertex.position[1] = -vertex.position[1];
+    auto secondBuffer = device->createBuffer(test.vertexBuffer->getDesc(), mirrored);
+    REQUIRE(secondBuffer);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    RenderPassColorAttachment color = {};
+    color.view = test.colorBufferView;
+    RenderPassDesc passDesc = {};
+    passDesc.colorAttachments = &color;
+    passDesc.colorAttachmentCount = 1;
+    auto pass = encoder->beginRenderPass(passDesc);
+    pass->bindPipeline(test.pipeline);
+    RenderState state = {};
+    state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
+    state.viewportCount = 1;
+    state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
+    state.scissorRectCount = 1;
+    state.vertexBuffers[0] = test.vertexBuffer;
+    state.vertexBuffers[1] = test.instanceBuffer;
+    state.vertexBufferCount = 2;
+    pass->setRenderState(state);
+    DrawArguments args = {};
+    args.vertexCount = kVertexCount;
+    pass->draw(args);
+    // Keep the same pipeline and instance stream; only the mesh buffer changes.
+    state.vertexBuffers[0] = secondBuffer;
+    pass->setRenderState(state);
+    pass->draw(args);
+    pass->end();
+    ComPtr<ICommandBuffer> commands;
+    REQUIRE_CALL(encoder->finish(commands.writeRef()));
+    REQUIRE_CALL(queue->submit(commands));
+    REQUIRE_CALL(queue->waitOnHost());
+    ComPtr<ISlangBlob> data;
+    SubresourceLayout layout;
+    REQUIRE_CALL(device->readTexture(test.colorBuffer, 0, 0, data.writeRef(), &layout));
+    for (uint32_t y : {96u, 160u})
+    {
+        auto row = static_cast<const uint8_t*>(data->getBufferPointer()) + y * layout.rowPitch;
+        auto pixel = reinterpret_cast<const float*>(row) + 192 * 4;
+        CHECK(pixel[0] == 1);
+        CHECK(pixel[1] == 0);
+        CHECK(pixel[2] == 0);
+        CHECK(pixel[3] == 1);
+    }
+}

@@ -26,9 +26,30 @@ public:
         SLANG_RETURN_ON_FAIL(
             createProgram(m_device, "raster.slang", {"sceneVertex", "sceneFragment"}, programs.scene.writeRef())
         );
+        SLANG_RETURN_ON_FAIL(
+            createProgram(m_device, "raster.slang", {"sphereVertex", "sceneFragment"}, programs.spheres.writeRef())
+        );
+        SLANG_RETURN_ON_FAIL(createProgram(
+            m_device,
+            "raster.slang",
+            {"sphereShadowVertex", "shadowFragment"},
+            programs.sphereShadow.writeRef()
+        ));
         SLANG_RETURN_ON_FAIL(createProgram(m_device, "post.slang", {"bloomMain"}, programs.bloom.writeRef()));
         SLANG_RETURN_ON_FAIL(
             createProgram(m_device, "post.slang", {"fullscreenVertex", "toneMapFragment"}, programs.toneMap.writeRef())
+        );
+        SLANG_RETURN_ON_FAIL(createProgram(
+            m_device,
+            "raster.slang",
+            {"backgroundVertex", "backgroundFragment"},
+            programs.background.writeRef()
+        ));
+        SLANG_RETURN_ON_FAIL(
+            createProgram(m_device, "environment.slang", {"environmentMain"}, programs.environment.writeRef())
+        );
+        SLANG_RETURN_ON_FAIL(
+            createProgram(m_device, "environment.slang", {"brdfMain"}, programs.environmentBrdf.writeRef())
         );
         m_renderer = std::make_unique<raster::Renderer>();
         SLANG_RETURN_ON_FAIL(m_renderer->init(m_device, m_surface->getConfig()->format, programs));
@@ -41,7 +62,7 @@ public:
         SLANG_RETURN_ON_FAIL(m_text->init(m_device, m_surface->getConfig()->format, textProgram));
         LOG_INFO(
             "Logo controls: left drag orbit; right drag light; wheel zoom; [/] roughness; -/= exposure; B bloom; R "
-            "reset."
+            "reset; E environment; ,/. rotate environment; I environment lighting; M MSAA; S spheres."
         );
         updateTitle();
         return SLANG_OK;
@@ -135,6 +156,17 @@ public:
             return;
         if (key == GLFW_KEY_B && action == GLFW_PRESS)
             m_settings.bloom = !m_settings.bloom;
+        if (key == GLFW_KEY_E && action == GLFW_PRESS)
+            m_settings.environmentPreset = 1 - m_settings.environmentPreset;
+        if (key == GLFW_KEY_I && action == GLFW_PRESS)
+            m_settings.environmentLighting = !m_settings.environmentLighting;
+        if (key == GLFW_KEY_M && action == GLFW_PRESS && m_renderer->supportsMsaa())
+            m_settings.msaa = !m_settings.msaa;
+        if (key == GLFW_KEY_S && action == GLFW_PRESS)
+            m_settings.spheres = !m_settings.spheres;
+        if (key == GLFW_KEY_COMMA || key == GLFW_KEY_PERIOD)
+            m_settings.environmentRotation =
+                std::remainder(m_settings.environmentRotation + (key == GLFW_KEY_PERIOD ? 0.1f : -0.1f), 6.2831853f);
         if (key == GLFW_KEY_R)
             m_settings = {};
         if (key == GLFW_KEY_LEFT_BRACKET || key == GLFW_KEY_RIGHT_BRACKET)
@@ -147,6 +179,11 @@ public:
     }
 
 private:
+    const char* msaaStatus() const
+    {
+        return !m_renderer->supportsMsaa() ? "UNAVAILABLE" : m_settings.msaa ? "4X" : "OFF";
+    }
+
     Result drawOverlay(ICommandEncoder* encoder, ITexture* image)
     {
         char text[768];
@@ -155,9 +192,14 @@ private:
             sizeof(text),
             "SLANG LOGO / %s\n"
             "%.1f FPS / %.2f MS - APP LOOP\n\n"
-            "ROUGHNESS  %.2f   [ / ]\n"
+            "LOGO ROUGH %.2f   [ / ]\n"
             "EXPOSURE   %+.2f   - / =\n"
-            "BLOOM      %s   B\n\n"
+            "BLOOM      %s   B\n"
+            "MSAA       %s   M\n"
+            "SPHERES    %u   S\n"
+            "ENV        %s   E\n"
+            "ENV ANGLE  %+.0f DEG   , / .\n"
+            "ENV LIGHT  %s   I\n\n"
             "LEFT DRAG: ORBIT\n"
             "RIGHT DRAG: LIGHT\n"
             "WHEEL: ZOOM / R: RESET",
@@ -166,7 +208,12 @@ private:
             m_frameStats.milliseconds(),
             m_settings.roughness,
             m_settings.exposure,
-            m_settings.bloom ? "ON " : "OFF"
+            m_settings.bloom ? "ON " : "OFF",
+            msaaStatus(),
+            m_settings.spheres ? raster::kSphereCount : 0u,
+            m_settings.environmentPreset == 0 ? "STUDIO " : "OUTDOOR",
+            m_settings.environmentRotation * (180.0f / 3.14159265f),
+            m_settings.environmentLighting ? "ON " : "OFF"
         );
         int windowWidth, windowHeight;
         glfwGetWindowSize(m_window, &windowWidth, &windowHeight);
@@ -185,13 +232,18 @@ private:
         snprintf(
             title,
             sizeof(title),
-            "Slang logo | %s | %.1f FPS / %.2f ms | roughness %.2f | exposure %+.2f | bloom %s",
+            "Slang logo | %s | %.1f FPS / %.2f ms | roughness %.2f | exposure %+.2f | bloom %s | MSAA %s | %s | IBL %s "
+            "| spheres %u",
             getRHI()->getDeviceTypeName(m_deviceType),
             m_frameStats.fps(),
             m_frameStats.milliseconds(),
             m_settings.roughness,
             m_settings.exposure,
-            m_settings.bloom ? "on" : "off"
+            m_settings.bloom ? "on" : "off",
+            msaaStatus(),
+            m_settings.environmentPreset == 0 ? "studio" : "outdoor",
+            m_settings.environmentLighting ? "on" : "off",
+            m_settings.spheres ? raster::kSphereCount : 0u
         );
         glfwSetWindowTitle(m_window, title);
     }

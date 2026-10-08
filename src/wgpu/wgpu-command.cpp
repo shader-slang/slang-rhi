@@ -418,8 +418,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         attachment.resolveTarget = attachmentIn.resolveTarget
                                        ? checked_cast<TextureViewImpl*>(attachmentIn.resolveTarget)->m_textureView
                                        : nullptr;
-        attachment.depthSlice = -1;         // TODO not provided
-        attachment.resolveTarget = nullptr; // TODO not provided
+        attachment.depthSlice = -1; // TODO not provided
         attachment.loadOp = translateLoadOp(attachmentIn.loadOp);
         attachment.storeOp = translateStoreOp(attachmentIn.storeOp);
         attachment.clearValue.r = attachmentIn.clearValue[0];

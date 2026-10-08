@@ -15,6 +15,12 @@ not a commitment to implement every idea.
   are independent of the renderer for later reuse in the path tracer.
   It also includes crease-aware smooth normals, a filtered procedural ground
   pattern, and a reusable bitmap-text HUD with application-loop FPS reporting.
+  Procedural studio/outdoor environments add cubemap generation, GGX-prefiltered
+  reflections, diffuse irradiance, a BRDF lookup texture, and a matching background.
+  Switchable 4x MSAA demonstrates multisampled color/depth attachments and an HDR
+  color resolve before post-processing.
+  A grid of 30 spheres demonstrates indexed instancing, structured instance data,
+  per-instance materials, and instanced shadow rendering using one shared mesh.
 - The path tracer demonstrates triangle acceleration structures, ray tracing,
   accumulation, and tone mapping. It currently has ray-pipeline and compute
   ray-query paths selected through `USE_RAYTRACING_PIPELINE`.
@@ -86,7 +92,8 @@ or particles initially; both fill the persistent-simulation gap.
 ### Material and lighting playground
 
 **Implemented starting point:** `examples/raster` provides the logo scene, one
-shadow map, solid-color materials, HDR tone mapping, and optional bloom. The
+shadow map, solid-color materials, procedural environment lighting and backgrounds,
+HDR tone mapping, and optional bloom. The
 broader ideas below remain possible extensions rather than requirements for it.
 
 **Scene:** A small procedural scene with textured objects, a movable light,
