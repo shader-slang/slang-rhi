@@ -50,6 +50,16 @@ cd build/Debug
 
 On Windows, append `.exe` to executable names.
 
+## Project structure
+
+| Directory | Contents |
+|-----------|----------|
+| [include/](include) | Public API headers and API documentation, starting with [slang-rhi.h](include/slang-rhi.h). |
+| [src/](src) | Backend implementations, shared utilities, and debug layer. |
+| [examples/](examples) | Runnable example applications. |
+| [tests/](tests) | Tests and test shaders. |
+| [docs/](docs) | Build instructions, usage guides, and design notes. |
+
 ## Documentation
 
 - [Building and testing](docs/building.md): prerequisites, CMake options, and test selection.
@@ -57,8 +67,6 @@ On Windows, append `.exe` to executable names.
 - [Error handling and diagnostics](docs/error-handling.md): result codes and debug callbacks.
 - [Object lifetime](docs/object-lifetime.md): reference counting and device ownership.
 - [Synthetic resource bindings](docs/synthetic-bindings.md): compiler-generated shader resources.
-- [Public API](include/slang-rhi.h): interfaces, descriptors, and API comments.
-- [Examples](examples): complete applications using the API.
 
 For contributions, see [CONTRIBUTING.md](CONTRIBUTING.md). Report bugs and request
 features through [GitHub issues](https://github.com/shader-slang/slang-rhi/issues).
