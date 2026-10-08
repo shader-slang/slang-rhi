@@ -248,6 +248,10 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
 | `drawMeshTasks`       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 
+WebGPU single indirect draws without a count buffer use the core WebGPU API.
+Other indirect-draw forms currently use Dawn's native multi-draw extension and
+require that optional feature to be enabled; they are unavailable in the Wasm path.
+
 ## `IComputePassEncoder` interface
 
 | API                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |

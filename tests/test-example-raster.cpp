@@ -263,6 +263,8 @@ GPU_TEST_CASE("example-raster-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
         SKIP("Required HDR or depth texture format support is unavailable");
     REQUIRE_CALL(initResult);
     auto queue = device->getQueue(QueueType::Graphics);
+    GpuProfiler profiler;
+    REQUIRE_CALL(profiler.init(device));
 
     auto render = [&](uint32_t width, uint32_t height, const raster::Settings& settings, bool resizeTargets = true)
     {
@@ -276,11 +278,20 @@ GPU_TEST_CASE("example-raster-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
         auto output = device->createTexture(desc);
         REQUIRE(output);
         auto encoder = queue->createCommandEncoder();
-        REQUIRE_CALL(renderer.render(encoder, output, settings));
+        REQUIRE_CALL(profiler.beginFrame());
+        REQUIRE_CALL(renderer.render(encoder, output, settings, &profiler));
+        REQUIRE_CALL(profiler.endFrame());
         ComPtr<ICommandBuffer> commands;
         REQUIRE_CALL(encoder->finish(commands.writeRef()));
         REQUIRE_CALL(queue->submit(commands));
         REQUIRE_CALL(queue->waitOnHost());
+        REQUIRE_CALL(profiler.poll());
+        if (profiler.supported())
+        {
+            REQUIRE(profiler.samples().size() == 1);
+            CHECK(profiler.samples()[0].name == "Raster frame");
+            CHECK(std::isfinite(profiler.samples()[0].milliseconds));
+        }
         ComPtr<ISlangBlob> pixels;
         SubresourceLayout layout;
         REQUIRE_CALL(device->readTexture(output, 0, 0, pixels.writeRef(), &layout));

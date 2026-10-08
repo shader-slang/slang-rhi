@@ -60,6 +60,8 @@ public:
         );
         m_text = std::make_unique<TextRenderer>();
         SLANG_RETURN_ON_FAIL(m_text->init(m_device, m_surface->getConfig()->format, textProgram));
+        m_profiler = std::make_unique<GpuProfiler>();
+        SLANG_RETURN_ON_FAIL(m_profiler->init(m_device));
         LOG_INFO(
             "Logo controls: left drag orbit; right drag light; wheel zoom; [/] roughness; -/= exposure; B bloom; R "
             "reset; E environment; ,/. rotate environment; I environment lighting; M MSAA; S spheres."
@@ -73,6 +75,7 @@ public:
         if (m_queue)
             m_queue->waitOnHost();
         m_text.reset();
+        m_profiler.reset();
         m_renderer.reset();
         m_surface.setNull();
         m_queue.setNull();
@@ -95,8 +98,10 @@ public:
         if (!image)
             return SLANG_OK;
         auto encoder = m_queue->createCommandEncoder();
-        SLANG_RETURN_ON_FAIL(m_renderer->render(encoder, image, m_settings));
+        SLANG_RETURN_ON_FAIL(m_profiler->beginFrame());
+        SLANG_RETURN_ON_FAIL(m_renderer->render(encoder, image, m_settings, m_profiler.get()));
         SLANG_RETURN_ON_FAIL(drawOverlay(encoder, image));
+        SLANG_RETURN_ON_FAIL(m_profiler->endFrame());
         ComPtr<ICommandBuffer> commands;
         SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
         SLANG_RETURN_ON_FAIL(m_queue->submit(commands));
@@ -223,6 +228,16 @@ private:
         m_text->clear();
         SLANG_RETURN_ON_FAIL(m_text->addText(text, origin + math::float2(scale), scale, {0.005f, 0.007f, 0.01f, 1}));
         SLANG_RETURN_ON_FAIL(m_text->addText(text, origin, scale, {0.82f, 0.88f, 0.96f, 1}));
+        char timing[96];
+        if (!m_profiler->supported())
+            snprintf(timing, sizeof(timing), "GPU TIMING UNAVAILABLE");
+        else if (m_profiler->samples().empty())
+            snprintf(timing, sizeof(timing), "GPU TIMING PENDING");
+        else
+            snprintf(timing, sizeof(timing), "GPU RENDER %.2f MS", m_profiler->samples()[0].milliseconds);
+        SLANG_RETURN_ON_FAIL(
+            m_text->addText(timing, {origin.x, float(image->getDesc().size.height) - 12 * scale}, scale)
+        );
         return m_text->render(encoder, image);
     }
 
@@ -253,6 +268,7 @@ private:
     ComPtr<ICommandQueue> m_queue;
     std::unique_ptr<raster::Renderer> m_renderer;
     std::unique_ptr<TextRenderer> m_text;
+    std::unique_ptr<GpuProfiler> m_profiler;
     FrameStats m_frameStats;
     raster::Settings m_settings;
     math::float2 m_lastMouse;

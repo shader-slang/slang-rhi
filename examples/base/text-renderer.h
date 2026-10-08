@@ -24,6 +24,16 @@ public:
         m_outputFormat = outputFormat;
         m_vertices.reserve(kMaxGlyphs * 6);
         auto pixels = bitmap_font::createAtlas();
+        // An opaque atlas texel also lets HUDs draw solid, alpha-blended panels.
+        for (size_t i = 0; i < pixels.size(); ++i)
+            if (pixels[i] == 255)
+            {
+                m_solidUv = {
+                    (float(i % bitmap_font::kWidth) + 0.5f) / bitmap_font::kWidth,
+                    (float(i / bitmap_font::kWidth) + 0.5f) / bitmap_font::kHeight
+                };
+                break;
+            }
         TextureDesc texture = {};
         texture.size = {bitmap_font::kWidth, bitmap_font::kHeight, 1};
         texture.format = Format::R8Unorm;
@@ -73,6 +83,19 @@ public:
     }
 
     void clear() { m_vertices.clear(); }
+
+    // Call before addText() to place a translucent panel behind the labels.
+    Result addRect(math::float2 origin, math::float2 size, math::float4 color)
+    {
+        if (!std::isfinite(origin.x) || !std::isfinite(origin.y) || !std::isfinite(size.x) || !std::isfinite(size.y) ||
+            size.x <= 0 || size.y <= 0)
+            return SLANG_E_INVALID_ARG;
+        if (m_vertices.size() + 6 > kMaxGlyphs * 6)
+            return SLANG_E_OUT_OF_MEMORY;
+        for (math::float2 corner : {math::float2(0, 0), {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}})
+            m_vertices.push_back({origin + corner * size, m_solidUv, color});
+        return SLANG_OK;
+    }
 
     // A failed capacity check leaves the existing batch unchanged. Newlines and
     // spaces advance the pen without consuming glyph capacity. Tabs are 4 spaces.
@@ -170,6 +193,7 @@ private:
     };
 
     Format m_outputFormat = Format::Undefined;
+    math::float2 m_solidUv = {};
     std::vector<Vertex> m_vertices;
     ComPtr<ITexture> m_atlas;
     ComPtr<ISampler> m_sampler;

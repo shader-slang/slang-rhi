@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../base/logo-scene.h"
+#include "../base/gpu-profiler.h"
 #include "environment.h"
 #include "spheres.h"
 
@@ -233,7 +234,7 @@ public:
         return SLANG_OK;
     }
 
-    Result render(ICommandEncoder* encoder, ITexture* output, const Settings& settings)
+    Result render(ICommandEncoder* encoder, ITexture* output, const Settings& settings, GpuProfiler* profiler = nullptr)
     {
         if (!m_width || !m_height || output->getDesc().size.width != m_width ||
             output->getDesc().size.height != m_height || output->getDesc().format != m_outputFormat ||
@@ -255,6 +256,8 @@ public:
         RenderPassDesc pass = {};
         pass.depthStencilAttachment = &depth;
         auto renderPass = encoder->beginRenderPass(pass);
+        uint32_t profileRegion =
+            profiler ? profiler->beginRegion(renderPass, "Raster frame") : GpuProfiler::kInvalidRegion;
         renderPass->pushDebugGroup("Shadow map", {});
         ShaderCursor shadowCursor(renderPass->bindPipeline(m_shadowPipeline));
         SLANG_RETURN_ON_FAIL(shadowCursor["frame"]["lightViewProjection"].setData(lightViewProjection));
@@ -418,6 +421,8 @@ public:
         draw = {};
         draw.vertexCount = 3;
         renderPass->draw(draw);
+        if (profiler)
+            profiler->endRegion(renderPass, profileRegion);
         renderPass->popDebugGroup();
         renderPass->end();
         return SLANG_OK;

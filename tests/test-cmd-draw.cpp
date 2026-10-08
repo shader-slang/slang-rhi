@@ -324,8 +324,9 @@ struct DrawIndirectTest : BaseDrawTest
 
         BufferDesc bufferDesc;
         bufferDesc.size = sizeof(IndirectArgData);
-        bufferDesc.usage = BufferUsage::IndirectArgument;
-        bufferDesc.defaultState = ResourceState::IndirectArgument;
+        // Preserve the indirect flag when the buffer can also be written by compute.
+        bufferDesc.usage = BufferUsage::IndirectArgument | BufferUsage::UnorderedAccess;
+        bufferDesc.defaultState = ResourceState::UnorderedAccess;
         ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndirectData);
         REQUIRE(buffer != nullptr);
         return buffer;
@@ -404,8 +405,8 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
         BufferDesc bufferDesc;
         bufferDesc.size = sizeof(IndexedIndirectArgData);
-        bufferDesc.usage = BufferUsage::IndirectArgument;
-        bufferDesc.defaultState = ResourceState::IndirectArgument;
+        bufferDesc.usage = BufferUsage::IndirectArgument | BufferUsage::UnorderedAccess;
+        bufferDesc.defaultState = ResourceState::UnorderedAccess;
         ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndexedIndirectData);
         REQUIRE(buffer != nullptr);
         return buffer;
@@ -485,12 +486,12 @@ GPU_TEST_CASE("cmd-draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGP
     testDraw<DrawIndexedInstancedTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan | WGPU)
 {
     testDraw<DrawIndirectTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan | WGPU)
 {
     testDraw<DrawIndexedIndirectTest>(device);
 }

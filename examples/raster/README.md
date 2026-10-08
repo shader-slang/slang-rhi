@@ -59,6 +59,11 @@ and restore so minimized time is excluded.
 The main window can be resized; rendering pauses while minimized and targets
 are recreated when restored.
 
+The HUD also displays GPU render time using the [shared example profiler](../base/gpu-profiler.md).
+This spans the shadow pass through tone mapping, excludes the HUD and presentation,
+and reports the latest completed sample without waiting for the GPU. Unavailable
+timestamp support is shown explicitly. It is separate from application-loop timing.
+
 ## Requirements and scope
 
 The example requires a surface and rasterization, sampled D32 depth, and RGBA16F

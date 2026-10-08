@@ -619,6 +619,18 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
+    // A single draw uses core WebGPU and does not require Dawn's optional
+    // MultiDrawIndirect feature (which may not be enabled on this device).
+    if (cmd.maxDrawCount == 1 && !cmd.countBuffer)
+    {
+        m_ctx.api.wgpuRenderPassEncoderDrawIndirect(
+            m_renderPassEncoder,
+            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+            cmd.argBuffer.offset
+        );
+        return;
+    }
+
 #if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndirect(
         m_renderPassEncoder,
@@ -638,6 +650,16 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 {
     if (!m_renderStateValid)
         return;
+
+    if (cmd.maxDrawCount == 1 && !cmd.countBuffer)
+    {
+        m_ctx.api.wgpuRenderPassEncoderDrawIndexedIndirect(
+            m_renderPassEncoder,
+            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+            cmd.argBuffer.offset
+        );
+        return;
+    }
 
 #if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndexedIndirect(

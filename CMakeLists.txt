@@ -1105,6 +1105,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-example-math.cpp
         tests/test-example-path-tracer.cpp
         tests/test-example-raster.cpp
+        tests/test-example-particles.cpp
         tests/test-example-text.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
@@ -1218,6 +1219,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         endfunction()
 
         add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+        add_example(example-particles examples/particles/example-particles.cpp)
         add_example(example-raster examples/raster/example-raster.cpp)
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
         add_example(example-surface examples/surface/example-surface.cpp)

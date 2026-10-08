@@ -57,9 +57,11 @@ GPU_TEST_CASE("example-text-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
         desc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
         auto target = device->createTexture(desc);
         REQUIRE(target);
-        auto render = [&](std::string_view label)
+        auto render = [&](std::string_view label, bool panel = false)
         {
             text.clear();
+            if (panel)
+                REQUIRE_CALL(text.addRect({60, 24}, {20, 16}, {0, 0, 0, 0.5f}));
             REQUIRE_CALL(text.addText(label, {2, 2}, 2, {1, 1, 1, 0.5f}));
             auto encoder = queue->createCommandEncoder();
             RenderPassColorAttachment color = {};
@@ -112,5 +114,11 @@ GPU_TEST_CASE("example-text-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
         auto empty = render("");
         CHECK(empty != pixels);
         CHECK(empty[(2 * 96 + 4) * 4] == empty[0]);
+        auto panel = render("", true);
+        for (int channel = 0; channel < 3; ++channel)
+        {
+            CHECK(std::abs(int(panel[(30 * 96 + 70) * 4 + channel]) - expected(0.05f * (channel + 1))) <= 1);
+            CHECK(panel[channel] == empty[channel]);
+        }
     }
 }

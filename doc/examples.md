@@ -9,6 +9,10 @@ not a commitment to implement every idea.
 
 - Surface and triangle examples introduce presentation and basic rasterization.
 - ShaderToy demonstrates compute-to-texture rendering and interactive shaders.
+- The [particle vortex](../examples/particles/README.md) demonstrates persistent
+  simulation, atomic compaction, spawning, GPU-generated indirect draw arguments,
+  additive sprites, and asynchronous live-count readback. Its GPU timings use the
+  [shared profiler](../examples/base/gpu-profiler.md), also used by the raster example.
 - The [raster logo example](../examples/raster/README.md) demonstrates indexed
   geometry, depth testing, metallic/roughness shading, PCF shadow mapping, HDR
   rendering, compute bloom, and tone mapping. Its logo mesh and material data
@@ -25,8 +29,9 @@ not a commitment to implement every idea.
   accumulation, and tone mapping. It currently has ray-pipeline and compute
   ray-query paths selected through `USE_RAYTRACING_PIPELINE`.
 
-The largest remaining general-purpose gap is persistent simulation. The raster
-logo example supplies a compact introduction to practical multipass rendering.
+Persistent simulation is now covered by the particle vortex. Shader-object
+composition/specialization and bindless resource access remain general-purpose
+gaps. The raster logo example supplies an introduction to practical multipass rendering.
 Advanced ray-tracing examples could additionally
 show geometry and acceleration-structure capabilities beyond triangle tracing.
 
@@ -34,8 +39,8 @@ show geometry and acceleration-structure capabilities beyond triangle tracing.
 
 For general coverage, the proposed order is:
 
-1. Interactive particles, or an interactive compute-to-texture simulation.
-2. Material and lighting playground.
+1. Shader-object material composition and specialization in the raster playground.
+2. Bindless materials or persistent compute-to-texture simulation.
 3. Extend the existing path tracer with selectable tracing modes and animation.
 4. Add GPU-driven rendering to the material playground.
 5. Consider a small neural graphics example.
@@ -48,8 +53,8 @@ For additional ray-tracing coverage, the proposed order is:
 4. Opacity micromaps.
 5. Motion blur, preferably within the existing path tracer.
 
-These are two tracks rather than one combined implementation schedule. A compact
-general collection would add particles and the material playground. A focused
+These are two tracks rather than one combined implementation schedule. The general
+collection now includes particles and the raster playground. A focused
 ray-tracing expansion would add procedural geometry and dynamic clusters, then
 extend those examples and the existing path tracer with additional modes.
 
@@ -57,18 +62,22 @@ extend those examples and the existing path tracer with additional modes.
 
 ### Interactive particles
 
+**Implemented:** `examples/particles` now supplies the vortex, spawning and
+compaction, indirect/direct draw comparison, fixed simulation steps, GPU timings,
+and optional asynchronous count telemetry.
+
 **Scene:** A large particle cloud follows or repels the mouse, with attractors,
 color gradients, and optional trails.
 
 **Capabilities:** Persistent GPU buffers, compute simulation, compute-to-render
 resource dependencies, instancing, and blending.
 
-**Initial scope:** Fixed particle count, seeded initialization, a simple force
-field, and direct instanced drawing. This provides a clear demonstration of data
-produced by compute being consumed by a render pass.
+**Current scope:** A fixed-capacity cloud with GPU-managed live counts, seeded
+emitters, a vortex force field, and both indirect and direct instanced drawing.
+This demonstrates data produced by compute being consumed by a render pass.
 
-**Possible extensions:** Particle spawning and removal, compaction, GPU-generated
-draw counts, and trails. Keep indirect drawing optional: the Metal implementation
+**Possible extensions:** Indirect simulation dispatch, depth collisions, and
+trails. Keep indirect drawing optional: the Metal implementation
 does not currently implement indirect draws. CUDA participation would require a
 compute visualization path because it does not provide rasterization.
 
@@ -86,8 +95,8 @@ dispatches, and dependencies between simulation steps.
 fluid-like ink is another option if a more involved solver is worthwhile.
 
 This fits the existing compute-to-texture presentation approach and is a useful
-choice when including CUDA in the same visualization is a priority. Choose this
-or particles initially; both fill the persistent-simulation gap.
+choice when including CUDA in the same visualization is a priority. It would
+complement the buffer-based particle simulation with persistent texture state.
 
 ### Material and lighting playground
 
