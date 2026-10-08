@@ -1274,6 +1274,10 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_custom_target(coverage
             COMMAND ${LLVM_PROFDATA} merge -sparse ${SLANG_RHI_COVERAGE_DIR}/*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
             COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
+            COMMAND ${CMAKE_COMMAND}
+                "-DLCOV_FILE=${CMAKE_BINARY_DIR}/coverage.lcov"
+                "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/NormalizeCoverage.cmake"
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating coverage report..."

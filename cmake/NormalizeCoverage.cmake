@@ -1,0 +1,18 @@
+# Make LCOV reports portable between checkouts and operating systems.
+file(STRINGS "${LCOV_FILE}" lines ENCODING UTF-8)
+set(output "")
+foreach(line IN LISTS lines)
+    if(line MATCHES "^SF:(.*)")
+        string(REPLACE "\\" "/" source "${CMAKE_MATCH_1}")
+        if(IS_ABSOLUTE "${source}")
+            file(RELATIVE_PATH relative "${SOURCE_DIR}" "${source}")
+            # Leave sources outside the repository absolute.
+            if(NOT IS_ABSOLUTE "${relative}" AND NOT relative MATCHES "^\\.\\./")
+                set(source "${relative}")
+            endif()
+        endif()
+        set(line "SF:${source}")
+    endif()
+    string(APPEND output "${line}\n")
+endforeach()
+file(WRITE "${LCOV_FILE}" "${output}")
