@@ -16,7 +16,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Particle vortex", 960, 720));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Particle energy sculpture", 960, 720));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
         particles::Programs programs;
@@ -71,8 +71,9 @@ public:
             }
         }
         LOG_INFO(
-            "Particles: left mouse attracts; right repels; [/] emission; Space pause; N step; R reset; B bloom; D "
-            "direct/indirect."
+            "Particles: move mouse to stir; left mouse attracts; right repels; [/] emission; Space pause; N step; R "
+            "reset; B bloom; D "
+            "direct/indirect; F burst."
         );
         return SLANG_OK;
     }
@@ -94,10 +95,19 @@ public:
     Result update(double time) override
     {
         bool visible = m_surface->getConfig() != nullptr;
+        auto source = getMouseSourceWindow();
+        if (!glfwGetWindowAttrib(source, GLFW_HOVERED))
+        {
+            m_mouseValid = false;
+            m_mouseSimulatedWorld = m_mouseWorld;
+        }
         m_steps = m_clock.update(time, visible && !m_paused);
         if (visible && m_singleStep && m_paused)
             m_steps = 1;
         m_singleStep = false;
+        // Do not replay cursor travel collected while paused or minimized.
+        if (!visible || (m_paused && !m_steps))
+            m_mouseSimulatedWorld = m_mouseWorld;
         if (visible)
             m_frameStats.update(time);
         return m_resizeResult;
@@ -118,6 +128,7 @@ public:
         {
             m_renderer->reset(encoder);
             m_reset = false;
+            m_mouseSimulatedWorld = m_mouseWorld;
         }
         particles::SimulationParams params;
         params.spawnCount = m_emissionPerStep;
@@ -125,8 +136,24 @@ public:
         params.mouseForce = isMouseDown(GLFW_MOUSE_BUTTON_RIGHT)  ? -18.0f
                             : isMouseDown(GLFW_MOUSE_BUTTON_LEFT) ? 18.0f
                                                                   : 0.0f;
+        // Distribute pending motion over the fixed steps, consuming it once.
+        // Frames with no simulation step retain it for the next step.
+        math::float2 travel = m_mouseWorld - m_mouseSimulatedWorld;
+        if (m_mouseValid && m_steps)
+        {
+            params.mouseVelocity = travel / (float(m_steps) * params.dt);
+            float speed = math::length(params.mouseVelocity);
+            if (speed > 12)
+                params.mouseVelocity = params.mouseVelocity * (12 / speed);
+        }
         for (uint32_t i = 0; i < m_steps; ++i)
+        {
+            params.mousePrevious = m_mouseSimulatedWorld + travel * (float(i) / m_steps);
+            params.mouse = m_mouseSimulatedWorld + travel * (float(i + 1) / m_steps);
             SLANG_RETURN_ON_FAIL(m_renderer->step(encoder, params, m_profiler.get()));
+        }
+        if (m_steps)
+            m_mouseSimulatedWorld = m_mouseWorld;
         SLANG_RETURN_ON_FAIL(m_renderer->render(encoder, image, m_bloom, m_profiler.get()));
         SLANG_RETURN_ON_FAIL(drawOverlay(encoder, image));
 
@@ -167,6 +194,7 @@ public:
             return;
         m_frameStats.reset();
         m_clock.reset();
+        m_mouseValid = false;
         m_resizeResult = m_queue->waitOnHost();
         if (SLANG_FAILED(m_resizeResult))
             return;
@@ -186,13 +214,20 @@ public:
 
     void onMousePosition(float x, float y) override
     {
-        // Mirrored coordinates originate in the main window. Normalize against
-        // that window so different DPI scales cannot change the interaction.
-        auto source = detail::mainExample ? detail::mainExample->m_window : m_window;
+        // Any backend window can supply mirrored input. Normalize using the
+        // actual source window, and never sweep between different windows.
+        auto source = getMouseSourceWindow();
         int width, height;
         glfwGetWindowSize(source, &width, &height);
         if (width > 0 && height > 0)
+        {
             m_mouseWorld = {(2 * x / width - 1) * 3.6f * float(width) / height, (1 - 2 * y / height) * 3.6f};
+            bool inside = x >= 0 && y >= 0 && x < width && y < height;
+            if (!m_mouseValid || !inside || source != m_lastMouseSource)
+                m_mouseSimulatedWorld = m_mouseWorld;
+            m_mouseValid = inside;
+            m_lastMouseSource = source;
+        }
     }
 
     void onKey(int key, int scancode, int action, int mods) override
@@ -206,13 +241,18 @@ public:
         if (action != GLFW_PRESS)
             return;
         if (key == GLFW_KEY_SPACE)
+        {
             m_paused = !m_paused;
+            m_mouseSimulatedWorld = m_mouseWorld;
+        }
         if (key == GLFW_KEY_N)
             m_singleStep = true;
         if (key == GLFW_KEY_B)
             m_bloom = !m_bloom;
         if (key == GLFW_KEY_D)
             m_renderer->setIndirect(!m_renderer->indirect());
+        if (key == GLFW_KEY_F)
+            m_renderer->burst();
         if (key == GLFW_KEY_R)
         {
             m_reset = true;
@@ -280,8 +320,10 @@ private:
         snprintf(
             text,
             sizeof(text),
-            "PARTICLE VORTEX / %s\n%.1f FPS / %.2f MS APP LOOP\n%s\nLIVE %s\n%s / EMIT %u PER SEC / %s\n\n"
-            "LEFT: ATTRACT / RIGHT: REPEL\n[ / ] EMISSION / SPACE PAUSE / N STEP\nR RESET / B BLOOM / D DRAW MODE",
+            "PARTICLE SCULPTURE / %s\n%.1f FPS / %.2f MS APP LOOP\n%s\nLIVE %s\n%s / EMIT %u PER SEC / %s\n"
+            "PHASE: %s\n\n"
+            "MOVE: STIR / LEFT: ATTRACT / RIGHT: REPEL\n[ / ] EMISSION / SPACE PAUSE / N STEP\n"
+            "F BURST / R RESET / B BLOOM / D DRAW MODE",
             getRHI()->getDeviceTypeName(m_deviceType),
             m_frameStats.fps(),
             m_frameStats.milliseconds(),
@@ -289,10 +331,11 @@ private:
             count,
             m_renderer->indirect() ? "INDIRECT" : "DIRECT CAPACITY",
             m_emissionPerStep * 120,
-            m_paused ? "PAUSED" : "RUNNING"
+            m_paused ? "PAUSED" : "RUNNING",
+            m_renderer->phaseName()
         );
         m_text->clear();
-        SLANG_RETURN_ON_FAIL(m_text->addRect({10, 10}, {540, 155}, {0.003f, 0.006f, 0.012f, 0.9f}));
+        SLANG_RETURN_ON_FAIL(m_text->addRect({10, 10}, {540, 170}, {0.003f, 0.006f, 0.012f, 0.9f}));
         SLANG_RETURN_ON_FAIL(m_text->addText(text, {16, 16}, 1.5f, {0.75f, 0.85f, 1.0f, 1.0f}));
         return m_text->render(encoder, image);
     }
@@ -308,7 +351,9 @@ private:
     uint64_t m_fenceValue = 0, m_lastReadback = 0, m_generation = 0, m_frameNumber = 0;
     particles::SimulationClock m_clock;
     FrameStats m_frameStats;
-    math::float2 m_mouseWorld = {};
+    math::float2 m_mouseWorld = {}, m_mouseSimulatedWorld = {};
+    bool m_mouseValid = false;
+    GLFWwindow* m_lastMouseSource = nullptr;
     uint32_t m_steps = 0, m_emissionPerStep = 400, m_liveCount = 0;
     bool m_paused = false, m_singleStep = false, m_reset = true, m_bloom = true, m_countValid = false;
     Result m_resizeResult = SLANG_OK;

@@ -1,12 +1,80 @@
 #include "testing.h"
 #include "../examples/particles/renderer.h"
 #include "../examples/particles/simulation-clock.h"
+#if SLANG_RHI_BUILD_TESTS_WITH_GLFW
+#define EXAMPLE_DIR SLANG_RHI_TESTS_DIR
+#include "../examples/base/example.h"
+#undef EXAMPLE_DIR
+#endif
 
 #include <cmath>
 #include <cstring>
 
 using namespace rhi;
 using namespace rhi::testing;
+
+#if SLANG_RHI_BUILD_TESTS_WITH_GLFW
+TEST_CASE("example-particles-input-routing")
+{
+    REQUIRE(detail::getExamples().empty());
+    if (!glfwInit())
+        SKIP("GLFW is unavailable");
+    struct Cleanup
+    {
+        ~Cleanup()
+        {
+            detail::getExamples().clear();
+            detail::mainExample = nullptr;
+            detail::mouseSourceWindow = nullptr;
+            glfwTerminate();
+        }
+    } cleanup;
+    struct Probe : ExampleBase
+    {
+        Result init(DeviceType) override { return SLANG_OK; }
+        void shutdown() override {}
+        Result update(double) override { return SLANG_OK; }
+        Result draw() override { return SLANG_OK; }
+        void onMousePosition(float x, float y) override
+        {
+            source = getMouseSourceWindow();
+            int width, height;
+            glfwGetWindowSize(source, &width, &height);
+            normalized = {x / width, y / height};
+        }
+        GLFWwindow* source = nullptr;
+        math::float2 normalized;
+    } first, second;
+    glfwDefaultWindowHints();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    first.m_window = glfwCreateWindow(640, 480, "Input test primary", nullptr, nullptr);
+    second.m_window = glfwCreateWindow(960, 720, "Input test secondary", nullptr, nullptr);
+    glfwDefaultWindowHints();
+    REQUIRE(first.m_window);
+    REQUIRE(second.m_window);
+    detail::getExamples() = {&first, &second};
+    detail::mainExample = &first;
+    // Source identity reaches every receiver before its callback. The secondary
+    // window has different dimensions, exposing main-window normalization bugs.
+    detail::glfwCursorPosCallback(second.m_window, 480, 360);
+    for (auto probe : {&first, &second})
+    {
+        CHECK(probe->source == second.m_window);
+        CHECK(probe->normalized.x == 0.5f);
+        CHECK(probe->normalized.y == 0.5f);
+    }
+    detail::glfwCursorPosCallback(first.m_window, 160, 120);
+    for (auto probe : {&first, &second})
+    {
+        CHECK(probe->source == first.m_window);
+        CHECK(probe->normalized.x == 0.25f);
+        CHECK(probe->normalized.y == 0.25f);
+    }
+    first.destroyWindow();
+    CHECK(second.getMouseSourceWindow() == second.m_window);
+}
+#endif
 
 TEST_CASE("example-particles-clock")
 {
@@ -25,6 +93,27 @@ TEST_CASE("example-particles-clock")
     CHECK(a.update(102 + 1.0 / 120, true) == 1);
     a.reset();
     CHECK(a.update(102 + 2.0 / 120, true) == 1);
+}
+
+TEST_CASE("example-particles-logo-targets")
+{
+    auto targets = particles::createLogoTargets();
+    auto repeated = particles::createLogoTargets();
+    REQUIRE(targets.size() == PARTICLE_LOGO_TARGET_COUNT);
+    REQUIRE(repeated.size() == targets.size());
+    CHECK(std::memcmp(targets.data(), repeated.data(), targets.size() * sizeof(targets[0])) == 0);
+    uint32_t materials[2] = {};
+    for (const auto& target : targets)
+    {
+        REQUIRE(std::isfinite(target.x));
+        REQUIRE(std::isfinite(target.y));
+        CHECK(std::abs(target.x) < 2);
+        CHECK(std::abs(target.y) < 2);
+        REQUIRE((target.z == 0 || target.z == 1));
+        ++materials[uint32_t(target.z)];
+    }
+    CHECK(materials[0] > 1000);
+    CHECK(materials[1] > 1000);
 }
 
 GPU_TEST_CASE("example-particles", D3D11 | D3D12 | Vulkan | Metal | WGPU)
@@ -122,6 +211,60 @@ GPU_TEST_CASE("example-particles", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     step(capacity, 1.0f / 120);
     REQUIRE_CALL(device->readBuffer(renderer.particleBuffer(), 0, second.size() * sizeof(second[0]), second.data()));
     CHECK(std::memcmp(first.data(), second.data(), first.size() * sizeof(first[0])) == 0);
+
+    // A fast sweep must affect the middle of its path, not just the endpoints.
+    // Compare identical seeded populations; compaction may reorder particles.
+    math::float2 brushCenter = {first[0].positionAge.x, first[0].positionAge.y};
+    auto brushStep = [&](math::float2 start, math::float2 end, math::float2 velocity)
+    {
+        reset();
+        step(200, 1.0f / 120);
+        auto encoder = queue->createCommandEncoder();
+        particles::SimulationParams params;
+        params.spawnCount = 0;
+        params.mousePrevious = start;
+        params.mouse = end;
+        params.mouseVelocity = velocity;
+        REQUIRE_CALL(renderer.step(encoder, params));
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        std::vector<particles::Particle> state(count());
+        REQUIRE_CALL(device->readBuffer(renderer.particleBuffer(), 0, state.size() * sizeof(state[0]), state.data()));
+        std::sort(
+            state.begin(),
+            state.end(),
+            [](const auto& a, const auto& b)
+            {
+                return a.targetStyle.z < b.targetStyle.z;
+            }
+        );
+        return state;
+    };
+    auto untouched = brushStep({}, {}, {});
+    auto stationary = brushStep(brushCenter, brushCenter, {});
+    auto swept = brushStep(brushCenter - math::float2(1, 0), brushCenter + math::float2(1, 0), {6, 0});
+    REQUIRE(untouched.size() == 200);
+    REQUIRE(stationary.size() == untouched.size());
+    REQUIRE(swept.size() == untouched.size());
+    uint32_t disturbed = 0, distant = 0;
+    for (size_t i = 0; i < untouched.size(); ++i)
+    {
+        auto base = untouched[i].velocityLife;
+        CHECK(stationary[i].velocityLife.x == base.x);
+        CHECK(stationary[i].velocityLife.y == base.y);
+        float change = math::length(math::float2(swept[i].velocityLife.x - base.x, swept[i].velocityLife.y - base.y));
+        CHECK(std::isfinite(change));
+        if (change > 0.1f)
+            ++disturbed;
+        if (std::abs(untouched[i].positionAge.y - brushCenter.y) > 0.6f ||
+            std::abs(untouched[i].positionAge.x - brushCenter.x) > 1.6f)
+        {
+            CHECK(change < 1e-6f);
+            ++distant;
+        }
+    }
+    CHECK(disturbed > 0);
+    CHECK(distant > 0);
     reset();
     step(capacity / 2, 1.0f / 120);
     step(0, 0.2f); // Partially occupied buffers also exercise direct-draw clipping.
@@ -180,6 +323,74 @@ GPU_TEST_CASE("example-particles", D3D11 | D3D12 | Vulkan | Metal | WGPU)
             CHECK(sample.milliseconds >= 0);
         }
     }
+
+    // Exercise a complete fixed-step choreography, including the automatic
+    // burst. Batching avoids a CPU/GPU round trip for every simulation step.
+    auto advance = [&](uint32_t steps, uint32_t spawn)
+    {
+        while (steps)
+        {
+            uint32_t batch = std::min(steps, 120u);
+            auto encoder = queue->createCommandEncoder();
+            particles::SimulationParams params;
+            params.spawnCount = spawn;
+            for (uint32_t i = 0; i < batch; ++i)
+                REQUIRE_CALL(renderer.step(encoder, params));
+            REQUIRE_CALL(queue->submit(encoder->finish()));
+            REQUIRE_CALL(queue->waitOnHost());
+            steps -= batch;
+        }
+    };
+    auto readParticles = [&]()
+    {
+        std::vector<particles::Particle> result(count());
+        REQUIRE_CALL(
+            device->readBuffer(renderer.particleBuffer(), 0, result.size() * sizeof(result[0]), result.data())
+        );
+        return result;
+    };
+    auto meanTargetDistance = [&](const std::vector<particles::Particle>& state)
+    {
+        double distance = 0;
+        for (const auto& p : state)
+        {
+            float dx = p.positionAge.x - p.targetStyle.x;
+            float dy = p.positionAge.y - p.targetStyle.y;
+            REQUIRE(std::isfinite(dx));
+            REQUIRE(std::isfinite(dy));
+            distance += std::sqrt(dx * dx + dy * dy);
+        }
+        return distance / state.size();
+    };
+    reset();
+    advance(PARTICLE_BURST_TICK, 16);
+    CHECK(std::strcmp(renderer.phaseName(), "FORM") == 0);
+    auto formed = readParticles();
+    REQUIRE(formed.size() > capacity / 2);
+    CHECK(meanTargetDistance(formed) < 0.025);
+    auto formedImage = render(true, true);
+    CHECK(formedImage == render(false, true));
+    advance(1, 0);
+    CHECK(std::strcmp(renderer.phaseName(), "BURST") == 0);
+    auto burst = readParticles();
+    double outwardSpeed = 0;
+    for (const auto& p : burst)
+    {
+        float radius = std::sqrt(p.positionAge.x * p.positionAge.x + p.positionAge.y * p.positionAge.y);
+        outwardSpeed +=
+            (p.positionAge.x * p.velocityLife.x + p.positionAge.y * p.velocityLife.y) / std::max(radius, 0.01f);
+    }
+    CHECK(outwardSpeed / burst.size() > 2);
+    advance(30, 0);
+    CHECK(meanTargetDistance(readParticles()) > 0.5);
+    CHECK(render(true, true) != formedImage);
+    advance(PARTICLE_CYCLE_TICKS - PARTICLE_BURST_TICK - 31 + 1, 16);
+    CHECK(std::strcmp(renderer.phaseName(), "FLOW") == 0);
+    renderer.burst();
+    advance(1, 0);
+    CHECK(std::strcmp(renderer.phaseName(), "BURST") == 0);
+    reset();
+    CHECK(std::strcmp(renderer.phaseName(), "FLOW") == 0);
 }
 
 GPU_TEST_CASE("example-gpu-profiler-ring", ALL)

@@ -2,6 +2,7 @@
 
 #include "../base/gpu-profiler.h"
 #include "../base/logo-scene.h"
+#include "logo-targets.h"
 #include <slang-rhi/shader-cursor.h>
 
 namespace rhi::particles {
@@ -13,18 +14,20 @@ struct Programs
 
 struct Particle
 {
-    math::float4 positionAge, velocityLife, colorSize;
+    math::float4 positionAge, velocityLife, colorSize, targetStyle;
 };
-static_assert(sizeof(Particle) == 48);
+static_assert(sizeof(Particle) == 64);
 
 struct SimulationParams
 {
     uint32_t capacity = 0, spawnCount = 400, tick = 0;
     float dt = 1.0f / 120.0f;
     math::float2 mouse = {};
-    float mouseForce = 0, padding = 0;
+    float mouseForce = 0;
+    uint32_t cycleTick = 0;
+    math::float2 mousePrevious = {}, mouseVelocity = {};
 };
-static_assert(sizeof(SimulationParams) == 32);
+static_assert(sizeof(SimulationParams) == 48);
 
 class Renderer
 {
@@ -69,6 +72,16 @@ public:
         args.label = "GPU particle draw arguments";
         uint32_t initialArgs[4] = {6, 0, 0, 0};
         SLANG_RETURN_ON_FAIL(device->createBuffer(args, initialArgs, m_arguments.writeRef()));
+
+        auto targets = createLogoTargets();
+        if (targets.size() != PARTICLE_LOGO_TARGET_COUNT)
+            return SLANG_FAIL;
+        BufferDesc targetBuffer = {};
+        targetBuffer.size = targets.size() * sizeof(targets[0]);
+        targetBuffer.elementSize = sizeof(targets[0]);
+        targetBuffer.usage = BufferUsage::ShaderResource;
+        targetBuffer.label = "Particle logo targets";
+        SLANG_RETURN_ON_FAIL(device->createBuffer(targetBuffer, targets.data(), m_logoTargets.writeRef()));
 
         ComputePipelineDesc compute = {};
         compute.program = programs.simulate;
@@ -150,6 +163,8 @@ public:
         encoder->clearBuffer(m_arguments);
         m_current = 0;
         m_tick = 0;
+        m_cycleTick = 0;
+        m_renderCycleTime = 0;
     }
 
     Result step(ICommandEncoder* encoder, SimulationParams params, GpuProfiler* profiler = nullptr)
@@ -157,6 +172,9 @@ public:
         params.capacity = m_capacity;
         params.spawnCount = std::min(params.spawnCount, m_capacity);
         params.tick = m_tick++;
+        params.cycleTick = m_cycleTick;
+        m_renderCycleTime = float(m_cycleTick) / 120.0f;
+        m_cycleTick = (m_cycleTick + 1) % PARTICLE_CYCLE_TICKS;
         uint32_t next = 1 - m_current;
         encoder->clearBuffer(m_counts[next]);
         auto pass = encoder->beginComputePass();
@@ -176,6 +194,7 @@ public:
         pass->pushDebugGroup("Spawn particles", {});
         cursor = ShaderCursor(pass->bindPipeline(m_spawn));
         SLANG_RETURN_ON_FAIL(cursor["sim"].setData(params));
+        SLANG_RETURN_ON_FAIL(cursor["logoTargets"].setBinding(m_logoTargets));
         SLANG_RETURN_ON_FAIL(cursor["outputParticles"].setBinding(m_particles[next]));
         SLANG_RETURN_ON_FAIL(cursor["outputCount"].setBinding(m_counts[next]));
         pass->dispatchCompute(std::max(1u, (params.spawnCount + 127) / 128), 1, 1);
@@ -228,6 +247,7 @@ public:
             math::float3 tint =
                 mesh.materialIndex == 0 ? math::float3(1, 0.133f, 0.033f) : math::float3(0.014f, 0.515f, 0.584f);
             SLANG_RETURN_ON_FAIL(cursor["logoColor"].setData(tint));
+            SLANG_RETURN_ON_FAIL(cursor["cycleTime"].setData(m_renderCycleTime));
             DrawArguments draw = {};
             draw.vertexCount = mesh.indexCount;
             draw.startIndexLocation = mesh.firstIndex;
@@ -235,6 +255,7 @@ public:
         }
         ShaderCursor cursor(pass->bindPipeline(m_particlePipeline));
         SLANG_RETURN_ON_FAIL(cursor["aspect"].setData(aspect));
+        SLANG_RETURN_ON_FAIL(cursor["cycleTime"].setData(m_renderCycleTime));
         SLANG_RETURN_ON_FAIL(cursor["particles"].setBinding(m_particles[m_current]));
         SLANG_RETURN_ON_FAIL(cursor["liveCount"].setBinding(m_counts[m_current]));
         pass->setRenderState(renderState());
@@ -281,7 +302,7 @@ public:
         SLANG_RETURN_ON_FAIL(cursor["bloom"].setBinding(bloom ? m_bloom[0].get() : m_hdr.get()));
         SLANG_RETURN_ON_FAIL(cursor["linearSampler"].setBinding(m_sampler));
         SLANG_RETURN_ON_FAIL(cursor["exposure"].setData(0.0f));
-        SLANG_RETURN_ON_FAIL(cursor["bloomStrength"].setData(bloom ? 0.3f : 0.0f));
+        SLANG_RETURN_ON_FAIL(cursor["bloomStrength"].setData(bloom ? 0.35f : 0.0f));
         SLANG_RETURN_ON_FAIL(cursor["encodeSrgb"].setData(getFormatInfo(m_outputFormat).isSrgb ? 0u : 1u));
         pass->setRenderState(renderState());
         DrawArguments draw = {};
@@ -299,6 +320,19 @@ public:
     bool indirect() const { return m_indirect; }
     void setIndirect(bool enabled) { m_indirect = enabled && m_device->getDeviceType() != DeviceType::Metal; }
     uint32_t capacity() const { return m_capacity; }
+    void burst() { m_cycleTick = PARTICLE_BURST_TICK; }
+    const char* phaseName() const
+    {
+        if (m_renderCycleTime < 3)
+            return "FLOW";
+        if (m_renderCycleTime < 7)
+            return "GATHER";
+        if (m_renderCycleTime < 10)
+            return "FORM";
+        if (m_renderCycleTime < 11)
+            return "BURST";
+        return "SWIRL";
+    }
 
 private:
     RenderState renderState() const
@@ -313,12 +347,15 @@ private:
 
     ComPtr<IDevice> m_device;
     ComPtr<IBuffer> m_particles[2], m_counts[2], m_arguments, m_logoVertices, m_logoIndices;
+    ComPtr<IBuffer> m_logoTargets;
     ComPtr<IComputePipeline> m_simulate, m_spawn, m_finalize, m_bloomPipeline;
     ComPtr<IRenderPipeline> m_particlePipeline, m_logoPipeline, m_toneMapPipeline;
     ComPtr<ISampler> m_sampler;
     ComPtr<ITexture> m_hdr, m_bloom[2];
     Format m_outputFormat = Format::Undefined;
     uint32_t m_capacity = 0, m_current = 0, m_tick = 0, m_width = 0, m_height = 0;
+    uint32_t m_cycleTick = 0;
+    float m_renderCycleTime = 0;
     bool m_indirect = true;
 };
 

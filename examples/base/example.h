@@ -66,6 +66,10 @@ public:
     // Returns the current mouse Y position.
     float getMouseY() const { return m_mousePos[1]; }
 
+    // Window that supplied the mirrored cursor coordinates (or this window
+    // before the first cursor event).
+    GLFWwindow* getMouseSourceWindow() const;
+
     // Device management
 
     // Create a device and retain the missing features if the example requires
@@ -118,6 +122,7 @@ static std::vector<ExampleBase*>& getExamples()
 }
 
 static ExampleBase* mainExample = nullptr;
+static GLFWwindow* mouseSourceWindow = nullptr;
 
 static void setMainExample(ExampleBase* example)
 {
@@ -184,10 +189,17 @@ Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t wi
     return SLANG_OK;
 }
 
+GLFWwindow* ExampleBase::getMouseSourceWindow() const
+{
+    return detail::mouseSourceWindow ? detail::mouseSourceWindow : m_window;
+}
+
 void ExampleBase::destroyWindow()
 {
     if (m_window)
     {
+        if (detail::mouseSourceWindow == m_window)
+            detail::mouseSourceWindow = nullptr;
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
@@ -342,6 +354,7 @@ static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int heigh
 
 static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 {
+    mouseSourceWindow = window;
     for (ExampleBase* example : getExamples())
     {
         example->m_mousePos[0] = xpos;

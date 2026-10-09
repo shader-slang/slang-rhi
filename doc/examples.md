@@ -9,9 +9,10 @@ not a commitment to implement every idea.
 
 - Surface and triangle examples introduce presentation and basic rasterization.
 - ShaderToy demonstrates compute-to-texture rendering and interactive shaders.
-- The [particle vortex](../examples/particles/README.md) demonstrates persistent
+- The [particle sculpture](../examples/particles/README.md) demonstrates persistent
   simulation, atomic compaction, spawning, GPU-generated indirect draw arguments,
-  additive sprites, and asynchronous live-count readback. Its GPU timings use the
+  velocity streaks, turbulent flow, logo formation/bursts, and asynchronous
+  live-count readback. Its GPU timings use the
   [shared profiler](../examples/base/gpu-profiler.md), also used by the raster example.
 - The [raster logo example](../examples/raster/README.md) demonstrates indexed
   geometry, depth testing, metallic/roughness shading, PCF shadow mapping, HDR
@@ -29,7 +30,7 @@ not a commitment to implement every idea.
   accumulation, and tone mapping. It currently has ray-pipeline and compute
   ray-query paths selected through `USE_RAYTRACING_PIPELINE`.
 
-Persistent simulation is now covered by the particle vortex. Shader-object
+Persistent simulation is now covered by the particle sculpture. Shader-object
 composition/specialization and bindless resource access remain general-purpose
 gaps. The raster logo example supplies an introduction to practical multipass rendering.
 Advanced ray-tracing examples could additionally
@@ -62,9 +63,11 @@ extend those examples and the existing path tracer with additional modes.
 
 ### Interactive particles
 
-**Implemented:** `examples/particles` now supplies the vortex, spawning and
-compaction, indirect/direct draw comparison, fixed simulation steps, GPU timings,
-and optional asynchronous count telemetry.
+**Implemented:** `examples/particles` supplies turbulent streams, velocity
+streaks, and a repeating logo formation/burst cycle with mouse interaction and a
+manual burst control. Spawning and compaction, indirect/direct draw comparison,
+fixed simulation steps, GPU timings, and optional asynchronous count telemetry
+remain part of the example.
 
 **Scene:** A large particle cloud follows or repels the mouse, with attractors,
 color gradients, and optional trails.
@@ -73,7 +76,8 @@ color gradients, and optional trails.
 resource dependencies, instancing, and blending.
 
 **Current scope:** A fixed-capacity cloud with GPU-managed live counts, seeded
-emitters, a vortex force field, and both indirect and direct instanced drawing.
+emitters, persistent targets sampled from the logo mesh, vortex/curl forces,
+and both indirect and direct instanced drawing.
 This demonstrates data produced by compute being consumed by a render pass.
 
 **Possible extensions:** Indirect simulation dispatch, depth collisions, and
