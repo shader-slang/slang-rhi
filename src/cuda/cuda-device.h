@@ -35,6 +35,10 @@ public:
     InternalRefPtr<HeapImpl> m_deviceMemHeap;
     InternalRefPtr<HeapImpl> m_hostMemHeap;
 
+    // Shared across resources to bound lock storage. View lookups and creation
+    // serialize across textures. This lock does not acquire other resource locks.
+    std::mutex m_textureViewMutex; // Texture view maps (including CUDA surface objects).
+
 public:
     using Device::readBuffer;
 

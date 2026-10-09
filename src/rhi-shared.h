@@ -18,6 +18,7 @@
 #include "shader.h"
 #include "pipeline.h"
 
+#include <atomic>
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -53,6 +54,64 @@ const T* findStructInChain(const void* chain)
     return nullptr;
 }
 
+/// A handle published once, then immutable for the rest of its lifetime.
+/// Callers must serialize publishers (including their validity check) with an
+/// external mutex. Readers may race publication; destruction requires exclusive
+/// ownership. There is deliberately no reset or replacement operation.
+template<typename Handle>
+class PublishedHandle
+{
+public:
+    using Type = decltype(Handle{}.type);
+
+    PublishedHandle() = default;
+    PublishedHandle(const PublishedHandle&) = delete;
+    PublishedHandle& operator=(const PublishedHandle&) = delete;
+
+    bool isValid() const { return m_type.load(std::memory_order_acquire) != Type::Undefined; }
+    explicit operator bool() const { return isValid(); }
+
+    /// Returns false and clears the output if publication has not completed.
+    /// Never reads the payload until the release store has been observed.
+    bool tryGet(Handle* outHandle) const
+    {
+        Type type = m_type.load(std::memory_order_acquire);
+        if (type == Type::Undefined)
+        {
+            *outHandle = {};
+            return false;
+        }
+        *outHandle = Handle{type, m_value};
+        return true;
+    }
+
+    /// Requires a published handle, e.g. after initialization under its mutex.
+    Handle get() const
+    {
+        Handle handle;
+        bool published = tryGet(&handle);
+        SLANG_RHI_ASSERT(published);
+        SLANG_UNUSED(published);
+        return handle;
+    }
+
+    /// Requires exclusive access among publishers and an unpublished handle.
+    void publish(Type type, uint64_t value)
+    {
+        SLANG_RHI_ASSERT(type != Type::Undefined && !isValid());
+        m_value = value;
+        m_type.store(type, std::memory_order_release);
+    }
+    void publish(const Handle& handle) { publish(handle.type, handle.value); }
+
+private:
+    std::atomic<Type> m_type{Type::Undefined};
+    uint64_t m_value = 0;
+};
+
+using PublishedNativeHandle = PublishedHandle<NativeHandle>;
+using PublishedDescriptorHandle = PublishedHandle<DescriptorHandle>;
+
 class Fence : public IFence, public DeviceChild
 {
 public:
@@ -65,7 +124,7 @@ public:
 protected:
     FenceDesc m_desc;
     StructHolder m_descHolder;
-    NativeHandle m_sharedHandle = {};
+    PublishedNativeHandle m_sharedHandle;
 };
 
 class Resource : public DeviceChild
@@ -107,7 +166,7 @@ public:
 public:
     BufferDesc m_desc;
     StructHolder m_descHolder;
-    NativeHandle m_sharedHandle;
+    PublishedNativeHandle m_sharedHandle;
 };
 
 struct SubResourceLayout
@@ -179,7 +238,7 @@ public:
     TextureDesc m_desc;
     StructHolder m_descHolder;
     InternalRefPtr<Sampler> m_sampler;
-    NativeHandle m_sharedHandle;
+    PublishedNativeHandle m_sharedHandle;
 
 protected:
     // Called at the start of each backend destructor, before releasing native storage.

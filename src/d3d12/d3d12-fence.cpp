@@ -17,7 +17,7 @@ FenceImpl::~FenceImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        ::CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.get().value);
 #endif
     }
 }
@@ -73,7 +73,14 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 #if !SLANG_WINDOWS_FAMILY
     return SLANG_E_NOT_AVAILABLE;
 #else
+    if (m_sharedHandle.tryGet(outHandle))
+    {
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_fenceSharedHandleMutex);
 
     if (!m_sharedHandle)
     {
@@ -82,10 +89,10 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
             device->m_device->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, &handle),
             device
         );
-        m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
+        m_sharedHandle.publish(NativeHandleType::Win32, (uint64_t)handle);
     }
 
-    *outHandle = m_sharedHandle;
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 #endif
 }

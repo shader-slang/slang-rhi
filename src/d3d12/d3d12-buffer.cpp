@@ -38,7 +38,7 @@ BufferImpl::~BufferImpl()
 
     if (m_sharedHandle)
     {
-        ::CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.get().value);
     }
 }
 
@@ -60,13 +60,14 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (m_sharedHandle)
+    if (m_sharedHandle.tryGet(outHandle))
     {
-        *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferSharedHandleMutex);
 
     // If a shared handle doesn't exist, create one and store it.
     if (!m_sharedHandle)
@@ -76,10 +77,10 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
             device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle),
             device
         );
-        m_sharedHandle = {NativeHandleType::Win32, (uint64_t)handle};
+        m_sharedHandle.publish(NativeHandleType::Win32, (uint64_t)handle);
     }
 
-    *outHandle = m_sharedHandle;
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 #endif
 }
@@ -105,6 +106,8 @@ Result BufferImpl::getDescriptorHandle(
 
     range = resolveBufferRange(range);
 
+    std::lock_guard<std::mutex> lock(device->m_bufferDescriptorMutex);
+
     DescriptorHandleKey key = {access, format, range};
     DescriptorHandle& handle = m_descriptorHandles[key];
     if (handle)
@@ -125,6 +128,8 @@ Result BufferImpl::getDescriptorHandle(
 D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
 
     ViewKey key = {format, stride, range, nullptr};
     CPUDescriptorAllocation& allocation = m_srvs[key];
@@ -170,6 +175,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
 )
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
 
     ViewKey key = {format, stride, range, counter};
     CPUDescriptorAllocation& allocation = m_uavs[key];

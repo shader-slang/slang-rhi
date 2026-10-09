@@ -28,6 +28,10 @@ public:
     DeviceImpl* m_device;
     BindlessDesc m_desc;
 
+    // Protects all slot allocators and descriptor writes. Resource views must be
+    // resolved before acquiring this lock; never acquire resource cache locks here.
+    std::mutex m_mutex;
+
     GPUDescriptorRangeAllocation m_srvUavAllocation;
     GPUDescriptorRangeAllocation m_samplerAllocation;
 
