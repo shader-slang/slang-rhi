@@ -34,6 +34,14 @@ public:
 
     StateTracking m_stateTracking;
 
+    // Per-resource handOffShared queue-family releases (thisFamily -> EXTERNAL) deferred to
+    // end-of-encoding. The release must be the last barrier on each resource, emitted after the
+    // end-of-encoding default-state restoration (see cmdHandOffShared and the command loop's tail).
+    // Stored per resource (not per batch) so a same-encoder takeOverShared can cancel the matching
+    // pending release; a cancelled entry is tombstoned to nullptr, which
+    // recordQueueFamilyOwnershipTransfer skips.
+    short_vector<IResource*> m_pendingHandOffReleases;
+
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
     RefPtr<TextureViewImpl> m_depthStencilView;
@@ -117,6 +125,8 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdHandOffShared(const commands::HandOffShared& cmd);
+    void cmdTakeOverShared(const commands::TakeOverShared& cmd);
 
     void prepareSetRenderState(const commands::SetRenderState& cmd);
 
@@ -126,6 +136,21 @@ public:
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
+
+    // Record a queue-family ownership transfer for each shared resource, moving ownership from
+    // `srcQueueFamilyIndex` to `dstQueueFamilyIndex`. Buffers and textures may be mixed in one call;
+    // all barriers are submitted together. The equal-family case is a no-op, but an external transfer
+    // never hits it: handOffShared releases thisFamily -> VK_QUEUE_FAMILY_EXTERNAL and takeOverShared
+    // acquires VK_QUEUE_FAMILY_EXTERNAL -> thisFamily, and EXTERNAL never equals a real family index,
+    // so both ends of a producer<->consumer share always emit their barrier even when the two devices
+    // use the same family index. The guard only elides a redundant same-device same-family transfer
+    // (which needs no ownership transfer), and stays correct for a future family -> family transfer.
+    void recordQueueFamilyOwnershipTransfer(
+        uint32_t resourceCount,
+        IResource* const* resources,
+        uint32_t srcQueueFamilyIndex,
+        uint32_t dstQueueFamilyIndex
+    );
 
     void queryAccelerationStructureProperties(
         uint32_t accelerationStructureCount,
@@ -193,6 +218,18 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_stateTracking.requireDefaultStates();
     commitBarriers();
     m_stateTracking.clear();
+
+    // Emit deferred hand-off releases last, after the default-state restoration above, so the
+    // release to VK_QUEUE_FAMILY_EXTERNAL is the final barrier on each handed-off resource. A
+    // default-state transition emitted after the release would act on memory this queue no longer
+    // owns. Entries cancelled by a same-encoder take-over are tombstoned nullptr and skipped here.
+    recordQueueFamilyOwnershipTransfer(
+        (uint32_t)m_pendingHandOffReleases.size(),
+        m_pendingHandOffReleases.data(),
+        m_device->m_queueFamilyIndex,
+        VK_QUEUE_FAMILY_EXTERNAL
+    );
+    m_pendingHandOffReleases.clear();
 
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkEndCommandBuffer(m_cmdBuffer), m_device);
 
@@ -1697,6 +1734,155 @@ void CommandRecorder::requireBufferState(BufferImpl* buffer, ResourceState state
 void CommandRecorder::requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state)
 {
     m_stateTracking.setTextureState(texture, subresourceRange, state);
+}
+
+void CommandRecorder::cmdHandOffShared(const commands::HandOffShared& cmd)
+{
+    // Release ownership of the shared resources to VK_QUEUE_FAMILY_EXTERNAL so a foreign API (e.g.
+    // CUDA) can access them. The release is deferred to the end of encoding (see the command loop's
+    // tail) so it is emitted after the default-state restoration, as the last barrier on these
+    // resources. The command's resource array lives in the CommandList, which outlives this replay,
+    // so stashing the pointer is safe. The target family is always the external family today:
+    // slang-rhi exposes a single Vulkan queue family, so there is no same-device family to transfer
+    // to, and cmd.destQueue is not consulted here (it is used only by the debug layer to pair a
+    // hand-off with its take-over, and is where a destination family would be resolved once multiple
+    // families are exposed).
+    for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+        m_pendingHandOffReleases.push_back(cmd.resources[i]);
+}
+
+void CommandRecorder::cmdTakeOverShared(const commands::TakeOverShared& cmd)
+{
+    // Acquire ownership of the shared resources from the external queue family back to this queue's
+    // family, reversing a prior hand-off. See cmdHandOffShared for why the source is the external
+    // family today.
+    //
+    // If a resource was handed off earlier in THIS encoder its release is still pending (deferred to
+    // the tail). Acquiring it now while that release fires at the tail would invert the order to
+    // acquire-then-release and leave the resource EXTERNAL-owned. Because the hand-off and take-over
+    // sit in one command buffer with no submission between them they cancel out (net: the resource
+    // stays owned by this queue), so we drop the matching pending release and skip the acquire for
+    // such a resource, acquiring only the rest.
+    short_vector<IResource*> toAcquire;
+    for (uint32_t i = 0; i < cmd.resourceCount; ++i)
+    {
+        IResource* resource = cmd.resources[i];
+        if (!resource)
+            continue;
+        bool cancelledPendingHandOff = false;
+        for (uint32_t j = 0; j < m_pendingHandOffReleases.size(); ++j)
+        {
+            if (m_pendingHandOffReleases[j] == resource)
+            {
+                m_pendingHandOffReleases[j] = nullptr;
+                cancelledPendingHandOff = true;
+                break;
+            }
+        }
+        if (!cancelledPendingHandOff)
+            toAcquire.push_back(resource);
+    }
+    recordQueueFamilyOwnershipTransfer(
+        (uint32_t)toAcquire.size(),
+        toAcquire.data(),
+        VK_QUEUE_FAMILY_EXTERNAL,
+        m_device->m_queueFamilyIndex
+    );
+}
+
+void CommandRecorder::recordQueueFamilyOwnershipTransfer(
+    uint32_t resourceCount,
+    IResource* const* resources,
+    uint32_t srcQueueFamilyIndex,
+    uint32_t dstQueueFamilyIndex
+)
+{
+    if (srcQueueFamilyIndex == dstQueueFamilyIndex)
+        return;
+
+    // This helper emits both the release (thisFamily -> EXTERNAL) and the acquire
+    // (EXTERNAL -> thisFamily). The access masks are the broadest MEMORY_READ|WRITE and the stages
+    // ALL_COMMANDS -> ALL_COMMANDS because a queue-family ownership transfer round-trips the resource
+    // between two APIs whose exact access/stage usage is not known here (the external side is opaque),
+    // so the conservative full scope is required. This mirrors the existing shared-surface transfer in
+    // src/cuda/cuda-surface.cpp.
+    short_vector<VkBufferMemoryBarrier, 16> bufferBarriers;
+    short_vector<VkImageMemoryBarrier, 16> imageBarriers;
+
+    for (uint32_t i = 0; i < resourceCount; ++i)
+    {
+        IResource* resource = resources[i];
+        if (!resource)
+            continue;
+
+        ComPtr<IBuffer> bufferItf;
+        ComPtr<ITexture> textureItf;
+        switch (classifySharedResource(resource, bufferItf, textureItf))
+        {
+        case SharedResourceKind::Buffer:
+        {
+            BufferImpl* buffer = checked_cast<BufferImpl*>(bufferItf.get());
+            VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+            barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+            barrier.srcQueueFamilyIndex = srcQueueFamilyIndex;
+            barrier.dstQueueFamilyIndex = dstQueueFamilyIndex;
+            barrier.buffer = buffer->m_buffer.m_buffer;
+            barrier.offset = 0;
+            barrier.size = VK_WHOLE_SIZE;
+            bufferBarriers.push_back(barrier);
+            break;
+        }
+        case SharedResourceKind::Texture:
+        {
+            TextureImpl* texture = checked_cast<TextureImpl*>(textureItf.get());
+            // The transfer changes queue-family ownership only, not layout, so the texture must
+            // already be in VK_IMAGE_LAYOUT_GENERAL: external (CUDA) interop requires GENERAL, and
+            // since the hand-off release is emitted after the end-of-encoding default-state
+            // restoration (see record()), a shared texture's default state must map to GENERAL. The
+            // debug layer rejects a non-GENERAL default state up front (SLANG_E_INVALID_ARG); this
+            // asserts the same precondition as a backstop rather than emitting an oldLayout Vulkan
+            // would reject.
+            SLANG_RHI_ASSERT(translateImageLayout(texture->m_desc.defaultState) == VK_IMAGE_LAYOUT_GENERAL);
+            VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+            barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+            barrier.srcQueueFamilyIndex = srcQueueFamilyIndex;
+            barrier.dstQueueFamilyIndex = dstQueueFamilyIndex;
+            barrier.image = texture->m_image;
+            barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(getVkFormat(texture->m_desc.format));
+            barrier.subresourceRange.baseArrayLayer = 0;
+            barrier.subresourceRange.baseMipLevel = 0;
+            barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+            barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+            imageBarriers.push_back(barrier);
+            break;
+        }
+        default:
+            // Only Shared IBuffer/ITexture are valid transfer arguments; anything else is out of
+            // contract (the debug layer rejects it up front, and the base path never retains it).
+            SLANG_RHI_ASSERT(!"shared-transfer resource is neither IBuffer nor ITexture");
+            break;
+        }
+    }
+
+    if (bufferBarriers.empty() && imageBarriers.empty())
+        return;
+
+    m_api.vkCmdPipelineBarrier(
+        m_cmdBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VkDependencyFlags(0),
+        0,
+        nullptr,
+        (uint32_t)bufferBarriers.size(),
+        bufferBarriers.data(),
+        (uint32_t)imageBarriers.size(),
+        imageBarriers.data()
+    );
 }
 
 void CommandRecorder::commitBarriers()
