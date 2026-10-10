@@ -1014,6 +1014,8 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         requireBufferState(countBuffer, ResourceState::IndirectArgument);
     }
 
+    commitBarriers();
+
     m_cmdList->ExecuteIndirect(
         m_device->drawIndirectCmdSignature,
         cmd.maxDrawCount,
@@ -1037,6 +1039,8 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     {
         requireBufferState(countBuffer, ResourceState::IndirectArgument);
     }
+
+    commitBarriers();
 
     m_cmdList->ExecuteIndirect(
         m_device->drawIndexedIndirectCmdSignature,
