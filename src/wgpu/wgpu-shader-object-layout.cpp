@@ -32,7 +32,7 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     {
         scalarType = type->getElementType()->getScalarType();
     }
-    switch (type->getScalarType())
+    switch (scalarType)
     {
     case slang::TypeReflection::ScalarType::None:
         return WGPUTextureSampleType_Float;
@@ -57,6 +57,155 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
         break;
     }
     return WGPUTextureSampleType_Undefined;
+}
+
+// Format of a storage texture binding. This is the format declared with the [format("...")]
+// attribute, or the 32-bit format of the element type that Slang uses for WGSL otherwise.
+inline WGPUTextureFormat getStorageTextureFormat(
+    slang::TypeLayoutReflection* typeLayout,
+    SlangInt bindingRangeIndex,
+    slang::TypeReflection* textureType
+)
+{
+    switch (typeLayout->getBindingRangeImageFormat(bindingRangeIndex))
+    {
+    case SLANG_IMAGE_FORMAT_unknown:
+        break;
+    case SLANG_IMAGE_FORMAT_rgba32f:
+        return WGPUTextureFormat_RGBA32Float;
+    case SLANG_IMAGE_FORMAT_rgba16f:
+        return WGPUTextureFormat_RGBA16Float;
+    case SLANG_IMAGE_FORMAT_rg32f:
+        return WGPUTextureFormat_RG32Float;
+    case SLANG_IMAGE_FORMAT_rg16f:
+        return WGPUTextureFormat_RG16Float;
+    case SLANG_IMAGE_FORMAT_r11f_g11f_b10f:
+        return WGPUTextureFormat_RG11B10Ufloat;
+    case SLANG_IMAGE_FORMAT_r32f:
+        return WGPUTextureFormat_R32Float;
+    case SLANG_IMAGE_FORMAT_r16f:
+        return WGPUTextureFormat_R16Float;
+    case SLANG_IMAGE_FORMAT_rgba16:
+        return WGPUTextureFormat_RGBA16Unorm;
+    case SLANG_IMAGE_FORMAT_rgb10_a2:
+        return WGPUTextureFormat_RGB10A2Unorm;
+    case SLANG_IMAGE_FORMAT_rgba8:
+        return WGPUTextureFormat_RGBA8Unorm;
+    case SLANG_IMAGE_FORMAT_rg16:
+        return WGPUTextureFormat_RG16Unorm;
+    case SLANG_IMAGE_FORMAT_rg8:
+        return WGPUTextureFormat_RG8Unorm;
+    case SLANG_IMAGE_FORMAT_r16:
+        return WGPUTextureFormat_R16Unorm;
+    case SLANG_IMAGE_FORMAT_r8:
+        return WGPUTextureFormat_R8Unorm;
+    case SLANG_IMAGE_FORMAT_rgba16_snorm:
+        return WGPUTextureFormat_RGBA16Snorm;
+    case SLANG_IMAGE_FORMAT_rgba8_snorm:
+        return WGPUTextureFormat_RGBA8Snorm;
+    case SLANG_IMAGE_FORMAT_rg16_snorm:
+        return WGPUTextureFormat_RG16Snorm;
+    case SLANG_IMAGE_FORMAT_rg8_snorm:
+        return WGPUTextureFormat_RG8Snorm;
+    case SLANG_IMAGE_FORMAT_r16_snorm:
+        return WGPUTextureFormat_R16Snorm;
+    case SLANG_IMAGE_FORMAT_r8_snorm:
+        return WGPUTextureFormat_R8Snorm;
+    case SLANG_IMAGE_FORMAT_rgba32i:
+        return WGPUTextureFormat_RGBA32Sint;
+    case SLANG_IMAGE_FORMAT_rgba16i:
+        return WGPUTextureFormat_RGBA16Sint;
+    case SLANG_IMAGE_FORMAT_rgba8i:
+        return WGPUTextureFormat_RGBA8Sint;
+    case SLANG_IMAGE_FORMAT_rg32i:
+        return WGPUTextureFormat_RG32Sint;
+    case SLANG_IMAGE_FORMAT_rg16i:
+        return WGPUTextureFormat_RG16Sint;
+    case SLANG_IMAGE_FORMAT_rg8i:
+        return WGPUTextureFormat_RG8Sint;
+    case SLANG_IMAGE_FORMAT_r32i:
+        return WGPUTextureFormat_R32Sint;
+    case SLANG_IMAGE_FORMAT_r16i:
+        return WGPUTextureFormat_R16Sint;
+    case SLANG_IMAGE_FORMAT_r8i:
+        return WGPUTextureFormat_R8Sint;
+    case SLANG_IMAGE_FORMAT_rgba32ui:
+        return WGPUTextureFormat_RGBA32Uint;
+    case SLANG_IMAGE_FORMAT_rgba16ui:
+        return WGPUTextureFormat_RGBA16Uint;
+    case SLANG_IMAGE_FORMAT_rgb10_a2ui:
+        return WGPUTextureFormat_RGB10A2Uint;
+    case SLANG_IMAGE_FORMAT_rgba8ui:
+        return WGPUTextureFormat_RGBA8Uint;
+    case SLANG_IMAGE_FORMAT_rg32ui:
+        return WGPUTextureFormat_RG32Uint;
+    case SLANG_IMAGE_FORMAT_rg16ui:
+        return WGPUTextureFormat_RG16Uint;
+    case SLANG_IMAGE_FORMAT_rg8ui:
+        return WGPUTextureFormat_RG8Uint;
+    case SLANG_IMAGE_FORMAT_r32ui:
+        return WGPUTextureFormat_R32Uint;
+    case SLANG_IMAGE_FORMAT_r16ui:
+        return WGPUTextureFormat_R16Uint;
+    case SLANG_IMAGE_FORMAT_r8ui:
+        return WGPUTextureFormat_R8Uint;
+    case SLANG_IMAGE_FORMAT_bgra8:
+        return WGPUTextureFormat_BGRA8Unorm;
+    default:
+        return WGPUTextureFormat_Undefined;
+    }
+
+    slang::TypeReflection* elementType = textureType->getResourceResultType();
+    uint32_t componentCount = 1;
+    if (elementType->getKind() == slang::TypeReflection::Kind::Vector)
+    {
+        componentCount = elementType->getElementCount();
+        elementType = elementType->getElementType();
+    }
+    static const WGPUTextureFormat kFloatFormats[] = {
+        WGPUTextureFormat_R32Float,
+        WGPUTextureFormat_RG32Float,
+        WGPUTextureFormat_Undefined,
+        WGPUTextureFormat_RGBA32Float,
+    };
+    static const WGPUTextureFormat kSintFormats[] = {
+        WGPUTextureFormat_R32Sint,
+        WGPUTextureFormat_RG32Sint,
+        WGPUTextureFormat_Undefined,
+        WGPUTextureFormat_RGBA32Sint,
+    };
+    static const WGPUTextureFormat kUintFormats[] = {
+        WGPUTextureFormat_R32Uint,
+        WGPUTextureFormat_RG32Uint,
+        WGPUTextureFormat_Undefined,
+        WGPUTextureFormat_RGBA32Uint,
+    };
+    if (componentCount < 1 || componentCount > 4)
+        return WGPUTextureFormat_Undefined;
+    switch (elementType->getScalarType())
+    {
+    case slang::TypeReflection::ScalarType::Float32:
+        return kFloatFormats[componentCount - 1];
+    case slang::TypeReflection::ScalarType::Int32:
+        return kSintFormats[componentCount - 1];
+    case slang::TypeReflection::ScalarType::UInt32:
+        return kUintFormats[componentCount - 1];
+    default:
+        return WGPUTextureFormat_Undefined;
+    }
+}
+
+inline WGPUStorageTextureAccess getStorageTextureAccess(slang::TypeReflection* textureType)
+{
+    switch (textureType->getResourceAccess())
+    {
+    case SLANG_RESOURCE_ACCESS_READ:
+        return WGPUStorageTextureAccess_ReadOnly;
+    case SLANG_RESOURCE_ACCESS_WRITE:
+        return WGPUStorageTextureAccess_WriteOnly;
+    default:
+        return WGPUStorageTextureAccess_ReadWrite;
+    }
 }
 
 uint32_t ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space)
@@ -179,14 +328,12 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                 entry.texture.multisampled = (leafType->getResourceShape() & SLANG_TEXTURE_MULTISAMPLE_FLAG) ? 1 : 0;
                 break;
             case slang::BindingType::MutableTexture:
-                // WGPUStorageTextureAccess_Undefined = 0x00000000,
-                // WGPUStorageTextureAccess_WriteOnly = 0x00000001,
-                // WGPUStorageTextureAccess_ReadOnly = 0x00000002,
-                // WGPUStorageTextureAccess_ReadWrite = 0x00000003,
-                entry.storageTexture.access = WGPUStorageTextureAccess_Undefined;
-                entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-                // WGPUTextureFormat format;
-                entry.storageTexture.viewDimension = getViewDimension(typeLayout->getType()->getResourceShape());
+                entry.storageTexture.access = getStorageTextureAccess(leafType);
+                entry.storageTexture.format = getStorageTextureFormat(typeLayout, bindingRangeIndex, leafType);
+                entry.storageTexture.viewDimension = getViewDimension(leafType->getResourceShape());
+                // Writable storage textures cannot be used in vertex shaders.
+                if (entry.storageTexture.access != WGPUStorageTextureAccess_ReadOnly)
+                    entry.visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
                 break;
             case slang::BindingType::TypedBuffer:
             case slang::BindingType::RawBuffer:

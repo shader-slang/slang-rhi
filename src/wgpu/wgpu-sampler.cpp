@@ -2,6 +2,8 @@
 #include "wgpu-device.h"
 #include "wgpu-utils.h"
 
+#include <algorithm>
+
 namespace rhi::wgpu {
 
 SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
@@ -34,8 +36,9 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     samplerDesc.magFilter = translateFilterMode(desc.magFilter);
     samplerDesc.minFilter = translateFilterMode(desc.minFilter);
     samplerDesc.mipmapFilter = translateMipmapFilterMode(desc.mipFilter);
-    samplerDesc.lodMinClamp = desc.minLOD;
-    samplerDesc.lodMaxClamp = desc.maxLOD;
+    // WebGPU requires 0 <= lodMinClamp <= lodMaxClamp.
+    samplerDesc.lodMinClamp = std::max(desc.minLOD, 0.f);
+    samplerDesc.lodMaxClamp = std::max(desc.maxLOD, samplerDesc.lodMinClamp);
     if (desc.reductionOp == TextureReductionOp::Comparison)
     {
         samplerDesc.compare = translateCompareFunction(desc.comparisonFunc);
