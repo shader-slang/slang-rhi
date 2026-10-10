@@ -106,7 +106,7 @@ static const std::vector<Format> kDepthStencilFormats = {
     Format::D32FloatS8Uint,
 };
 
-GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -135,7 +135,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | C
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -164,7 +164,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal 
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -193,7 +193,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -222,7 +222,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal |
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -251,7 +251,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -323,4 +323,112 @@ GPU_TEST_CASE("cmd-clear-texture-depth-stencil", D3D11 | D3D12 | Vulkan | Metal)
         }
     );
 #endif
+}
+
+// Render target textures are cleared through the attachment path. Clear one mip level of one layer
+// and check that only that subresource changes.
+template<typename T, typename ClearFunc>
+static void testClearRenderTargetSubresource(IDevice* device, Format format, const T clearValue[4], ClearFunc clear)
+{
+    const uint32_t size = 8, layerCount = 2, mipCount = 2;
+    auto initialValue = [](uint32_t layer, uint32_t mip)
+    {
+        return T(1 + layer * 10 + mip);
+    };
+
+    TextureDesc desc = {};
+    desc.type = TextureType::Texture2DArray;
+    desc.format = format;
+    desc.size = {size, size, 1};
+    desc.arrayLength = layerCount;
+    desc.mipCount = mipCount;
+    desc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    desc.defaultState = ResourceState::RenderTarget;
+
+    std::vector<std::vector<T>> initData;
+    std::vector<SubresourceData> subresources;
+    for (uint32_t layer = 0; layer < layerCount; ++layer)
+    {
+        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            uint32_t mipSize = size >> mip;
+            initData.emplace_back(mipSize * mipSize * 4, initialValue(layer, mip));
+            subresources.push_back(
+                {initData.back().data(), mipSize * 4 * sizeof(T), mipSize * mipSize * 4 * sizeof(T)}
+            );
+        }
+    }
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(desc, subresources.data(), texture.writeRef()));
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+    clear(encoder, texture, SubresourceRange{1, 1, 1, 1});
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    for (uint32_t layer = 0; layer < layerCount; ++layer)
+    {
+        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            ComPtr<ISlangBlob> blob;
+            SubresourceLayout layout;
+            REQUIRE_CALL(device->readTexture(texture, layer, mip, blob.writeRef(), &layout));
+            bool cleared = layer == 1 && mip == 1;
+            bool equal = true;
+            for (uint32_t y = 0; y < layout.size.height; ++y)
+            {
+                const T* row = reinterpret_cast<const T*>(
+                    static_cast<const uint8_t*>(blob->getBufferPointer()) + y * layout.rowPitch
+                );
+                for (uint32_t x = 0; x < layout.size.width * 4; ++x)
+                    equal &= row[x] == (cleared ? clearValue[x % 4] : initialValue(layer, mip));
+            }
+            CAPTURE(layer);
+            CAPTURE(mip);
+            CHECK(equal);
+        }
+    }
+}
+
+GPU_TEST_CASE("cmd-clear-texture-render-target-subresource", Vulkan | WGPU)
+{
+    {
+        float value[4] = {0.5f, -2.f, 3.f, 4.f};
+        testClearRenderTargetSubresource<float>(
+            device,
+            Format::RGBA32Float,
+            value,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureFloat(texture, range, value);
+            }
+        );
+    }
+    {
+        const uint16_t value[4] = {7, 8, 9, 65535};
+        uint32_t clearValue[4] = {7, 8, 9, 65535};
+        testClearRenderTargetSubresource<uint16_t>(
+            device,
+            Format::RGBA16Uint,
+            value,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureUint(texture, range, clearValue);
+            }
+        );
+    }
+    {
+        const int16_t value[4] = {-7, 8, -32768, 32767};
+        int32_t clearValue[4] = {-7, 8, -32768, 32767};
+        testClearRenderTargetSubresource<int16_t>(
+            device,
+            Format::RGBA16Sint,
+            value,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureSint(texture, range, clearValue);
+            }
+        );
+    }
 }
