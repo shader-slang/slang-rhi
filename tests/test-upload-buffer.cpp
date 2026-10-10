@@ -91,3 +91,29 @@ GPU_TEST_CASE("upload-buffer-unaligned-size", D3D12 | Vulkan | Metal | WGPU)
     REQUIRE_CALL(device->readBuffer(buffer, 0, sizeof(result), result));
     CHECK(std::memcmp(result, contents, sizeof(contents)) == 0);
 }
+
+// Reads at offsets and sizes that are not multiples of 4 bytes return the requested bytes.
+GPU_TEST_CASE("buffer-read-unaligned", Vulkan | WGPU)
+{
+    uint8_t contents[11];
+    for (uint8_t i = 0; i < sizeof(contents); ++i)
+        contents[i] = uint8_t(i + 1);
+
+    BufferDesc desc = {};
+    desc.size = sizeof(contents);
+    desc.usage = BufferUsage::CopySource | BufferUsage::CopyDestination;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(desc, contents, buffer.writeRef()));
+
+    for (Offset offset : {1, 2, 3, 5})
+    {
+        for (Size size : {Size(1), Size(3), Size(sizeof(contents) - offset)})
+        {
+            uint8_t result[sizeof(contents)] = {};
+            REQUIRE_CALL(device->readBuffer(buffer, offset, size, result));
+            CAPTURE(offset);
+            CAPTURE(size);
+            CHECK(std::memcmp(result, contents + offset, size) == 0);
+        }
+    }
+}
