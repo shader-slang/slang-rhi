@@ -475,6 +475,10 @@ public:
 
     virtual void customizeShaderObject(ShaderObject* shaderObject) { SLANG_UNUSED(shaderObject); }
 
+    /// Write data to a buffer with MemoryType::Upload. Used by the upload heap when its pages are not
+    /// kept mapped. The default implementation maps the buffer, copies the data and unmaps it.
+    virtual Result writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data);
+
     virtual Result createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline);
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);

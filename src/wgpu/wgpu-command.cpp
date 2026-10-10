@@ -110,9 +110,6 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* enc
         return SLANG_FAIL;
     }
 
-    // Upload constant buffer data
-    commandBuffer->m_constantBufferPool.upload(m_ctx, m_commandEncoder);
-
     const CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
     while (command)

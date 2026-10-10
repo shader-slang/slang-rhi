@@ -2,6 +2,7 @@
 
 #include "wgpu-base.h"
 
+#include <memory>
 #include <vector>
 
 namespace rhi::wgpu {
@@ -17,8 +18,8 @@ public:
     };
 
     void init(DeviceImpl* device);
+    /// Write the allocated data to the GPU buffers. Called when the command buffer is finished.
     void finish();
-    void upload(Context& ctx, WGPUCommandEncoder encoder);
     void reset();
 
     Result allocate(size_t size, Allocation& outAllocation);
@@ -30,9 +31,10 @@ private:
     struct Page
     {
         InternalRefPtr<BufferImpl> buffer;
-        InternalRefPtr<BufferImpl> stagingBuffer;
+        // Constant data is written on the CPU and copied to the buffer with wgpuQueueWriteBuffer,
+        // which avoids waiting for an asynchronous buffer mapping while recording commands.
+        std::unique_ptr<uint8_t[]> data;
         size_t size = 0;
-        uint8_t* mappedData = nullptr;
         size_t usedSize = 0;
     };
 
@@ -45,8 +47,6 @@ private:
     size_t m_currentOffset = 0;
 
     Result createPage(size_t size, Page& outPage);
-    Result mapPage(Page& page);
-    Result unmapPage(Page& page);
 };
 
 } // namespace rhi::wgpu
