@@ -496,12 +496,13 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateDepthStencilState = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
-    bool updateVertexBuffers = !m_renderStateValid || arraysEqual(
-                                                          state.vertexBufferCount,
-                                                          m_renderState.vertexBufferCount,
-                                                          state.vertexBuffers,
-                                                          m_renderState.vertexBuffers
-                                                      );
+    // A new pipeline can change stream strides even if the buffers are unchanged.
+    bool updateVertexBuffers = updatePipeline || !arraysEqual(
+                                                     state.vertexBufferCount,
+                                                     m_renderState.vertexBufferCount,
+                                                     state.vertexBuffers,
+                                                     m_renderState.vertexBuffers
+                                                 );
     bool updateIndexBuffer = !m_renderStateValid || state.indexFormat != m_renderState.indexFormat ||
                              state.indexBuffer.buffer != m_renderState.indexBuffer.buffer ||
                              state.indexBuffer.offset != m_renderState.indexBuffer.offset;
