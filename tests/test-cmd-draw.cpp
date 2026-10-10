@@ -324,7 +324,8 @@ struct DrawIndirectTest : BaseDrawTest
 
         BufferDesc bufferDesc;
         bufferDesc.size = sizeof(IndirectArgData);
-        bufferDesc.usage = BufferUsage::IndirectArgument;
+        // Preserve the indirect flag when the buffer can also be written by compute.
+        bufferDesc.usage = BufferUsage::IndirectArgument | BufferUsage::UnorderedAccess;
         bufferDesc.defaultState = ResourceState::IndirectArgument;
         ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndirectData);
         REQUIRE(buffer != nullptr);
@@ -404,7 +405,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 
         BufferDesc bufferDesc;
         bufferDesc.size = sizeof(IndexedIndirectArgData);
-        bufferDesc.usage = BufferUsage::IndirectArgument;
+        bufferDesc.usage = BufferUsage::IndirectArgument | BufferUsage::UnorderedAccess;
         bufferDesc.defaultState = ResourceState::IndirectArgument;
         ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndexedIndirectData);
         REQUIRE(buffer != nullptr);
