@@ -5,6 +5,7 @@
 #include "core/static_vector.h"
 
 #include <map>
+#include <mutex>
 #include <vector>
 
 namespace rhi::wgpu {
@@ -164,7 +165,6 @@ public:
     {
         std::vector<WGPUBindGroupLayoutEntry> entries;
         int32_t space = -1;
-        WGPUBindGroupLayout bindGroupLayout = nullptr;
     };
 
     std::vector<BindingRangeInfo> m_bindingRanges;
@@ -351,10 +351,17 @@ public:
     std::vector<EntryPointInfo> m_entryPoints;
     WGPUPipelineLayout m_pipelineLayout = nullptr;
     static_vector<WGPUBindGroupLayout, kMaxDescriptorSets> m_bindGroupLayouts;
+    // Program-specific bindings after removing resources unused by every entry
+    // point. Generic shader-object layouts retain the full reflected layout.
+    std::vector<std::vector<WGPUBindGroupLayoutEntry>> m_bindGroupLayoutEntries;
 
     DeviceImpl* m_device = nullptr;
 
     ~RootShaderObjectLayoutImpl();
+
+    // Finalize native layouts after shader compilation, preserving lazy
+    // compilation and its timing reports when a program is first created.
+    Result ensurePipelineLayout(const ShaderProgramImpl* program);
 
     static Result create(
         DeviceImpl* device,
@@ -393,6 +400,10 @@ protected:
     };
 
     Result _init(const Builder* builder);
+
+    std::once_flag m_pipelineLayoutOnce;
+    Result m_pipelineLayoutResult = SLANG_FAIL;
+    Result createPipelineLayout(const ShaderProgramImpl* program);
 
     /// Add all the descriptor sets implied by this root object and sub-objects
     Result addAllDescriptorSets();

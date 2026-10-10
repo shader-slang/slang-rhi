@@ -6,6 +6,7 @@ using namespace rhi::testing;
 // Test dispatchComputeIndirect with a simple compute shader.
 // The test sets up an indirect argument buffer with dispatch dimensions written by the GPU,
 // then verifies the compute shader ran with the correct number of threads.
+// WebGPU: the shader uses RWByteAddressBuffer atomics unavailable in WGSL.
 GPU_TEST_CASE("compute-indirect", D3D12 | Vulkan | Metal | CUDA)
 {
     ComPtr<IShaderProgram> program;

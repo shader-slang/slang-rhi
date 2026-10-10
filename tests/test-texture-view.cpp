@@ -193,6 +193,17 @@ inline bool shouldSkipFormat(Format format)
     }
 }
 
+inline bool shouldSkipReadOnlyFormat(IDevice* device, Format format)
+{
+    // WebGPU currently uses filterable float bindings. Float32Filterable is optional
+    // and is not exposed by the RHI, so keep shader reads to portable formats.
+    // Host read/write tests still cover these formats.
+    if (device->getDeviceType() == DeviceType::WGPU &&
+        (format == Format::R32Float || format == Format::RG32Float || format == Format::RGBA32Float))
+        return true;
+    return shouldSkipFormat(format);
+}
+
 inline bool needsFormatConversion(Format format)
 {
     const FormatInfo& info = getFormatInfo(format);
@@ -889,7 +900,7 @@ static std::vector<TexelData> generateTexelData(ITextureView* textureView)
 }
 
 // Test host write and read-back infrastructure.
-GPU_TEST_CASE("texture-view-host-write-read", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-host-write-read", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -936,7 +947,7 @@ GPU_TEST_CASE("texture-view-host-write-read", D3D12 | Vulkan | CUDA | Metal)
 }
 
 // Test shader side .Load() on read-only textures with views including all layers and mips.
-GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -961,7 +972,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA 
         [&](TextureTestContext* c)
         {
             const TextureDesc& desc = c->getTexture()->getDesc();
-            if (shouldSkipFormat(desc.format))
+            if (shouldSkipReadOnlyFormat(device, desc.format))
                 return;
 
             // CUDA does not support loads from 1D textures (limitation in PTX ISA).
@@ -989,7 +1000,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA 
 
 // Test shader side .Load() and subscript load operator on read-only textures with views including all layers and a
 // single mip.
-GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -1014,7 +1025,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUD
         [&](TextureTestContext* c)
         {
             const TextureDesc& desc = c->getTexture()->getDesc();
-            if (shouldSkipFormat(desc.format))
+            if (shouldSkipReadOnlyFormat(device, desc.format))
                 return;
 
             // CUDA does not support loads from 1D textures (limitation in PTX ISA).
@@ -1058,6 +1069,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUD
 
 // Test shader side .Load() and subscript load operator on read-write textures with views including all layers and a
 // single mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1127,7 +1139,7 @@ GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUD
 
 // Test shader side .Load() and subscript load operator on read-only textures with views including a single layer and
 // mip.
-GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -1152,7 +1164,7 @@ GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
         [&](TextureTestContext* c)
         {
             const TextureDesc& desc = c->getTexture()->getDesc();
-            if (shouldSkipFormat(desc.format))
+            if (shouldSkipReadOnlyFormat(device, desc.format))
                 return;
 
             // CUDA does not support loads from 1D textures (limitation in PTX ISA).
@@ -1206,6 +1218,7 @@ GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
 
 // Test shader side .Load() and subscript load operator on read-write textures with views including a single layer and
 // mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1286,6 +1299,7 @@ GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
 
 // Test shader side .Store() and subscript store operator on read-write textures with views including all layers and a
 // single mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1362,6 +1376,7 @@ GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA 
 
 // Test shader side .Store() and subscript store operator on read-write textures with views including a single layer and
 // mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);

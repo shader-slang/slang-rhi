@@ -22,7 +22,6 @@ namespace rhi {
 // Forward declarations
 class Device;
 class Heap;
-struct EntryPointCompilationStats;
 
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
@@ -392,19 +391,6 @@ public:
 
     // Flush all global heaps managed by this device
     Result flushHeaps();
-
-    Result getEntryPointCodeFromShaderCache(
-        ShaderProgram* program,
-        slang::IComponentType* componentType,
-        const char* entryPointName,
-        uint32_t entryPointIndex,
-        uint32_t targetIndex,
-        slang::IBlob* cacheKey,
-        bool measureCompilerTime,
-        EntryPointCompilationStats* outStats,
-        slang::IBlob** outCode,
-        slang::IBlob** outDiagnostics = nullptr
-    );
 
     /// Returns the cached shader object layout for `type` in `session`, creating it
     /// on first use.
