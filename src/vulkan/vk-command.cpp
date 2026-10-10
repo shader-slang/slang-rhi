@@ -168,6 +168,32 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
                 {
                     prepareSetRenderState(commandList.getCommand<commands::SetRenderState>(subCmdSlot));
                 }
+                else if (subCmdSlot->id == CommandID::DrawIndirect)
+                {
+                    const auto& draw = commandList.getCommand<commands::DrawIndirect>(subCmdSlot);
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(draw.argBuffer.buffer),
+                        ResourceState::IndirectArgument
+                    );
+                    if (draw.countBuffer)
+                        requireBufferState(
+                            checked_cast<BufferImpl*>(draw.countBuffer.buffer),
+                            ResourceState::IndirectArgument
+                        );
+                }
+                else if (subCmdSlot->id == CommandID::DrawIndexedIndirect)
+                {
+                    const auto& draw = commandList.getCommand<commands::DrawIndexedIndirect>(subCmdSlot);
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(draw.argBuffer.buffer),
+                        ResourceState::IndirectArgument
+                    );
+                    if (draw.countBuffer)
+                        requireBufferState(
+                            checked_cast<BufferImpl*>(draw.countBuffer.buffer),
+                            ResourceState::IndirectArgument
+                        );
+                }
                 else if (subCmdSlot->id == CommandID::EndRenderPass)
                 {
                     break;
