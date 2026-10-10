@@ -477,8 +477,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_OK;
     }
 
-    // Copies and mappings must be multiples of 4 bytes. Buffer sizes are padded accordingly.
-    Size copySize = math::calcAligned2(size, 4);
+    // Copy offsets, copy sizes and mappings must be multiples of 4 bytes. Copy the enclosing aligned range,
+    // which stays within the buffer as buffer sizes are padded to 4 bytes.
+    Offset copyOffset = offset & ~Offset(3);
+    Size copySize = math::calcAligned2(offset + size, 4) - copyOffset;
 
     WGPUBufferDescriptor stagingBufferDesc = {};
     stagingBufferDesc.size = copySize;
@@ -497,7 +499,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
 
-    m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(encoder, bufferImpl->m_buffer, offset, stagingBuffer, 0, copySize);
+    m_ctx.api
+        .wgpuCommandEncoderCopyBufferToBuffer(encoder, bufferImpl->m_buffer, copyOffset, stagingBuffer, 0, copySize);
     WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
     if (!commandBuffer)
     {
@@ -561,7 +564,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    std::memcpy(outData, data, size);
+    std::memcpy(outData, static_cast<const uint8_t*>(data) + (offset - copyOffset), size);
 
     return SLANG_OK;
 }

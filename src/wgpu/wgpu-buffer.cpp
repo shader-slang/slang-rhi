@@ -178,7 +178,11 @@ Result DeviceImpl::writeUploadBuffer(Buffer* buffer, Offset offset, Size size, c
     SLANG_RHI_ASSERT(bufferImpl->m_uploadData);
     SLANG_RHI_ASSERT(offset + size <= bufferImpl->m_desc.size);
     std::memcpy(bufferImpl->m_uploadData.get() + offset, data, size);
-    writeBuffer(bufferImpl, offset, size, data);
+    // Queue writes need 4-byte aligned offsets and sizes. Write the enclosing aligned range from the
+    // CPU copy, so that neighboring bytes keep their current values.
+    Offset begin = offset & ~Offset(3);
+    Offset end = math::calcAligned2(offset + size, 4);
+    writeBuffer(bufferImpl, begin, end - begin, bufferImpl->m_uploadData.get() + begin);
     return SLANG_OK;
 }
 
