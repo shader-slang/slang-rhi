@@ -4,6 +4,7 @@
 #include "wgpu-command.h"
 
 #include <unordered_set>
+#include <atomic>
 
 namespace rhi::wgpu {
 
@@ -36,6 +37,11 @@ public:
     void reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message);
     void reportUncapturedError(WGPUErrorType type, WGPUStringView message);
     WGPUErrorType getAndClearLastUncapturedError();
+
+    // Capture errors from a native creation operation without consuming unrelated
+    // uncaptured errors. Always pair these calls, including when creation fails.
+    void pushErrorScopes();
+    Result popErrorScopes();
 
     // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
@@ -140,7 +146,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
 private:
-    WGPUErrorType m_lastUncapturedError = WGPUErrorType_NoError;
+    std::atomic<WGPUErrorType> m_lastUncapturedError{WGPUErrorType_NoError};
 
     void initializeFormatSupport();
 };

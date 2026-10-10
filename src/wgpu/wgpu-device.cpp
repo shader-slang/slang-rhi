@@ -10,6 +10,7 @@
 #include "core/deferred.h"
 
 #include <vector>
+#include <memory>
 
 namespace rhi::wgpu {
 
@@ -66,9 +67,61 @@ void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView messag
 
 WGPUErrorType DeviceImpl::getAndClearLastUncapturedError()
 {
-    WGPUErrorType error = this->m_lastUncapturedError;
-    this->m_lastUncapturedError = WGPUErrorType_NoError;
-    return error;
+    return m_lastUncapturedError.exchange(WGPUErrorType_NoError);
+}
+
+void DeviceImpl::pushErrorScopes()
+{
+    m_ctx.api.wgpuDevicePushErrorScope(m_ctx.device, WGPUErrorFilter_Internal);
+    m_ctx.api.wgpuDevicePushErrorScope(m_ctx.device, WGPUErrorFilter_OutOfMemory);
+    m_ctx.api.wgpuDevicePushErrorScope(m_ctx.device, WGPUErrorFilter_Validation);
+}
+
+Result DeviceImpl::popErrorScopes()
+{
+    struct ScopeResult
+    {
+        WGPUPopErrorScopeStatus status = WGPUPopErrorScopeStatus_Error;
+        WGPUErrorType type = WGPUErrorType_NoError;
+        std::string message;
+    };
+    Result result = SLANG_OK;
+    std::vector<std::string> messages;
+    for (uint32_t i = 0; i < 3; ++i)
+    {
+        auto scope = std::make_shared<ScopeResult>();
+        WGPUPopErrorScopeCallbackInfo callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.userdata1 = new std::shared_ptr<ScopeResult>(scope);
+        callbackInfo.callback = [](WGPUPopErrorScopeStatus status,
+                                   WGPUErrorType type,
+                                   WGPUStringView message,
+                                   void* userdata1,
+                                   void* userdata2)
+        {
+            // The callback owns its state even if waiting fails or the device is lost.
+            std::unique_ptr<std::shared_ptr<ScopeResult>> state(static_cast<std::shared_ptr<ScopeResult>*>(userdata1));
+            (*state)->status = status;
+            (*state)->type = type;
+            if (message.data)
+                (*state)->message.assign(message.data, message.length);
+        };
+        WGPUFuture future = m_ctx.api.wgpuDevicePopErrorScope(m_ctx.device, callbackInfo);
+        if (wgpu::wait(m_ctx, future) != WGPUWaitStatus_Success)
+        {
+            result = SLANG_FAIL;
+            continue;
+        }
+        if (scope->status != WGPUPopErrorScopeStatus_Success || scope->type != WGPUErrorType_NoError)
+        {
+            result = SLANG_FAIL;
+            messages.push_back(scope->message);
+        }
+    }
+    // Pop every scope before invoking user diagnostics, which may throw.
+    for (const auto& message : messages)
+        reportError("resource creation", translateString(message.c_str()));
+    return result;
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)

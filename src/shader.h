@@ -41,6 +41,8 @@ struct CompiledEntryPoint
     SlangStage stage = SLANG_STAGE_NONE;
     std::string name;
     ComPtr<ISlangBlob> cacheKey;
+    // Backend-consumable artifact passed to createShaderModule. May include
+    // backend metadata in addition to the generated shader code.
     ComPtr<ISlangBlob> code;
     ComPtr<ISlangBlob> diagnostics;
     EntryPointCompilationStats stats;
@@ -121,7 +123,7 @@ public:
     Result prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints);
 
     /// Performs the concurrency-safe backend code generation operation for one prepared entry point.
-    Result compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime);
+    virtual Result compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime);
 
     /// Reports diagnostics and timing on the caller thread.
     void reportEntryPointCompilation(Device* device, const CompiledEntryPoint& entryPoint);

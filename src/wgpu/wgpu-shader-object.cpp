@@ -7,6 +7,16 @@
 
 namespace rhi::wgpu {
 
+bool BindingDataBuilder::isBindingUsed(uint32_t set, uint32_t binding) const
+{
+    if (set >= m_rootLayout->m_bindGroupLayoutEntries.size())
+        return false;
+    for (const auto& entry : m_rootLayout->m_bindGroupLayoutEntries[set])
+        if (entry.binding == binding)
+            return true;
+    return false;
+}
+
 inline void writeDescriptor(BindingDataBuilder& builder, uint32_t bindingSet, const WGPUBindGroupEntry& write)
 {
     SLANG_RHI_ASSERT(bindingSet < builder.m_entries.size());
@@ -42,6 +52,8 @@ inline void writeBufferDescriptor(
 {
     for (size_t i = 0; i < slots.size(); ++i)
     {
+        if (!builder.isBindingUsed(offset.bindingSet, offset.binding + i))
+            continue;
         const ResourceSlot& slot = slots[i];
 
         WGPUBindGroupEntry entry = {};
@@ -61,6 +73,8 @@ inline void writeTextureDescriptor(
 {
     for (size_t i = 0; i < slots.size(); ++i)
     {
+        if (!builder.isBindingUsed(offset.bindingSet, offset.binding + i))
+            continue;
         const ResourceSlot& slot = slots[i];
 
         WGPUBindGroupEntry entry = {};
@@ -78,6 +92,8 @@ inline void writeSamplerDescriptor(
 {
     for (size_t i = 0; i < slots.size(); ++i)
     {
+        if (!builder.isBindingUsed(offset.bindingSet, offset.binding + i))
+            continue;
         const ResourceSlot& slot = slots[i];
 
         WGPUBindGroupEntry entry = {};
@@ -97,10 +113,12 @@ Result BindingDataBuilder::bindAsRoot(
     // TODO: In the future we should lookup the cache for existing
     // binding data and reuse that if possible.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
+    *bindingData = {};
     m_bindingData = bindingData;
     m_bindingCache->bindingData.push_back(bindingData);
 
     m_bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
+    m_rootLayout = specializedLayout;
 
     BindingOffset offset = {};
 
@@ -167,8 +185,8 @@ Result BindingDataBuilder::allocateDescriptorSets(
 
 Result BindingDataBuilder::createBindGroups()
 {
-    m_bindingData->bindGroupCount = m_entries.size();
-    m_bindingData->bindGroups = m_allocator->allocate<WGPUBindGroup>(m_bindingData->bindGroupCount);
+    m_bindingData->bindGroupCount = 0;
+    m_bindingData->bindGroups = m_allocator->allocate<WGPUBindGroup>(m_entries.size());
 
     for (size_t i = 0; i < m_entries.size(); ++i)
     {
@@ -176,12 +194,18 @@ Result BindingDataBuilder::createBindGroups()
         desc.layout = m_bindGroupLayouts[i];
         desc.entries = m_entries[i].data();
         desc.entryCount = (uint32_t)m_entries[i].size();
+        m_device->pushErrorScopes();
         WGPUBindGroup bindGroup = m_device->m_ctx.api.wgpuDeviceCreateBindGroup(m_device->m_ctx.device, &desc);
+        if (bindGroup)
+        {
+            m_bindingData->bindGroups[i] = bindGroup;
+            ++m_bindingData->bindGroupCount;
+        }
+        SLANG_RETURN_ON_FAIL(m_device->popErrorScopes());
         if (!bindGroup)
         {
             return SLANG_FAIL;
         }
-        m_bindingData->bindGroups[i] = bindGroup;
     }
     return SLANG_OK;
 }
@@ -383,6 +407,12 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     auto bufferSize = specializedLayout->getTotalOrdinaryDataSize();
     if (bufferSize == 0)
         return SLANG_OK;
+
+    if (!isBindingUsed(ioOffset.bindingSet, ioOffset.binding))
+    {
+        ioOffset.binding++;
+        return SLANG_OK;
+    }
 
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(bufferSize, allocation));

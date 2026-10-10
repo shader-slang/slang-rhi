@@ -4,6 +4,7 @@
 #include "wgpu-texture.h"
 #include "wgpu-pipeline.h"
 #include "wgpu-shader-object.h"
+#include "wgpu-shader-program.h"
 #include "wgpu-utils.h"
 
 #include "../strings.h"
@@ -417,8 +418,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         attachment.resolveTarget = attachmentIn.resolveTarget
                                        ? checked_cast<TextureViewImpl*>(attachmentIn.resolveTarget)->m_textureView
                                        : nullptr;
-        attachment.depthSlice = -1;         // TODO not provided
-        attachment.resolveTarget = nullptr; // TODO not provided
+        attachment.depthSlice = -1; // TODO not provided
         attachment.loadOp = translateLoadOp(attachmentIn.loadOp);
         attachment.storeOp = translateStoreOp(attachmentIn.storeOp);
         attachment.clearValue.r = attachmentIn.clearValue[0];
@@ -619,6 +619,18 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
+    // A single draw uses core WebGPU and does not require Dawn's optional
+    // MultiDrawIndirect feature (which may not be enabled on this device).
+    if (cmd.maxDrawCount == 1 && !cmd.countBuffer)
+    {
+        m_ctx.api.wgpuRenderPassEncoderDrawIndirect(
+            m_renderPassEncoder,
+            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+            cmd.argBuffer.offset
+        );
+        return;
+    }
+
 #if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndirect(
         m_renderPassEncoder,
@@ -638,6 +650,16 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 {
     if (!m_renderStateValid)
         return;
+
+    if (cmd.maxDrawCount == 1 && !cmd.countBuffer)
+    {
+        m_ctx.api.wgpuRenderPassEncoderDrawIndexedIndirect(
+            m_renderPassEncoder,
+            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+            cmd.argBuffer.offset
+        );
+        return;
+    }
 
 #if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndexedIndirect(
@@ -1014,13 +1036,26 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    ShaderObjectLayout* specializedLayout = nullptr;
-    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
-    return builder.bindAsRoot(
-        rootObject,
-        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
-        (BindingDataImpl*&)outBindingData
-    );
+    RefPtr<ShaderProgram> program = rootObject->m_shaderProgram;
+    if (program->isSpecializable())
+    {
+        ExtendedShaderObjectTypeList args;
+        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(args));
+        if (args.getCount() > 0)
+        {
+            RefPtr<ShaderProgram> specializedProgram;
+            SLANG_RETURN_ON_FAIL(device->getSpecializedProgram(program, args, specializedProgram.writeRef()));
+            program = specializedProgram;
+        }
+    }
+    // TODO: Binding creation needs compiled resource-usage metadata, so deferred
+    // shaders are currently compiled synchronously during draw/dispatch recording.
+    // To let the pipeline resolver batch compilation at finish(), capture parameter
+    // values during recording and defer native bind-group creation until resolution.
+    SLANG_RETURN_ON_FAIL(program->compileShaders(device));
+    auto specializedLayout = checked_cast<RootShaderObjectLayoutImpl*>(program->getRootShaderObjectLayout());
+    SLANG_RETURN_ON_FAIL(specializedLayout->ensurePipelineLayout(checked_cast<ShaderProgramImpl*>(program.get())));
+    return builder.bindAsRoot(rootObject, specializedLayout, (BindingDataImpl*&)outBindingData);
 }
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)

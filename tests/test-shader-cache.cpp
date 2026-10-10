@@ -962,37 +962,37 @@ void runTest(GpuTestContext* ctx)
 // These tests are super expensive because they re-create devices.
 // This is needed because slang doesn't support reloading modules at this time.
 
-GPU_TEST_CASE("shader-cache-source-file", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-source-file", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestSourceFile>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-source-string", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-source-string", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestSourceString>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-entry-point", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-entry-point", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestEntryPoint>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-import-include", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-import-include", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestImportInclude>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-specialization", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-specialization", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestSpecialization>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-eviction", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-eviction", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestEviction>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-graphics", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-graphics", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestGraphics>(ctx);
 }
