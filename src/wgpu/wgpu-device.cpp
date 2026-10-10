@@ -471,8 +471,17 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
+    if (bufferImpl->m_uploadData)
+    {
+        std::memcpy(outData, bufferImpl->m_uploadData.get() + offset, size);
+        return SLANG_OK;
+    }
+
+    // Copies and mappings must be multiples of 4 bytes. Buffer sizes are padded accordingly.
+    Size copySize = math::calcAligned2(size, 4);
+
     WGPUBufferDescriptor stagingBufferDesc = {};
-    stagingBufferDesc.size = size;
+    stagingBufferDesc.size = copySize;
     stagingBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
     WGPUBuffer stagingBuffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc);
     if (!stagingBuffer)
@@ -488,7 +497,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
 
-    m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(encoder, bufferImpl->m_buffer, offset, stagingBuffer, 0, size);
+    m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(encoder, bufferImpl->m_buffer, offset, stagingBuffer, 0, copySize);
     WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
     if (!commandBuffer)
     {
@@ -537,7 +546,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         };
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = this;
-        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
+        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, copySize, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
@@ -546,7 +555,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferUnmap(stagingBuffer); });
 
-    const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, size);
+    const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, copySize);
     if (!data)
     {
         return SLANG_FAIL;

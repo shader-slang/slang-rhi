@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstdarg>
+#include <cstring>
 
 namespace rhi {
 
@@ -365,6 +366,14 @@ Result Device::createConcretePipeline(Pipeline* pipeline, ShaderProgram* program
 
     outPipeline = concretePipeline;
     return SLANG_OK;
+}
+
+Result Device::writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data)
+{
+    void* mapped = nullptr;
+    SLANG_RETURN_ON_FAIL(mapBuffer(buffer, CpuAccessMode::Write, &mapped));
+    std::memcpy(static_cast<uint8_t*>(mapped) + offset, data, size);
+    return unmapBuffer(buffer);
 }
 
 Result Device::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)

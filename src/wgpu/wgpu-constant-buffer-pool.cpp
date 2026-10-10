@@ -16,39 +16,20 @@ void ConstantBufferPool::init(DeviceImpl* device)
 
 void ConstantBufferPool::finish()
 {
-    for (auto& page : m_pages)
-    {
-        unmapPage(page);
-    }
-    for (auto& page : m_largePages)
-    {
-        unmapPage(page);
-    }
-}
-
-void ConstantBufferPool::upload(Context& ctx, WGPUCommandEncoder encoder)
-{
-    auto uploadPage = [&](const Page& page)
+    auto writePage = [&](const Page& page)
     {
         if (page.usedSize > 0)
         {
-            ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
-                encoder,
-                page.stagingBuffer->m_buffer,
-                0,
-                page.buffer->m_buffer,
-                0,
-                page.usedSize
-            );
+            m_device->writeBuffer(page.buffer, 0, page.usedSize, page.data.get());
         }
     };
     for (const auto& page : m_pages)
     {
-        uploadPage(page);
+        writePage(page);
     }
     for (const auto& page : m_largePages)
     {
-        uploadPage(page);
+        writePage(page);
     }
 }
 
@@ -70,11 +51,10 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
         m_largePages.push_back(Page());
         Page& page = m_largePages.back();
         SLANG_RETURN_ON_FAIL(createPage(size, page));
-        SLANG_RETURN_ON_FAIL(mapPage(page));
         page.usedSize = size;
         outAllocation.buffer = page.buffer;
         outAllocation.offset = 0;
-        outAllocation.mappedData = page.mappedData;
+        outAllocation.mappedData = page.data.get();
         return SLANG_OK;
     }
 
@@ -86,15 +66,13 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
             m_pages.push_back(Page());
             SLANG_RETURN_ON_FAIL(createPage(kPageSize, m_pages.back()));
         }
-        mapPage(m_pages[m_currentPage]);
         m_currentOffset = 0;
     }
 
     Page& page = m_pages[m_currentPage];
-    SLANG_RHI_ASSERT(page.mappedData != nullptr);
     outAllocation.buffer = page.buffer;
     outAllocation.offset = m_currentOffset;
-    outAllocation.mappedData = page.mappedData + m_currentOffset;
+    outAllocation.mappedData = page.data.get() + m_currentOffset;
     m_currentOffset = alignUp(m_currentOffset + size, kAlignment);
     page.usedSize = m_currentOffset;
     return SLANG_OK;
@@ -110,38 +88,10 @@ Result ConstantBufferPool::createPage(size_t size, Page& outPage)
     bufferDesc.size = size;
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
 
-    ComPtr<IBuffer> stagingBuffer;
-    BufferDesc stagingBufferDesc;
-    stagingBufferDesc.usage = BufferUsage::CopySource;
-    stagingBufferDesc.defaultState = ResourceState::CopySource;
-    stagingBufferDesc.memoryType = MemoryType::Upload;
-    stagingBufferDesc.size = size;
-    SLANG_RETURN_ON_FAIL(m_device->createBuffer(stagingBufferDesc, nullptr, stagingBuffer.writeRef()));
-
-
     outPage.buffer = checked_cast<BufferImpl*>(buffer.get());
-    outPage.stagingBuffer = checked_cast<BufferImpl*>(stagingBuffer.get());
+    outPage.data = std::make_unique<uint8_t[]>(size);
     outPage.size = size;
     outPage.usedSize = 0;
-    return SLANG_OK;
-}
-
-Result ConstantBufferPool::mapPage(Page& page)
-{
-    if (!page.mappedData)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->mapBuffer(page.stagingBuffer, CpuAccessMode::Write, (void**)&page.mappedData));
-    }
-    return SLANG_OK;
-}
-
-Result ConstantBufferPool::unmapPage(Page& page)
-{
-    if (page.mappedData)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->unmapBuffer(page.stagingBuffer));
-        page.mappedData = nullptr;
-    }
     return SLANG_OK;
 }
 
