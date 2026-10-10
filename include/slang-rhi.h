@@ -2869,6 +2869,9 @@ public:
         const void* data
     ) = 0;
 
+    /// Clear a buffer range to zero. The offset and size must be multiples of 4 bytes.
+    /// On D3D11, structured buffers additionally require the resolved offset and size
+    /// to be multiples of BufferDesc::elementSize.
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 
     inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }
