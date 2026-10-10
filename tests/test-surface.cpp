@@ -380,7 +380,7 @@ GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     testSurface<RenderSurfaceTest>(device);
 }
 
-// skip WGPU: RWTexture binding fails
+// skip WGPU: the shader uses a read-write rgba32float storage texture, which WebGPU does not support
 GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
     if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
