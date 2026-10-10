@@ -106,7 +106,7 @@ static const std::vector<Format> kDepthStencilFormats = {
     Format::D32FloatS8Uint,
 };
 
-GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -135,7 +135,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | C
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -164,7 +164,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal 
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -193,7 +193,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -222,7 +222,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal |
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -251,7 +251,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
