@@ -505,6 +505,14 @@ void CommandRecorder::clearTextureWithRenderPass(
 void CommandRecorder::clearTextureWithCopy(TextureImpl* texture, const SubresourceRange& range, const uint8_t* texel)
 {
     const TextureDesc& desc = texture->m_desc;
+    // Like transfer clears on Vulkan, copying into the texture requires copy destination usage.
+    if (!is_set(desc.usage, TextureUsage::CopyDestination))
+    {
+        m_device->printError(
+            "Clearing a texture without RenderTarget or DepthStencil usage requires TextureUsage::CopyDestination\n"
+        );
+        return;
+    }
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     bool is3D = desc.type == TextureType::Texture3D;
     uint32_t texelSize = formatInfo.blockSizeInBytes;
