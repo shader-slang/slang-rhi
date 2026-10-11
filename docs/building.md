@@ -36,6 +36,15 @@ presets. Use a separate build directory when switching compilers, for example
 Build configurations include `Debug`, `Release`, and `RelWithDebInfo`. With the
 default preset, executables are placed in `build/<configuration>/`.
 
+### WebAssembly
+
+Activate the Emscripten SDK, then configure with `cmake --preset emscripten`.
+Run the `wasm-test` example in a WebGPU-capable browser to verify the build.
+
+The preset uses an explicit `ASYNCIFY_ONLY` allowlist in
+[CMakePresets.json](../CMakePresets.json). When adding callers of RHI operations
+that can wait, ensure every intermediate caller is covered by the allowlist.
+
 ## Common options
 
 Pass options when configuring, for example:

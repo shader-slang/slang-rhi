@@ -2,6 +2,7 @@
 // This test validates RHI can be initialized in WASM
 
 #include <slang-rhi.h>
+#include <slang-rhi/shader-cursor.h>
 #include <cstdio>
 
 #ifdef __EMSCRIPTEN__
@@ -12,6 +13,117 @@ using namespace rhi;
 
 int main()
 {
+    // Keep the test caller and its lambda covered by the preset's *main* pattern.
+    auto testBindingWaits = [](IDevice* device, bool graphics) -> Result
+    {
+        const char* source = R"(
+            RWStructuredBuffer<uint> result;
+            [shader("compute")]
+            [numthreads(1, 1, 1)]
+            void computeMain() { result[0] = 42; }
+            [shader("vertex")]
+            float4 vertexMain(uint vertexID : SV_VertexID) : SV_Position
+            {
+                float2 positions[3] = {float2(-1, -1), float2(3, -1), float2(-1, 3)};
+                return float4(positions[vertexID], 0, 1);
+            }
+            [shader("fragment")]
+            float4 fragmentMain() : SV_Target
+            {
+                result[0] = 43;
+                return float4(0, 1, 0, 1);
+            }
+        )";
+        auto session = device->getSlangSession();
+        ComPtr<slang::IBlob> diagnostics;
+        auto module =
+            session->loadModuleFromSourceString("binding-waits", "binding-waits.slang", source, diagnostics.writeRef());
+        if (!module)
+        {
+            if (diagnostics)
+                printf("%s\n", static_cast<const char*>(diagnostics->getBufferPointer()));
+            return SLANG_FAIL;
+        }
+        ComPtr<slang::IEntryPoint> entryPoints[2];
+        SLANG_RETURN_ON_FAIL(
+            module->findEntryPointByName(graphics ? "vertexMain" : "computeMain", entryPoints[0].writeRef())
+        );
+        if (graphics)
+            SLANG_RETURN_ON_FAIL(module->findEntryPointByName("fragmentMain", entryPoints[1].writeRef()));
+        slang::IComponentType* components[] = {entryPoints[0], entryPoints[1]};
+        ShaderProgramDesc programDesc = {};
+        programDesc.slangGlobalScope = module;
+        programDesc.slangEntryPoints = components;
+        programDesc.slangEntryPointCount = graphics ? 2 : 1;
+        programDesc.linkingStyle = LinkingStyle::SingleProgram;
+        ComPtr<IShaderProgram> program;
+        SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, program.writeRef()));
+
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = sizeof(uint32_t);
+        bufferDesc.elementSize = sizeof(uint32_t);
+        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        auto buffer = device->createBuffer(bufferDesc);
+        if (!buffer)
+            return SLANG_FAIL;
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        if (graphics)
+        {
+            ColorTargetDesc target = {};
+            target.format = Format::RGBA8Unorm;
+            RenderPipelineDesc pipelineDesc = {};
+            pipelineDesc.program = program;
+            pipelineDesc.targetCount = 1;
+            pipelineDesc.targets = &target;
+            auto pipeline = device->createRenderPipeline(pipelineDesc);
+            TextureDesc textureDesc = {};
+            textureDesc.size = {1, 1, 1};
+            textureDesc.format = target.format;
+            textureDesc.usage = TextureUsage::RenderTarget;
+            auto texture = device->createTexture(textureDesc);
+            if (!pipeline || !texture)
+                return SLANG_FAIL;
+            RenderPassColorAttachment attachment = {};
+            attachment.view = texture->getDefaultView();
+            RenderPassDesc passDesc = {};
+            passDesc.colorAttachmentCount = 1;
+            passDesc.colorAttachments = &attachment;
+            auto pass = encoder->beginRenderPass(passDesc);
+            SLANG_RETURN_ON_FAIL(ShaderCursor(pass->bindPipeline(pipeline))["result"].setBinding(buffer));
+            RenderState state = {};
+            state.viewports[0] = Viewport::fromSize(1, 1);
+            state.viewportCount = 1;
+            state.scissorRects[0] = ScissorRect::fromSize(1, 1);
+            state.scissorRectCount = 1;
+            pass->setRenderState(state);
+            DrawArguments draw = {};
+            draw.vertexCount = 3;
+            pass->draw(draw);
+            pass->end();
+        }
+        else
+        {
+            ComputePipelineDesc pipelineDesc = {};
+            pipelineDesc.program = program;
+            auto pipeline = device->createComputePipeline(pipelineDesc);
+            if (!pipeline)
+                return SLANG_FAIL;
+            auto pass = encoder->beginComputePass();
+            SLANG_RETURN_ON_FAIL(ShaderCursor(pass->bindPipeline(pipeline))["result"].setBinding(buffer));
+            pass->dispatchCompute(1, 1, 1);
+            pass->end();
+        }
+        ComPtr<ICommandBuffer> commands;
+        SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
+        SLANG_RETURN_ON_FAIL(queue->submit(commands));
+        SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+        ComPtr<ISlangBlob> data;
+        SLANG_RETURN_ON_FAIL(device->readBuffer(buffer, 0, sizeof(uint32_t), data.writeRef()));
+        return *static_cast<const uint32_t*>(data->getBufferPointer()) == (graphics ? 43u : 42u) ? SLANG_OK
+                                                                                                 : SLANG_FAIL;
+    };
+
     printf("=== slang-rhi WASM Test (Local Build Verification) ===\n");
     printf("Creating RHI instance...\n");
 
@@ -116,6 +228,19 @@ int main()
                 printf("FAILED: Buffer creation failed (Result: %x)\n", res);
             }
 
+            // These operations pop WebGPU error scopes while recording draw/dispatch commands.
+            for (int stage = 0; stage < 2; ++stage)
+            {
+                const char* name = stage ? "graphics" : "compute";
+                printf("Testing %s binding waits...\n", name);
+                if (SLANG_FAILED(testBindingWaits(device, stage != 0)))
+                {
+                    printf("FAILED: %s binding waits\n", name);
+                    device->release();
+                    return 1;
+                }
+                printf("OK: %s binding waits and output verified\n", name);
+            }
             device->release();
         }
         else
