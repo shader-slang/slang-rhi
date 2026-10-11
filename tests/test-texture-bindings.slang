@@ -11,6 +11,7 @@ Texture3D<float4> volumeInput;
 Texture2D<uint> counterInput;
 Texture2D<uint4> uintInput;
 Texture2D<int4> intInput;
+Texture2DMS<float4> multisampledInput;
 RWStructuredBuffer<float4> results;
 
 // These stay unbound. Programs sharing a module must only require resources
@@ -58,6 +59,14 @@ void readIntegers()
 {
     results[0] = float4(uintInput.Load(int3(0)));
     results[1] = float4(intInput.Load(int3(0)));
+}
+
+[shader("compute")]
+[numthreads(1, 1, 1)]
+void readMultisampled()
+{
+    for (uint sample = 0; sample < 4; ++sample)
+        results[sample] = multisampledInput.Load(int2(0), sample);
 }
 
 struct PartialBindings

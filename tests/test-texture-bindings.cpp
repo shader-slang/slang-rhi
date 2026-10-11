@@ -181,6 +181,49 @@ GPU_TEST_CASE("texture-integer-bindings", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     checkResults(device, results, expected);
 }
 
+GPU_TEST_CASE("texture-multisampled-float-bindings", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    auto pipeline = createPipeline(device, "readMultisampled");
+    TextureDesc desc = {};
+    desc.type = TextureType::Texture2DMS;
+    desc.size = {1, 1, 1};
+    desc.format = Format::RGBA8Unorm;
+    desc.sampleCount = 4;
+    desc.usage = TextureUsage::RenderTarget | TextureUsage::ShaderResource;
+    auto texture = device->createTexture(desc);
+    REQUIRE(texture);
+    auto view = texture->getDefaultView();
+    REQUIRE(view);
+    auto results = createResults(device, 16);
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    // Initialize every sample without resolving the texture.
+    RenderPassColorAttachment attachment = {};
+    attachment.view = view;
+    attachment.clearValue[0] = 1.f;
+    attachment.clearValue[2] = 1.f;
+    attachment.clearValue[3] = 1.f;
+    RenderPassDesc renderPassDesc = {};
+    renderPassDesc.colorAttachmentCount = 1;
+    renderPassDesc.colorAttachments = &attachment;
+    auto renderPass = encoder->beginRenderPass(renderPassDesc);
+    renderPass->end();
+
+    auto pass = encoder->beginComputePass();
+    ShaderCursor cursor(pass->bindPipeline(pipeline));
+    REQUIRE_CALL(cursor["multisampledInput"].setBinding(texture));
+    REQUIRE_CALL(cursor["results"].setBinding(results));
+    pass->dispatchCompute(1, 1, 1);
+    pass->end();
+    ComPtr<ICommandBuffer> commands;
+    REQUIRE_CALL(encoder->finish(commands.writeRef()));
+    REQUIRE_CALL(queue->submit(commands));
+    REQUIRE_CALL(queue->waitOnHost());
+    const float expected[] = {1.f, 0.f, 1.f, 1.f, 1.f, 0.f, 1.f, 1.f, 1.f, 0.f, 1.f, 1.f, 1.f, 0.f, 1.f, 1.f};
+    checkResults(device, results, expected);
+}
+
 static void runPartialParameterBlockBindings(IDevice* device)
 {
     auto pipeline = createPipeline(device, "readPartialBlock");

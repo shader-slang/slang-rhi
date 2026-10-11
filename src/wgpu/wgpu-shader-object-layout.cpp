@@ -212,6 +212,8 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                                                : getSampleType(leafType->getResourceResultType());
                 entry.texture.viewDimension = getViewDimension(leafType->getResourceShape());
                 entry.texture.multisampled = (leafType->getResourceShape() & SLANG_TEXTURE_MULTISAMPLE_FLAG) ? 1 : 0;
+                if (entry.texture.multisampled && entry.texture.sampleType == WGPUTextureSampleType_Float)
+                    entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
                 break;
             case slang::BindingType::MutableTexture:
                 switch (leafType->getResourceAccess())
