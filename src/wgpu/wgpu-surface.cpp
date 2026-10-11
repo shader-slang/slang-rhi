@@ -122,9 +122,11 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 
 #if SLANG_WASM
     // wgpuSurfaceGetCapabilities might return 0 usages if the adapter was created
-    // without a compatible surface. Force RenderTarget as it's required for swapchains.
+    // without a compatible surface. Canvas textures always support rendering, copies
+    // and sampling (GPUCanvasConfiguration usage).
     if (usage == TextureUsage::None)
-        usage = TextureUsage::RenderTarget;
+        usage = TextureUsage::RenderTarget | TextureUsage::CopySource | TextureUsage::CopyDestination |
+                TextureUsage::ShaderResource;
 #endif
 
     m_info.preferredFormat = preferredFormat;
