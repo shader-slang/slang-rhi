@@ -38,8 +38,16 @@ default preset, executables are placed in `build/<configuration>/`.
 
 ### WebAssembly
 
-Activate the Emscripten SDK, then configure with `cmake --preset emscripten`.
-Run the `wasm-test` example in a WebGPU-capable browser to verify the build.
+Activate the Emscripten SDK, then run from the repository root:
+
+```sh
+cmake --preset emscripten
+cmake --build build --config Debug --target wasm-test
+python -m http.server 8000 --bind 127.0.0.1 --directory build/Debug
+```
+
+Open `http://localhost:8000/wasm-test.html` in a WebGPU-capable browser to verify
+the build.
 
 The preset uses an explicit `ASYNCIFY_ONLY` allowlist in
 [CMakePresets.json](../CMakePresets.json). When adding callers of RHI operations
