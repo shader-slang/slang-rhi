@@ -436,7 +436,6 @@ void CommandList::write(commands::HandOffShared&& cmd)
         // inconsistent {count>0, resources=null} would dereference null in the backend recorder.
         cmd.resourceCount = 0;
     }
-    retainResource<CommandQueue>(cmd.destQueue);
     writeCommand(std::move(cmd));
 }
 
@@ -454,7 +453,6 @@ void CommandList::write(commands::TakeOverShared&& cmd)
         // inconsistent {count>0, resources=null} would dereference null in the backend recorder.
         cmd.resourceCount = 0;
     }
-    retainResource<CommandQueue>(cmd.srcQueue);
     writeCommand(std::move(cmd));
 }
 

@@ -10,6 +10,7 @@
 #include "../src/debug-layer/debug-command-encoder.h"
 #include "../src/debug-layer/debug-command-queue.h"
 #include "../src/command-list.h"
+#include "../src/command-buffer.h"
 
 #include <atomic>
 #include <cstdint>
@@ -529,6 +530,56 @@ TEST_CASE("shared-transfer-null-resource-array")
         REQUIRE(slot != nullptr);
         CHECK_EQ(commandList.getCommand<commands::TakeOverShared>(slot).resourceCount, 0u);
     }
+}
+
+// The peer queue of a hand-off/take-over usually belongs to another device (e.g. a CUDA queue named
+// by a Vulkan producer). Command tracking holds internal references, which do not keep a device
+// alive, so retaining the peer queue there would let it outlive its device. Replay never dereferences
+// the queue, so the command list must record it without retaining it.
+struct StubPeerQueue : public CommandQueue
+{
+    StubPeerQueue()
+        : CommandQueue(nullptr, QueueType::Graphics)
+    {
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(
+        const CommandEncoderDesc&,
+        ICommandEncoder**
+    ) override
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc&) override { return SLANG_E_NOT_IMPLEMENTED; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override { return SLANG_E_NOT_IMPLEMENTED; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle*) override
+    {
+        return SLANG_E_NOT_IMPLEMENTED;
+    }
+};
+
+TEST_CASE("shared-transfer-does-not-retain-peer-queue")
+{
+    RefPtr<StubPeerQueue> peerQueue = new StubPeerQueue();
+    ArenaAllocator allocator;
+    std::set<InternalRefPtr<RefObject>> trackedObjects;
+    std::vector<ExecuteCallbackObjectRetainer> trackedExecuteCallbackObjects;
+    CommandList commandList(allocator, trackedObjects, trackedExecuteCallbackObjects);
+
+    commands::HandOffShared handOff;
+    handOff.resourceCount = 0;
+    handOff.resources = nullptr;
+    handOff.destQueue = peerQueue.get();
+    commandList.write(std::move(handOff));
+
+    commands::TakeOverShared takeOver;
+    takeOver.resourceCount = 0;
+    takeOver.resources = nullptr;
+    takeOver.srcQueue = peerQueue.get();
+    commandList.write(std::move(takeOver));
+
+    CHECK(trackedObjects.empty());
+    CHECK_EQ(peerQueue->getInternalReferenceCount(), 0u);
+    CHECK_EQ(peerQueue->getReferenceCount(), 1u);
 }
 
 // Exercises the debug-layer setBinding -> draw/dispatch shared-resource validation directly, via

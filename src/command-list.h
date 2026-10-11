@@ -345,6 +345,7 @@ struct HandOffShared
 {
     uint32_t resourceCount;
     IResource* const* resources;
+    // Borrowed, not retained: the queue usually belongs to another device, and replay never dereferences it.
     ICommandQueue* destQueue;
 };
 
@@ -352,6 +353,7 @@ struct TakeOverShared
 {
     uint32_t resourceCount;
     IResource* const* resources;
+    // Borrowed, not retained: the queue usually belongs to another device, and replay never dereferences it.
     ICommandQueue* srcQueue;
 };
 
