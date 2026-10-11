@@ -648,14 +648,21 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         const RenderPassDepthStencilAttachment& attachmentIn = *desc.depthStencilAttachment;
         WGPURenderPassDepthStencilAttachment& attachment = depthStencilAttachment;
         attachment.view = checked_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
-        attachment.depthLoadOp = translateLoadOp(attachmentIn.depthLoadOp);
-        attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
+        // WebGPU requires undefined load/store ops on read-only aspects.
+        if (!attachmentIn.depthReadOnly)
+        {
+            attachment.depthLoadOp = translateLoadOp(attachmentIn.depthLoadOp);
+            attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
+        }
         attachment.depthClearValue = attachmentIn.depthClearValue;
         attachment.depthReadOnly = attachmentIn.depthReadOnly;
         if (getFormatInfo(attachmentIn.view->getDesc().format).hasStencil)
         {
-            attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
-            attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+            if (!attachmentIn.stencilReadOnly)
+            {
+                attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
+                attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+            }
             attachment.stencilClearValue = attachmentIn.stencilClearValue;
             attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
         }
