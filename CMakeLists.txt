@@ -809,6 +809,7 @@ target_sources(slang-rhi PRIVATE
     src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
+    src/synthetic-resource-bindings.cpp
     src/transient-buffer-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
@@ -914,6 +915,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
+        src/vulkan/vk-descriptor-set-composition.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -922,6 +924,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
+        src/vulkan/vk-synthetic-bindings.cpp
         src/vulkan/vk-shader-object-layout.cpp
         src/vulkan/vk-shader-object.cpp
         src/vulkan/vk-shader-program.cpp
@@ -1050,6 +1053,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
         tests/test-acceleration-structure-creation-with-validation.cpp
+        tests/test-acceleration-structure-lifetime.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-device-features.cpp
@@ -1089,6 +1093,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
+        tests/test-ref-object.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp
@@ -1137,6 +1142,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
         tests/test-surface.cpp
+        tests/test-synthetic-resource-bindings.cpp
         tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
         tests/test-texture-from-handle.cpp
@@ -1194,9 +1200,15 @@ if(SLANG_RHI_BUILD_EXAMPLES)
             add_executable(${name} ${source})
             target_compile_features(${name} PRIVATE cxx_std_20)
             get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
-            target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
-            target_include_directories(${name} PRIVATE examples/base)
-            target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
+            target_compile_definitions(${name}
+                PRIVATE
+                EXAMPLE_DIR="${EXAMPLE_DIR}"
+                SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+                $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+                $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
+                $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
+            )
+            target_link_libraries(${name} PRIVATE slang-rhi slang glfw slang-rhi-warnings)
         endfunction()
 
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
@@ -1263,6 +1275,10 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_custom_target(coverage
             COMMAND ${LLVM_PROFDATA} merge -sparse ${SLANG_RHI_COVERAGE_DIR}/*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
             COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
+            COMMAND ${CMAKE_COMMAND}
+                "-DLCOV_FILE=${CMAKE_BINARY_DIR}/coverage.lcov"
+                "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/NormalizeCoverage.cmake"
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating coverage report..."

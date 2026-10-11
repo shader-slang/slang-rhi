@@ -13,6 +13,7 @@ GPU_TEST_CASE("ray-tracing-shader-table-multi-pipeline", ALL)
 
     if (device->getDeviceType() == DeviceType::CUDA)
         SKIP("CUDA/OptiX uses __ldg to load entrypoint parameters which uses non-coherent read-only data cache");
+    SKIP_IF_ARM64_WARP(device);
 
     // Pipeline A: rayGen(output, value) -> output[i] = value + i
     ComPtr<IShaderProgram> programA;

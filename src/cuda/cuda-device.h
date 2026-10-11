@@ -29,11 +29,11 @@ public:
 
     Context m_ctx;
     std::string m_adapterName;
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
-    RefPtr<HeapImpl> m_deviceMemHeap;
-    RefPtr<HeapImpl> m_hostMemHeap;
+    InternalRefPtr<HeapImpl> m_deviceMemHeap;
+    InternalRefPtr<HeapImpl> m_hostMemHeap;
 
 public:
     using Device::readBuffer;

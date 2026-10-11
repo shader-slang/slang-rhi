@@ -171,11 +171,11 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         if (desc.elementSize != 0)
         {
             bufferDesc.StructureByteStride = (UINT)desc.elementSize;
-            bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+            bufferDesc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         }
         else
         {
-            bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+            bufferDesc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
         }
     }
 

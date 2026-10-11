@@ -790,20 +790,21 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     testClusterTracing(device, "rayGenClusters", "closestHitClusters");
 }
 
 GPU_TEST_CASE("ray-tracing-cluster-tracing-hit-object", D3D12 | Vulkan | CUDA)
 {
-    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
-
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("Shader execution reordering not supported");
+    SKIP_IF_ARM64_WARP(device);
+    SKIP_IF_D3D12_NVAPI_WITH_SM_6_9(device);
 
     testClusterTracing(device, "rayGenClustersHitObject", nullptr);
 }

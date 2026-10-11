@@ -27,7 +27,7 @@ public:
     std::string m_adapterName;
 
     Context m_ctx;
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     ~DeviceImpl();
     Result initialize(const DeviceDesc& desc, BackendImpl* backend);

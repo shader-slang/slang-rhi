@@ -87,6 +87,11 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    OptixRayTracingPipelineDesc,
+
+    // Optional extension declared in <slang-rhi/synthetic-bindings.h>.
+    ShaderProgramSyntheticResourcesDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -2192,6 +2197,31 @@ struct RayTracingPipelineDesc
     const char* label = nullptr;
 };
 
+/// OptiX-specific stack limits for a ray-tracing pipeline.
+///
+/// Chain this structure through `RayTracingPipelineDesc::next` when an OptiX pipeline needs limits
+/// other than the defaults below. OptiX requires the maximum callable depth before it can allocate
+/// the pipeline stack. Slang reflection does not expose a finite bound for dynamic `CallShader`
+/// indices, so the application supplies that bound explicitly. Other backends ignore this
+/// descriptor.
+struct OptixRayTracingPipelineDesc
+{
+    static constexpr StructType kStructType = StructType::OptixRayTracingPipelineDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+
+    /// Maximum number of simultaneously active direct-callable frames for a call tree originating
+    /// in a ray-generation, miss, or closest-hit shader. For example, ray generation -> callable A
+    /// -> callable B requires a depth of 2. A value of 0 means that no state shader invokes a
+    /// direct callable. The default permits an existing pipeline to invoke one leaf callable.
+    uint32_t maxDirectCallableDepthFromState = 1;
+
+    /// Maximum number of simultaneously active direct-callable frames for a call tree originating
+    /// in an intersection or any-hit shader. A value of 0 means that traversal shaders do not
+    /// invoke direct callables.
+    uint32_t maxDirectCallableDepthFromTraversal = 0;
+};
+
 // Specifies the bytes to overwrite into a record in the shader table.
 struct ShaderRecordOverwrite
 {
@@ -2846,6 +2876,9 @@ public:
         const void* data
     ) = 0;
 
+    /// Clear a buffer range to zero. The offset and size must be multiples of 4 bytes.
+    /// On D3D11, structured buffers additionally require the resolved offset and size
+    /// to be multiples of BufferDesc::elementSize.
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 
     inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }

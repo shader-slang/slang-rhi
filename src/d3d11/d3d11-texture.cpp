@@ -11,19 +11,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
-    m_defaultView.setNull();
-}
-
-Result TextureImpl::getDefaultView(ITextureView** outTextureView)
-{
-    if (!m_defaultView)
-    {
-        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
-        m_defaultView->setInternalReferenceCount(1);
-    }
-
-    returnComPtr(outTextureView, m_defaultView);
-    return SLANG_OK;
+    destroyDefaultView();
 }
 
 ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRange& range_)
@@ -430,15 +418,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     return SLANG_OK;
 }
 
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
+TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc)
+    : TextureView(texture, desc)
+    , m_texture(texture)
 {
 }
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
-    view->m_texture = checked_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(checked_cast<TextureImpl*>(texture), desc);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);

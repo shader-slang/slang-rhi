@@ -123,6 +123,33 @@
 | `finalize`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `isFinalized`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 
+## `ISyntheticShaderProgram` interface
+
+Optional API declared in
+[`synthetic-bindings.md`](synthetic-bindings.md) and
+`<slang-rhi/synthetic-bindings.h>`.
+
+| API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getSyntheticBindingCount`         | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `getSyntheticBindingLocation`      | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `findSyntheticBindingLocationByID` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Shader program synthetic resource descriptors
+
+CUDA and Vulkan currently support only `SyntheticResourceScope::Global`.
+Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creation.
+
+| Descriptor path                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `ShaderProgramSyntheticResourcesDesc` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Synthetic binding helper
+
+| Helper API                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------------------|-----|------|-------|-------|--------|-------|------|
+| `bindSyntheticResource(...)`  | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
 ## `IShaderTable` interface
 
 ## `IPipeline` interface
@@ -288,3 +315,14 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `report`           | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+
+## OptiX callable stack limits
+
+CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through
+`RayTracingPipelineDesc::next`. The default permits one direct-callable frame from
+ray generation, miss or closest-hit. Set `maxDirectCallableDepthFromState` to the
+maximum simultaneous `CallShader` nesting depth (two for a callable invoking another
+callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls from
+intersection/any-hit and defaults to zero. These limits are independent of
+`maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
+The pipeline copies these options, including when compilation is deferred.

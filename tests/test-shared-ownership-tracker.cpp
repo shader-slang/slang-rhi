@@ -500,7 +500,7 @@ TEST_CASE("shared-ownership-tracker")
 TEST_CASE("shared-transfer-null-resource-array")
 {
     ArenaAllocator allocator;
-    std::set<RefPtr<RefObject>> trackedObjects;
+    std::set<InternalRefPtr<RefObject>> trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer> trackedExecuteCallbackObjects;
     CommandList commandList(allocator, trackedObjects, trackedExecuteCallbackObjects);
 

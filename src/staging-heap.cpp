@@ -239,9 +239,6 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     m_pages.insert({page->getId(), page});
     m_totalCapacity += size;
 
-    // Break references to device as buffer is owned by heap, which is owned by device.
-    page->getBuffer()->breakStrongReferenceToDevice();
-
     // If always mapped, map page now
     if (m_keepPagesMapped)
         SLANG_RETURN_ON_FAIL(page->map(m_device));

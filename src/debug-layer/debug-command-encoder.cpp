@@ -1220,6 +1220,19 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
         return;
     }
 
+    const BufferDesc& desc = buffer->getDesc();
+    if (ctx->deviceType == DeviceType::D3D11 && desc.elementSize != 0)
+    {
+        BufferRange resolvedRange = checked_cast<Buffer*>(buffer)->resolveBufferRange(range);
+        if (resolvedRange.size == 0)
+            return;
+        if (resolvedRange.offset % desc.elementSize != 0 || resolvedRange.size % desc.elementSize != 0)
+        {
+            RHI_VALIDATION_ERROR("D3D11 structured buffer clear offset and size must be multiples of elementSize.");
+            return;
+        }
+    }
+
     SharedResourceOwnershipTracker::get().checkUse(ctx, buffer, m_ownerQueue);
     baseObject->clearBuffer(buffer, range);
 }

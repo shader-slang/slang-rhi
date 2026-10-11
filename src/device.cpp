@@ -91,6 +91,11 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
+PipelineKey::PipelineKey(Pipeline* pipeline)
+    : pipelineId(pipeline->getSpecializationCacheId())
+{
+}
+
 RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -178,7 +183,7 @@ Result Device::getSpecializedProgram(
     auto it = program->m_specializedPrograms.find(key);
     if (it != program->m_specializedPrograms.end())
     {
-        returnRefPtr(outSpecializedProgram, it->second);
+        returnRefPtrCopy(outSpecializedProgram, it->second);
         return SLANG_OK;
     }
     else
@@ -186,8 +191,6 @@ Result Device::getSpecializedProgram(
         RefPtr<ShaderProgram> specializedProgram;
         SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
         program->m_specializedPrograms[key] = specializedProgram;
-        // Program is owned by the cache (which is owned by the device).
-        specializedProgram->breakStrongReferenceToDevice();
         returnRefPtr(outSpecializedProgram, specializedProgram);
         return SLANG_OK;
     }
@@ -276,8 +279,7 @@ Result Device::getConcretePipeline(
 
     // If the pipeline is specializable, collect specialization arguments from bound shader objects
     // and lookup the cache.
-    PipelineKey pipelineKey;
-    pipelineKey.pipeline = pipeline;
+    PipelineKey pipelineKey(pipeline);
     if (isSpecializable)
     {
         if (!specializationArgs)
@@ -316,10 +318,6 @@ Result Device::getConcretePipeline(
     {
         // Cache the specialized pipeline for later use.
         m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
-        // Pipeline is owned by the cache.
-        concretePipeline->breakStrongReferenceToDevice();
-        // Program is owned by the specialized pipeline (which is owned by the cache).
-        concretePipeline->m_program->breakStrongReferenceToDevice();
     }
     else
     {

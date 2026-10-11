@@ -80,7 +80,7 @@ public:
 
     private:
         int m_id;
-        RefPtr<Buffer> m_buffer;
+        InternalRefPtr<Buffer> m_buffer;
         std::list<Node> m_nodes;
         size_t m_totalCapacity = 0;
         size_t m_totalUsed = 0;

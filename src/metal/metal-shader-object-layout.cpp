@@ -250,7 +250,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -300,7 +300,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 

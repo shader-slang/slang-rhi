@@ -67,9 +67,6 @@ public:
 
     Result init(const SubresourceData* initData);
 
-    // ITexture implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
-
 public:
     Format getFormat() { return m_desc.format; }
     int32_t getRank() { return m_baseShape->rank; }
@@ -87,18 +84,12 @@ public:
     };
     std::vector<MipLevel> m_mipLevels;
     void* m_data = nullptr;
-
-    RefPtr<TextureViewImpl> m_defaultView;
 };
 
 class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc);
-
-    // RefObject implementation
-    virtual void makeExternal() override { m_texture.establishStrongReference(); }
-    virtual void makeInternal() override { m_texture.breakStrongReference(); }
+    TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc);
 
     // ITextureView implementation
     virtual SLANG_NO_THROW rhi::ITexture* SLANG_MCALL getTexture() override { return m_texture; }
@@ -125,7 +116,8 @@ public:
     void* refAt(const uint32_t* texelCoords) override;
 
 public:
-    BreakableReference<TextureImpl> m_texture;
+    // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
+    TextureImpl* m_texture;
 
     void* _getTexelPtr(const int32_t* texelCoords);
 };

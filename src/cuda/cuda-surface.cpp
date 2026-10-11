@@ -954,7 +954,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
-    returnComPtr(outTexture, frameData.sharedTexture.cudaTexture);
+    returnComPtrCopy(outTexture, frameData.sharedTexture.cudaTexture);
     return SLANG_OK;
 }
 

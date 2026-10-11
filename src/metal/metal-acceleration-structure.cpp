@@ -49,6 +49,8 @@ Result DeviceImpl::createAccelerationStructure(
 {
     AUTORELEASEPOOL
 
+    SLANG_RETURN_ON_FAIL(initializeDummyAccelerationStructure());
+
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     result->m_accelerationStructure = NS::TransferPtr(m_device->newAccelerationStructure(desc.size));
     if (!result->m_accelerationStructure)
