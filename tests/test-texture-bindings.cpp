@@ -181,7 +181,9 @@ GPU_TEST_CASE("texture-integer-bindings", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     checkResults(device, results, expected);
 }
 
-GPU_TEST_CASE("texture-multisampled-float-bindings", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+// Slang 2026.17.1 emits int2 coordinates for Texture2DMS.Load on Metal, where read() requires uint2.
+// Re-enable Metal once that code-generation issue is fixed. WebGPU still covers this test on macOS.
+GPU_TEST_CASE("texture-multisampled-float-bindings", D3D11 | D3D12 | Vulkan | WGPU)
 {
     auto pipeline = createPipeline(device, "readMultisampled");
     TextureDesc desc = {};
