@@ -1,8 +1,8 @@
-// Minimal WebGPU device test for slang-rhi
-// This test validates RHI can be initialized in WASM
+// WebGPU browser smoke test for initialization, bindings, and asynchronous wait paths.
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
+#include <atomic>
 #include <cstdio>
 
 #ifdef __EMSCRIPTEN__
@@ -13,7 +13,20 @@ using namespace rhi;
 
 int main()
 {
-    // Keep the test caller and its lambda covered by the preset's *main* pattern.
+    struct DebugCallback : IDebugCallback
+    {
+        std::atomic<bool> failed{false};
+
+        void SLANG_MCALL handleMessage(DebugMessageType type, DebugMessageSource, const char* message) override
+        {
+            if (type == DebugMessageType::Error)
+            {
+                failed = true;
+                printf("FAILED: %s\n", message);
+            }
+        }
+    } callback;
+    // Keep test callers and their lambdas covered by the preset's *main* pattern.
     auto testBindings = [](IDevice* device, bool graphics) -> Result
     {
         const char* source = R"(
@@ -167,6 +180,102 @@ int main()
                                                                                                  : SLANG_FAIL;
     };
 
+    auto testUniformBindings = [](IDevice* device) -> Result
+    {
+        const char* source = R"(
+            struct Values { uint4 value; };
+            struct Parameters { ParameterBlock<Values> inner; };
+            uniform uint globalValue;
+            ConstantBuffer<Values> constants;
+            ParameterBlock<Parameters> parameters;
+            [format("rgba8")] WTexture2D<float4> output;
+            void writeOutput(uint value)
+            {
+                output.Store(uint2(0), float4(float(value) / 255.0, 0.0, 1.0, 1.0));
+            }
+            [shader("compute")][numthreads(1, 1, 1)]
+            void globalMain() { writeOutput(globalValue); }
+            [shader("compute")][numthreads(1, 1, 1)]
+            void constantMain() { writeOutput(constants.value.x); }
+            [shader("compute")][numthreads(1, 1, 1)]
+            void nestedMain() { writeOutput(parameters.inner.value.x); }
+            [shader("compute")][numthreads(1, 1, 1)]
+            void entryMain(uniform uint entryValue) { writeOutput(entryValue); }
+        )";
+        auto session = device->getSlangSession();
+        ComPtr<slang::IBlob> diagnostics;
+        auto module = session->loadModuleFromSourceString("uniforms", "uniforms.slang", source, diagnostics.writeRef());
+        if (!module)
+        {
+            if (diagnostics)
+                printf("%s\n", static_cast<const char*>(diagnostics->getBufferPointer()));
+            return SLANG_FAIL;
+        }
+        const char* entryNames[] = {"globalMain", "constantMain", "nestedMain", "entryMain"};
+        for (uint32_t i = 0; i < 4; ++i)
+        {
+            printf("Testing uniform bindings: %s...\n", entryNames[i]);
+            ComPtr<slang::IEntryPoint> entryPoint;
+            SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryNames[i], entryPoint.writeRef()));
+            slang::IComponentType* entryPoints[] = {entryPoint};
+            ShaderProgramDesc programDesc = {};
+            programDesc.slangGlobalScope = module;
+            programDesc.slangEntryPoints = entryPoints;
+            programDesc.slangEntryPointCount = 1;
+            ComPtr<IShaderProgram> program;
+            SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, program.writeRef()));
+            ComputePipelineDesc pipelineDesc = {};
+            pipelineDesc.program = program;
+            ComPtr<IComputePipeline> pipeline;
+            SLANG_RETURN_ON_FAIL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+            TextureDesc textureDesc = {};
+            textureDesc.size = {1, 1, 1};
+            textureDesc.format = Format::RGBA8Unorm;
+            textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
+            ComPtr<ITexture> texture;
+            SLANG_RETURN_ON_FAIL(device->createTexture(textureDesc, nullptr, texture.writeRef()));
+            auto queue = device->getQueue(QueueType::Graphics);
+            // Each encoder starts with fresh constant-buffer pages, so each binding
+            // path must survive mapping rather than reuse a previously mapped page.
+            auto encoder = queue->createCommandEncoder();
+            auto pass = encoder->beginComputePass();
+            auto root = pass->bindPipeline(pipeline);
+            ShaderCursor cursor(root);
+            SLANG_RETURN_ON_FAIL(cursor["output"].setBinding(texture));
+            uint32_t value = 40 + i;
+            uint32_t blockValue[] = {value, 0, 0, 0};
+            switch (i)
+            {
+            case 0:
+                SLANG_RETURN_ON_FAIL(cursor["globalValue"].setData(value));
+                break;
+            case 1:
+                SLANG_RETURN_ON_FAIL(cursor["constants"]["value"].setData(blockValue));
+                break;
+            case 2:
+                SLANG_RETURN_ON_FAIL(cursor["parameters"]["inner"]["value"].setData(blockValue));
+                break;
+            case 3:
+                SLANG_RETURN_ON_FAIL(ShaderCursor(root->getEntryPoint(0))["entryValue"].setData(value));
+                break;
+            }
+            pass->dispatchCompute(1, 1, 1);
+            pass->end();
+            ComPtr<ICommandBuffer> commands;
+            SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
+            SLANG_RETURN_ON_FAIL(queue->submit(commands));
+
+            ComPtr<ISlangBlob> data;
+            SLANG_RETURN_ON_FAIL(device->readTexture(texture, 0, 0, data.writeRef(), nullptr));
+            auto texel = static_cast<const uint8_t*>(data->getBufferPointer());
+            if (texel[0] != value || texel[1] != 0 || texel[2] != 255 || texel[3] != 255)
+                return SLANG_FAIL;
+            printf("OK: %s uniform bindings and texture readback verified\n", entryNames[i]);
+        }
+        return SLANG_OK;
+    };
+
     printf("=== slang-rhi WASM Test (Local Build Verification) ===\n");
     printf("Creating RHI instance...\n");
 
@@ -185,10 +294,20 @@ int main()
 
     if (wgpuSupported)
     {
+        // Enumerate before device creation so the uncached call_once path is exercised.
+        printf("Testing WebGPU adapter enumeration...\n");
+        auto adapter = rhi->getAdapter(DeviceType::WGPU, 0);
+        if (!adapter || rhi->getAdapter(DeviceType::WGPU, 0) != adapter)
+        {
+            printf("FAILED: WebGPU adapter enumeration\n");
+            return 1;
+        }
+        printf("OK: WebGPU adapter enumeration verified\n");
         printf("Creating WebGPU device...\n");
         IDevice* device = nullptr;
         DeviceDesc desc = {};
         desc.deviceType = DeviceType::WGPU;
+        desc.debugCallback = &callback;
 
         Result res = rhi->createDevice(desc, &device);
 
@@ -284,6 +403,13 @@ int main()
                 }
                 printf("OK: %s bindings and output verified\n", name);
             }
+            res = testUniformBindings(device);
+            if (SLANG_FAILED(res))
+            {
+                printf("FAILED: uniform bindings or texture readback (Result: %x)\n", res);
+                device->release();
+                return 1;
+            }
             device->release();
         }
         else
@@ -293,5 +419,5 @@ int main()
     }
 
     printf("\n=== RHI initialization test finished ===\n");
-    return 0;
+    return callback.failed ? 1 : 0;
 }

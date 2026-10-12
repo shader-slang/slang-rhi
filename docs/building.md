@@ -52,6 +52,13 @@ the build.
 The preset uses an explicit `ASYNCIFY_ONLY` allowlist in
 [CMakePresets.json](../CMakePresets.json). When adding callers of RHI operations
 that can wait, ensure every intermediate caller is covered by the allowlist.
+This includes adapter enumeration (and its `call_once` helpers), buffer mapping,
+readback, staging uploads, and the binding helpers that allocate constant-buffer
+pages during draw or dispatch recording. Native binding and layout creation do
+not wait for validation, but constant-buffer mapping can still suspend recording.
+The allowlist must also cover application callers of these operations; the example
+keeps its test callers inside `main` so the `*main*` pattern covers them. Verify
+both Debug and optimized builds, since inlining changes which stack frames remain.
 
 ## Common options
 
