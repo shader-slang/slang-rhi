@@ -1140,9 +1140,11 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-staging-heap.cpp
         tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
+        tests/test-storage-texture.cpp
         tests/test-surface.cpp
         tests/test-synthetic-resource-bindings.cpp
         tests/test-texture-allocation-info.cpp
+        tests/test-texture-bindings.cpp
         tests/test-texture-create.cpp
         tests/test-texture-from-handle.cpp
         tests/test-texture-layout.cpp
@@ -1175,6 +1177,9 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
+    endif()
+    if(SLANG_RHI_ENABLE_WGPU)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-dawn)
     endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         target_link_libraries(slang-rhi-tests PRIVATE psapi)

@@ -204,12 +204,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     wgpuConfig.width = resolvedConfig.width;
     wgpuConfig.height = resolvedConfig.height;
     wgpuConfig.presentMode = resolvedConfig.vsync ? m_vsyncOnMode : m_vsyncOffMode;
-    if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
-        m_device->printWarning("WebGPU device had reported an error before surface configuration.");
-
     m_device->m_ctx.api.wgpuSurfaceConfigure(m_surface, &wgpuConfig);
-    if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
-        return SLANG_FAIL;
 
     setConfig(resolvedConfig);
     m_configured = true;

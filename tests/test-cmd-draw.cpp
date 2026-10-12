@@ -486,12 +486,12 @@ GPU_TEST_CASE("cmd-draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGP
     testDraw<DrawIndexedInstancedTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan | WGPU)
 {
     testDraw<DrawIndirectTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan | WGPU)
 {
     testDraw<DrawIndexedIndirectTest>(device);
 }

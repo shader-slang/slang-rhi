@@ -466,9 +466,11 @@ Result createNullDescriptor(
     case slang::BindingType::Texture:
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        const bool isDepth = (resourceShape & SLANG_TEXTURE_SHADOW_FLAG) != 0;
+        srvDesc.Format = isDepth ? DXGI_FORMAT_R32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        switch (resourceShape)
+        // Depth textures have the same view dimensions as their color counterparts.
+        switch (resourceShape & ~SLANG_TEXTURE_SHADOW_FLAG)
         {
         case SLANG_TEXTURE_1D:
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;

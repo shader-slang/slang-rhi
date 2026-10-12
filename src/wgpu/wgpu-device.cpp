@@ -61,14 +61,7 @@ void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView messag
 {
     std::string msg = "WGPU uncaptured error: " + std::string(message.data, message.length);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
-    this->m_lastUncapturedError = type;
-}
-
-WGPUErrorType DeviceImpl::getAndClearLastUncapturedError()
-{
-    WGPUErrorType error = this->m_lastUncapturedError;
-    this->m_lastUncapturedError = WGPUErrorType_NoError;
-    return error;
+    SLANG_UNUSED(type);
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)

@@ -35,7 +35,6 @@ public:
     void reportError(const char* func, WGPUStringView message);
     void reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message);
     void reportUncapturedError(WGPUErrorType type, WGPUStringView message);
-    WGPUErrorType getAndClearLastUncapturedError();
 
     // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
@@ -140,8 +139,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
 private:
-    WGPUErrorType m_lastUncapturedError = WGPUErrorType_NoError;
-
     void initializeFormatSupport();
 };
 
