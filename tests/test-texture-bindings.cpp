@@ -531,13 +531,13 @@ GPU_TEST_CASE("texture-binding-recording-errors", WGPU | DontCreateDevice)
         runGraphicsStageBindings(testDevice, false, invalidTexture);
     }
 
-    // Missing used bindings must fail on the CPU; unused bindings remain optional.
-    for (bool omitTexture : {false, true})
+    // Omitting either required binding must fail on the CPU.
+    for (bool bindResults : {false, true})
     {
         auto encoder = queue->createCommandEncoder();
         auto pass = encoder->beginComputePass();
         ShaderCursor cursor(pass->bindPipeline(pipeline));
-        if (omitTexture)
+        if (bindResults)
             REQUIRE_CALL(cursor["results"].setBinding(results));
         else
             REQUIRE_CALL(cursor["partial"]["usedTexture"].setBinding(texture));
