@@ -20,7 +20,7 @@ struct BindingDataBuilder
     std::span<WGPUBindGroupLayout> m_bindGroupLayouts;
     const RootShaderObjectLayoutImpl* m_rootLayout = nullptr;
 
-    bool isBindingUsed(uint32_t set, uint32_t binding) const;
+    const WGPUBindGroupLayoutEntry* findBinding(uint32_t set, uint32_t binding) const;
 
     /// The bind group entries for every descriptor set
     std::vector<std::vector<WGPUBindGroupEntry>> m_entries;

@@ -14,7 +14,7 @@ using namespace rhi;
 int main()
 {
     // Keep the test caller and its lambda covered by the preset's *main* pattern.
-    auto testBindingWaits = [](IDevice* device, bool graphics) -> Result
+    auto testBindings = [](IDevice* device, bool graphics) -> Result
     {
         const char* source = R"(
             RWStructuredBuffer<uint> result;
@@ -36,8 +36,7 @@ int main()
         )";
         auto session = device->getSlangSession();
         ComPtr<slang::IBlob> diagnostics;
-        auto module =
-            session->loadModuleFromSourceString("binding-waits", "binding-waits.slang", source, diagnostics.writeRef());
+        auto module = session->loadModuleFromSourceString("bindings", "bindings.slang", source, diagnostics.writeRef());
         if (!module)
         {
             if (diagnostics)
@@ -68,21 +67,55 @@ int main()
             return SLANG_FAIL;
         auto queue = device->getQueue(QueueType::Graphics);
         auto encoder = queue->createCommandEncoder();
+        ComPtr<ISurface> surface;
         if (graphics)
         {
             ColorTargetDesc target = {};
+#ifdef __EMSCRIPTEN__
+            if (!EM_ASM_INT({ return document.querySelector('#canvas') ? 1 : 0; }))
+            {
+                printf("FAILED: canvas element is missing\n");
+                return SLANG_FAIL;
+            }
+            EM_ASM({
+                const canvas = document.querySelector('#canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+            });
+            surface = device->createSurface(WindowHandle::fromWGPUCanvas("#canvas"));
+            if (!surface)
+                return SLANG_FAIL;
+            SurfaceConfig config = {};
+            config.width = config.height = 1;
+            config.usage = TextureUsage::RenderTarget;
+            SLANG_RETURN_ON_FAIL(surface->configure(config));
+            target.format = surface->getConfig()->format;
+#else
             target.format = Format::RGBA8Unorm;
+#endif
             RenderPipelineDesc pipelineDesc = {};
             pipelineDesc.program = program;
             pipelineDesc.targetCount = 1;
             pipelineDesc.targets = &target;
             auto pipeline = device->createRenderPipeline(pipelineDesc);
+            if (!pipeline)
+                return SLANG_FAIL;
+            ComPtr<ITexture> texture;
+#ifdef __EMSCRIPTEN__
+            // Even successful binding creation must not yield after canvas acquisition.
+            EM_ASM({
+                Module['rhiBindingYielded'] = false;
+                setTimeout(function() { Module['rhiBindingYielded'] = true; }, 0);
+            });
+            SLANG_RETURN_ON_FAIL(surface->acquireNextImage(texture.writeRef()));
+#else
             TextureDesc textureDesc = {};
             textureDesc.size = {1, 1, 1};
             textureDesc.format = target.format;
             textureDesc.usage = TextureUsage::RenderTarget;
-            auto texture = device->createTexture(textureDesc);
-            if (!pipeline || !texture)
+            texture = device->createTexture(textureDesc);
+#endif
+            if (!texture)
                 return SLANG_FAIL;
             RenderPassColorAttachment attachment = {};
             attachment.view = texture->getDefaultView();
@@ -99,6 +132,7 @@ int main()
             pass->setRenderState(state);
             DrawArguments draw = {};
             draw.vertexCount = 3;
+            pass->draw(draw);
             pass->draw(draw);
             pass->end();
         }
@@ -117,6 +151,15 @@ int main()
         ComPtr<ICommandBuffer> commands;
         SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
         SLANG_RETURN_ON_FAIL(queue->submit(commands));
+#ifdef __EMSCRIPTEN__
+        if (graphics && EM_ASM_INT({ return Module['rhiBindingYielded'] ? 1 : 0; }))
+        {
+            printf("FAILED: binding recording yielded before canvas submission\n");
+            return SLANG_FAIL;
+        }
+#endif
+        if (surface)
+            SLANG_RETURN_ON_FAIL(surface->present());
         SLANG_RETURN_ON_FAIL(queue->waitOnHost());
         ComPtr<ISlangBlob> data;
         SLANG_RETURN_ON_FAIL(device->readBuffer(buffer, 0, sizeof(uint32_t), data.writeRef()));
@@ -228,18 +271,18 @@ int main()
                 printf("FAILED: Buffer creation failed (Result: %x)\n", res);
             }
 
-            // These operations pop WebGPU error scopes while recording draw/dispatch commands.
+            // Exercise graphics and compute resource bindings.
             for (int stage = 0; stage < 2; ++stage)
             {
                 const char* name = stage ? "graphics" : "compute";
-                printf("Testing %s binding waits...\n", name);
-                if (SLANG_FAILED(testBindingWaits(device, stage != 0)))
+                printf("Testing %s bindings...\n", name);
+                if (SLANG_FAILED(testBindings(device, stage != 0)))
                 {
-                    printf("FAILED: %s binding waits\n", name);
+                    printf("FAILED: %s bindings\n", name);
                     device->release();
                     return 1;
                 }
-                printf("OK: %s binding waits and output verified\n", name);
+                printf("OK: %s bindings and output verified\n", name);
             }
             device->release();
         }

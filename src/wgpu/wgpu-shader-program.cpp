@@ -187,10 +187,6 @@ Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPt
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    auto existingError = device->getAndClearLastUncapturedError();
-    if (existingError != WGPUErrorType_NoError)
-        device->printWarning("Web GPU device had reported error before shader compilation.");
-
     Module module;
     module.stage = desc.stage;
     module.entryPointName = desc.entryPointName;
@@ -214,11 +210,6 @@ Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPt
 
     module.module = device->m_ctx.api.wgpuDeviceCreateShaderModule(device->m_ctx.device, &moduleDesc);
     if (!module.module)
-    {
-        return SLANG_FAIL;
-    }
-
-    if (device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;
     }

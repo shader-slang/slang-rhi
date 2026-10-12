@@ -4,17 +4,24 @@
 #include "wgpu-texture.h"
 #include "wgpu-sampler.h"
 #include "wgpu-command.h"
+#include "wgpu-utils.h"
 
 namespace rhi::wgpu {
 
-bool BindingDataBuilder::isBindingUsed(uint32_t set, uint32_t binding) const
+const WGPUBindGroupLayoutEntry* BindingDataBuilder::findBinding(uint32_t set, uint32_t binding) const
 {
     if (set >= m_rootLayout->m_bindGroupLayoutEntries.size())
-        return false;
+        return nullptr;
     for (const auto& entry : m_rootLayout->m_bindGroupLayoutEntries[set])
         if (entry.binding == binding)
-            return true;
-    return false;
+            return &entry;
+    return nullptr;
+}
+
+static Result missingBinding(BindingDataBuilder& builder, uint32_t set, uint32_t binding)
+{
+    builder.m_device->printError("WebGPU requires a resource at group %u, binding %u.", set, binding);
+    return SLANG_E_INVALID_ARG;
 }
 
 inline void writeDescriptor(BindingDataBuilder& builder, uint32_t bindingSet, const WGPUBindGroupEntry& write)
@@ -44,7 +51,7 @@ inline void writeBufferDescriptor(BindingDataBuilder& builder, const BindingOffs
     writeBufferDescriptor(builder, offset, buffer, 0, buffer->m_desc.size);
 }
 
-inline void writeBufferDescriptor(
+inline Result writeBufferDescriptor(
     BindingDataBuilder& builder,
     const BindingOffset& offset,
     std::span<const ResourceSlot> slots
@@ -52,9 +59,11 @@ inline void writeBufferDescriptor(
 {
     for (size_t i = 0; i < slots.size(); ++i)
     {
-        if (!builder.isBindingUsed(offset.bindingSet, offset.binding + i))
+        if (!builder.findBinding(offset.bindingSet, offset.binding + i))
             continue;
         const ResourceSlot& slot = slots[i];
+        if (!slot.resource)
+            return missingBinding(builder, offset.bindingSet, offset.binding + i);
 
         WGPUBindGroupEntry entry = {};
         entry.binding = offset.binding + i;
@@ -63,9 +72,10 @@ inline void writeBufferDescriptor(
         entry.size = slot.bufferRange.size;
         writeDescriptor(builder, offset.bindingSet, entry);
     }
+    return SLANG_OK;
 }
 
-inline void writeTextureDescriptor(
+inline Result writeTextureDescriptor(
     BindingDataBuilder& builder,
     const BindingOffset& offset,
     std::span<const ResourceSlot> slots
@@ -73,18 +83,62 @@ inline void writeTextureDescriptor(
 {
     for (size_t i = 0; i < slots.size(); ++i)
     {
-        if (!builder.isBindingUsed(offset.bindingSet, offset.binding + i))
+        const auto* layout = builder.findBinding(offset.bindingSet, offset.binding + i);
+        if (!layout)
             continue;
         const ResourceSlot& slot = slots[i];
+        if (!slot.resource)
+            return missingBinding(builder, offset.bindingSet, offset.binding + i);
+
+        auto view = checked_cast<TextureViewImpl*>(slot.resource.get());
+        Format viewFormat = view->getDesc().format;
+        if (viewFormat == Format::Undefined)
+            viewFormat = view->m_texture->getDesc().format;
+        const auto& format = getFormatInfo(viewFormat);
+        const bool stencilOnly = view->getDesc().aspect == TextureAspect::StencilOnly && format.hasStencil;
+        // Catch basic binding incompatibilities without waiting for native validation.
+        // WebGPU reports remaining validation errors asynchronously to the debug callback.
+        bool compatible = true;
+        switch (layout->texture.sampleType)
+        {
+        case WGPUTextureSampleType_Uint:
+            compatible = (format.kind == FormatKind::Integer && !format.isSigned) || stencilOnly;
+            break;
+        case WGPUTextureSampleType_Sint:
+            compatible = format.kind == FormatKind::Integer && format.isSigned;
+            break;
+        case WGPUTextureSampleType_Float:
+        case WGPUTextureSampleType_UnfilterableFloat:
+            compatible = format.kind != FormatKind::Integer && !stencilOnly;
+            break;
+        case WGPUTextureSampleType_Depth:
+            compatible = format.hasDepth && !stencilOnly;
+            break;
+        default:
+            break;
+        }
+        if (layout->storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed)
+            compatible = translateTextureFormat(viewFormat) == layout->storageTexture.format;
+        if (!compatible)
+        {
+            builder.m_device->printError(
+                "WebGPU texture format %s is incompatible with group %u, binding %u.",
+                format.name,
+                offset.bindingSet,
+                uint32_t(offset.binding + i)
+            );
+            return SLANG_E_INVALID_ARG;
+        }
 
         WGPUBindGroupEntry entry = {};
         entry.binding = offset.binding + i;
-        entry.textureView = checked_cast<TextureViewImpl*>(slot.resource.get())->m_textureView;
+        entry.textureView = view->m_textureView;
         writeDescriptor(builder, offset.bindingSet, entry);
     }
+    return SLANG_OK;
 }
 
-inline void writeSamplerDescriptor(
+inline Result writeSamplerDescriptor(
     BindingDataBuilder& builder,
     const BindingOffset& offset,
     std::span<const ResourceSlot> slots
@@ -92,15 +146,18 @@ inline void writeSamplerDescriptor(
 {
     for (size_t i = 0; i < slots.size(); ++i)
     {
-        if (!builder.isBindingUsed(offset.bindingSet, offset.binding + i))
+        if (!builder.findBinding(offset.bindingSet, offset.binding + i))
             continue;
         const ResourceSlot& slot = slots[i];
+        if (!slot.resource)
+            return missingBinding(builder, offset.bindingSet, offset.binding + i);
 
         WGPUBindGroupEntry entry = {};
         entry.binding = offset.binding + i;
         entry.sampler = checked_cast<SamplerImpl*>(slot.resource.get())->m_sampler;
         writeDescriptor(builder, offset.bindingSet, entry);
     }
+    return SLANG_OK;
 }
 
 Result BindingDataBuilder::bindAsRoot(
@@ -194,14 +251,12 @@ Result BindingDataBuilder::createBindGroups()
         desc.layout = m_bindGroupLayouts[i];
         desc.entries = m_entries[i].data();
         desc.entryCount = (uint32_t)m_entries[i].size();
-        m_device->pushErrorScopes();
         WGPUBindGroup bindGroup = m_device->m_ctx.api.wgpuDeviceCreateBindGroup(m_device->m_ctx.device, &desc);
         if (bindGroup)
         {
             m_bindingData->bindGroups[i] = bindGroup;
             ++m_bindingData->bindGroupCount;
         }
-        SLANG_RETURN_ON_FAIL(m_device->popErrorScopes());
         if (!bindGroup)
         {
             return SLANG_FAIL;
@@ -237,12 +292,16 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::MutableTexture:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeTextureDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count));
+            SLANG_RETURN_ON_FAIL(
+                writeTextureDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count))
+            );
             break;
         case slang::BindingType::Sampler:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeSamplerDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count));
+            SLANG_RETURN_ON_FAIL(
+                writeSamplerDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count))
+            );
             break;
 
         case slang::BindingType::RawBuffer:
@@ -251,7 +310,9 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::MutableTypedBuffer:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeBufferDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count));
+            SLANG_RETURN_ON_FAIL(
+                writeBufferDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count))
+            );
             break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
@@ -408,7 +469,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     if (bufferSize == 0)
         return SLANG_OK;
 
-    if (!isBindingUsed(ioOffset.bindingSet, ioOffset.binding))
+    if (!findBinding(ioOffset.bindingSet, ioOffset.binding))
     {
         ioOffset.binding++;
         return SLANG_OK;

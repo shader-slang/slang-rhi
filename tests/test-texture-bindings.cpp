@@ -2,9 +2,15 @@
 #include "shader-cache.h"
 #include "device.h"
 #include "shader.h"
+#include "core/deferred.h"
+
+#if SLANG_RHI_ENABLE_WGPU
+#include "wgpu/wgpu-device.h"
+#endif
 
 #include <atomic>
 #include <future>
+#include <mutex>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -408,16 +414,75 @@ GPU_TEST_CASE("texture-graphics-stage-bindings", D3D12 | Vulkan | Metal | WGPU)
     runGraphicsStageBindings(device);
 }
 
-GPU_TEST_CASE("texture-binding-error-scopes", WGPU | DontCreateDevice)
+#if SLANG_RHI_ENABLE_WGPU
+GPU_TEST_CASE("texture-binding-no-waits", WGPU)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-texture-bindings", "readPartialBlock", program.writeRef()));
+    ComputePipelineDesc desc = {};
+    desc.program = program;
+    desc.compilationPolicy = PipelineCompilationPolicy::Deferred;
+    auto pipeline = device->createComputePipeline(desc);
+    REQUIRE(pipeline);
+    auto texture = createColorInput(device, {0, 255, 0, 255});
+    auto results = createResults(device, 4);
+    auto queue = device->getQueue(QueueType::Graphics);
+    ComPtr<ICommandBuffer> commands;
+    {
+        auto& api = checked_cast<wgpu::DeviceImpl*>(getUnderlyingDevice(device))->m_ctx.api;
+        auto originalWaitAny = api.wgpuInstanceWaitAny;
+        SLANG_RHI_DEFERRED({ api.wgpuInstanceWaitAny = originalWaitAny; });
+        static std::atomic<uint32_t> waitCount;
+        waitCount = 0;
+        api.wgpuInstanceWaitAny = [](WGPUInstance, size_t, WGPUFutureWaitInfo*, uint64_t)
+        {
+            ++waitCount;
+            return WGPUWaitStatus_Error;
+        };
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(pipeline));
+        REQUIRE_CALL(cursor["partial"]["usedTexture"].setBinding(texture));
+        REQUIRE_CALL(cursor["results"].setBinding(results));
+        // Exercise both first-use layout creation and subsequent binding creation.
+        pass->dispatchCompute(1, 1, 1);
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        Result result = encoder->finish(commands.writeRef());
+        CHECK(waitCount == 0);
+        REQUIRE_CALL(result);
+    }
+    REQUIRE_CALL(queue->submit(commands));
+    REQUIRE_CALL(queue->waitOnHost());
+    const float expected[] = {0.f, 1.f, 0.f, 1.f};
+    checkResults(device, results, expected);
+}
+#endif
+
+GPU_TEST_CASE("texture-binding-recording-errors", WGPU | DontCreateDevice)
 {
     struct DebugCallback : IDebugCallback
     {
         std::vector<std::string> errors;
+        std::mutex mutex;
 
         void SLANG_MCALL handleMessage(DebugMessageType type, DebugMessageSource, const char* message) override
         {
+            std::lock_guard<std::mutex> lock(mutex);
             if (type == DebugMessageType::Error)
                 errors.emplace_back(message);
+        }
+
+        size_t errorCount()
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            return errors.size();
+        }
+
+        std::string firstError()
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            return errors.empty() ? std::string() : errors.front();
         }
     } callback;
     DeviceExtraOptions options;
@@ -435,7 +500,7 @@ GPU_TEST_CASE("texture-binding-error-scopes", WGPU | DontCreateDevice)
     auto texture = createColorInput(testDevice, {0, 255, 0, 255});
     auto results = createResults(testDevice, 4);
     auto queue = testDevice->getQueue(QueueType::Graphics);
-    CHECK(callback.errors.empty());
+    CHECK(callback.errorCount() == 0);
 
     {
         TextureDesc invalidDesc = {};
@@ -457,8 +522,8 @@ GPU_TEST_CASE("texture-binding-error-scopes", WGPU | DontCreateDevice)
         REQUIRE_CALL(cursor["partial"]["usedTexture"].setBinding(texture));
         pass->dispatchCompute(1, 1, 1);
         pass->end();
-        REQUIRE(!callback.errors.empty());
-        CHECK(callback.errors.front().find("resource creation") != std::string::npos);
+        REQUIRE(callback.errorCount() > 0);
+        CHECK(callback.firstError().find("incompatible") != std::string::npos);
         ComPtr<ICommandBuffer> commandBuffer;
         CHECK(SLANG_FAILED(encoder->finish(commandBuffer.writeRef())));
         CHECK(!commandBuffer);
@@ -466,15 +531,51 @@ GPU_TEST_CASE("texture-binding-error-scopes", WGPU | DontCreateDevice)
         runGraphicsStageBindings(testDevice, false, invalidTexture);
     }
 
-    // A separate native operation leaves an unrelated uncaptured validation error.
-    // It must not make the next valid bind group fail.
-    size_t errorCount = callback.errors.size();
+    // Missing used bindings must fail on the CPU; unused bindings remain optional.
+    for (bool omitTexture : {false, true})
+    {
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(pipeline));
+        if (omitTexture)
+            REQUIRE_CALL(cursor["results"].setBinding(results));
+        else
+            REQUIRE_CALL(cursor["partial"]["usedTexture"].setBinding(texture));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        ComPtr<ICommandBuffer> commands;
+        CHECK(SLANG_FAILED(encoder->finish(commands.writeRef())));
+        CHECK(!commands);
+    }
+
+    {
+        auto comparisonPipeline = createPipeline(testDevice, "compareDepth");
+        TextureDesc depthDesc = {};
+        depthDesc.size = {1, 1, 1};
+        depthDesc.format = Format::D32Float;
+        depthDesc.usage = TextureUsage::ShaderResource;
+        auto depth = testDevice->createTexture(depthDesc);
+        REQUIRE(depth);
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(comparisonPipeline));
+        REQUIRE_CALL(cursor["depthInput"].setBinding(depth));
+        REQUIRE_CALL(cursor["results"].setBinding(results));
+        // Leave the required comparison sampler unbound.
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        ComPtr<ICommandBuffer> commands;
+        CHECK(SLANG_FAILED(encoder->finish(commands.writeRef())));
+        CHECK(!commands);
+    }
+
+    // An unrelated driver error must be reported, but must not determine the
+    // result of the next valid operation. Its callback may arrive asynchronously.
+    size_t errorCount = callback.errorCount();
     SamplerDesc invalidSampler = {};
     invalidSampler.minLOD = 2.f;
     invalidSampler.maxLOD = 1.f;
     auto sampler = testDevice->createSampler(invalidSampler);
-    REQUIRE(callback.errors.size() > errorCount);
-    errorCount = callback.errors.size();
     auto encoder = queue->createCommandEncoder();
     auto pass = encoder->beginComputePass();
     ShaderCursor cursor(pass->bindPipeline(pipeline));
@@ -484,7 +585,7 @@ GPU_TEST_CASE("texture-binding-error-scopes", WGPU | DontCreateDevice)
     pass->end();
     REQUIRE_CALL(queue->submit(encoder->finish()));
     REQUIRE_CALL(queue->waitOnHost());
-    CHECK(callback.errors.size() == errorCount);
+    CHECK(callback.errorCount() > errorCount);
     const float expected[] = {0.f, 1.f, 0.f, 1.f};
     checkResults(testDevice, results, expected);
 }

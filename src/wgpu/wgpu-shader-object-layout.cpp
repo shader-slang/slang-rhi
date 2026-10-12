@@ -792,11 +792,9 @@ Result RootShaderObjectLayoutImpl::createPipelineLayout(const ShaderProgramImpl*
         WGPUBindGroupLayoutDescriptor desc = {};
         desc.entries = entries.data();
         desc.entryCount = entries.size();
-        device->pushErrorScopes();
         auto layout = device->m_ctx.api.wgpuDeviceCreateBindGroupLayout(device->m_ctx.device, &desc);
         if (layout)
             m_bindGroupLayouts.push_back(layout);
-        SLANG_RETURN_ON_FAIL(device->popErrorScopes());
         if (!layout)
             return SLANG_FAIL;
     }
@@ -805,9 +803,7 @@ Result RootShaderObjectLayoutImpl::createPipelineLayout(const ShaderProgramImpl*
     WGPUPipelineLayoutDescriptor pipelineLayoutDesc = {};
     pipelineLayoutDesc.bindGroupLayouts = m_bindGroupLayouts.data();
     pipelineLayoutDesc.bindGroupLayoutCount = (uint32_t)m_bindGroupLayouts.size();
-    device->pushErrorScopes();
     m_pipelineLayout = m_device->m_ctx.api.wgpuDeviceCreatePipelineLayout(m_device->m_ctx.device, &pipelineLayoutDesc);
-    SLANG_RETURN_ON_FAIL(device->popErrorScopes());
     return m_pipelineLayout ? SLANG_OK : SLANG_FAIL;
 }
 

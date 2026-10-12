@@ -98,10 +98,6 @@ public:
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* encoderLabel)
 {
-    auto existingError = m_device->getAndClearLastUncapturedError();
-    if (existingError != WGPUErrorType_NoError)
-        m_device->printWarning("Web GPU device had reported error before command record.");
-
     WGPUCommandEncoderDescriptor encoderDesc = {};
     encoderDesc.label = translateString(encoderLabel);
     m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, &encoderDesc);
@@ -139,12 +135,6 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* enc
     commandBufferDesc.label = translateString(commandBuffer->m_desc.label);
     commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, &commandBufferDesc);
     if (!commandBuffer->m_commandBuffer)
-    {
-        return SLANG_FAIL;
-    }
-
-    auto lastError = m_device->getAndClearLastUncapturedError();
-    if (lastError != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;
     }
