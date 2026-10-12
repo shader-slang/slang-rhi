@@ -154,6 +154,53 @@ GPU_TEST_CASE("texture-storage-bindings", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     checkResults(device, results, expected);
 }
 
+GPU_TEST_CASE("uniform-parameter-block-bindings", D3D12 | Vulkan | Metal | WGPU)
+{
+    const char* source = R"(
+        struct Scalar { float value; };
+        struct Mixed { float head; float3 middle; float tail; };
+        struct Parameters
+        {
+            ParameterBlock<Scalar> scalar;
+            ParameterBlock<Mixed> mixed;
+        };
+        ParameterBlock<Parameters> parameters;
+        RWStructuredBuffer<float4> results;
+        [shader("compute")]
+        [numthreads(1, 1, 1)]
+        void computeMain()
+        {
+            results[0] = float4(parameters.scalar.value, parameters.mixed.head, parameters.mixed.tail, 0);
+            results[1] = float4(parameters.mixed.middle, 0);
+        }
+    )";
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadComputeProgramFromSource(device, source, program.writeRef()));
+    ComputePipelineDesc desc = {};
+    desc.program = program;
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(desc, pipeline.writeRef()));
+    auto results = createResults(device, 8);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    auto pass = encoder->beginComputePass();
+    ShaderCursor cursor(pass->bindPipeline(pipeline));
+    REQUIRE_CALL(cursor["results"].setBinding(results));
+    REQUIRE_CALL(cursor["parameters"]["scalar"]["value"].setData(1.f));
+    REQUIRE_CALL(cursor["parameters"]["mixed"]["head"].setData(2.f));
+    const float middle[] = {3.f, 4.f, 5.f};
+    REQUIRE_CALL(cursor["parameters"]["mixed"]["middle"].setData(middle));
+    REQUIRE_CALL(cursor["parameters"]["mixed"]["tail"].setData(6.f));
+    pass->dispatchCompute(1, 1, 1);
+    pass->end();
+    ComPtr<ICommandBuffer> commands;
+    REQUIRE_CALL(encoder->finish(commands.writeRef()));
+    REQUIRE_CALL(queue->submit(commands));
+    REQUIRE_CALL(queue->waitOnHost());
+    const float expected[] = {1.f, 2.f, 6.f, 0.f, 3.f, 4.f, 5.f, 0.f};
+    checkResults(device, results, expected);
+}
+
 GPU_TEST_CASE("texture-integer-bindings", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     auto pipeline = createPipeline(device, "readIntegers");

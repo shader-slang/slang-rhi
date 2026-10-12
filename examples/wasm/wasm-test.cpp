@@ -184,7 +184,12 @@ int main()
     {
         const char* source = R"(
             struct Values { uint4 value; };
-            struct Parameters { ParameterBlock<Values> inner; };
+            struct Scalar { uint value; };
+            struct Parameters
+            {
+                ParameterBlock<Values> inner;
+                ParameterBlock<Scalar> scalar;
+            };
             uniform uint globalValue;
             ConstantBuffer<Values> constants;
             ParameterBlock<Parameters> parameters;
@@ -201,6 +206,8 @@ int main()
             void nestedMain() { writeOutput(parameters.inner.value.x); }
             [shader("compute")][numthreads(1, 1, 1)]
             void entryMain(uniform uint entryValue) { writeOutput(entryValue); }
+            [shader("compute")][numthreads(1, 1, 1)]
+            void scalarMain() { writeOutput(parameters.scalar.value); }
         )";
         auto session = device->getSlangSession();
         ComPtr<slang::IBlob> diagnostics;
@@ -211,8 +218,8 @@ int main()
                 printf("%s\n", static_cast<const char*>(diagnostics->getBufferPointer()));
             return SLANG_FAIL;
         }
-        const char* entryNames[] = {"globalMain", "constantMain", "nestedMain", "entryMain"};
-        for (uint32_t i = 0; i < 4; ++i)
+        const char* entryNames[] = {"globalMain", "constantMain", "nestedMain", "entryMain", "scalarMain"};
+        for (uint32_t i = 0; i < 5; ++i)
         {
             printf("Testing uniform bindings: %s...\n", entryNames[i]);
             ComPtr<slang::IEntryPoint> entryPoint;
@@ -258,6 +265,9 @@ int main()
                 break;
             case 3:
                 SLANG_RETURN_ON_FAIL(ShaderCursor(root->getEntryPoint(0))["entryValue"].setData(value));
+                break;
+            case 4:
+                SLANG_RETURN_ON_FAIL(cursor["parameters"]["scalar"]["value"].setData(value));
                 break;
             }
             pass->dispatchCompute(1, 1, 1);

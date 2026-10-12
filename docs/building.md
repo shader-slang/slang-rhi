@@ -60,6 +60,13 @@ The allowlist must also cover application callers of these operations; the examp
 keeps its test callers inside `main` so the `*main*` pattern covers them. Verify
 both Debug and optimized builds, since inlining changes which stack frames remain.
 
+The preset also passes `-sBINARYEN_EXTRA_PASSES=--optimize-level=0` to work around
+an Asyncify optimizer failure with WebAssembly exceptions in Emscripten 5.0.7
+(Binaryen 129): `Module::getFunction: __asyncify_get_call_index does not exist`.
+This disables Asyncify's internal optimization passes; the normal LLVM and
+Binaryen Release optimization passes still run. Recheck this workaround when
+upgrading the SDK, using both build configurations and the browser smoke test.
+
 ## Common options
 
 Pass options when configuring, for example:
