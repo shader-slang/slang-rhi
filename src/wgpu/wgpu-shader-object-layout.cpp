@@ -60,7 +60,8 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     return WGPUTextureSampleType_Undefined;
 }
 
-static WGPUTextureFormat getStorageTextureFormat(SlangImageFormat format)
+// Use an explicit format when present, otherwise match Slang's inferred 32-bit format.
+static WGPUTextureFormat getStorageTextureFormat(SlangImageFormat format, slang::TypeReflection* textureType)
 {
     switch (format)
     {
@@ -85,6 +86,47 @@ static WGPUTextureFormat getStorageTextureFormat(SlangImageFormat format)
         FORMAT(r32i, R32Sint)
         FORMAT(r32ui, R32Uint)
 #undef FORMAT
+    case SLANG_IMAGE_FORMAT_unknown:
+        break;
+    default:
+        return WGPUTextureFormat_Undefined;
+    }
+
+    auto elementType = textureType->getResourceResultType();
+    uint32_t componentCount = 1;
+    if (elementType->getKind() == slang::TypeReflection::Kind::Vector)
+    {
+        componentCount = elementType->getElementCount();
+        elementType = elementType->getElementType();
+    }
+    static const WGPUTextureFormat kFloatFormats[] = {
+        WGPUTextureFormat_R32Float,
+        WGPUTextureFormat_RG32Float,
+        WGPUTextureFormat_Undefined,
+        WGPUTextureFormat_RGBA32Float,
+    };
+    static const WGPUTextureFormat kSintFormats[] = {
+        WGPUTextureFormat_R32Sint,
+        WGPUTextureFormat_RG32Sint,
+        WGPUTextureFormat_Undefined,
+        WGPUTextureFormat_RGBA32Sint,
+    };
+    static const WGPUTextureFormat kUintFormats[] = {
+        WGPUTextureFormat_R32Uint,
+        WGPUTextureFormat_RG32Uint,
+        WGPUTextureFormat_Undefined,
+        WGPUTextureFormat_RGBA32Uint,
+    };
+    if (componentCount < 1 || componentCount > 4)
+        return WGPUTextureFormat_Undefined;
+    switch (elementType->getScalarType())
+    {
+    case slang::TypeReflection::ScalarType::Float32:
+        return kFloatFormats[componentCount - 1];
+    case slang::TypeReflection::ScalarType::Int32:
+        return kSintFormats[componentCount - 1];
+    case slang::TypeReflection::ScalarType::UInt32:
+        return kUintFormats[componentCount - 1];
     default:
         return WGPUTextureFormat_Undefined;
     }
@@ -231,7 +273,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                     break;
                 }
                 entry.storageTexture.format =
-                    getStorageTextureFormat(typeLayout->getBindingRangeImageFormat(bindingRangeIndex));
+                    getStorageTextureFormat(typeLayout->getBindingRangeImageFormat(bindingRangeIndex), leafType);
                 entry.storageTexture.viewDimension = getViewDimension(leafType->getResourceShape());
                 break;
             case slang::BindingType::TypedBuffer:
@@ -785,7 +827,7 @@ Result RootShaderObjectLayoutImpl::createPipelineLayout(const ShaderProgramImpl*
             if (entry.storageTexture.access != WGPUStorageTextureAccess_BindingNotUsed &&
                 entry.storageTexture.format == WGPUTextureFormat_Undefined)
             {
-                device->printError("WebGPU storage texture requires a supported explicit [format] annotation.");
+                device->printError("WebGPU storage texture requires a supported explicit or inferred format.");
                 return SLANG_E_NOT_AVAILABLE;
             }
         }

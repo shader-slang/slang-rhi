@@ -190,6 +190,32 @@ GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | Metal | WGPU | C
     testSampler(device, desc, testRecords);
 }
 
+GPU_TEST_CASE("sampler-lod-clamp", WGPU)
+{
+    SamplerDesc desc = {};
+    desc.minFilter = TextureFilteringMode::Point;
+    desc.magFilter = TextureFilteringMode::Point;
+    desc.mipFilter = TextureFilteringMode::Point;
+
+    // Negative bounds are clamped to zero, so both requests sample mip 0.
+    desc.minLOD = -2.f;
+    desc.maxLOD = -1.f;
+    TestRecord baseMipRecords[] = {
+        {0.25f, 0.25f, 0.f, {1.f, 0.f, 0.f, 0.f}},
+        {0.25f, 0.25f, 1.f, {1.f, 0.f, 0.f, 0.f}},
+    };
+    testSampler(device, desc, baseMipRecords);
+
+    // A positive minimum is preserved, so both requests sample mip 1.
+    desc.minLOD = 1.f;
+    desc.maxLOD = 1.f;
+    TestRecord lastMipRecords[] = {
+        {0.25f, 0.25f, 0.f, {1.f, 1.f, 1.f, 1.f}},
+        {0.25f, 0.25f, 1.f, {1.f, 1.f, 1.f, 1.f}},
+    };
+    testSampler(device, desc, lastMipRecords);
+}
+
 GPU_TEST_CASE("sampler-border-black-transparent", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
     SamplerDesc desc = {};

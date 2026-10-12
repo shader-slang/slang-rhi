@@ -573,8 +573,7 @@ GPU_TEST_CASE("texture-binding-recording-errors", WGPU | DontCreateDevice)
     // result of the next valid operation. Its callback may arrive asynchronously.
     size_t errorCount = callback.errorCount();
     SamplerDesc invalidSampler = {};
-    invalidSampler.minLOD = 2.f;
-    invalidSampler.maxLOD = 1.f;
+    invalidSampler.maxAnisotropy = 0;
     auto sampler = testDevice->createSampler(invalidSampler);
     auto encoder = queue->createCommandEncoder();
     auto pass = encoder->beginComputePass();
