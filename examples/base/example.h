@@ -24,6 +24,10 @@
 #include <thread>
 #include <vector>
 
+#if SLANG_WASM
+#include <emscripten.h>
+#include <emscripten/html5.h>
+#else
 #if SLANG_WINDOWS_FAMILY
 #define GLFW_EXPOSE_NATIVE_WIN32
 #elif SLANG_LINUX_FAMILY
@@ -33,6 +37,7 @@
 #endif
 #include <GLFW/glfw3native.h>
 #include <slang-rhi/glfw.h>
+#endif
 
 // X11 defines None as a macro after slang-rhi.h has already removed it.
 #ifdef None
@@ -47,7 +52,8 @@ struct ExampleRunner;
 
 // Base class for examples.
 // Derive from this class to implement an example.
-// The runner calls all lifecycle methods and input callbacks on one dedicated thread per example.
+// The runner calls lifecycle methods and input callbacks on one dedicated thread per native example.
+// Browser examples run on the main thread and yield between frames and during asynchronous GPU work.
 // Use the window helpers below; GLFW window operations belong to the main thread.
 class ExampleBase
 {
@@ -125,6 +131,8 @@ public:
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
     // Configures a surface using the shared VSync preference, including after resizing.
     Result configureSurface(ISurface* surface, SurfaceConfig config);
+    // Acquires the next image, using an offscreen target in the browser so GPU work may yield.
+    Result acquireSurfaceImage(ITexture** image);
     // Presents the window surface and records application frame timing.
     Result presentSurface();
     // Applied by the runner between frames; input callbacks run on the owning worker.
@@ -159,8 +167,7 @@ public:
 #if defined(__GNUC__) || defined(__clang__)
     __attribute__((format(printf, 2, 3)))
 #endif
-    void
-    printOverlay(const char* format, ...);
+    void printOverlay(const char* format, ...);
 
     // Draws accumulated overlay text over the existing image without clearing it.
     // Call after the example has finished rendering, before submission.
@@ -191,6 +198,11 @@ private:
     bool m_vsyncChanged = false;
     ComPtr<ISurface> m_presentationSurface;
     ComPtr<ICommandQueue> m_presentationQueue;
+#if SLANG_WASM
+    ComPtr<IDevice> m_browserDevice;
+    ComPtr<ITexture> m_browserImage;
+    std::unique_ptr<Blitter> m_browserBlitter;
+#endif
     detail::ExampleRunner* m_runner = nullptr;
     int m_windowWidth = 0;
     int m_windowHeight = 0;
@@ -335,6 +347,9 @@ inline std::vector<std::function<void()>> mainTasks;
 // Never wait for a worker on the main thread while it might be waiting for one of these tasks.
 inline Result runOnMainThread(std::function<Result()> function)
 {
+#if SLANG_WASM
+    return function();
+#else
     if (std::this_thread::get_id() == mainThread)
         return function();
     auto task = std::make_shared<std::packaged_task<Result()>>(std::move(function));
@@ -350,6 +365,7 @@ inline Result runOnMainThread(std::function<Result()> function)
     }
     glfwPostEmptyEvent();
     return result.get();
+#endif
 }
 
 inline void processMainTasks()
@@ -367,11 +383,15 @@ inline void setMainExample(ExampleRunner* example)
 {
     if (mainExample == example)
         return;
+#if !SLANG_WASM
     if (mainExample && mainExample->window)
         glfwSetWindowAttrib(mainExample->window, GLFW_RESIZABLE, GLFW_FALSE);
+#endif
     mainExample = example;
+#if !SLANG_WASM
     if (mainExample)
         glfwSetWindowAttrib(mainExample->window, GLFW_RESIZABLE, GLFW_TRUE);
+#endif
 }
 
 // Arrival order is nondeterministic; primary selection and layout follow the backend list.
@@ -467,44 +487,51 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
         deviceInfo.adapterName
     );
     m_windowTitle = fullTitle;
+#if SLANG_WASM
+    m_browserDevice = device;
+    m_browserBlitter = std::make_unique<Blitter>(device);
+#endif
 
-    SLANG_RETURN_ON_FAIL(
-        detail::runOnMainThread(
-            [&]() -> Result
+    Result result = detail::runOnMainThread(
+        [&]() -> Result
+        {
+            if (m_runner->stopping)
+                return SLANG_FAIL;
+#if SLANG_WASM
+            glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+#else
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+#endif
+            m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
+            if (!m_window)
+                return SLANG_FAIL;
+            m_runner->window = m_window;
+            glfwSetWindowUserPointer(m_window, m_runner);
+            glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
+            glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
+            glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
+            glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
+            glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
+            glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
+            glfwSetCursorEnterCallback(m_window, detail::glfwCursorEnterCallback);
+            glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
+            glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
+            glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
+            glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
+            glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
+            glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+            if (detail::mainExample)
             {
-                if (m_runner->stopping)
-                    return SLANG_FAIL;
-                glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-                m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
-                if (!m_window)
-                    return SLANG_FAIL;
-                m_runner->window = m_window;
-                glfwSetWindowUserPointer(m_window, m_runner);
-                glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
-                glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
-                glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
-                glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
-                glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
-                glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
-                glfwSetCursorEnterCallback(m_window, detail::glfwCursorEnterCallback);
-                glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
-                glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
-                glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
-                glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
-                glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
-                glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
-                if (detail::mainExample)
-                {
-                    int w, h;
-                    glfwGetWindowSize(detail::mainExample->window, &w, &h);
-                    glfwSetWindowSize(m_window, w, h);
-                }
-                detail::updateMainExample();
-                detail::layoutWindows();
-                return SLANG_OK;
+                int w, h;
+                glfwGetWindowSize(detail::mainExample->window, &w, &h);
+                glfwSetWindowSize(m_window, w, h);
             }
-        )
+            detail::updateMainExample();
+            detail::layoutWindows();
+            return SLANG_OK;
+        }
     );
+    SLANG_RETURN_ON_FAIL(result);
     return updateWindowTitle();
 }
 
@@ -555,22 +582,25 @@ inline Result ExampleBase::createSurface(IDevice* device, Format format, ISurfac
     SLANG_RETURN_ON_FAIL(device->getQueue(QueueType::Graphics, m_presentationQueue.writeRef()));
     // Native surface creation may modify the Cocoa view. Transfer exclusive device access
     // to the main thread for this operation; subsequent rendering stays on the worker.
-    SLANG_RETURN_ON_FAIL(
-        detail::runOnMainThread(
-            [&]() -> Result
-            {
-                SLANG_RHI_DEVICE_SCOPE(device);
-                glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
-                glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
-                SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
-                SurfaceConfig surfaceConfig;
-                surfaceConfig.width = m_framebufferWidth;
-                surfaceConfig.height = m_framebufferHeight;
-                surfaceConfig.format = format;
-                return configureSurface(*outSurface, surfaceConfig);
-            }
-        )
+    Result result = detail::runOnMainThread(
+        [&]() -> Result
+        {
+            SLANG_RHI_DEVICE_SCOPE(device);
+            glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
+            glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+#if SLANG_WASM
+            SLANG_RETURN_ON_FAIL(device->createSurface(WindowHandle::fromWGPUCanvas("#canvas"), outSurface));
+#else
+            SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
+#endif
+            SurfaceConfig surfaceConfig;
+            surfaceConfig.width = m_framebufferWidth;
+            surfaceConfig.height = m_framebufferHeight;
+            surfaceConfig.format = format;
+            return configureSurface(*outSurface, surfaceConfig);
+        }
     );
+    SLANG_RETURN_ON_FAIL(result);
     m_presentationSurface = *outSurface;
     return SLANG_OK;
 }
@@ -600,8 +630,46 @@ inline Result ExampleBase::applyVsync()
     return updateWindowTitle();
 }
 
+inline Result ExampleBase::acquireSurfaceImage(ITexture** image)
+{
+#if SLANG_WASM
+    *image = nullptr;
+    const auto* config = m_presentationSurface->getConfig();
+    if (!config)
+        return SLANG_OK;
+    if (!m_browserImage || m_browserImage->getDesc().size.width != config->width ||
+        m_browserImage->getDesc().size.height != config->height || m_browserImage->getDesc().format != config->format)
+    {
+        TextureDesc desc = {};
+        desc.size = {config->width, config->height, 1};
+        desc.format = config->format;
+        desc.usage = TextureUsage::RenderTarget | TextureUsage::ShaderResource;
+        SLANG_RETURN_ON_FAIL(m_browserDevice->createTexture(desc, nullptr, m_browserImage.writeRef()));
+    }
+    SLANG_RETURN_ON_FAIL(m_browserBlitter->prepareRenderPipeline(config->format));
+    *image = m_browserImage.get();
+    (*image)->addRef();
+    return SLANG_OK;
+#else
+    return m_presentationSurface->acquireNextImage(image);
+#endif
+}
+
 inline Result ExampleBase::presentSurface()
 {
+#if SLANG_WASM
+    // This final pass has no uniform uploads or readbacks, so it never suspends
+    // with a canvas texture acquired. All scene work was submitted offscreen.
+    auto encoder = m_presentationQueue->createCommandEncoder();
+    ComPtr<ITexture> image;
+    SLANG_RETURN_ON_FAIL(m_presentationSurface->acquireNextImage(image.writeRef()));
+    if (!image)
+        return SLANG_OK;
+    SLANG_RETURN_ON_FAIL(m_browserBlitter->blit(image, m_browserImage, encoder));
+    ComPtr<ICommandBuffer> commands;
+    SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
+    SLANG_RETURN_ON_FAIL(m_presentationQueue->submit(commands));
+#endif
     SLANG_RETURN_ON_FAIL(m_presentationSurface->present());
     if (m_frameStats.update(glfwGetTime()))
         return updateWindowTitle();
@@ -671,6 +739,7 @@ inline bool layoutInProgress = false;
 inline bool syncingWindows = false;
 inline int layoutMargin = 100;
 
+#if !SLANG_WASM
 // Use the monitor containing most of the primary window, including on desktops
 // where monitors have negative coordinates. Fall back if the window is off screen.
 inline GLFWmonitor* getExampleMonitor()
@@ -808,6 +877,11 @@ inline void fitWindowsToMonitor()
     layoutInProgress = syncingWindows = false;
     layoutWindows(monitor);
 }
+
+#else
+inline void layoutWindows(GLFWmonitor*) {}
+inline void fitWindowsToMonitor() {}
+#endif
 
 inline void glfwWindowPosCallback(GLFWwindow* window, int, int)
 {
@@ -984,6 +1058,10 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
     std::unique_ptr<ExampleBase> example(createExample());
     example->m_runner = this;
     example->m_shaderSearchPath = shaderSearchPath;
+#if SLANG_WASM
+    // Examples without local shaders still need a search directory for ../base imports.
+    EM_ASM({ FS.mkdirTree(UTF8ToString($0)); }, shaderSearchPath);
+#endif
     Result result = example->init(deviceType);
     initialized = SLANG_SUCCEEDED(result);
     if (SLANG_FAILED(result) && !stopping)
@@ -1005,12 +1083,32 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
             exitCode = 1;
         }
     }
+#if SLANG_WASM
+    EM_ASM({
+        Module["rhiReady"] = true;
+        Module["rhiFrameCount"] = 0;
+    });
+#endif
     while (initialized && !stopping)
     {
+#if SLANG_WASM
+        glfwPollEvents();
+        if (window)
+        {
+            double cssWidth, cssHeight;
+            // Measure the container: GLFW sets inline canvas dimensions for high DPI.
+            emscripten_get_element_css_size("#viewport", &cssWidth, &cssHeight);
+            int width, height;
+            glfwGetWindowSize(window, &width, &height);
+            if (width != int(cssWidth) || height != int(cssHeight))
+                glfwSetWindowSize(window, int(cssWidth), int(cssHeight));
+        }
+#endif
         std::vector<Event> pending;
         double time = 0;
         {
             std::unique_lock<std::mutex> lock(eventMutex);
+#if !SLANG_WASM
             if (syncFrames)
             {
                 // Acknowledge initialization/the previous frame, then wait for a common frame grant.
@@ -1030,6 +1128,7 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
                 time = frameTime;
             }
             else
+#endif
                 pending.swap(events);
         }
         result = processEvents(*example, pending);
@@ -1053,6 +1152,10 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
         if (minimized && !syncFrames)
         {
             std::unique_lock<std::mutex> lock(eventMutex);
+#if SLANG_WASM
+            lock.unlock();
+            emscripten_sleep(16);
+#else
             eventReady.wait(
                 lock,
                 [&]()
@@ -1060,6 +1163,7 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
                     return stopping || !events.empty();
                 }
             );
+#endif
             continue;
         }
         // GLFW's timer may be read from any thread; every example uses the same time origin.
@@ -1074,13 +1178,22 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
             exitCode = 1;
             break;
         }
+#if SLANG_WASM
+        EM_ASM({ ++Module["rhiFrameCount"]; });
+        // Preserve the native lifecycle while allowing browser events between frames.
+        emscripten_sleep(16);
+#endif
     }
     stop();
     example->shutdown();
     // Destroy all GPU resources on their owning thread, then destroy the window via the main thread.
     example.reset();
     done = true;
+#if SLANG_WASM
+    EM_ASM({ Module["rhiStopped"] = true; });
+#else
     glfwPostEmptyEvent();
+#endif
 }
 
 // By default, wait for all workers before each common frame, including its input batch and
@@ -1088,6 +1201,9 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
 inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample)(), const char* shaderSearchPath)
 {
     std::vector<DeviceType> deviceTypes = {
+#if SLANG_WASM
+        DeviceType::WGPU,
+#else
         DeviceType::D3D11,
         DeviceType::D3D12,
         DeviceType::Vulkan,
@@ -1095,6 +1211,7 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         DeviceType::CPU,
         DeviceType::CUDA,
         DeviceType::WGPU,
+#endif
     };
 
     bool syncFrames = true;
@@ -1171,11 +1288,17 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
     for (size_t i = 0; i < examples.size(); ++i)
     {
         auto& example = *examples[i];
-        example.syncFrames = syncFrames;
         example.done = false;
+#if SLANG_WASM
+        example.syncFrames = false;
+        example.run(createExample, supportedTypes[i], shaderSearchPath);
+#else
+        example.syncFrames = syncFrames;
         example.thread = std::thread(&ExampleRunner::run, &example, createExample, supportedTypes[i], shaderSearchPath);
+#endif
     }
 
+#if !SLANG_WASM
     // Keep servicing window requests and native messages during initialization AND shutdown.
     // In particular, DXGI may synchronously send window messages from a rendering thread.
     for (;;)
@@ -1193,11 +1316,14 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         if (!mainExample)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+#endif
     bool anyInitialized = false;
     for (auto& example : examples)
     {
+#if !SLANG_WASM
         if (example->thread.joinable())
             example->thread.join();
+#endif
         exitCode |= example->exitCode;
         anyInitialized |= example->initialized;
     }

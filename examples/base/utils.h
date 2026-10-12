@@ -422,6 +422,50 @@ public:
     {
     }
 
+    // Prepare before acquiring a browser surface image: pipeline creation may yield.
+    Result prepareRenderPipeline(Format dstFormat)
+    {
+        if (m_blitRenderPipeline)
+            return SLANG_OK;
+        const char* shader = R"(
+        struct VSOut {
+            float4 pos : SV_Position;
+            float2 uv : UV;
+        };
+
+        [shader("vertex")]
+        VSOut mainVertex(uint vid: SV_VertexID)
+        {
+            VSOut vsOut;
+            vsOut.uv = float2((vid << 1) & 2, vid & 2);
+            vsOut.pos = float4(vsOut.uv * float2(2, -2) + float2(-1, 1), 0, 1);
+            return vsOut;
+        }
+
+        [shader("fragment")]
+        float4 mainFragment(VSOut vsOut, Texture2D<float4> src) : SV_Target
+        {
+            int2 size;
+            src.GetDimensions(size.x, size.y);
+            int2 coord = int2(vsOut.uv * size);
+            return src[coord];
+        }
+    )";
+        RenderPipelineDesc pipelineDesc = {};
+        ColorTargetDesc colorTarget = {};
+        colorTarget.format = dstFormat;
+        pipelineDesc.targets = &colorTarget;
+        pipelineDesc.targetCount = 1;
+        return createRenderPipelineFromSource(
+            m_device,
+            shader,
+            "mainVertex",
+            "mainFragment",
+            pipelineDesc,
+            m_blitRenderPipeline.writeRef()
+        );
+    }
+
     Result blit(ITexture* dst, ITexture* src, ICommandEncoder* commandEncoder)
     {
         if (!dst || !src || !commandEncoder)
@@ -467,33 +511,6 @@ public:
         }
     )";
 
-        const char* blitRenderShader = R"(
-        struct VSOut {
-            float4 pos : SV_Position;
-            float2 uv : UV;
-        };
-
-        [shader("vertex")]
-        VSOut mainVertex(uint vid: SV_VertexID)
-        {
-            VSOut vsOut;
-            vsOut.uv = float2((vid << 1) & 2, vid & 2);
-            vsOut.pos = float4(vsOut.uv * float2(2, -2) + float2(-1, 1), 0, 1);
-            return vsOut;
-        }
-
-        [shader("fragment")]
-        float4 mainFragment(VSOut vsOut, Texture2D<float4> src) : SV_Target
-        {
-            float2 uv = vsOut.uv;
-            int2 size;
-            src.GetDimensions(size.x, size.y);
-            int2 coord = int2(uv * size);
-            return src[coord];
-        }
-    )";
-
-
         uint32_t width = src->getDesc().size.width;
         uint32_t height = src->getDesc().size.height;
         Format dstFormat = dst->getDesc().format;
@@ -501,22 +518,7 @@ public:
 
         if (is_set(dst->getDesc().usage, TextureUsage::RenderTarget))
         {
-            if (!m_blitRenderPipeline)
-            {
-                RenderPipelineDesc pipelineDesc = {};
-                ColorTargetDesc colorTarget = {};
-                colorTarget.format = dstFormat;
-                pipelineDesc.targets = &colorTarget;
-                pipelineDesc.targetCount = 1;
-                SLANG_RETURN_ON_FAIL(createRenderPipelineFromSource(
-                    m_device,
-                    blitRenderShader,
-                    "mainVertex",
-                    "mainFragment",
-                    pipelineDesc,
-                    m_blitRenderPipeline.writeRef()
-                ));
-            }
+            SLANG_RETURN_ON_FAIL(prepareRenderPipeline(dstFormat));
             RenderPassColorAttachment colorAttachment = {};
             colorAttachment.view = dst->getDefaultView();
             RenderPassDesc renderPassDesc = {};

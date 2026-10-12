@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="data:,">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>slang-rhi example</title>
+  <style>
+    :root { color-scheme: dark; font: 14px system-ui, sans-serif; background: #101319; color: #e3e8ee; }
+    body { margin: 0; }
+    header { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 14px 20px; }
+    a { color: #80c9eb; }
+    #status { margin-left: auto; color: #b5c0cb; }
+    main { height: calc(100vh - 110px); min-height: 240px; }
+    canvas { display: block; width: 100%; height: 100%; outline: none; }
+    details { padding: 10px 20px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <header><a href="index.html">All examples</a><span>F1: show/hide UI</span><span id="status" role="status">Loading...</span></header>
+  <main id="viewport"><canvas id="canvas" tabindex="0" aria-label="Interactive graphics example"></canvas></main>
+  <details id="log"><summary>Output and controls</summary><pre id="output"></pre></details>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const status = document.getElementById('status');
+    let failed = false;
+    function report(text, error) {
+      const output = document.getElementById('output');
+      output.textContent += text + '\n';
+      if (error) {
+        failed = true;
+        status.textContent = 'Unable to run - see output';
+        document.getElementById('log').open = true;
+        console.error(text);
+      } else console.log(text);
+    }
+    var Module = {
+      canvas,
+      print: text => report(text, /^\[Error\]|^FAILED:/.test(text)),
+      printErr: text => report(text, !/^\[Warning\]/.test(text)),
+      onAbort: reason => report(String(reason), true),
+      onExit: code => { if (code) report('Exited with code ' + code, true); },
+      setStatus: text => { if (!failed && text) status.textContent = text; }
+    };
+    window.addEventListener('error', event => report(event.message, true));
+    window.addEventListener('unhandledrejection', event => report(String(event.reason), true));
+    if (!navigator.gpu) report('WebGPU is unavailable. Use a WebGPU-capable browser on localhost or HTTPS.', true);
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
+    canvas.addEventListener('pointerdown', () => canvas.focus());
+    window.addEventListener('keydown', event => {
+      if (event.key === 'F1' || (document.activeElement === canvas && [' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)))
+        event.preventDefault();
+    }, true);
+    function updateStatus() {
+      if (!failed && Module.rhiFrameCount > 0) status.textContent = Module.rhiStopped ? 'Stopped - reload to restart' : 'WebGPU';
+      requestAnimationFrame(updateStatus);
+    }
+    requestAnimationFrame(updateStatus);
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

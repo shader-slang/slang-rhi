@@ -41,13 +41,30 @@ default preset, executables are placed in `build/<configuration>/`.
 Activate the Emscripten SDK, then run from the repository root:
 
 ```sh
-cmake --preset emscripten
-cmake --build build --config Debug --target wasm-test
-python -m http.server 8000 --bind 127.0.0.1 --directory build/Debug
+cmake --preset emscripten -B build/browser
+cmake --build build/browser --config Release
+python -m http.server 8000 --bind 127.0.0.1 --directory build/browser/Release
 ```
 
-Open `http://localhost:8000/wasm-test.html` in a WebGPU-capable browser to verify
-the build.
+Open `http://localhost:8000/` in a WebGPU-capable browser to choose an example.
+The build includes Surface, Triangle, ShaderToy, Raster, and Particles, plus the
+existing `wasm-test.html` smoke test. The path tracer requires acceleration
+structures and ray tracing, which the WebGPU backend does not support.
+
+The browser examples use the same C++ implementations as the native examples,
+with GLFW input, a canvas that follows the browser window size and pixel density,
+and the shared F1 shortcut to hide the usage overlay. Click the canvas to focus
+keyboard input. Escape stops the example; reload the page to restart it. Shader
+sources are packaged in each example's `.data` file and compiled at runtime.
+Serve the generated `.html`, `.js`, `.wasm`, and `.data` files together over
+localhost or HTTPS; opening the HTML directly from disk is not supported.
+
+The shared base runs browser examples on the main thread and keeps frames in an
+offscreen texture while asynchronous WebGPU operations may yield. It prepares
+the presentation pipeline before a final blit acquires and presents the canvas
+texture without yielding, since that texture is valid only for the current
+browser task. Input and resize callbacks queue events for processing between
+frames. ShaderToy also loads shaders on this loop.
 
 The preset uses an explicit `ASYNCIFY_ONLY` allowlist in
 [CMakePresets.json](../CMakePresets.json). When adding callers of RHI operations
@@ -58,9 +75,12 @@ pages during draw or dispatch recording. Native binding and layout creation do
 not wait for validation, but constant-buffer mapping can still suspend recording.
 Pipeline creation waits on the asynchronous WebGPU entry points, except for
 deferred pipelines resolved by `finish()`, which must not yield.
-The allowlist must also cover application callers of these operations; the example
-keeps its test callers inside `main` so the `*main*` pattern covers them. Verify
+The allowlist must also cover application callers of these operations, including
+the shared example loop, renderers, and shader-loading helpers. Verify
 both Debug and optimized builds, since inlining changes which stack frames remain.
+
+The preset reserves 64 KiB for the Asyncify stack to accommodate the larger
+example render and initialization call stacks.
 
 The preset also passes `-sBINARYEN_EXTRA_PASSES=--optimize-level=0` to work around
 an Asyncify optimizer failure with WebAssembly exceptions in Emscripten 5.0.7

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="data:,">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>slang-rhi examples</title>
+  <style>
+    :root { color-scheme: dark; font: 16px system-ui, sans-serif; background: #101319; color: #e3e8ee; }
+    body { max-width: 920px; margin: 64px auto; padding: 0 24px; }
+    h1 { font-size: 38px; } p { color: #b5c0cb; line-height: 1.6; }
+    nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 32px 0; }
+    a { color: #80c9eb; } nav a { padding: 24px; border: 1px solid #35404e; border-radius: 8px; text-decoration: none; }
+    nav a:hover, nav a:focus { border-color: #80c9eb; background: #1b222d; }
+    strong { display: block; font-size: 21px; } span { display: block; color: #b5c0cb; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>slang-rhi examples</h1>
+  <p>Interactive graphics using Slang and WebGPU. Open an example, click its canvas, and use the controls shown on screen. Press F1 to hide the overlay.</p>
+  <nav aria-label="Examples">
+    <a href="example-surface.html"><strong>Surface</strong><span>Clear and present a window image.</span></a>
+    <a href="example-triangle.html"><strong>Triangle</strong><span>A vertex buffer and a graphics pipeline.</span></a>
+    <a href="example-shader-toy.html"><strong>ShaderToy</strong><span>Compute shaders, an ocean, and interactive input.</span></a>
+    <a href="example-raster.html"><strong>Raster</strong><span>The Slang logo, materials, shadows, and environment lighting.</span></a>
+    <a href="example-particles.html"><strong>Particles</strong><span>A GPU simulation with interactive forces and indirect drawing.</span></a>
+  </nav>
+  <p id="support">Requires a WebGPU-capable browser on localhost or HTTPS. Shaders compile on first use, so initial loading may take a moment.</p>
+  <p>The native path tracer requires acceleration structures and ray tracing, which this WebGPU backend does not support.</p>
+  <p><a href="wasm-test.html">Run the WebGPU smoke test</a></p>
+  <script>if (!navigator.gpu) document.getElementById('support').textContent = 'WebGPU is unavailable here. Use a WebGPU-capable browser on localhost or HTTPS.';</script>
+</body>
+</html>

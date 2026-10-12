@@ -79,7 +79,7 @@ public:
 
         // Acquire next image from the surface
         ComPtr<ITexture> image;
-        m_surface->acquireNextImage(image.writeRef());
+        acquireSurfaceImage(image.writeRef());
         if (!image)
         {
             return SLANG_OK;

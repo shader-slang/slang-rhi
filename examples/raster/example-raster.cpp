@@ -783,7 +783,7 @@ public:
             return SLANG_OK;
         ComPtr<ITexture> image;
         // A native resize can invalidate the swapchain before its queued callback.
-        m_surface->acquireNextImage(image.writeRef());
+        acquireSurfaceImage(image.writeRef());
         if (!image)
             return SLANG_OK;
         m_camera.width = image->getDesc().size.width;
