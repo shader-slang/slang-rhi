@@ -56,6 +56,8 @@ This includes adapter enumeration (and its `call_once` helpers), buffer mapping,
 readback, staging uploads, and the binding helpers that allocate constant-buffer
 pages during draw or dispatch recording. Native binding and layout creation do
 not wait for validation, but constant-buffer mapping can still suspend recording.
+Pipeline creation waits on the asynchronous WebGPU entry points, except for
+deferred pipelines resolved by `finish()`, which must not yield.
 The allowlist must also cover application callers of these operations; the example
 keeps its test callers inside `main` so the `*main*` pattern covers them. Verify
 both Debug and optimized builds, since inlining changes which stack frames remain.
