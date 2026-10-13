@@ -391,7 +391,7 @@ static void testClearRenderTargetSubresource(IDevice* device, Format format, con
     }
 }
 
-GPU_TEST_CASE("cmd-clear-texture-render-target-subresource", Vulkan | WGPU)
+GPU_TEST_CASE("cmd-clear-texture-render-target-subresource", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     {
         float value[4] = {0.5f, -2.f, 3.f, 4.f};
