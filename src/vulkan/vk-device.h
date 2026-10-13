@@ -141,6 +141,7 @@ public:
         const TextureDesc& desc,
         ResourceMemoryRequirements* outRequirements
     ) override;
+    Result checkTexturePlacementSupported(const TextureDesc& desc);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
         IBuffer* buffer,
@@ -280,6 +281,7 @@ public:
 
     VkDevice m_device = VK_NULL_HANDLE;
     bool m_hasSubgroupSizeControl = false;
+    bool m_supportsImageView2DOn3DImage = true;
     CalibratedTimestampSupport m_calibratedTimestampSupport;
 
     VulkanModule m_module;

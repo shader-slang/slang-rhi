@@ -454,6 +454,19 @@ GPU_TEST_CASE("resource-heap-cuda-texture-unsupported", CUDA)
     CHECK_EQ(tryCreatePlacedTexture(device, textureDesc, bufferHeap, 0), SLANG_E_NOT_AVAILABLE);
 }
 
+GPU_TEST_CASE("resource-heap-host-visible-texture-unsupported", D3D12 | Vulkan)
+{
+    ComPtr<IResourceHeap> heap = createHeap(device, 64 * 1024, ResourceHeapUsage::NonRtDsTextures);
+    for (MemoryType memoryType : {MemoryType::Upload, MemoryType::ReadBack})
+    {
+        TextureDesc textureDesc = makeSampleTextureDesc();
+        textureDesc.memoryType = memoryType;
+        ResourceMemoryRequirements requirements = {};
+        CHECK_EQ(device->getTextureMemoryRequirements(textureDesc, &requirements), SLANG_E_NOT_AVAILABLE);
+        CHECK_EQ(tryCreatePlacedTexture(device, textureDesc, heap, 0), SLANG_E_NOT_AVAILABLE);
+    }
+}
+
 GPU_TEST_CASE("resource-heap-place-buffer-init-data", D3D12 | Vulkan | Metal | CUDA)
 {
     const uint32_t elementCount = 64;
@@ -902,9 +915,18 @@ GPU_TEST_CASE("resource-heap-vulkan-exact-texture-requirements", Vulkan)
         desc.size = {16, 16, 4};
         desc.format = Format::RGBA8Unorm;
         desc.usage = TextureUsage::RenderTarget | TextureUsage::ShaderResource;
-        ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, desc);
-        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
-        CHECK(createPlacedTexture(device, desc, heap, 0));
+        ResourceMemoryRequirements requirements = {};
+        Result result = device->getTextureMemoryRequirements(desc, &requirements);
+        if (result == SLANG_E_NOT_AVAILABLE)
+        {
+            MESSAGE("Skipping placed 3D render target: 2D views on 3D images are not supported");
+        }
+        else
+        {
+            REQUIRE_CALL(result);
+            ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+            CHECK(createPlacedTexture(device, desc, heap, 0));
+        }
     }
 
     {
