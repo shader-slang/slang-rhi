@@ -623,6 +623,17 @@ Result DeviceImpl::initVulkanDevice(
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
     }
 
+    if (m_api.vkGetPhysicalDeviceFeatures2 && extensionNames.count(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
+    {
+        VkPhysicalDevicePortabilitySubsetFeaturesKHR portabilitySubsetFeatures = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
+        };
+        VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+        deviceFeatures2.pNext = &portabilitySubsetFeatures;
+        m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
+        m_supportsImageView2DOn3DImage = portabilitySubsetFeatures.imageView2DOn3DImage;
+    }
+
     VkPhysicalDeviceProperties basicProps = {};
     m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
 
@@ -2281,10 +2292,21 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     return SLANG_OK;
 }
 
+Result DeviceImpl::checkTexturePlacementSupported(const TextureDesc& desc)
+{
+    if (desc.memoryType != MemoryType::DeviceLocal)
+        return SLANG_E_NOT_AVAILABLE;
+    if (desc.type == TextureType::Texture3D && is_set(desc.usage, TextureUsage::RenderTarget) &&
+        !m_supportsImageView2DOn3DImage)
+        return SLANG_E_NOT_AVAILABLE;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
 {
     resetResourceMemoryRequirements(outRequirements);
     TextureDesc desc = fixupTextureDesc(desc_);
+    SLANG_RETURN_ON_FAIL(checkTexturePlacementSupported(desc));
     VkImageCreateInfo imageInfo = {};
     SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, true, &imageInfo));
 
