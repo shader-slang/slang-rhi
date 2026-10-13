@@ -464,12 +464,6 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    if (bufferImpl->m_uploadData)
-    {
-        std::memcpy(outData, bufferImpl->m_uploadData.get() + offset, size);
-        return SLANG_OK;
-    }
-
     // Copy offsets, copy sizes and mappings must be multiples of 4 bytes. Copy the enclosing aligned range,
     // which stays within the buffer as buffer sizes are padded to 4 bytes.
     Offset copyOffset = offset & ~Offset(3);

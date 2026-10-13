@@ -79,17 +79,60 @@ GPU_TEST_CASE("upload-buffer-unaligned-size", D3D12 | Vulkan | Metal | WGPU)
     std::memcpy(data, contents, sizeof(contents));
     REQUIRE_CALL(device->unmapBuffer(buffer));
 
-    BufferDesc copyDesc = desc;
-    copyDesc.usage = BufferUsage::CopySource | BufferUsage::CopyDestination;
-    copyDesc.memoryType = MemoryType::DeviceLocal;
-    ComPtr<IBuffer> copy;
-    REQUIRE_CALL(device->createBuffer(copyDesc, contents, copy.writeRef()));
-
+    // readBuffer() copies from the GPU buffer, so this checks the uploaded data.
     uint8_t result[6] = {};
-    REQUIRE_CALL(device->readBuffer(copy, 0, sizeof(result), result));
-    CHECK(std::memcmp(result, contents, sizeof(contents)) == 0);
     REQUIRE_CALL(device->readBuffer(buffer, 0, sizeof(result), result));
     CHECK(std::memcmp(result, contents, sizeof(contents)) == 0);
+}
+
+// Shader writes to an upload buffer are visible to readBuffer() and to a write mapping, and unmapping
+// keeps them apart from the values written through the mapping.
+GPU_TEST_CASE("upload-buffer-shader-writes", Vulkan | WGPU)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-upload-buffer", "writeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    const float zeros[4] = {};
+    BufferDesc desc = {};
+    desc.size = sizeof(zeros);
+    desc.elementSize = sizeof(float);
+    desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    desc.defaultState = ResourceState::UnorderedAccess;
+    desc.memoryType = MemoryType::Upload;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(desc, zeros, buffer.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    auto passEncoder = commandEncoder->beginComputePass();
+    ShaderCursor cursor(passEncoder->bindPipeline(pipeline));
+    cursor["target"].setBinding(buffer);
+    passEncoder->dispatchCompute(1, 1, 1);
+    passEncoder->end();
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    float result[4] = {};
+    REQUIRE_CALL(device->readBuffer(buffer, 0, sizeof(result), result));
+    CHECK(result[0] == 100.f);
+    CHECK(result[3] == 103.f);
+
+    float* data = nullptr;
+    REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Write, (void**)&data));
+    CHECK(data[1] == 101.f);
+    data[0] = 7.f;
+    REQUIRE_CALL(device->unmapBuffer(buffer));
+
+    REQUIRE_CALL(device->readBuffer(buffer, 0, sizeof(result), result));
+    CHECK(result[0] == 7.f);
+    CHECK(result[1] == 101.f);
+    CHECK(result[2] == 102.f);
+    CHECK(result[3] == 103.f);
 }
 
 // Reads at offsets and sizes that are not multiples of 4 bytes return the requested bytes.
@@ -116,4 +159,34 @@ GPU_TEST_CASE("buffer-read-unaligned", Vulkan | WGPU)
             CHECK(std::memcmp(result, contents + offset, size) == 0);
         }
     }
+}
+
+// An imported upload buffer without MapWrite usage is mapped through a CPU copy that starts with the
+// buffer's contents.
+GPU_TEST_CASE("upload-buffer-import", WGPU)
+{
+    const uint32_t contents[4] = {1, 2, 3, 4};
+    BufferDesc desc = {};
+    desc.size = sizeof(contents);
+    desc.usage = BufferUsage::CopySource | BufferUsage::CopyDestination;
+    ComPtr<IBuffer> original;
+    REQUIRE_CALL(device->createBuffer(desc, contents, original.writeRef()));
+    NativeHandle handle;
+    REQUIRE_CALL(original->getNativeHandle(&handle));
+
+    BufferDesc uploadDesc = desc;
+    uploadDesc.memoryType = MemoryType::Upload;
+    ComPtr<IBuffer> imported;
+    REQUIRE_CALL(device->createBufferFromNativeHandle(handle, uploadDesc, imported.writeRef()));
+
+    uint32_t* data = nullptr;
+    REQUIRE_CALL(device->mapBuffer(imported, CpuAccessMode::Write, (void**)&data));
+    CHECK(data[2] == 3);
+    data[0] = 9;
+    REQUIRE_CALL(device->unmapBuffer(imported));
+
+    uint32_t result[4] = {};
+    REQUIRE_CALL(device->readBuffer(original, 0, sizeof(result), result));
+    CHECK(result[0] == 9);
+    CHECK(result[3] == 4);
 }

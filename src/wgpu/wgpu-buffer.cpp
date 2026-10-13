@@ -53,7 +53,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         // Upload buffers keep a CPU copy that is written to the GPU buffer when unmapped (see BufferImpl).
         // This allows any usage, while mapping for writing is only allowed together with CopySrc.
-        bufferDesc.usage |= WGPUBufferUsage_CopyDst;
+        // CopySrc lets readBuffer() and mapBuffer() read what shaders wrote to the GPU buffer.
+        bufferDesc.usage |= WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
         buffer->m_uploadData = std::make_unique<uint8_t[]>(bufferDesc.size);
     }
     else if (desc.memoryType == MemoryType::ReadBack)
@@ -99,6 +100,26 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     buffer->m_buffer = (WGPUBuffer)handle.value;
     m_ctx.api.wgpuBufferAddRef(buffer->m_buffer);
 
+    // An imported upload buffer without MapWrite usage is mapped through a CPU copy, like the upload
+    // buffers created here. The copy starts with the buffer's current contents.
+    WGPUBufferUsage usage = m_ctx.api.wgpuBufferGetUsage(buffer->m_buffer);
+    if (fixedDesc.memoryType == MemoryType::Upload && !(usage & WGPUBufferUsage_MapWrite))
+    {
+        const WGPUBufferUsage required = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+        if ((usage & required) != required)
+        {
+            handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "An imported upload buffer needs MapWrite usage, or both CopyDst and CopySrc usage."
+            );
+            *outBuffer = nullptr;
+            return SLANG_E_INVALID_ARG;
+        }
+        buffer->m_uploadData = std::make_unique<uint8_t[]>(math::calcAligned2(fixedDesc.size, 4));
+        SLANG_RETURN_ON_FAIL(readBuffer(buffer, 0, fixedDesc.size, buffer->m_uploadData.get()));
+    }
+
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
@@ -115,6 +136,11 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 
     if (bufferImpl->m_uploadData)
     {
+        // Shaders may have written the GPU buffer, and unmapping writes the whole CPU copy back.
+        if (m_ctx.api.wgpuBufferGetUsage(bufferImpl->m_buffer) & WGPUBufferUsage_Storage)
+        {
+            SLANG_RETURN_ON_FAIL(readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get()));
+        }
         *outData = bufferImpl->m_uploadData.get();
         return SLANG_OK;
     }
