@@ -29,7 +29,15 @@ WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
-#if !SLANG_WASM
+#if SLANG_WASM
+    // Timed waits let wait() suspend on a future's promise instead of polling (JSPI).
+    static const WGPUInstanceFeatureName features[] = {WGPUInstanceFeatureName_TimedWaitAny};
+    WGPUInstanceLimits limits = {};
+    limits.timedWaitAnyMaxCount = 1;
+    instanceDesc.requiredFeatureCount = SLANG_COUNT_OF(features);
+    instanceDesc.requiredFeatures = features;
+    instanceDesc.requiredLimits = &limits;
+#else
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
@@ -718,6 +726,13 @@ WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, ui
 #if !SLANG_WASM
     return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
 #else
+    // With JSPI, an untimed wait suspends until the future's promise settles. Polling with
+    // emscripten_sleep goes through setTimeout, which browsers clamp to several milliseconds per wait
+    // even when the GPU work has already completed. Asyncify builds keep polling: suspending inside
+    // emdawnwebgpu's wait is not reliable with Asyncify and -fwasm-exceptions.
+    if (timeoutNS == UINT64_MAX && emscripten_has_asyncify() == 2)
+        return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, UINT64_MAX);
+
     double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
     int spinCount = 0;
 
