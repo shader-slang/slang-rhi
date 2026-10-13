@@ -128,9 +128,6 @@ inline Result createDevice(
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    DebugLayerOptions debugLayerOptions;
-    debugLayerOptions.coreValidation = true;
-    getRHI()->setDebugLayerOptions(debugLayerOptions);
     deviceDesc.enableValidation = true;
     static DebugPrinter debugPrinter(DebugMessageType::Warning);
     deviceDesc.debugCallback = &debugPrinter;

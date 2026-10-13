@@ -76,7 +76,8 @@ public:
 
     virtual void shutdown() override
     {
-        m_queue->waitOnHost();
+        if (m_queue)
+            m_queue->waitOnHost();
         m_queue.setNull();
         m_surface.setNull();
         m_device.setNull();

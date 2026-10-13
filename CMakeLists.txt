@@ -1201,6 +1201,7 @@ endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
     if(NOT EMSCRIPTEN)
+        find_package(Threads REQUIRED)
         function(add_example name source)
             add_executable(${name} ${source})
             target_compile_features(${name} PRIVATE cxx_std_20)
@@ -1213,7 +1214,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
                 $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
                 $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
             )
-            target_link_libraries(${name} PRIVATE slang-rhi slang glfw slang-rhi-warnings)
+            target_link_libraries(${name} PRIVATE slang-rhi slang glfw Threads::Threads slang-rhi-warnings)
         endfunction()
 
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
