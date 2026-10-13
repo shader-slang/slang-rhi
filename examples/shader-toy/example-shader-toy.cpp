@@ -1,6 +1,5 @@
 #include "../base/example.h"
 
-#include <future>
 #include <memory>
 
 using namespace rhi;
@@ -27,13 +26,13 @@ public:
         m_blitter = std::make_unique<Blitter>(m_device);
 
         m_pipelines.resize(kShaders.size());
-        loadShader();
-        return SLANG_OK;
+        return loadShader();
     }
 
     virtual void shutdown() override
     {
-        m_queue->waitOnHost();
+        if (m_queue)
+            m_queue->waitOnHost();
         m_queue.setNull();
         m_blitter.reset();
         m_surface.setNull();
@@ -70,18 +69,13 @@ public:
 
     virtual Result draw() override
     {
-        // Wait for shader to be loaded
-        if (m_future.valid())
-        {
-            Result result = m_future.get();
-            SLANG_RETURN_ON_FAIL(result);
-        }
-
         // Skip rendering if surface is not configured (eg. when window is minimized)
         if (!m_surface->getConfig())
         {
             return SLANG_OK;
         }
+
+        SLANG_RETURN_ON_FAIL(loadShader());
 
         // Acquire next image from the surface
         ComPtr<ITexture> image;
@@ -134,7 +128,7 @@ public:
 
         clearOverlay();
         printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n");
-        printOverlay("F1: Show/hide overlay | Esc: Close\n\n");
+        printOverlay("F1: Show/hide overlay | F2: Fit windows | Esc: Close\n\n");
         printOverlay("Shader: %s", kShaders[m_shaderIndex]);
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
@@ -170,35 +164,22 @@ public:
         if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
         {
             m_shaderIndex = (m_shaderIndex + 1) % kShaders.size();
-            loadShader();
         }
         else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
         {
             m_shaderIndex = (m_shaderIndex - 1 + kShaders.size()) % kShaders.size();
-            loadShader();
         }
     }
 
-    void loadShader()
+    Result loadShader()
     {
         if (m_pipelines[m_shaderIndex])
-        {
-            return;
-        }
-        // Load shader asynchronously
-        m_future = std::async(
-            [this]() -> Result
-            {
-                // Needed for CUDA-based devices to ensure the correct context
-                // is current in this thread when creating the pipeline.
-                SLANG_RHI_DEVICE_SCOPE(m_device);
-                return createComputePipeline(
-                    m_device,
-                    kShaders[m_shaderIndex],
-                    "mainCompute",
-                    m_pipelines[m_shaderIndex].writeRef()
-                );
-            }
+            return SLANG_OK;
+        return createComputePipeline(
+            m_device,
+            kShaders[m_shaderIndex],
+            "mainCompute",
+            m_pipelines[m_shaderIndex].writeRef()
         );
     }
 
@@ -209,8 +190,6 @@ public:
     std::unique_ptr<Blitter> m_blitter;
     std::vector<ComPtr<IComputePipeline>> m_pipelines;
     ComPtr<ITexture> m_texture;
-
-    std::future<Result> m_future;
 
     float m_stickyMousePos[2] = {0.0f, 0.0f};
     bool m_combinedMouseDown = false;

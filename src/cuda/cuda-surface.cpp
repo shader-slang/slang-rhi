@@ -935,8 +935,6 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     FrameData& frameData = m_frameData[m_currentFrameIndex];
 
     SLANG_VK_RETURN_ON_FAIL(m_api.vkWaitForFences(m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &frameData.fence));
-
     SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
 
     m_currentSwapchainImageIndex = -1;
@@ -953,6 +951,9 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     {
         return SLANG_FAIL;
     }
+
+    // Failed acquisition submits no work, so leave the fence signaled until an image is acquired.
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &frameData.fence));
 
     returnComPtrCopy(outTexture, frameData.sharedTexture.cudaTexture);
     return SLANG_OK;
@@ -1185,6 +1186,9 @@ Result SurfaceImpl::present()
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentSwapchainImageIndex;
     VkResult result = m_api.vkQueuePresentKHR(m_queue, &presentInfo);
+    // Resizing on the window thread can invalidate the swapchain during this frame.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+        return SLANG_OK;
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;

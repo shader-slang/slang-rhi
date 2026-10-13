@@ -424,4 +424,49 @@ GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }
+
+GPU_TEST_CASE("surface-resize-during-frame", Vulkan | CUDA)
+{
+    if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
+        SKIP("CUDA surface requires Vulkan");
+
+    glfwInit();
+    if (!hasMonitor())
+        SKIP("No monitor attached");
+
+    NoRenderSurfaceTest t;
+    t.init(device);
+    int width, height;
+    glfwGetFramebufferSize(t.window, &width, &height);
+    t.configureSurface(width, height);
+
+    // A window thread can resize after acquisition but before presentation.
+    ComPtr<ITexture> texture = t.surface->acquireNextImage();
+    REQUIRE(texture);
+    glfwSetWindowSize(t.window, 700, 700);
+    glfwPollEvents();
+    REQUIRE_CALL(t.surface->present());
+    texture.setNull();
+
+    // The render thread may attempt more frames before receiving the resize event.
+    // An out-of-date acquisition must leave the frame fence signaled for the next attempt.
+    for (int i = 0; i < 2; ++i)
+    {
+        texture = t.surface->acquireNextImage();
+        if (texture)
+            REQUIRE_CALL(t.surface->present());
+        texture.setNull();
+    }
+
+    glfwGetFramebufferSize(t.window, &width, &height);
+    t.configureSurface(width, height);
+    texture = t.surface->acquireNextImage();
+    REQUIRE(texture);
+    REQUIRE_CALL(t.surface->present());
+    texture.setNull();
+    t.queue->waitOnHost();
+    t.shutdown();
+    glfwTerminate();
+}
+
 #endif // SLANG_RHI_BUILD_TESTS_WITH_GLFW
