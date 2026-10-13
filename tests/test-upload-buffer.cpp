@@ -161,6 +161,44 @@ GPU_TEST_CASE("buffer-read-unaligned", Vulkan | WGPU)
     }
 }
 
+// A copy into an upload buffer is visible to a write mapping, and unmapping keeps it apart from the
+// values written through the mapping.
+GPU_TEST_CASE("upload-buffer-copy-writes", Vulkan | WGPU)
+{
+    const uint32_t initial[4] = {1, 2, 3, 4};
+    const uint32_t copied[4] = {5, 6, 7, 8};
+
+    BufferDesc desc = {};
+    desc.size = sizeof(initial);
+    desc.usage = BufferUsage::CopySource | BufferUsage::CopyDestination;
+    desc.memoryType = MemoryType::Upload;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(desc, initial, buffer.writeRef()));
+
+    desc.memoryType = MemoryType::DeviceLocal;
+    ComPtr<IBuffer> source;
+    REQUIRE_CALL(device->createBuffer(desc, copied, source.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    commandEncoder->copyBuffer(buffer, 0, source, 0, sizeof(copied));
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    uint32_t* data = nullptr;
+    REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Write, (void**)&data));
+    CHECK(data[1] == 6);
+    data[0] = 9;
+    REQUIRE_CALL(device->unmapBuffer(buffer));
+
+    uint32_t result[4] = {};
+    REQUIRE_CALL(device->readBuffer(buffer, 0, sizeof(result), result));
+    CHECK(result[0] == 9);
+    CHECK(result[1] == 6);
+    CHECK(result[2] == 7);
+    CHECK(result[3] == 8);
+}
+
 // An imported upload buffer without MapWrite usage is mapped through a CPU copy that starts with the
 // buffer's contents.
 GPU_TEST_CASE("upload-buffer-import", WGPU)

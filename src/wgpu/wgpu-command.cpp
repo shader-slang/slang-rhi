@@ -145,6 +145,8 @@ void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
+    if (dst->m_uploadData)
+        dst->m_uploadDataStale = true;
     m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
         m_commandEncoder,
         src->m_buffer,
@@ -258,6 +260,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
+    if (dst->m_uploadData)
+        dst->m_uploadDataStale = true;
 
     const TextureDesc& srcDesc = src->getDesc();
     Extent3D textureSize = srcDesc.size;
@@ -323,6 +327,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
+    if (buffer->m_uploadData)
+        buffer->m_uploadDataStale = true;
     m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, buffer->m_buffer, cmd.range.offset, cmd.range.size);
 }
 

@@ -105,18 +105,21 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     WGPUBufferUsage usage = m_ctx.api.wgpuBufferGetUsage(buffer->m_buffer);
     if (fixedDesc.memoryType == MemoryType::Upload && !(usage & WGPUBufferUsage_MapWrite))
     {
+        // Copies and queue writes of the CPU copy cover the size padded to 4 bytes.
         const WGPUBufferUsage required = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
-        if ((usage & required) != required)
+        const Size paddedSize = math::calcAligned2(fixedDesc.size, 4);
+        if ((usage & required) != required || m_ctx.api.wgpuBufferGetSize(buffer->m_buffer) < paddedSize)
         {
             handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Layer,
-                "An imported upload buffer needs MapWrite usage, or both CopyDst and CopySrc usage."
+                "An imported upload buffer needs MapWrite usage, or CopyDst and CopySrc usage and a size "
+                "padded to a multiple of 4 bytes."
             );
             *outBuffer = nullptr;
             return SLANG_E_INVALID_ARG;
         }
-        buffer->m_uploadData = std::make_unique<uint8_t[]>(math::calcAligned2(fixedDesc.size, 4));
+        buffer->m_uploadData = std::make_unique<uint8_t[]>(paddedSize);
         SLANG_RETURN_ON_FAIL(readBuffer(buffer, 0, fixedDesc.size, buffer->m_uploadData.get()));
     }
 
@@ -136,8 +139,10 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 
     if (bufferImpl->m_uploadData)
     {
-        // Shaders may have written the GPU buffer, and unmapping writes the whole CPU copy back.
-        if (m_ctx.api.wgpuBufferGetUsage(bufferImpl->m_buffer) & WGPUBufferUsage_Storage)
+        // Shaders or recorded copies may have written the GPU buffer, and unmapping writes the whole
+        // CPU copy back.
+        if (bufferImpl->m_uploadDataStale.exchange(false) ||
+            (m_ctx.api.wgpuBufferGetUsage(bufferImpl->m_buffer) & WGPUBufferUsage_Storage))
         {
             SLANG_RETURN_ON_FAIL(readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get()));
         }
