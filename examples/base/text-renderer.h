@@ -117,6 +117,8 @@ namespace rhi {
 
 // Minimal ASCII bitmap text for example HUDs. Coordinates and scale are in
 // framebuffer pixels. Call clear(), addText(), then render() after tone mapping.
+// Colors are linear. Non-sRGB normalized targets are assumed to store sRGB-encoded
+// SDR output; floating-point targets retain linear values.
 // A batch uses one atlas, one buffer upload, and one alpha-blended draw.
 class TextRenderer
 {
@@ -191,9 +193,6 @@ public:
     // Call before addText() to place a translucent panel behind the labels.
     Result addRect(math::float2 origin, math::float2 size, math::float4 color)
     {
-        if (!std::isfinite(origin.x) || !std::isfinite(origin.y) || !std::isfinite(size.x) || !std::isfinite(size.y) ||
-            size.x <= 0 || size.y <= 0)
-            return SLANG_E_INVALID_ARG;
         if (m_vertices.size() + 6 > kMaxGlyphs * 6)
             return SLANG_E_OUT_OF_MEMORY;
         for (math::float2 corner : {math::float2(0, 0), {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}})
@@ -205,8 +204,6 @@ public:
     // spaces advance the pen without consuming glyph capacity. Tabs are 4 spaces.
     Result addText(std::string_view text, math::float2 origin, float scale, math::float4 color = math::float4(1))
     {
-        if (!std::isfinite(scale) || scale <= 0 || !std::isfinite(origin.x) || !std::isfinite(origin.y))
-            return SLANG_E_INVALID_ARG;
         size_t glyphCount = 0;
         for (unsigned char c : text)
             glyphCount += c != ' ' && c != '\n' && c != '\r' && c != '\t';
@@ -270,7 +267,8 @@ public:
         SLANG_RETURN_ON_FAIL(cursor["fontSampler"].setBinding(m_sampler));
         math::float2 inverseSize(1.0f / width, 1.0f / height);
         SLANG_RETURN_ON_FAIL(cursor["inverseTargetSize"].setData(inverseSize));
-        uint32_t encodeSrgb = getFormatInfo(m_outputFormat).isSrgb ? 0 : 1;
+        const auto& formatInfo = getFormatInfo(m_outputFormat);
+        uint32_t encodeSrgb = formatInfo.kind == FormatKind::Normalized && !formatInfo.isSrgb ? 1 : 0;
         SLANG_RETURN_ON_FAIL(cursor["encodeSrgb"].setData(encodeSrgb));
         RenderState state = {};
         state.viewports[0] = Viewport::fromSize(width, height);

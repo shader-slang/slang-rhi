@@ -167,10 +167,10 @@ public:
         float scale = 1.5f
     )
     {
-        if (!std::isfinite(scale) || scale <= 0)
-            return SLANG_E_INVALID_ARG;
         if (content.empty())
             return SLANG_OK;
+        if (!encoder || !image)
+            return SLANG_E_INVALID_ARG;
         float margin = 12 * pixelRatio;
         float fontScale = 1.5f * scale * pixelRatio;
         const auto& size = image->getDesc().size;
@@ -352,8 +352,6 @@ inline Result ExampleBase::createSurface(IDevice* device, Format format, ISurfac
 
 inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
 {
-    if (!std::isfinite(scale) || scale <= 0)
-        return SLANG_E_INVALID_ARG;
     if (!device->hasFeature(Feature::Rasterization))
         return SLANG_OK;
     ComPtr<IShaderProgram> program;
@@ -398,6 +396,8 @@ inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image
 {
     if (!m_overlayVisible || !m_overlay || m_overlayText.empty())
         return SLANG_OK;
+    if (!encoder || !image)
+        return SLANG_E_INVALID_ARG;
     int width, height;
     glfwGetWindowSize(m_window, &width, &height);
     float pixelRatio = float(image->getDesc().size.width) / std::max(width, 1);
