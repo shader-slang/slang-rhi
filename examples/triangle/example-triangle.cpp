@@ -25,7 +25,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Surface"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Triangle"));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
 
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));

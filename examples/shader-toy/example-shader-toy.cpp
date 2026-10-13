@@ -20,6 +20,7 @@ public:
         SLANG_RETURN_ON_FAIL(createDevice(deviceType, {Feature::Surface}, {}, m_device.writeRef()));
         SLANG_RETURN_ON_FAIL(createWindow(m_device, "ShaderToy"));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
+        SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
 
@@ -130,6 +131,12 @@ public:
 
         // Blit result to the surface image
         SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_texture, commandEncoder));
+
+        clearOverlay();
+        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n");
+        printOverlay("F1: Show/hide overlay | Esc: Close\n\n");
+        printOverlay("Shader: %s", kShaders[m_shaderIndex]);
+        SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
         // Submit command buffer
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandEncoder->finish()));

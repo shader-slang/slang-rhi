@@ -115,6 +115,7 @@ private:
 inline Result createDevice(
     DeviceType deviceType,
     std::vector<Feature> requiredFeatures,
+    const char* shaderSearchPath,
     std::vector<std::pair<std::string, std::string>> preprocessorMacros,
     IDevice** outDevice,
     std::vector<Feature>* outMissingFeatures = nullptr
@@ -134,7 +135,7 @@ inline Result createDevice(
     static DebugPrinter debugPrinter(DebugMessageType::Warning);
     deviceDesc.debugCallback = &debugPrinter;
 #endif
-    const char* searchPaths[] = {EXAMPLE_DIR};
+    const char* searchPaths[] = {shaderSearchPath};
     deviceDesc.slang.searchPaths = searchPaths;
     deviceDesc.slang.searchPathCount = SLANG_COUNT_OF(searchPaths);
 
