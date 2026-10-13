@@ -334,6 +334,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     TextureDesc desc = fixupTextureDesc(desc_);
 
     const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
+        SLANG_RETURN_ON_FAIL(checkTexturePlacementSupported(desc));
     VkImageCreateInfo imageInfo = {};
     SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, initData != nullptr || placement != nullptr, &imageInfo));
     const VkFormat format = imageInfo.format;

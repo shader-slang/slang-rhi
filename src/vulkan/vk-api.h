@@ -12,6 +12,7 @@
 #endif
 
 #define VK_NO_PROTOTYPES
+#define VK_ENABLE_BETA_EXTENSIONS
 #include <vulkan/vulkan.h>
 
 #if SLANG_LINUX_FAMILY && !SLANG_ANDROID
