@@ -1,9 +1,21 @@
 #pragma once
 
 #include "utils.h"
+#include "text-renderer.h"
+#include <cstdarg>
+#include <cstdio>
+#include <memory>
+#include <string_view>
 
 #include <slang.h>
 #include <slang-rhi.h>
+
+#include <GLFW/glfw3.h>
+
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <cctype>
 
 #if SLANG_WINDOWS_FAMILY
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -12,23 +24,21 @@
 #elif SLANG_APPLE_FAMILY
 #define GLFW_EXPOSE_NATIVE_COCOA
 #endif
-#include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
-
 #include <slang-rhi/glfw.h>
 
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <cctype>
-
 namespace rhi {
+
+class ExampleOverlay;
 
 // Base class for examples.
 // Derive from this class to implement an example.
 class ExampleBase
 {
 public:
+    // Constructs an example without creating device, window, or overlay resources.
+    ExampleBase();
+    // Destroys the window and releases the overlay; call shutdown() first.
     virtual ~ExampleBase();
 
     // Called to initialize the example for the specified device type.
@@ -87,39 +97,157 @@ public:
     // Returns whether the window has been asked to close.
     bool shouldClose() const;
 
+    // Surface management
+
     // Creates a surface for the window with the specified format.
     // Use Format::Undefined to use the preferred format.
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
 
+    // Overlay utility
+
+    // Initializes the optional text overlay for the output format.
+    // Scale multiplies the standard text size, independently of the window's pixel density.
+    // Does nothing on devices without rasterization support.
+    Result initOverlay(IDevice* device, Format format, float scale = 1.5f);
+
+    // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
+    void clearOverlay();
+
+    // Appends printf-formatted text; include explicit newlines between lines or blocks.
+    // Does nothing when hidden or uninitialized. Failed formatting is skipped without changing accumulated text.
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 2, 3)))
+#endif
+    void
+    printOverlay(const char* format, ...);
+
+    // Draws accumulated overlay text over the existing image without clearing it.
+    // Call after the example has finished rendering, before submission.
+    // Does nothing when hidden, uninitialized, or empty; the image must use the initialized output format.
+    Result drawOverlay(ICommandEncoder* encoder, ITexture* image);
+
+    // Returns whether overlay drawing is enabled, independently of initialization.
+    bool isOverlayVisible() const { return m_overlayVisible; }
+    // Toggles overlay visibility without creating or destroying its resources.
+    void toggleOverlay() { m_overlayVisible = !m_overlayVisible; }
+
 public:
+    const char* m_shaderSearchPath = nullptr;
     DeviceType m_deviceType = DeviceType::Default;
     std::vector<Feature> m_missingFeatures;
     GLFWwindow* m_window = nullptr;
 
     float m_mousePos[2] = {0.0f, 0.0f};
     bool m_mouseDown[3] = {false, false, false};
+
+private:
+    bool m_overlayVisible = true;
+    float m_overlayScale = 1.5f;
+    std::string m_overlayText;
+    std::unique_ptr<ExampleOverlay> m_overlay;
 };
 
-namespace detail {
-static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
-static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
-static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
-static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
-static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
-static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
-static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+// Optional presentation of example-owned text. No window dependency.
+class ExampleOverlay
+{
+public:
+    // Initializes text rendering for the output format using the supplied text shader program.
+    Result init(IDevice* device, Format format, IShaderProgram* program)
+    {
+        return m_text.init(device, format, program);
+    }
 
-static std::vector<ExampleBase*>& getExamples()
+    // Draws a translucent panel with the supplied text, preserving the existing image.
+    // Pixel ratio converts window coordinates to framebuffer pixels; scale adjusts the text size.
+    Result render(
+        ICommandEncoder* encoder,
+        ITexture* image,
+        std::string_view content,
+        float pixelRatio = 1.0f,
+        float scale = 1.5f
+    )
+    {
+        if (content.empty())
+            return SLANG_OK;
+        if (!encoder || !image)
+            return SLANG_E_INVALID_ARG;
+        float margin = 12 * pixelRatio;
+        float fontScale = 1.5f * scale * pixelRatio;
+        const auto& size = image->getDesc().size;
+        size_t maxColumns =
+            size_t(std::max(1.0f, std::floor((float(size.width) - 4 * margin - 2 * fontScale) / (6 * fontScale))));
+        // Wrap at word boundaries rather than shrinking the requested text size.
+        std::string text;
+        std::string_view remaining(content);
+        while (!remaining.empty())
+        {
+            size_t newline = remaining.find('\n');
+            auto line = remaining.substr(0, newline);
+            while (line.size() > maxColumns)
+            {
+                size_t split = line.rfind(' ', maxColumns);
+                if (split == std::string_view::npos || split == 0)
+                    split = maxColumns;
+                text.append(line.substr(0, split));
+                text += '\n';
+                line.remove_prefix(split);
+                if (!line.empty() && line.front() == ' ')
+                    line.remove_prefix(1);
+            }
+            text.append(line);
+            if (newline == std::string_view::npos)
+                break;
+            text += '\n';
+            remaining.remove_prefix(newline + 1);
+        }
+        size_t columns = 0, current = 0, lines = 1;
+        for (char c : text)
+        {
+            if (c == '\n')
+            {
+                columns = std::max(columns, current);
+                current = 0;
+                ++lines;
+            }
+            else
+                ++current;
+        }
+        columns = std::max(columns, current);
+        m_text.clear();
+        SLANG_RETURN_ON_FAIL(m_text.addRect(
+            {margin, margin},
+            {float(columns * 6 + 2) * fontScale + 2 * margin, float(lines * 9 + 2) * fontScale + 2 * margin},
+            {0.003f, 0.006f, 0.012f, 0.85f}
+        ));
+        SLANG_RETURN_ON_FAIL(m_text.addText(text, {2 * margin, 2 * margin}, fontScale, {0.82f, 0.88f, 0.96f, 1}));
+        return m_text.render(encoder, image);
+    }
+
+private:
+    TextRenderer m_text;
+};
+
+
+namespace detail {
+inline void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
+inline void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
+inline void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
+inline void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
+inline void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
+inline void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+inline void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+inline void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+inline std::vector<ExampleBase*>& getExamples()
 {
     static std::vector<ExampleBase*> examples;
     return examples;
 }
 
-static ExampleBase* mainExample = nullptr;
+inline ExampleBase* mainExample = nullptr;
 
-static void setMainExample(ExampleBase* example)
+inline void setMainExample(ExampleBase* example)
 {
     if (mainExample)
         glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_FALSE);
@@ -131,12 +259,14 @@ static void setMainExample(ExampleBase* example)
 } // namespace detail
 
 
-ExampleBase::~ExampleBase()
+inline ExampleBase::ExampleBase() = default;
+
+inline ExampleBase::~ExampleBase()
 {
     destroyWindow();
 }
 
-Result ExampleBase::createDevice(
+inline Result ExampleBase::createDevice(
     DeviceType deviceType,
     std::vector<Feature> requiredFeatures,
     std::vector<std::pair<std::string, std::string>> preprocessorMacros,
@@ -144,13 +274,20 @@ Result ExampleBase::createDevice(
 )
 {
     SLANG_RETURN_ON_FAIL(
-        rhi::createDevice(deviceType, requiredFeatures, preprocessorMacros, outDevice, &m_missingFeatures)
+        rhi::createDevice(
+            deviceType,
+            requiredFeatures,
+            m_shaderSearchPath,
+            preprocessorMacros,
+            outDevice,
+            &m_missingFeatures
+        )
     );
     m_deviceType = (*outDevice)->getDeviceType();
     return SLANG_OK;
 }
 
-Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t width, uint32_t height)
+inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t width, uint32_t height)
 {
     const auto& deviceInfo = device->getInfo();
     char fullTitle[1024];
@@ -184,7 +321,7 @@ Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t wi
     return SLANG_OK;
 }
 
-void ExampleBase::destroyWindow()
+inline void ExampleBase::destroyWindow()
 {
     if (m_window)
     {
@@ -193,12 +330,12 @@ void ExampleBase::destroyWindow()
     }
 }
 
-bool ExampleBase::shouldClose() const
+inline bool ExampleBase::shouldClose() const
 {
     return m_window && glfwWindowShouldClose(m_window) != 0;
 }
 
-Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
+inline Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
 {
     ASSERT(m_window, "Window must be created before creating surface");
 
@@ -210,16 +347,68 @@ Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** out
     surfaceConfig.width = width;
     surfaceConfig.height = height;
     surfaceConfig.format = format;
-    SLANG_RETURN_ON_FAIL((*outSurface)->configure(surfaceConfig));
+    return (*outSurface)->configure(surfaceConfig);
+}
 
+inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
+{
+    if (!device->hasFeature(Feature::Rasterization))
+        return SLANG_OK;
+    ComPtr<IShaderProgram> program;
+    SLANG_RETURN_ON_FAIL(
+        createProgram(device, "../base/text-renderer.slang", {"textVertex", "textFragment"}, program.writeRef())
+    );
+    m_overlay = std::make_unique<ExampleOverlay>();
+    SLANG_RETURN_ON_FAIL(m_overlay->init(device, format, program));
+    m_overlayScale = scale;
     return SLANG_OK;
+}
+
+inline void ExampleBase::clearOverlay()
+{
+    m_overlayText.clear();
+}
+
+inline void ExampleBase::printOverlay(const char* format, ...)
+{
+    if (!format || !m_overlayVisible || !m_overlay)
+        return;
+    va_list args;
+    va_start(args, format);
+    va_list sizeArgs;
+    va_copy(sizeArgs, args);
+    int size = std::vsnprintf(nullptr, 0, format, sizeArgs);
+    va_end(sizeArgs);
+    if (size < 0)
+    {
+        va_end(args);
+        return;
+    }
+    std::string text(size_t(size) + 1, '\0');
+    int written = std::vsnprintf(text.data(), text.size(), format, args);
+    va_end(args);
+    if (written != size)
+        return;
+    m_overlayText.append(text.data(), size_t(size));
+}
+
+inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image)
+{
+    if (!m_overlayVisible || !m_overlay || m_overlayText.empty())
+        return SLANG_OK;
+    if (!encoder || !image)
+        return SLANG_E_INVALID_ARG;
+    int width, height;
+    glfwGetWindowSize(m_window, &width, &height);
+    float pixelRatio = float(image->getDesc().size.width) / std::max(width, 1);
+    return m_overlay->render(encoder, image, m_overlayText, pixelRatio, m_overlayScale);
 }
 
 namespace detail {
 
-static bool layoutInProgress = false;
+inline bool layoutInProgress = false;
 
-static void layoutWindows()
+inline void layoutWindows()
 {
     if (getExamples().size() <= 1)
     {
@@ -259,7 +448,7 @@ static void layoutWindows()
     layoutInProgress = false;
 }
 
-static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos)
+inline void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos)
 {
     if (layoutInProgress)
     {
@@ -272,7 +461,7 @@ static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos)
     }
 }
 
-static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
+inline void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
     if (layoutInProgress)
     {
@@ -292,7 +481,7 @@ static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
     }
 }
 
-static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
+inline void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
 {
     ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
     for (ExampleBase* example : getExamples())
@@ -311,7 +500,7 @@ static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
     }
 }
 
-static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
+inline void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
 {
     ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
     for (ExampleBase* example : getExamples())
@@ -330,7 +519,7 @@ static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
     }
 }
 
-static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height)
+inline void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height)
 {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
@@ -340,7 +529,7 @@ static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int heigh
     example->onResize(windowWidth, windowHeight, framebufferWidth, framebufferHeight);
 }
 
-static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+inline void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 {
     for (ExampleBase* example : getExamples())
     {
@@ -350,7 +539,7 @@ static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     }
 }
 
-static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+inline void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
     for (ExampleBase* example : getExamples())
     {
@@ -360,7 +549,7 @@ static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, 
     }
 }
 
-static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+inline void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
     for (ExampleBase* example : getExamples())
     {
@@ -368,10 +557,16 @@ static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffse
     }
 }
 
-static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     for (ExampleBase* example : getExamples())
     {
+        if (key == GLFW_KEY_F1)
+        {
+            if (action == GLFW_PRESS)
+                example->toggleOverlay();
+            continue;
+        }
         example->onKey(key, scancode, action, mods);
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         {
@@ -380,8 +575,7 @@ static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
     }
 }
 
-template<typename Example>
-static int main(int argc, const char** argv)
+inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample)(), const char* shaderSearchPath)
 {
     std::vector<DeviceType> deviceTypes = {
         DeviceType::D3D11,
@@ -390,15 +584,14 @@ static int main(int argc, const char** argv)
         DeviceType::Metal,
         DeviceType::CPU,
         DeviceType::CUDA,
-        // Exclude for now as WGPU backend is not fully functional
-        // DeviceType::WGPU,
+        DeviceType::WGPU,
     };
 
     if (argc > 1)
     {
         if (argc != 3 || std::string(argv[1]) != "--device")
         {
-            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda>]", argv[0]);
+            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda|wgpu>]", argv[0]);
             return 1;
         }
         std::string requestedDevice = argv[2];
@@ -440,7 +633,8 @@ static int main(int argc, const char** argv)
     {
         if (rhi::getRHI()->isDeviceTypeSupported(deviceType))
         {
-            Example* example = new Example();
+            ExampleBase* example = createExample();
+            example->m_shaderSearchPath = shaderSearchPath;
             Result result = example->init(deviceType);
             if (SLANG_FAILED(result))
             {
@@ -544,5 +738,13 @@ static int main(int argc, const char** argv)
 #define EXAMPLE_MAIN(Example)                                                                                          \
     int main(int argc, const char** argv)                                                                              \
     {                                                                                                                  \
-        return rhi::detail::main<Example>(argc, argv);                                                                 \
+        return rhi::detail::runExamples(                                                                               \
+            argc,                                                                                                      \
+            argv,                                                                                                      \
+            []() -> rhi::ExampleBase*                                                                                  \
+            {                                                                                                          \
+                return new Example();                                                                                  \
+            },                                                                                                         \
+            EXAMPLE_DIR                                                                                                \
+        );                                                                                                             \
     }
