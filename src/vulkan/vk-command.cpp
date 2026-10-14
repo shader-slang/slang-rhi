@@ -198,6 +198,13 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
                 {
                     break;
                 }
+                else if (subCmdSlot->id == CommandID::WriteTimestamp)
+                {
+                    // Query resets, unlike timestamp writes, are forbidden inside rendering.
+                    const auto& timestamp = commandList.getCommand<commands::WriteTimestamp>(subCmdSlot);
+                    auto pool = checked_cast<QueryPoolImpl*>(timestamp.queryPool);
+                    m_api.vkCmdResetQueryPool(m_cmdBuffer, pool->m_pool, timestamp.queryIndex, 1);
+                }
             }
             commitBarriers();
         }
@@ -1643,7 +1650,9 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     uint32_t queryIndex = (uint32_t)cmd.queryIndex;
-    m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
+    // Render-pass queries are reset by the pre-pass scan, before rendering begins.
+    if (!m_renderPassActive)
+        m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
     m_api.vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool->m_pool, queryIndex);
 }
 

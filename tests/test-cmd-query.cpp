@@ -209,6 +209,43 @@ GPU_TEST_CASE("cmd-query-zero-count-range", ALL)
     CHECK(queryPool->reset(1, 0) == SLANG_OK);
 }
 
+GPU_TEST_CASE("cmd-query-render-pass-timestamps", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    if (!device->hasFeature(Feature::TimestampQuery))
+        SKIP("Timestamp queries not supported");
+    auto pool = createTimestampQueryPool(device, 4);
+    TextureDesc textureDesc = {};
+    textureDesc.size = {8, 8, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::RenderTarget;
+    auto texture = device->createTexture(textureDesc);
+    REQUIRE(texture);
+    auto queue = device->getQueue(QueueType::Graphics);
+    for (uint32_t frame = 0; frame < 2; ++frame)
+    {
+        REQUIRE_CALL(pool->reset());
+        auto encoder = queue->createCommandEncoder();
+        for (uint32_t passIndex = 0; passIndex < 2; ++passIndex)
+        {
+            RenderPassColorAttachment color = {};
+            color.view = texture->getDefaultView();
+            RenderPassDesc desc = {};
+            desc.colorAttachments = &color;
+            desc.colorAttachmentCount = 1;
+            auto pass = encoder->beginRenderPass(desc);
+            pass->writeTimestamp(pool, passIndex * 2);
+            pass->writeTimestamp(pool, passIndex * 2 + 1);
+            pass->end();
+        }
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        uint64_t values[4] = {};
+        REQUIRE_CALL(pool->getResult(0, 4, values));
+        for (uint32_t i = 1; i < 4; ++i)
+            CHECK(values[i] >= values[i - 1]);
+    }
+}
+
 GPU_TEST_CASE("cmd-query-result-readiness", ALL)
 {
     if (!device->hasFeature(Feature::TimestampQuery))
