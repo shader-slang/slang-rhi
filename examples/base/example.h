@@ -931,113 +931,91 @@ inline void ExampleRunner::processEvents(ExampleBase& example, const std::vector
 inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath)
 {
     const char* name = getRHI()->getDeviceTypeName(deviceType);
-    std::unique_ptr<ExampleBase> example;
-    try
+    std::unique_ptr<ExampleBase> example(createExample());
+    example->m_runner = this;
+    example->m_shaderSearchPath = shaderSearchPath;
+    Result result = example->init(deviceType);
+    initialized = SLANG_SUCCEEDED(result);
+    if (SLANG_FAILED(result) && !stopping)
     {
-        example.reset(createExample());
-        example->m_runner = this;
-        example->m_shaderSearchPath = shaderSearchPath;
-        Result result = example->init(deviceType);
-        initialized = SLANG_SUCCEEDED(result);
-        if (SLANG_FAILED(result) && !stopping)
+        if (result == SLANG_E_NOT_AVAILABLE && !example->m_missingFeatures.empty())
         {
-            if (result == SLANG_E_NOT_AVAILABLE && !example->m_missingFeatures.empty())
+            std::string missing;
+            for (Feature feature : example->m_missingFeatures)
             {
-                std::string missing;
-                for (Feature feature : example->m_missingFeatures)
-                {
-                    if (!missing.empty())
-                        missing += ", ";
-                    missing += getRHI()->getFeatureName(feature);
-                }
-                LOG_INFO("%s: skipped (missing required features: %s).", name, missing.c_str());
+                if (!missing.empty())
+                    missing += ", ";
+                missing += getRHI()->getFeatureName(feature);
             }
-            else
-            {
-                LOG_ERROR("Could not initialize %s example (0x%08x).", name, unsigned(result));
-                exitCode = 1;
-            }
+            LOG_INFO("%s: skipped (missing required features: %s).", name, missing.c_str());
         }
-        while (initialized && !stopping)
+        else
         {
-            std::vector<Event> pending;
-            double time = 0;
+            LOG_ERROR("Could not initialize %s example (0x%08x).", name, unsigned(result));
+            exitCode = 1;
+        }
+    }
+    while (initialized && !stopping)
+    {
+        std::vector<Event> pending;
+        double time = 0;
+        {
+            std::unique_lock<std::mutex> lock(eventMutex);
+            if (syncFrames)
             {
-                std::unique_lock<std::mutex> lock(eventMutex);
-                if (syncFrames)
-                {
-                    // Acknowledge initialization/the previous frame, then wait for a common frame grant.
-                    frameReady = true;
-                    glfwPostEmptyEvent();
-                    eventReady.wait(
-                        lock,
-                        [&]()
-                        {
-                            return stopping || framePending;
-                        }
-                    );
-                    if (stopping)
-                        break;
-                    framePending = false;
-                    pending.swap(frameEvents);
-                    time = frameTime;
-                }
-                else
-                    pending.swap(events);
-            }
-            processEvents(*example, pending);
-            if (stopping)
-                break;
-            bool minimized = example->m_window && (example->m_minimized || example->m_framebufferWidth == 0 ||
-                                                   example->m_framebufferHeight == 0);
-            if (minimized && !syncFrames)
-            {
-                std::unique_lock<std::mutex> lock(eventMutex);
+                // Acknowledge initialization/the previous frame, then wait for a common frame grant.
+                frameReady = true;
+                glfwPostEmptyEvent();
                 eventReady.wait(
                     lock,
                     [&]()
                     {
-                        return stopping || !events.empty();
+                        return stopping || framePending;
                     }
                 );
-                continue;
+                if (stopping)
+                    break;
+                framePending = false;
+                pending.swap(frameEvents);
+                time = frameTime;
             }
-            // GLFW's timer may be read from any thread; every example uses the same time origin.
-            if (!syncFrames)
-                time = glfwGetTime();
-            result = example->update(time);
-            if (SLANG_SUCCEEDED(result) && !stopping && !minimized)
-                result = example->draw();
-            if (SLANG_FAILED(result))
-            {
-                LOG_ERROR("%s: example frame failed (0x%08x).", name, unsigned(result));
-                exitCode = 1;
-                break;
-            }
+            else
+                pending.swap(events);
         }
-    } catch (const std::exception& error)
-    {
-        LOG_ERROR("%s: example failed: %s", name, error.what());
-        exitCode = 1;
-    } catch (...)
-    {
-        LOG_ERROR("%s: example failed with an unknown exception.", name);
-        exitCode = 1;
+        processEvents(*example, pending);
+        if (stopping)
+            break;
+        bool minimized = example->m_window && (example->m_minimized || example->m_framebufferWidth == 0 ||
+                                               example->m_framebufferHeight == 0);
+        if (minimized && !syncFrames)
+        {
+            std::unique_lock<std::mutex> lock(eventMutex);
+            eventReady.wait(
+                lock,
+                [&]()
+                {
+                    return stopping || !events.empty();
+                }
+            );
+            continue;
+        }
+        // GLFW's timer may be read from any thread; every example uses the same time origin.
+        if (!syncFrames)
+            time = glfwGetTime();
+        result = example->update(time);
+        if (SLANG_SUCCEEDED(result) && !stopping && !minimized)
+            result = example->draw();
+        if (SLANG_FAILED(result))
+        {
+            LOG_ERROR("%s: example frame failed (0x%08x).", name, unsigned(result));
+            exitCode = 1;
+            break;
+        }
     }
     stop();
-    if (example)
-    {
-        try
-        {
-            example->shutdown();
-        } catch (...)
-        {
-            LOG_ERROR("%s: example shutdown failed.", name);
-            exitCode = 1;
-        }
-        // Destroy all GPU resources on their owning thread, then destroy the window via the main thread.
-        example.reset();
-    }
+    example->shutdown();
+    // Destroy all GPU resources on their owning thread, then destroy the window via the main thread.
+    example.reset();
     done = true;
     glfwPostEmptyEvent();
 }
@@ -1112,43 +1090,27 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
 #endif
     auto& examples = getExamples();
     int exitCode = 0;
-    try
+    // Finish building the main-thread registry before workers can request windows.
+    std::vector<DeviceType> supportedTypes;
+    for (DeviceType deviceType : deviceTypes)
     {
-        // Finish building the main-thread registry before workers can request windows.
-        std::vector<DeviceType> supportedTypes;
-        for (DeviceType deviceType : deviceTypes)
+        if (getRHI()->isDeviceTypeSupported(deviceType))
         {
-            if (getRHI()->isDeviceTypeSupported(deviceType))
-            {
-                // Prime backend/adapter discovery before concurrent device creation. Driver
-                // loaders may otherwise race during their first initialization (notably Vulkan).
-                getRHI()->getAdapter(deviceType, 0);
-                supportedTypes.push_back(deviceType);
-                examples.push_back(std::make_unique<ExampleRunner>());
-            }
-            else
-                LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
+            // Prime backend/adapter discovery before concurrent device creation. Driver
+            // loaders may otherwise race during their first initialization (notably Vulkan).
+            getRHI()->getAdapter(deviceType, 0);
+            supportedTypes.push_back(deviceType);
+            examples.push_back(std::make_unique<ExampleRunner>());
         }
-        for (size_t i = 0; i < examples.size(); ++i)
-        {
-            auto& example = *examples[i];
-            example.syncFrames = syncFrames;
-            example.done = false;
-            try
-            {
-                example.thread =
-                    std::thread(&ExampleRunner::run, &example, createExample, supportedTypes[i], shaderSearchPath);
-            } catch (...)
-            {
-                example.done = true;
-                throw;
-            }
-        }
-    } catch (const std::exception& error)
+        else
+            LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
+    }
+    for (size_t i = 0; i < examples.size(); ++i)
     {
-        LOG_ERROR("Could not start examples: %s", error.what());
-        exitCode = 1;
-        glfwWindowCloseCallback(nullptr);
+        auto& example = *examples[i];
+        example.syncFrames = syncFrames;
+        example.done = false;
+        example.thread = std::thread(&ExampleRunner::run, &example, createExample, supportedTypes[i], shaderSearchPath);
     }
 
     // Keep servicing window requests and native messages during initialization AND shutdown.
