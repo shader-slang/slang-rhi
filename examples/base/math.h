@@ -13,6 +13,24 @@
 // these types do not insert GPU-specific padding.
 namespace rhi::math {
 
+inline constexpr float kPI = 3.14159265358979323846f;
+
+constexpr float radians(float degrees)
+{
+    return degrees * kPI / 180.0f;
+}
+
+constexpr float degrees(float radians)
+{
+    return radians * 180.0f / kPI;
+}
+
+template<typename T>
+constexpr T divRoundUp(T x, T y)
+{
+    return (x + (y - 1)) / y;
+}
+
 template<size_t N>
 struct Vector;
 
