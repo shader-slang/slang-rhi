@@ -36,7 +36,6 @@
 
 namespace rhi {
 
-class ExampleOverlay;
 namespace detail {
 struct ExampleRunner;
 }
@@ -119,7 +118,7 @@ public:
 
     // Initializes the optional text overlay for the output format.
     // Scale multiplies the standard text size, independently of the window's pixel density.
-    // Does nothing on devices without rasterization support.
+    // Uses rasterization or a compute fallback, depending on the device and target.
     Result initOverlay(IDevice* device, Format format, float scale = 1.5f);
 
     // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
@@ -162,90 +161,8 @@ private:
     bool m_minimized = false;
     bool m_overlayVisible = true;
     float m_overlayScale = 1.5f;
-    std::string m_overlayText;
-    std::unique_ptr<ExampleOverlay> m_overlay;
+    std::unique_ptr<TextRenderer> m_textRenderer;
 };
-
-// Optional presentation of example-owned text. No window dependency.
-class ExampleOverlay
-{
-public:
-    // Initializes text rendering for the output format using the supplied text shader program.
-    Result init(IDevice* device, Format format, IShaderProgram* program)
-    {
-        return m_text.init(device, format, program);
-    }
-
-    // Draws a translucent panel with the supplied text, preserving the existing image.
-    // Pixel ratio converts window coordinates to framebuffer pixels; scale adjusts the text size.
-    Result render(
-        ICommandEncoder* encoder,
-        ITexture* image,
-        std::string_view content,
-        float pixelRatio = 1.0f,
-        float scale = 1.5f
-    )
-    {
-        if (content.empty())
-            return SLANG_OK;
-        if (!encoder || !image)
-            return SLANG_E_INVALID_ARG;
-        float margin = 12 * pixelRatio;
-        float fontScale = 1.5f * scale * pixelRatio;
-        const auto& size = image->getDesc().size;
-        size_t maxColumns =
-            size_t(std::max(1.0f, std::floor((float(size.width) - 4 * margin - 2 * fontScale) / (6 * fontScale))));
-        // Wrap at word boundaries rather than shrinking the requested text size.
-        std::string text;
-        std::string_view remaining(content);
-        while (!remaining.empty())
-        {
-            size_t newline = remaining.find('\n');
-            auto line = remaining.substr(0, newline);
-            while (line.size() > maxColumns)
-            {
-                size_t split = line.rfind(' ', maxColumns);
-                if (split == std::string_view::npos || split == 0)
-                    split = maxColumns;
-                text.append(line.substr(0, split));
-                text += '\n';
-                line.remove_prefix(split);
-                if (!line.empty() && line.front() == ' ')
-                    line.remove_prefix(1);
-            }
-            text.append(line);
-            if (newline == std::string_view::npos)
-                break;
-            text += '\n';
-            remaining.remove_prefix(newline + 1);
-        }
-        size_t columns = 0, current = 0, lines = 1;
-        for (char c : text)
-        {
-            if (c == '\n')
-            {
-                columns = std::max(columns, current);
-                current = 0;
-                ++lines;
-            }
-            else
-                ++current;
-        }
-        columns = std::max(columns, current);
-        m_text.clear();
-        SLANG_RETURN_ON_FAIL(m_text.addRect(
-            {margin, margin},
-            {float(columns * 6 + 2) * fontScale + 2 * margin, float(lines * 9 + 2) * fontScale + 2 * margin},
-            {0.003f, 0.006f, 0.012f, 0.85f}
-        ));
-        SLANG_RETURN_ON_FAIL(m_text.addText(text, {2 * margin, 2 * margin}, fontScale, {0.82f, 0.88f, 0.96f, 1}));
-        return m_text.render(encoder, image);
-    }
-
-private:
-    TextRenderer m_text;
-};
-
 
 namespace detail {
 inline void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
@@ -277,9 +194,9 @@ struct ExampleRunner
     bool iconified = false; // Main thread only.
     std::thread thread;
     bool syncFrames = true; // Set before starting the worker.
-    std::atomic<bool> stopping{false};
-    std::atomic<bool> done{true};
-    std::atomic<bool> frameReady{false};
+    std::atomic<bool> stopping = false;
+    std::atomic<bool> done = true;
+    std::atomic<bool> frameReady = false;
     // Read by the main thread only after joining.
     bool initialized = false;
     int exitCode = 0;
@@ -466,7 +383,7 @@ inline ExampleBase::ExampleBase() = default;
 
 inline ExampleBase::~ExampleBase()
 {
-    m_overlay.reset();
+    m_textRenderer.reset();
     destroyWindow();
 }
 
@@ -587,26 +504,21 @@ inline Result ExampleBase::createSurface(IDevice* device, Format format, ISurfac
 
 inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
 {
-    if (!device->hasFeature(Feature::Rasterization))
-        return SLANG_OK;
-    ComPtr<IShaderProgram> program;
-    SLANG_RETURN_ON_FAIL(
-        createProgram(device, "../base/text-renderer.slang", {"textVertex", "textFragment"}, program.writeRef())
-    );
-    m_overlay = std::make_unique<ExampleOverlay>();
-    SLANG_RETURN_ON_FAIL(m_overlay->init(device, format, program));
+    m_textRenderer = std::make_unique<TextRenderer>();
+    SLANG_RETURN_ON_FAIL(m_textRenderer->init(device, format));
     m_overlayScale = scale;
     return SLANG_OK;
 }
 
 inline void ExampleBase::clearOverlay()
 {
-    m_overlayText.clear();
+    if (m_textRenderer)
+        m_textRenderer->clear();
 }
 
 inline void ExampleBase::printOverlay(const char* format, ...)
 {
-    if (!format || !m_overlayVisible || !m_overlay)
+    if (!format || !m_overlayVisible || !m_textRenderer)
         return;
     va_list args;
     va_start(args, format);
@@ -624,17 +536,17 @@ inline void ExampleBase::printOverlay(const char* format, ...)
     va_end(args);
     if (written != size)
         return;
-    m_overlayText.append(text.data(), size_t(size));
+    m_textRenderer->append(std::string_view(text.data(), size_t(size)));
 }
 
 inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image)
 {
-    if (!m_overlayVisible || !m_overlay || m_overlayText.empty())
+    if (!m_overlayVisible || !m_textRenderer)
         return SLANG_OK;
     if (!encoder || !image)
         return SLANG_E_INVALID_ARG;
     float pixelRatio = float(image->getDesc().size.width) / std::max(m_windowWidth, 1);
-    return m_overlay->render(encoder, image, m_overlayText, pixelRatio, m_overlayScale);
+    return m_textRenderer->render(encoder, image, pixelRatio, m_overlayScale);
 }
 
 namespace detail {

@@ -1,12 +1,14 @@
 #pragma once
 
-#include "math.h"
+#include "utils.h"
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
 
 #include <array>
 #include <cstdint>
+#include <algorithm>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -115,31 +117,23 @@ inline std::array<uint8_t, kWidth * kHeight> createAtlas()
 
 namespace rhi {
 
-// Minimal ASCII bitmap text for example HUDs. Coordinates and scale are in
-// framebuffer pixels. Call clear(), addText(), then render() after tone mapping.
-// Colors are linear. Non-sRGB normalized targets are assumed to store sRGB-encoded
-// SDR output; floating-point targets retain linear values.
-// A batch uses one atlas, one buffer upload, and one alpha-blended draw.
+// A fixed-width text grid with a translucent background panel. Call clear(),
+// append(), then render() after tone mapping. Layout uses the target dimensions
+// and clips to the screen; pixelRatio and scale control the font size.
+// Raster and compute paths share the same glyph lookup and premultiplied colors.
 class TextRenderer
 {
 public:
-    static constexpr size_t kMaxGlyphs = 4096;
+    static constexpr uint32_t kMaxCells = 4096;
+    math::float4 textColor = {0.82f, 0.88f, 0.96f, 1};
+    math::float4 panelColor = {0.003f, 0.006f, 0.012f, 0.85f};
+    float margin = 12.f;
 
-    Result init(IDevice* device, Format outputFormat, IShaderProgram* program)
+    Result init(IDevice* device, Format outputFormat)
     {
+        m_device = device;
         m_outputFormat = outputFormat;
-        m_vertices.reserve(kMaxGlyphs * 6);
         auto pixels = bitmap_font::createAtlas();
-        // An opaque atlas texel also lets HUDs draw solid, alpha-blended panels.
-        for (size_t i = 0; i < pixels.size(); ++i)
-            if (pixels[i] == 255)
-            {
-                m_solidUv = {
-                    (float(i % bitmap_font::kWidth) + 0.5f) / bitmap_font::kWidth,
-                    (float(i / bitmap_font::kWidth) + 0.5f) / bitmap_font::kHeight
-                };
-                break;
-            }
         TextureDesc texture = {};
         texture.size = {bitmap_font::kWidth, bitmap_font::kHeight, 1};
         texture.format = Format::R8Unorm;
@@ -150,158 +144,211 @@ public:
         data.rowPitch = bitmap_font::kWidth;
         data.slicePitch = pixels.size();
         SLANG_RETURN_ON_FAIL(device->createTexture(texture, &data, m_atlas.writeRef()));
-        SamplerDesc sampler = {};
-        sampler.minFilter = sampler.magFilter = sampler.mipFilter = TextureFilteringMode::Point;
-        sampler.addressU = sampler.addressV = TextureAddressingMode::ClampToEdge;
-        SLANG_RETURN_ON_FAIL(device->createSampler(sampler, m_sampler.writeRef()));
-
         BufferDesc buffer = {};
-        buffer.size = kMaxGlyphs * 6 * sizeof(Vertex);
-        buffer.usage = BufferUsage::VertexBuffer | BufferUsage::CopyDestination;
-        buffer.label = "HUD text vertices";
-        SLANG_RETURN_ON_FAIL(device->createBuffer(buffer, nullptr, m_buffer.writeRef()));
-        VertexStreamDesc stream = {sizeof(Vertex), InputSlotClass::PerVertex, 0};
-        InputElementDesc elements[] = {
-            {"POSITION", 0, Format::RG32Float, offsetof(Vertex, position), 0},
-            {"TEXCOORD", 0, Format::RG32Float, offsetof(Vertex, uv), 0},
-            {"COLOR", 0, Format::RGBA32Float, offsetof(Vertex, color), 0},
-        };
-        InputLayoutDesc input = {};
-        input.vertexStreams = &stream;
-        input.vertexStreamCount = 1;
-        input.inputElements = elements;
-        input.inputElementCount = 3;
-        SLANG_RETURN_ON_FAIL(device->createInputLayout(input, m_inputLayout.writeRef()));
-        ColorTargetDesc color = {};
-        color.format = outputFormat;
-        color.enableBlend = true;
-        color.color.srcFactor = BlendFactor::SrcAlpha;
-        color.color.dstFactor = BlendFactor::InvSrcAlpha;
-        color.alpha.srcFactor = BlendFactor::One;
-        color.alpha.dstFactor = BlendFactor::InvSrcAlpha;
-        RenderPipelineDesc pipeline = {};
-        pipeline.program = program;
-        pipeline.inputLayout = m_inputLayout;
-        pipeline.targets = &color;
-        pipeline.targetCount = 1;
-        pipeline.depthStencil.depthWriteEnable = false;
-        return device->createRenderPipeline(pipeline, m_pipeline.writeRef());
+        buffer.size = kMaxCells * sizeof(uint32_t);
+        buffer.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+        buffer.label = "HUD character grid";
+        return device->createBuffer(buffer, nullptr, m_buffer.writeRef());
     }
 
-    void clear() { m_vertices.clear(); }
+    void clear() { m_text.clear(); }
 
-    // Call before addText() to place a translucent panel behind the labels.
-    Result addRect(math::float2 origin, math::float2 size, math::float4 color)
+    // Normalize once so wrapping and glyph lookup use the same character widths.
+    void append(std::string_view text)
     {
-        if (m_vertices.size() + 6 > kMaxGlyphs * 6)
-            return SLANG_E_OUT_OF_MEMORY;
-        for (math::float2 corner : {math::float2(0, 0), {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}})
-            m_vertices.push_back({origin + corner * size, m_solidUv, color});
-        return SLANG_OK;
-    }
-
-    // A failed capacity check leaves the existing batch unchanged. Newlines and
-    // spaces advance the pen without consuming glyph capacity. Tabs are 4 spaces.
-    Result addText(std::string_view text, math::float2 origin, float scale, math::float4 color = math::float4(1))
-    {
-        size_t glyphCount = 0;
-        for (unsigned char c : text)
-            glyphCount += c != ' ' && c != '\n' && c != '\r' && c != '\t';
-        if (glyphCount > kMaxGlyphs - m_vertices.size() / 6)
-            return SLANG_E_OUT_OF_MEMORY;
-        math::float2 pen = origin;
         for (unsigned char c : text)
         {
-            if (c == '\r')
-                continue;
-            if (c == '\n')
+            if (c == '\t')
+                m_text.append(4, ' ');
+            else if (c != '\r')
+                m_text += c == '\n' ? '\n' : char(bitmap_font::glyphCharacter(c));
+        }
+    }
+
+    Result render(ICommandEncoder* encoder, ITexture* target, float pixelRatio = 1.f, float scale = 1.5f)
+    {
+        if (m_text.empty())
+            return SLANG_OK;
+        if (!encoder || !target || !m_device || target->getDesc().format != m_outputFormat)
+            return SLANG_E_INVALID_ARG;
+        const auto& desc = target->getDesc();
+        uint32_t width = desc.size.width, height = desc.size.height;
+        float padding = margin * pixelRatio;
+        float fontScale = 1.5f * scale * pixelRatio;
+        if (!width || !height || !std::isfinite(padding) || padding < 0 || !std::isfinite(fontScale) || fontScale <= 0)
+            return SLANG_E_INVALID_ARG;
+        if (padding >= width || padding >= height)
+            return SLANG_OK;
+
+        // Bound the grid by both the screen and its fixed upload buffer. Only
+        // complete rows with bottom panel padding fit; long words wrap at the column limit.
+        uint32_t maxColumns =
+            uint32_t(std::clamp(std::floor((width - 4 * padding) / (6 * fontScale)), 1.f, float(kMaxCells)));
+        uint32_t maxRows = uint32_t(
+            std::clamp(std::floor((height - 3 * padding) / (9 * fontScale)), 0.f, float(kMaxCells / maxColumns))
+        );
+        if (!maxRows)
+            return SLANG_OK;
+        std::vector<std::string_view> lines;
+        std::string_view remaining(m_text);
+        uint32_t columns = 1;
+        while (lines.size() < maxRows)
+        {
+            size_t newline = remaining.find('\n');
+            auto line = remaining.substr(0, newline);
+            size_t count = line.size();
+            size_t skip = count + (newline != std::string_view::npos ? 1 : 0);
+            if (count > maxColumns)
             {
-                pen.x = origin.x;
-                pen.y += 9 * scale;
-                continue;
+                count = line.rfind(' ', maxColumns);
+                if (count == std::string_view::npos || count == 0)
+                    count = maxColumns;
+                skip = count + (line[count] == ' ' ? 1 : 0);
             }
-            if (c == ' ' || c == '\t')
-            {
-                pen.x += (c == '\t' ? 24 : 6) * scale;
-                continue;
-            }
-            uint32_t index = bitmap_font::glyphCharacter(c) - ' ';
-            math::float2 cell(float(index % 16) * 8, float(index / 16) * 8);
-            for (math::float2 corner : {math::float2(0, 0), {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}})
-            {
-                m_vertices.push_back(
-                    {pen + corner * (8 * scale),
-                     (cell + corner * 8) / math::float2(float(bitmap_font::kWidth), float(bitmap_font::kHeight)),
-                     color}
-                );
-            }
-            pen.x += 6 * scale;
+            lines.push_back(line.substr(0, count));
+            columns = std::max(columns, uint32_t(count));
+            if (skip == remaining.size() && newline == std::string_view::npos)
+                break;
+            remaining.remove_prefix(skip);
+        }
+        uint32_t rows = uint32_t(lines.size());
+        m_grid.assign(columns * rows, 0); // Atlas cell zero is a space.
+        for (uint32_t row = 0; row < rows; ++row)
+            for (uint32_t column = 0; column < lines[row].size(); ++column)
+                m_grid[row * columns + column] = uint32_t(lines[row][column] - ' ');
+
+        math::float2 panelOrigin(padding);
+        math::float2 textOrigin(2 * padding);
+        math::float2 panelEnd =
+            textOrigin + math::float2(columns * 6.f, rows * 9.f) * fontScale + math::float2(padding);
+        ScissorRect bounds = {
+            uint32_t(std::floor(padding)),
+            uint32_t(std::floor(padding)),
+            uint32_t(std::min(float(width), std::ceil(panelEnd.x))),
+            uint32_t(std::min(float(height), std::ceil(panelEnd.y))),
+        };
+        bool raster = m_device->hasFeature(Feature::Rasterization) && is_set(desc.usage, TextureUsage::RenderTarget);
+        if (!raster && !is_set(desc.usage, TextureUsage::UnorderedAccess))
+            return SLANG_E_NOT_AVAILABLE;
+        SLANG_RETURN_ON_FAIL(preparePipeline(raster));
+        // Upload and consumption share the command stream; no mapped writes or host waits.
+        SLANG_RETURN_ON_FAIL(encoder->uploadBufferData(m_buffer, 0, m_grid.size() * sizeof(uint32_t), m_grid.data()));
+
+        IRenderPassEncoder* renderPass = nullptr;
+        IComputePassEncoder* computePass = nullptr;
+        IShaderObject* root;
+        if (raster)
+        {
+            RenderPassColorAttachment color = {};
+            color.view = target->getDefaultView();
+            color.loadOp = LoadOp::Load;
+            RenderPassDesc pass = {};
+            pass.colorAttachments = &color;
+            pass.colorAttachmentCount = 1;
+            renderPass = encoder->beginRenderPass(pass);
+            root = renderPass->bindPipeline(m_renderPipeline);
+        }
+        else
+        {
+            computePass = encoder->beginComputePass();
+            root = computePass->bindPipeline(m_computePipeline);
+        }
+        ShaderCursor cursor(root);
+        const auto& format = getFormatInfo(m_outputFormat);
+        // Match raster blending: sRGB attachments blend in linear space; other
+        // normalized presentation images store encoded values and blend as stored.
+        uint32_t encodeSrgb = format.kind == FormatKind::Normalized && !format.isSrgb;
+        uint32_t gridSize[] = {columns, rows};
+        SLANG_RETURN_ON_FAIL(cursor["fontAtlas"].setBinding(m_atlas));
+        SLANG_RETURN_ON_FAIL(cursor["characters"].setBinding(m_buffer));
+        SLANG_RETURN_ON_FAIL(cursor["gridSize"].setData(gridSize));
+        SLANG_RETURN_ON_FAIL(cursor["panelOrigin"].setData(panelOrigin));
+        SLANG_RETURN_ON_FAIL(cursor["panelEnd"].setData(panelEnd));
+        SLANG_RETURN_ON_FAIL(cursor["textOrigin"].setData(textOrigin));
+        SLANG_RETURN_ON_FAIL(cursor["fontScale"].setData(fontScale));
+        SLANG_RETURN_ON_FAIL(cursor["textColor"].setData(textColor));
+        SLANG_RETURN_ON_FAIL(cursor["panelColor"].setData(panelColor));
+        SLANG_RETURN_ON_FAIL(cursor["encodeSrgb"].setData(encodeSrgb));
+        if (renderPass)
+        {
+            RenderState state = {};
+            state.viewports[0] = Viewport::fromSize(width, height);
+            state.viewportCount = 1;
+            state.scissorRects[0] = bounds;
+            state.scissorRectCount = 1;
+            renderPass->setRenderState(state);
+            DrawArguments draw = {};
+            draw.vertexCount = 3;
+            renderPass->draw(draw);
+            renderPass->end();
+        }
+        else
+        {
+            uint32_t origin[] = {bounds.minX, bounds.minY};
+            uint32_t extent[] = {bounds.maxX - bounds.minX, bounds.maxY - bounds.minY};
+            uint32_t targetSrgb = format.isSrgb;
+            SLANG_RETURN_ON_FAIL(cursor["target"].setBinding(target));
+            SLANG_RETURN_ON_FAIL(cursor["dispatchOrigin"].setData(origin));
+            SLANG_RETURN_ON_FAIL(cursor["dispatchExtent"].setData(extent));
+            SLANG_RETURN_ON_FAIL(cursor["targetSrgb"].setData(targetSrgb));
+            computePass->dispatchCompute(math::divRoundUp(extent[0], 8u), math::divRoundUp(extent[1], 8u), 1);
+            computePass->end();
         }
         return SLANG_OK;
     }
 
-    Result render(ICommandEncoder* encoder, ITexture* target)
+private:
+    Result preparePipeline(bool raster)
     {
-        if (!encoder || !target || !m_pipeline || target->getDesc().format != m_outputFormat)
-            return SLANG_E_INVALID_ARG;
-        if (m_vertices.empty())
-            return SLANG_OK;
-        uint32_t width = target->getDesc().size.width, height = target->getDesc().size.height;
-        if (!width || !height)
-            return SLANG_E_INVALID_ARG;
-        // Upload is recorded into the same queue as the draw, so successive
-        // frames safely reuse this buffer without a host wait or mapped writes.
-        SLANG_RETURN_ON_FAIL(
-            encoder->uploadBufferData(m_buffer, 0, m_vertices.size() * sizeof(Vertex), m_vertices.data())
-        );
-        RenderPassColorAttachment color = {};
-        color.view = target->getDefaultView();
-        color.loadOp = LoadOp::Load;
-        RenderPassDesc desc = {};
-        desc.colorAttachments = &color;
-        desc.colorAttachmentCount = 1;
-        auto pass = encoder->beginRenderPass(desc);
-        pass->pushDebugGroup("Text overlay", {});
-        ShaderCursor cursor(pass->bindPipeline(m_pipeline));
-        SLANG_RETURN_ON_FAIL(cursor["fontAtlas"].setBinding(m_atlas));
-        SLANG_RETURN_ON_FAIL(cursor["fontSampler"].setBinding(m_sampler));
-        math::float2 inverseSize(1.0f / width, 1.0f / height);
-        SLANG_RETURN_ON_FAIL(cursor["inverseTargetSize"].setData(inverseSize));
-        const auto& formatInfo = getFormatInfo(m_outputFormat);
-        uint32_t encodeSrgb = formatInfo.kind == FormatKind::Normalized && !formatInfo.isSrgb ? 1 : 0;
-        SLANG_RETURN_ON_FAIL(cursor["encodeSrgb"].setData(encodeSrgb));
-        RenderState state = {};
-        state.viewports[0] = Viewport::fromSize(width, height);
-        state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect::fromSize(width, height);
-        state.scissorRectCount = 1;
-        state.vertexBuffers[0] = {m_buffer, 0};
-        state.vertexBufferCount = 1;
-        pass->setRenderState(state);
-        DrawArguments draw = {};
-        draw.vertexCount = uint32_t(m_vertices.size());
-        pass->draw(draw);
-        pass->popDebugGroup();
-        pass->end();
+        if (raster && !m_renderPipeline)
+        {
+            ColorTargetDesc color = {};
+            color.format = m_outputFormat;
+            color.enableBlend = true;
+            color.color.srcFactor = color.alpha.srcFactor = BlendFactor::One;
+            color.color.dstFactor = color.alpha.dstFactor = BlendFactor::InvSrcAlpha;
+            RenderPipelineDesc desc = {};
+            desc.targets = &color;
+            desc.targetCount = 1;
+            desc.depthStencil.depthWriteEnable = false;
+            return createRenderPipeline(
+                m_device,
+                "../base/text-renderer.slang",
+                "textVertex",
+                "textFragment",
+                desc,
+                m_renderPipeline.writeRef()
+            );
+        }
+        if (!raster && !m_computePipeline)
+        {
+            const char* format = getFormatInfo(m_outputFormat).slangName;
+            if (m_outputFormat == Format::RGBA8UnormSrgb)
+                format = "rgba8"; // Storage accesses use the underlying unorm representation.
+            if (!format)
+                return SLANG_E_NOT_AVAILABLE;
+            std::string source = std::string("#define TEXT_TARGET_FORMAT \"") + format + "\"\n";
+            if (m_outputFormat == Format::RGBA8Unorm || m_outputFormat == Format::RGBA8UnormSrgb)
+                source += "#define TEXT_TARGET_RGBA8 1\n";
+            source += "#include \"../base/text-renderer.slang\"\n";
+            return createComputePipelineFromSource(
+                m_device,
+                source.c_str(),
+                "textCompute",
+                m_computePipeline.writeRef()
+            );
+        }
         return SLANG_OK;
     }
 
-private:
-    struct Vertex
-    {
-        math::float2 position;
-        math::float2 uv;
-        math::float4 color;
-    };
-
+    ComPtr<IDevice> m_device;
     Format m_outputFormat = Format::Undefined;
-    math::float2 m_solidUv = {};
-    std::vector<Vertex> m_vertices;
+    std::string m_text;
+    std::vector<uint32_t> m_grid;
     ComPtr<ITexture> m_atlas;
-    ComPtr<ISampler> m_sampler;
     ComPtr<IBuffer> m_buffer;
-    ComPtr<IInputLayout> m_inputLayout;
-    ComPtr<IRenderPipeline> m_pipeline;
+    ComPtr<IRenderPipeline> m_renderPipeline;
+    ComPtr<IComputePipeline> m_computePipeline;
 };
 
 } // namespace rhi

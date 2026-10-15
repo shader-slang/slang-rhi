@@ -3536,6 +3536,14 @@ struct DeviceDesc
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t requiredOptixVersion = 0;
 
+    /// Optional root directory containing versioned OptiX device headers, e.g. <root>/8_1/optix.h.
+    /// CUDA adds the directory matching the selected OptiX runtime to the default Slang session's
+    /// NVRTC include paths. Device creation fails with SLANG_E_INVALID_ARG if that optix.h is missing.
+    /// Null leaves include paths under caller control. Ignored by other backends or when OptiX is unavailable.
+    /// When set, caller-supplied compiler options must not add competing OptiX header directories.
+    /// The string only needs to remain valid until createDevice returns.
+    const char* optixDeviceHeaderRoot = nullptr;
+
     /// Enable validation for the Slang-RHI API.
     /// This does not enable downstream API debug layers (D3D12/Vulkan validation layers).
     bool enableValidation = false;

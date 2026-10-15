@@ -1210,6 +1210,8 @@ if(SLANG_RHI_BUILD_EXAMPLES)
                 PRIVATE
                 EXAMPLE_DIR="${EXAMPLE_DIR}"
                 SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+                SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+                SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
                 $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
                 $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
                 $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
@@ -1217,6 +1219,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
             target_link_libraries(${name} PRIVATE slang-rhi slang glfw Threads::Threads slang-rhi-warnings)
         endfunction()
 
+        add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
         add_example(example-surface examples/surface/example-surface.cpp)
         add_example(example-triangle examples/triangle/example-triangle.cpp)

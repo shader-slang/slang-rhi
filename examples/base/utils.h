@@ -1,8 +1,10 @@
 #pragma once
 
+#include "math.h"
+#include "../../src/enum-strings.h"
+
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
-#include "../../src/enum-strings.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -10,6 +12,8 @@
 #include <execution>
 #include <limits>
 #include <mutex>
+#include <random>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -56,29 +60,47 @@ inline void logMessage(DebugMessageType type, const char* format, ...)
     }                                                                                                                  \
     while (0)
 
+namespace rhi {
+
 // ---------------------------------------------------------------------------------------
-// Math
+// Random number generator
 // ---------------------------------------------------------------------------------------
 
-static constexpr float kPI = 3.14159265358979323846f;
-
-inline float radians(float degrees)
+// Seeded scene generation, identical across backend windows.
+struct RNG
 {
-    return degrees * kPI / 180.0f;
-}
+    std::mt19937 generator;
 
-inline float degrees(float radians)
-{
-    return radians * 180.0f / kPI;
-}
+    explicit RNG(uint32_t seed = 123456789)
+        : generator(seed)
+    {
+    }
+
+    uint32_t nextU32() { return generator(); }
+    float nextFloat() { return float(nextU32() >> 8) * 0x1p-24f; }
+    math::float3 nextFloat3()
+    {
+        // Sequence the draws explicitly; function argument evaluation order varies by compiler.
+        float x = nextFloat();
+        float y = nextFloat();
+        float z = nextFloat();
+        return {x, y, z};
+    }
+};
+
+// ---------------------------------------------------------------------------------------
+// Buffer upload helper
+// ---------------------------------------------------------------------------------------
 
 template<typename T>
-T divRoundUp(T x, T y)
+Result uploadBuffer(IDevice* device, std::span<const T> data, BufferUsage usage, const char* label, IBuffer** outBuffer)
 {
-    return (x + (y - 1)) / y;
+    BufferDesc desc = {};
+    desc.size = data.size_bytes();
+    desc.usage = usage;
+    desc.label = label;
+    return device->createBuffer(desc, data.data(), outBuffer);
 }
-
-namespace rhi {
 
 // ---------------------------------------------------------------------------------------
 // Debug printer
@@ -136,6 +158,31 @@ inline Result createDevice(
     deviceDesc.slang.searchPaths = searchPaths;
     deviceDesc.slang.searchPathCount = SLANG_COUNT_OF(searchPaths);
 
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+
+#if SLANG_RHI_ENABLE_NVAPI
+    // Setup NVAPI shader extension
+    if (deviceType == DeviceType::D3D12)
+    {
+        deviceDesc.nvapiExtUavSlot = 999;
+        preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
+        slang::CompilerOptionEntry nvapiSearchPath = {};
+        nvapiSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
+        nvapiSearchPath.value.kind = slang::CompilerOptionValueKind::String;
+        nvapiSearchPath.value.stringValue0 = "dxc";
+        nvapiSearchPath.value.stringValue1 = "-I" SLANG_RHI_NVAPI_INCLUDE_DIR;
+        compilerOptions.push_back(nvapiSearchPath);
+    }
+#endif
+
+#if SLANG_RHI_ENABLE_OPTIX
+    // Let the CUDA backend select headers matching the initialized OptiX runtime.
+    if (deviceType == DeviceType::CUDA)
+    {
+        deviceDesc.optixDeviceHeaderRoot = SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR;
+    }
+#endif
+
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacrosDescs;
     for (const auto& macro : preprocessorMacros)
     {
@@ -147,6 +194,9 @@ inline Result createDevice(
 
     deviceDesc.slang.preprocessorMacros = preprocessorMacrosDescs.data();
     deviceDesc.slang.preprocessorMacroCount = preprocessorMacrosDescs.size();
+
+    deviceDesc.slang.compilerOptionEntries = compilerOptions.data();
+    deviceDesc.slang.compilerOptionEntryCount = (uint32_t)compilerOptions.size();
 
     // Check example requirements after creation so an unsupported example is
     // reported once, rather than as a separate device error for each feature.
@@ -526,77 +576,3 @@ private:
 };
 
 } // namespace rhi
-
-// ---------------------------------------------------------------------------------------
-// Threading
-// ---------------------------------------------------------------------------------------
-
-// TODO: Not available on macOS
-#if 0
-template<typename T>
-struct ioterable
-{
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = T;
-    using difference_type = T;
-    using pointer = std::add_pointer_t<T>;
-    using reference = T;
-
-    explicit ioterable(T n)
-        : val_(n)
-    {
-    }
-
-    ioterable() = default;
-    ioterable(ioterable&&) = default;
-    ioterable(const ioterable&) = default;
-    ioterable& operator=(ioterable&&) = default;
-    ioterable& operator=(const ioterable&) = default;
-
-    ioterable& operator++()
-    {
-        ++val_;
-        return *this;
-    }
-    ioterable operator++(int)
-    {
-        ioterable tmp(*this);
-        ++val_;
-        return tmp;
-    }
-    bool operator==(const ioterable& other) const { return val_ == other.val_; }
-    bool operator!=(const ioterable& other) const { return val_ != other.val_; }
-
-    value_type operator*() const { return val_; }
-
-private:
-    T val_{std::numeric_limits<T>::max()};
-};
-
-template<typename T, typename Func>
-void parallelFor(T begin, T end, Func&& func)
-{
-    std::for_each(
-        std::execution::par,
-        ioterable(begin),
-        ioterable(end),
-        [&](T i)
-        {
-            func(i);
-        }
-    );
-}
-
-template<typename T, typename Func>
-void parallelForEach(std::vector<T>& vec, Func&& func)
-{
-    parallelFor(
-        size_t(0),
-        vec.size(),
-        [&](size_t i)
-        {
-            func(vec[i]);
-        }
-    );
-}
-#endif
