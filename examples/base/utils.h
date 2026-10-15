@@ -176,17 +176,10 @@ inline Result createDevice(
 #endif
 
 #if SLANG_RHI_ENABLE_OPTIX
-    // Setup OptiX headers
+    // Let the CUDA backend select headers matching the initialized OptiX runtime.
     if (deviceType == DeviceType::CUDA)
     {
-        slang::CompilerOptionEntry optixSearchPath;
-        optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
-        optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
-        optixSearchPath.value.stringValue0 = "nvrtc";
-        optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR
-                                             "/"
-                                             "9_0";
-        compilerOptions.push_back(optixSearchPath);
+        deviceDesc.optixDeviceHeaderRoot = SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR;
     }
 #endif
 

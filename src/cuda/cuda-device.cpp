@@ -17,6 +17,8 @@
 
 #include "core/platform.h"
 
+#include <filesystem>
+
 namespace rhi::cuda {
 
 struct ComputeCapabilityInfo
@@ -319,13 +321,39 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
 
+    // Configure headers only after the OptiX runtime (including fallback) has been selected.
+    std::string optixIncludeArg;
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+    if (desc.optixDeviceHeaderRoot && m_info.optixVersion != 0)
+    {
+        uint32_t version = m_info.optixVersion;
+        std::string tag = std::to_string(version / 10000) + "_" + std::to_string((version % 10000) / 100);
+        auto path = std::filesystem::path(desc.optixDeviceHeaderRoot) / tag;
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(path / "optix.h", error))
+        {
+            printError("OptiX %u device header not found: %s", version, (path / "optix.h").string().c_str());
+            return SLANG_E_INVALID_ARG;
+        }
+
+        // DownstreamArgs separates arguments with newlines, so spaces need no shell quoting.
+        optixIncludeArg = "-I" + path.string();
+        slang::CompilerOptionEntry option = {};
+        option.name = slang::CompilerOptionName::DownstreamArgs;
+        option.value.kind = slang::CompilerOptionValueKind::String;
+        option.value.stringValue0 = "nvrtc";
+        option.value.stringValue1 = optixIncludeArg.c_str();
+        compilerOptions.push_back(option);
+    }
+
     // Initialize slang context
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_PTX,
         nullptr,
         getCapabilities(),
-        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}}
+        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}},
+        compilerOptions
     ));
 
     // Initialize format support table
