@@ -180,13 +180,15 @@ public:
         if (padding >= width || padding >= height)
             return SLANG_OK;
 
-        // Bound the grid by both the screen and its fixed upload buffer. Rows
-        // below the screen are omitted; long words wrap at the column limit.
+        // Bound the grid by both the screen and its fixed upload buffer. Only
+        // complete rows with bottom panel padding fit; long words wrap at the column limit.
         uint32_t maxColumns =
             uint32_t(std::clamp(std::floor((width - 4 * padding) / (6 * fontScale)), 1.f, float(kMaxCells)));
         uint32_t maxRows = uint32_t(
-            std::clamp(std::ceil((height - 2 * padding) / (9 * fontScale)), 1.f, float(kMaxCells / maxColumns))
+            std::clamp(std::floor((height - 3 * padding) / (9 * fontScale)), 0.f, float(kMaxCells / maxColumns))
         );
+        if (!maxRows)
+            return SLANG_OK;
         std::vector<std::string_view> lines;
         std::string_view remaining(m_text);
         uint32_t columns = 1;
