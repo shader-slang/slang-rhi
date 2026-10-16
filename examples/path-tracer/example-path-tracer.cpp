@@ -432,7 +432,7 @@ public:
             m_missingFeatures = {Feature::RayTracing, Feature::RayQuery};
             return SLANG_E_NOT_AVAILABLE;
         }
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Path tracer", 960, 640));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Path tracer"));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -530,9 +530,9 @@ public:
         SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_outputTexture, commandEncoder));
 
         clearOverlay();
+        printOverlayHeader();
         printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
-        printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n");
-        printOverlay("F1: Overlay | F2: Fit windows | Esc: Close\n\n");
+        printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n\n");
         printOverlay(
             "%s%s | Bounces: %u | Accumulation: %s\n",
             m_pathTracer.modeName(),
@@ -554,7 +554,7 @@ public:
         m_frame += 1;
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
     virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
@@ -569,7 +569,7 @@ public:
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surfaceResult = m_surface->configure(surfaceConfig);
+            m_surfaceResult = configureSurface(m_surface, surfaceConfig);
         }
         else
         {

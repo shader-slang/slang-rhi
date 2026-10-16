@@ -101,7 +101,7 @@ public:
     // Window management
 
     // Creates a window with the specified title and size.
-    // Automatically appends device and adapter information to the title.
+    // Automatically appends device, adapter, FPS, and VSync information to the title.
     Result createWindow(IDevice* device, const char* title, uint32_t width = 640, uint32_t height = 360);
     // Destroys the window.
     void destroyWindow();
@@ -113,6 +113,19 @@ public:
     // Creates a surface for the window with the specified format.
     // Use Format::Undefined to use the preferred format.
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
+    // Configures a surface using the shared VSync preference, including after resizing.
+    Result configureSurface(ISurface* surface, SurfaceConfig config);
+    // Presents the window surface and records application frame timing.
+    Result presentSurface();
+    // Applied by the runner between frames; input callbacks run on the owning worker.
+    void toggleVsync()
+    {
+        m_vsync = !m_vsync;
+        m_vsyncChanged = true;
+    }
+
+    // Returns the current frame statistics.
+    const FrameStats& getFrameStats() const { return m_frameStats; }
 
     // Overlay utility
 
@@ -123,6 +136,10 @@ public:
 
     // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
     void clearOverlay();
+
+    // Prints the common shortcuts as the first overlay line. Call after clearOverlay(),
+    // before appending example-specific controls and information.
+    void printOverlayHeader();
 
     // Appends printf-formatted text; include explicit newlines between lines or blocks.
     // Does nothing when hidden or uninitialized. Failed formatting is skipped without changing accumulated text.
@@ -152,7 +169,15 @@ public:
     bool m_mouseDown[3] = {false, false, false};
 
 private:
-    friend struct detail::ExampleRunner;
+    Result updateWindowTitle();
+    Result applyVsync();
+
+    std::string m_windowTitle;
+    FrameStats m_frameStats;
+    bool m_vsync = true;
+    bool m_vsyncChanged = false;
+    ComPtr<ISurface> m_presentationSurface;
+    ComPtr<ICommandQueue> m_presentationQueue;
     detail::ExampleRunner* m_runner = nullptr;
     int m_windowWidth = 0;
     int m_windowHeight = 0;
@@ -162,6 +187,8 @@ private:
     bool m_overlayVisible = true;
     float m_overlayScale = 1.5f;
     std::unique_ptr<TextRenderer> m_textRenderer;
+
+    friend struct detail::ExampleRunner;
 };
 
 namespace detail {
@@ -245,6 +272,7 @@ struct ExampleRunner
                  example.m_windowHeight = height;
                  example.m_framebufferWidth = framebufferWidth;
                  example.m_framebufferHeight = framebufferHeight;
+                 example.m_frameStats.reset();
                  example.onResize(width, height, framebufferWidth, framebufferHeight);
              }}
         );
@@ -258,6 +286,7 @@ struct ExampleRunner
              [value](ExampleBase& example)
              {
                  example.m_minimized = value;
+                 example.m_frameStats.reset();
              }}
         );
     }
@@ -384,6 +413,8 @@ inline ExampleBase::ExampleBase() = default;
 inline ExampleBase::~ExampleBase()
 {
     m_textRenderer.reset();
+    m_presentationSurface.setNull();
+    m_presentationQueue.setNull();
     destroyWindow();
 }
 
@@ -420,38 +451,58 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
         getRHI()->getDeviceTypeName(deviceInfo.deviceType),
         deviceInfo.adapterName
     );
+    m_windowTitle = fullTitle;
 
+    SLANG_RETURN_ON_FAIL(
+        detail::runOnMainThread(
+            [&]() -> Result
+            {
+                if (m_runner->stopping)
+                    return SLANG_FAIL;
+                glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+                m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
+                if (!m_window)
+                    return SLANG_FAIL;
+                m_runner->window = m_window;
+                glfwSetWindowUserPointer(m_window, m_runner);
+                glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
+                glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
+                glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
+                glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
+                glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
+                glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
+                glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
+                glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
+                glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
+                glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
+                glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
+                glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+                if (detail::mainExample)
+                {
+                    int w, h;
+                    glfwGetWindowSize(detail::mainExample->window, &w, &h);
+                    glfwSetWindowSize(m_window, w, h);
+                }
+                detail::updateMainExample();
+                detail::layoutWindows();
+                return SLANG_OK;
+            }
+        )
+    );
+    return updateWindowTitle();
+}
+
+inline Result ExampleBase::updateWindowTitle()
+{
+    char status[128];
+    snprintf(status, sizeof(status), " | %.1f FPS | VSync: %s", m_frameStats.fps(), m_vsync ? "On" : "Off");
+    std::string title = m_windowTitle + status;
     return detail::runOnMainThread(
         [&]() -> Result
         {
-            if (m_runner->stopping)
-                return SLANG_FAIL;
-            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-            m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
             if (!m_window)
-                return SLANG_FAIL;
-            m_runner->window = m_window;
-            glfwSetWindowUserPointer(m_window, m_runner);
-            glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
-            glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
-            glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
-            glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
-            glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
-            glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
-            glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
-            glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
-            glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
-            glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
-            glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
-            glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
-            if (detail::mainExample)
-            {
-                int w, h;
-                glfwGetWindowSize(detail::mainExample->window, &w, &h);
-                glfwSetWindowSize(m_window, w, h);
-            }
-            detail::updateMainExample();
-            detail::layoutWindows();
+                return SLANG_E_INVALID_HANDLE;
+            glfwSetWindowTitle(m_window, title.c_str());
             return SLANG_OK;
         }
     );
@@ -484,22 +535,60 @@ inline bool ExampleBase::shouldClose() const
 inline Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
 {
     ASSERT(m_window, "Window must be created before creating surface");
+    SLANG_RETURN_ON_FAIL(device->getQueue(QueueType::Graphics, m_presentationQueue.writeRef()));
     // Native surface creation may modify the Cocoa view. Transfer exclusive device access
     // to the main thread for this operation; subsequent rendering stays on the worker.
-    return detail::runOnMainThread(
-        [&]() -> Result
-        {
-            SLANG_RHI_DEVICE_SCOPE(device);
-            glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
-            glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
-            SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
-            SurfaceConfig surfaceConfig;
-            surfaceConfig.width = m_framebufferWidth;
-            surfaceConfig.height = m_framebufferHeight;
-            surfaceConfig.format = format;
-            return (*outSurface)->configure(surfaceConfig);
-        }
+    SLANG_RETURN_ON_FAIL(
+        detail::runOnMainThread(
+            [&]() -> Result
+            {
+                SLANG_RHI_DEVICE_SCOPE(device);
+                glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
+                glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+                SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
+                SurfaceConfig surfaceConfig;
+                surfaceConfig.width = m_framebufferWidth;
+                surfaceConfig.height = m_framebufferHeight;
+                surfaceConfig.format = format;
+                return configureSurface(*outSurface, surfaceConfig);
+            }
+        )
     );
+    m_presentationSurface = *outSurface;
+    return SLANG_OK;
+}
+
+inline Result ExampleBase::configureSurface(ISurface* surface, SurfaceConfig config)
+{
+    config.vsync = m_vsync;
+    return surface->configure(config);
+}
+
+inline Result ExampleBase::applyVsync()
+{
+    if (!m_vsyncChanged)
+        return SLANG_OK;
+    if (m_presentationSurface && m_presentationSurface->getConfig())
+    {
+        SurfaceConfig config = *m_presentationSurface->getConfig();
+        if (config.vsync != m_vsync)
+        {
+            SLANG_RETURN_ON_FAIL(m_presentationQueue->waitOnHost());
+            SLANG_RETURN_ON_FAIL(configureSurface(m_presentationSurface, config));
+        }
+    }
+    // An unconfigured (minimized) surface picks up the preference on restore.
+    m_vsyncChanged = false;
+    m_frameStats.reset();
+    return updateWindowTitle();
+}
+
+inline Result ExampleBase::presentSurface()
+{
+    SLANG_RETURN_ON_FAIL(m_presentationSurface->present());
+    if (m_frameStats.update(glfwGetTime()))
+        return updateWindowTitle();
+    return SLANG_OK;
 }
 
 inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
@@ -514,6 +603,11 @@ inline void ExampleBase::clearOverlay()
 {
     if (m_textRenderer)
         m_textRenderer->clear();
+}
+
+inline void ExampleBase::printOverlayHeader()
+{
+    printOverlay("F1: Show/hide overlay | F2: Fit windows | F3: VSync | Esc: Close\n");
 }
 
 inline void ExampleBase::printOverlay(const char* format, ...)
@@ -824,6 +918,11 @@ inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
                  if (action == GLFW_PRESS)
                      example.toggleOverlay();
              }
+             else if (key == GLFW_KEY_F3)
+             {
+                 if (action == GLFW_PRESS)
+                     example.toggleVsync();
+             }
              else
                  example.onKey(key, scancode, action, mods);
          }}
@@ -897,6 +996,13 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
         processEvents(*example, pending);
         if (stopping)
             break;
+        result = example->applyVsync();
+        if (SLANG_FAILED(result))
+        {
+            LOG_ERROR("%s: could not apply VSync (0x%08x).", name, unsigned(result));
+            exitCode = 1;
+            break;
+        }
         bool minimized = example->m_window && (example->m_minimized || example->m_framebufferWidth == 0 ||
                                                example->m_framebufferHeight == 0);
         if (minimized && !syncFrames)
