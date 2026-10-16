@@ -64,7 +64,7 @@ public:
     // Event callbacks
 
     // Called when the window is resized.
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) {}
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) { return SLANG_OK; }
     // Called when the mouse is moved.
     virtual void onMousePosition(float x, float y) {}
     // Called when a mouse button is pressed or released.
@@ -141,6 +141,9 @@ public:
     // before appending example-specific controls and information.
     void printOverlayHeader();
 
+    // Prints the shared CameraController shortcuts.
+    void printCameraControls();
+
     // Appends printf-formatted text; include explicit newlines between lines or blocks.
     // Does nothing when hidden or uninitialized. Failed formatting is skipped without changing accumulated text.
 #if defined(__GNUC__) || defined(__clang__)
@@ -214,7 +217,7 @@ struct ExampleRunner
             MousePosition,
             Input
         } type;
-        std::function<void(ExampleBase&)> dispatch;
+        std::function<Result(ExampleBase&)> dispatch;
     };
 
     GLFWwindow* window = nullptr;
@@ -273,7 +276,7 @@ struct ExampleRunner
                  example.m_framebufferWidth = framebufferWidth;
                  example.m_framebufferHeight = framebufferHeight;
                  example.m_frameStats.reset();
-                 example.onResize(width, height, framebufferWidth, framebufferHeight);
+                 return example.onResize(width, height, framebufferWidth, framebufferHeight);
              }}
         );
     }
@@ -287,6 +290,7 @@ struct ExampleRunner
              {
                  example.m_minimized = value;
                  example.m_frameStats.reset();
+                 return SLANG_OK;
              }}
         );
     }
@@ -302,7 +306,7 @@ struct ExampleRunner
     }
 
     void run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath);
-    void processEvents(ExampleBase& example, const std::vector<Event>& pending);
+    Result processEvents(ExampleBase& example, const std::vector<Event>& pending);
 };
 
 inline std::vector<std::unique_ptr<ExampleRunner>>& getExamples()
@@ -610,6 +614,11 @@ inline void ExampleBase::printOverlayHeader()
     printOverlay("F1: Show/hide overlay | F2: Fit windows | F3: VSync | Esc: Close\n");
 }
 
+inline void ExampleBase::printCameraControls()
+{
+    printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
+}
+
 inline void ExampleBase::printOverlay(const char* format, ...)
 {
     if (!format || !m_overlayVisible || !m_textRenderer)
@@ -868,6 +877,7 @@ inline void glfwCursorPosCallback(GLFWwindow*, double x, double y)
              example.m_mousePos[0] = float(x);
              example.m_mousePos[1] = float(y);
              example.onMousePosition(float(x), float(y));
+             return SLANG_OK;
          }}
     );
 }
@@ -881,6 +891,7 @@ inline void glfwMouseButtonCallback(GLFWwindow*, int button, int action, int mod
              if (button >= 0 && button < SLANG_COUNT_OF(example.m_mouseDown))
                  example.m_mouseDown[button] = action == GLFW_PRESS;
              example.onMouseButton(button, action, mods);
+             return SLANG_OK;
          }}
     );
 }
@@ -892,6 +903,7 @@ inline void glfwScrollCallback(GLFWwindow*, double x, double y)
          [=](ExampleBase& example)
          {
              example.onScroll(float(x), float(y));
+             return SLANG_OK;
          }}
     );
 }
@@ -925,18 +937,20 @@ inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
              }
              else
                  example.onKey(key, scancode, action, mods);
+             return SLANG_OK;
          }}
     );
 }
 
-inline void ExampleRunner::processEvents(ExampleBase& example, const std::vector<Event>& pending)
+inline Result ExampleRunner::processEvents(ExampleBase& example, const std::vector<Event>& pending)
 {
     for (const Event& event : pending)
     {
         if (stopping)
             break;
-        event.dispatch(example);
+        SLANG_RETURN_ON_FAIL(event.dispatch(example));
     }
+    return SLANG_OK;
 }
 
 inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath)
@@ -993,7 +1007,13 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
             else
                 pending.swap(events);
         }
-        processEvents(*example, pending);
+        result = processEvents(*example, pending);
+        if (SLANG_FAILED(result))
+        {
+            LOG_ERROR("%s: example event failed (0x%08x).", name, unsigned(result));
+            exitCode = 1;
+            break;
+        }
         if (stopping)
             break;
         result = example->applyVsync();
