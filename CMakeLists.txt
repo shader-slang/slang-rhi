@@ -1128,6 +1128,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
         tests/test-root-shader-parameter.cpp
+        tests/test-resource-thread-safety.cpp
         tests/test-sampler-array.cpp
         tests/test-sampler.cpp
         tests/test-sha1.cpp

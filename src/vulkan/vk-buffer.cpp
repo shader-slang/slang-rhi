@@ -172,9 +172,9 @@ BufferImpl::~BufferImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        ::CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.get().value);
 #else
-        ::close((int)m_sharedHandle.value);
+        ::close((int)m_sharedHandle.get().value);
 #endif
     }
 }
@@ -193,14 +193,15 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
-    if (m_sharedHandle)
+    if (m_sharedHandle.tryGet(outHandle))
     {
-        *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
     const auto& api = device->m_api;
+
+    std::lock_guard<std::mutex> lock(device->m_bufferHandleMutex);
 
     // If a shared handle doesn't exist, create one and store it.
     if (!m_sharedHandle)
@@ -218,7 +219,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         }
         HANDLE handle = NULL;
         SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle), device);
-        m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
+        m_sharedHandle.publish(NativeHandleType::Win32, (uint64_t)handle);
 #else
         VkMemoryGetFdInfoKHR info = {};
         info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -232,19 +233,20 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         }
         int handle = 0;
         SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryFdKHR(api.m_device, &info, &handle), device);
-        m_sharedHandle = NativeHandle{NativeHandleType::FileDescriptor, (uint64_t)handle};
+        m_sharedHandle.publish(NativeHandleType::FileDescriptor, (uint64_t)handle);
 #endif
     }
 
-    *outHandle = m_sharedHandle;
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 }
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    if (m_deviceAddress != 0)
+    DeviceAddress address = m_deviceAddress.load(std::memory_order_acquire);
+    if (address != 0)
     {
-        return m_deviceAddress;
+        return address;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
@@ -255,15 +257,19 @@ DeviceAddress BufferImpl::getDeviceAddress()
         return 0;
     }
 
-    if (!m_deviceAddress)
+    std::lock_guard<std::mutex> lock(device->m_bufferHandleMutex);
+
+    address = m_deviceAddress.load(std::memory_order_acquire);
+    if (!address)
     {
         VkBufferDeviceAddressInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
         info.buffer = m_buffer.m_buffer;
-        m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+        address = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+        m_deviceAddress.store(address, std::memory_order_release);
     }
 
-    return m_deviceAddress;
+    return address;
 }
 
 Result BufferImpl::getDescriptorHandle(
@@ -281,6 +287,8 @@ Result BufferImpl::getDescriptorHandle(
     }
 
     range = resolveBufferRange(range);
+
+    std::lock_guard<std::mutex> lock(device->m_bufferDescriptorMutex);
 
     DescriptorHandleKey key = {access, format, range};
     DescriptorHandle& handle = m_descriptorHandles[key];
@@ -301,6 +309,10 @@ Result BufferImpl::getDescriptorHandle(
 
 VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
+
     ViewKey key = {format, range};
     VkBufferView& view = m_views[key];
     if (view)

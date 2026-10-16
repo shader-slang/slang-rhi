@@ -16,7 +16,7 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 
     if (m_descriptorHandle)
     {
-        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle.get());
     }
 
     device->m_api.vkDestroyAccelerationStructureKHR(device->m_device, m_vkHandle, nullptr);
@@ -47,9 +47,10 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
 {
-    if (m_deviceAddress)
+    DeviceAddress address = m_deviceAddress.load(std::memory_order_acquire);
+    if (address)
     {
-        return m_deviceAddress;
+        return address;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
@@ -59,23 +60,25 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
         return 0;
     }
 
-    if (!m_deviceAddress)
+    std::lock_guard<std::mutex> lock(device->m_accelerationStructureHandleMutex);
+
+    address = m_deviceAddress.load(std::memory_order_acquire);
+    if (!address)
     {
         VkAccelerationStructureDeviceAddressInfoKHR info = {};
         info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
         info.accelerationStructure = m_vkHandle;
-        m_deviceAddress =
-            (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+        address = (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+        m_deviceAddress.store(address, std::memory_order_release);
     }
 
-    return m_deviceAddress;
+    return address;
 }
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    if (m_descriptorHandle)
+    if (m_descriptorHandle.tryGet(outHandle))
     {
-        *outHandle = m_descriptorHandle;
         return SLANG_OK;
     }
 
@@ -86,14 +89,16 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
         return SLANG_E_NOT_AVAILABLE;
     }
 
+    std::lock_guard<std::mutex> lock(device->m_accelerationStructureHandleMutex);
+
     if (!m_descriptorHandle)
     {
-        SLANG_RETURN_ON_FAIL(
-            device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
-        );
+        DescriptorHandle tmp;
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &tmp));
+        m_descriptorHandle.publish(tmp);
     }
 
-    *outHandle = m_descriptorHandle;
+    *outHandle = m_descriptorHandle.get();
     return SLANG_OK;
 }
 

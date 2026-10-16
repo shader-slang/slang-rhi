@@ -114,6 +114,11 @@ public:
     ComPtr<ID3D11DeviceContext> m_immediateContext;
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
 
+    // Shared across resources to bound lock storage. Lookups and creation within
+    // each domain serialize, even for different resources. No nesting between these locks.
+    std::mutex m_bufferViewMutex;  // Buffer SRV/UAV maps.
+    std::mutex m_textureViewMutex; // Texture SRV/UAV/RTV/DSV maps.
+
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;
 #endif

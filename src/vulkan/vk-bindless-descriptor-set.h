@@ -29,6 +29,10 @@ public:
     DeviceImpl* m_device;
     BindlessDesc m_desc;
 
+    // Protects all slot allocators and descriptor writes. Resource views must be
+    // resolved before acquiring this lock; never acquire resource cache locks here.
+    std::mutex m_mutex;
+
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
