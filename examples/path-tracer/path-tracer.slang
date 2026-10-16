@@ -78,7 +78,7 @@ struct MeshDesc
     uint indexOffset;
 };
 
-// A compact payload shared by ray pipelines and ray queries.
+// A compact hit record shared by ray pipelines and ray queries.
 struct HitInfo
 {
     float2 bary;
@@ -86,6 +86,12 @@ struct HitInfo
     uint primitiveIndex;
 
     bool valid() { return instanceID != 0xffffffff; }
+};
+
+[raypayload]
+struct RayPayload
+{
+    HitInfo hit : read(caller) : write(caller, closesthit, miss);
 };
 
 struct Surface
@@ -157,9 +163,9 @@ struct RayPipelineTracer : ITracer
 {
     HitInfo intersect(RayDesc ray)
     {
-        HitInfo hit = {float2(0), 0xffffffff, 0};
-        TraceRay(g_scene.tlas, RAY_FLAG_FORCE_OPAQUE, 0xff, 0, 0, 0, ray, hit);
-        return hit;
+        RayPayload payload = {{float2(0), 0xffffffff, 0}};
+        TraceRay(g_scene.tlas, RAY_FLAG_FORCE_OPAQUE, 0xff, 0, 0, 0, ray, payload);
+        return payload.hit;
     }
 };
 
@@ -183,15 +189,15 @@ struct RayQueryTracer : ITracer
 };
 
 [shader("miss")]
-void mainMiss(inout HitInfo hit)
+void mainMiss(inout RayPayload payload)
 {
-    hit.instanceID = 0xffffffff;
+    payload.hit = {float2(0), 0xffffffff, 0};
 }
 
 [shader("closesthit")]
-void mainClosestHit(inout HitInfo hit, BuiltInTriangleIntersectionAttributes attributes)
+void mainClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes attributes)
 {
-    hit = {attributes.barycentrics, InstanceID(), PrimitiveIndex()};
+    payload.hit = {attributes.barycentrics, InstanceID(), PrimitiveIndex()};
 }
 
 float3 tracePath<T : ITracer>(T tracer, RayDesc ray, inout RNG rng, uint maxBounces)
