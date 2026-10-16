@@ -457,7 +457,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
     // Setup color attachments.
-    renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
+    // Note: renderTargetArrayLength is the number of layers for layered rendering, not the number of
+    // attachments. Leave it at its default (0, not layered).
     for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
