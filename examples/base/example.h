@@ -2,6 +2,7 @@
 
 #include "utils.h"
 #include "text-renderer.h"
+#include "gpu-profiler.h"
 
 #include <slang.h>
 #include <slang-rhi.h>
@@ -137,6 +138,12 @@ public:
     // Returns the current frame statistics.
     const FrameStats& getFrameStats() const { return m_frameStats; }
 
+    // Optional profiling of explicitly marked regions on the example's queue.
+    // Initialize once; shutdown() must wait for submissions before destruction.
+    Result initGpuProfiler(IDevice* device);
+    GpuProfiler& getGpuProfiler() { return m_gpuProfiler; }
+    void toggleGpuProfiling();
+
     // Overlay utility
 
     // Initializes the optional text overlay for the output format.
@@ -184,6 +191,7 @@ public:
 private:
     Result updateWindowTitle();
     Result applyVsync();
+    void printGpuTimings();
 
     std::string m_windowTitle;
     FrameStats m_frameStats;
@@ -200,6 +208,12 @@ private:
     bool m_overlayVisible = true;
     float m_overlayScale = 1.5f;
     std::unique_ptr<TextRenderer> m_textRenderer;
+    GpuProfiler m_gpuProfiler;
+    bool m_profilerInitialized = false;
+    std::vector<GpuProfiler::Sample> m_timingTotals, m_displayTimings;
+    uint64_t m_timingSerial = 0;
+    uint32_t m_timingCount = 0;
+    double m_timingLastRefresh = 0;
 
     friend struct detail::ExampleRunner;
 };
@@ -608,6 +622,82 @@ inline Result ExampleBase::presentSurface()
     return SLANG_OK;
 }
 
+inline Result ExampleBase::initGpuProfiler(IDevice* device)
+{
+    SLANG_RETURN_ON_FAIL(m_gpuProfiler.init(device));
+    m_profilerInitialized = true;
+    return SLANG_OK;
+}
+
+inline void ExampleBase::toggleGpuProfiling()
+{
+    if (!m_profilerInitialized)
+        return;
+    m_gpuProfiler.setEnabled(!m_gpuProfiler.enabled());
+    m_timingTotals.clear();
+    m_displayTimings.clear();
+    m_timingCount = 0;
+    m_timingSerial = 0;
+    m_timingLastRefresh = glfwGetTime();
+}
+
+inline void ExampleBase::printGpuTimings()
+{
+    if (!m_profilerInitialized)
+        return;
+    const char* label = m_deviceType == DeviceType::CPU ? "Execution" : "GPU";
+    if (!m_gpuProfiler.enabled())
+    {
+        printOverlay("\n%s timing: off\n", label);
+        return;
+    }
+    if (!m_gpuProfiler.supported())
+    {
+        printOverlay("\n%s timing unavailable\n", label);
+        return;
+    }
+    const auto& samples = m_gpuProfiler.samples();
+    if (samples.empty())
+    {
+        printOverlay("\n%s timing pending\n", label);
+        return;
+    }
+    if (m_timingSerial != m_gpuProfiler.sampleSerial())
+    {
+        m_timingSerial = m_gpuProfiler.sampleSerial();
+        bool sameRegions = samples.size() == m_timingTotals.size();
+        for (size_t i = 0; sameRegions && i < samples.size(); ++i)
+            sameRegions = samples[i].name == m_timingTotals[i].name;
+        if (!sameRegions)
+        {
+            // Do not mix different workloads (e.g. paused simulation or bloom off).
+            m_timingTotals = samples;
+            m_timingCount = 1;
+            m_displayTimings.clear();
+        }
+        else
+        {
+            for (size_t i = 0; i < samples.size(); ++i)
+                m_timingTotals[i].milliseconds += samples[i].milliseconds;
+            ++m_timingCount;
+        }
+    }
+    double now = glfwGetTime();
+    if (m_timingCount && (m_displayTimings.empty() || now - m_timingLastRefresh >= 0.25))
+    {
+        m_displayTimings = m_timingTotals;
+        for (auto& sample : m_displayTimings)
+            sample.milliseconds /= m_timingCount;
+        for (auto& sample : m_timingTotals)
+            sample.milliseconds = 0;
+        m_timingCount = 0;
+        m_timingLastRefresh = now;
+    }
+    printOverlay("\n%s timings (ms):\n", label);
+    for (const auto& sample : m_displayTimings)
+        printOverlay("  %s: %.2f\n", sample.name.c_str(), sample.milliseconds);
+}
+
 inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
 {
     m_textRenderer = std::make_unique<TextRenderer>();
@@ -625,6 +715,8 @@ inline void ExampleBase::clearOverlay()
 inline void ExampleBase::printOverlayHeader()
 {
     printOverlay("F1: Show/hide overlay | F2: Fit windows | F3: VSync | Esc: Close\n");
+    if (m_profilerInitialized)
+        printOverlay("F4: Toggle profiling\n");
 }
 
 inline void ExampleBase::printCameraControls()
@@ -661,6 +753,7 @@ inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image
         return SLANG_OK;
     if (!encoder || !image)
         return SLANG_E_INVALID_ARG;
+    printGpuTimings();
     float pixelRatio = float(image->getDesc().size.width) / std::max(m_windowWidth, 1);
     return m_textRenderer->render(encoder, image, pixelRatio, m_overlayScale);
 }
@@ -959,6 +1052,11 @@ inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
              {
                  if (action == GLFW_PRESS)
                      example.toggleVsync();
+             }
+             else if (key == GLFW_KEY_F4)
+             {
+                 if (action == GLFW_PRESS)
+                     example.toggleGpuProfiling();
              }
              else
                  example.onKey(key, scancode, action, mods);

@@ -25,6 +25,7 @@ public:
 
         m_blitter = std::make_unique<Blitter>(m_device);
 
+        SLANG_RETURN_ON_FAIL(initGpuProfiler(m_device));
         m_pipelines.resize(kShaders.size());
         return loadShader();
     }
@@ -103,9 +104,12 @@ public:
         // Start command encoding
         ComPtr<ICommandEncoder> commandEncoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
+        GpuProfiler::Frame profile(getGpuProfiler());
+        SLANG_RETURN_ON_FAIL(profile.begin());
 
         // Start compute pass
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        uint32_t region = getGpuProfiler().beginRegion(passEncoder, kShaders[m_shaderIndex]);
         ShaderCursor cursor(passEncoder->bindPipeline(m_pipelines[m_shaderIndex]));
         float resolution[3] = {float(width), float(height), 1.0f};
         cursor["iResolution"].setData(resolution);
@@ -122,6 +126,7 @@ public:
         cursor["iMouse"].setData(mouse);
         cursor["texture"].setBinding(m_texture);
         passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+        getGpuProfiler().endRegion(passEncoder, region);
         passEncoder->end();
 
         // Blit result to the surface image
@@ -136,7 +141,7 @@ public:
         // Submit command buffer
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
-        SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
+        SLANG_RETURN_ON_FAIL(profile.submit(m_queue, commandBuffer));
 
         m_frame += 1;
 
