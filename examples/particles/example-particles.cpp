@@ -156,7 +156,7 @@ Result Renderer::init(IDevice* device, Format outputFormat, uint32_t capacity)
     for (uint32_t i = 0; i < 2; ++i)
     {
         BufferDesc desc = {};
-        desc.size = Size(capacity) * sizeof(Particle);
+        desc.size = rhi::Size(capacity) * sizeof(Particle);
         desc.elementSize = sizeof(Particle);
         desc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         desc.label = "Particle state";
