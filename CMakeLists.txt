@@ -1220,6 +1220,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         endfunction()
 
         add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+        add_example(example-particles examples/particles/example-particles.cpp)
         add_example(example-raster examples/raster/example-raster.cpp)
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
         add_example(example-surface examples/surface/example-surface.cpp)

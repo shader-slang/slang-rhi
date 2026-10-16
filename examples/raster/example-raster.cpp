@@ -411,13 +411,13 @@ Result Renderer::init(IDevice* device, Format outputFormat)
     pipeline.targetCount = 1;
     pipeline.depthStencil.depthWriteEnable = false;
     SLANG_RETURN_ON_FAIL(
-        createProgram(device, "post.slang", {"fullscreenVertex", "toneMapFragment"}, program.writeRef())
+        createProgram(device, "../base/post.slang", {"fullscreenVertex", "toneMapFragment"}, program.writeRef())
     );
     pipeline.program = program;
     SLANG_RETURN_ON_FAIL(device->createRenderPipeline(pipeline, m_toneMapPipeline.writeRef()));
 
     ComputePipelineDesc compute = {};
-    SLANG_RETURN_ON_FAIL(createProgram(device, "post.slang", {"bloomMain"}, program.writeRef()));
+    SLANG_RETURN_ON_FAIL(createProgram(device, "../base/post.slang", {"bloomMain"}, program.writeRef()));
     compute.program = program;
     SLANG_RETURN_ON_FAIL(device->createComputePipeline(compute, m_bloomPipeline.writeRef()));
 
