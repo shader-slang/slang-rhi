@@ -127,8 +127,8 @@ public:
         SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_texture, commandEncoder));
 
         clearOverlay();
-        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n");
-        printOverlay("F1: Show/hide overlay | F2: Fit windows | Esc: Close\n\n");
+        printOverlayHeader();
+        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n\n");
         printOverlay("Shader: %s", kShaders[m_shaderIndex]);
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
@@ -138,7 +138,7 @@ public:
         m_frame += 1;
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
     virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
@@ -151,7 +151,7 @@ public:
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surface->configure(surfaceConfig);
+            configureSurface(m_surface, surfaceConfig);
         }
         else
         {

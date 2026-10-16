@@ -12,6 +12,7 @@ public:
         );
         SLANG_RETURN_ON_FAIL(createWindow(m_device, "Surface"));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
+        SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
 
@@ -66,11 +67,15 @@ public:
         IRenderPassEncoder* passEncoder = commandEncoder->beginRenderPass(renderPass);
         passEncoder->end();
 
+        clearOverlay();
+        printOverlayHeader();
+        SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
+
         // Submit command buffer
         m_queue->submit(commandEncoder->finish());
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
     virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
@@ -83,7 +88,7 @@ public:
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surface->configure(surfaceConfig);
+            configureSurface(m_surface, surfaceConfig);
         }
         else
         {
