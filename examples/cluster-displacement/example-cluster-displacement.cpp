@@ -1,0 +1,658 @@
+// Animated displacement with GPU-selected subdivision and cluster ray tracing.
+// Requires surface, acceleration-structure, cluster-acceleration-structure, and
+// ray-tracing support on D3D12, Vulkan, or CUDA/OptiX.
+//
+// Build: cmake --build build --config Debug --target example-cluster-displacement
+// Run:   build/Debug/example-cluster-displacement --device d3d12
+// Use --device vulkan or --device cuda for the other supported backends.
+//
+// A balanced quadtree covers a 12-by-12 quad at levels 0-6. Projected patch size
+// selects refinement with 15% hysteresis; neighboring leaves differ by at most
+// one level. Sixteen transition index patterns omit unmatched fine-edge vertices,
+// and canonical integer coordinates make shared displaced positions identical.
+// Each patch has 81 vertices and at most 128 triangles. Allocations cover all
+// 4,096 patches (331,776 vertices and 524,288 triangles), without LOD morphing.
+//
+// Each frame selects and balances the tree, compacts leaves, generates geometry,
+// builds CLAS from triangles and a BLAS from the CLAS handles, patches the native
+// TLAS instance on the GPU, rebuilds the TLAS, and traces primary and shadow rays.
+// Counts and handles stay on the GPU. Build submission precedes trace recording
+// because CUDA obtains the TLAS handle during submission. One resource set is
+// reused after a queue wait; the overlay reports requested geometry/AS bytes,
+// excluding the render texture, swapchain, pipelines, and driver overhead.
+//
+// Controls: left drag to look; W/A/S/D and Q/E to move; Shift to move faster.
+// Space pauses animation; F freezes LOD; T toggles adaptive/uniform selection.
+// The selection modes retain independent state, including while frozen.
+// Minus/equals adjusts quality (0.125x-8x); brackets adjust amplitude (0-3).
+// Keys 1-4 select shaded, cluster, level, or triangle-edge views; C cycles them.
+// R resets the camera; F1 toggles the overlay; F2 fits windows; Escape closes.
+
+#include "../base/example.h"
+#include "../base/camera.h"
+
+#include <slang-rhi/acceleration-structure-utils.h>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+using namespace rhi;
+
+// Passed to the Slang session as preprocessor macros so host and shader bounds agree.
+constexpr uint32_t kMaxLevel = 6;
+constexpr float kSurfaceSize = 12.f;
+constexpr float kTargetEdgePixels = 8.f;
+constexpr float kLodHysteresis = 0.15f;
+
+// Bits: -X, +X, -Z, +Z. Each pattern occupies 128 triangles; only its
+// active prefix is used. Stitching removes four triangles per marked edge.
+std::array<uint32_t, 16 * 128 * 3> makeTransitionPatterns()
+{
+    std::array<uint32_t, 16 * 128 * 3> indices = {};
+    for (uint32_t mask = 0; mask < 16; ++mask)
+    {
+        uint32_t offset = mask * 128 * 3;
+        // Keep the original row-major triangle order in the uniform reference.
+        if (mask == 0)
+        {
+            for (uint32_t y = 0; y < 8; ++y)
+                for (uint32_t x = 0; x < 8; ++x)
+                {
+                    uint32_t v = y * 9 + x;
+                    for (auto index : {v, v + 9, v + 1, v + 1, v + 9, v + 10})
+                        indices[offset++] = index;
+                }
+            continue;
+        }
+        // A fan in each 2x2 cell block handles two stitched edges at a corner
+        // together. Omitting odd boundary vertices leaves exactly the coarse
+        // neighbor's segments, with no collapsed triangles or internal T-junctions.
+        for (uint32_t y = 0; y < 8; y += 2)
+            for (uint32_t x = 0; x < 8; x += 2)
+            {
+                uint32_t v = y * 9 + x;
+                uint32_t ring[8] = {v, v + 9, v + 18, v + 19, v + 20, v + 11, v + 2, v + 1};
+                uint32_t polygon[8], count = 0;
+                for (uint32_t i = 0; i < 8; ++i)
+                {
+                    if ((i == 1 && x == 0 && (mask & 1)) || (i == 5 && x == 6 && (mask & 2)) ||
+                        (i == 7 && y == 0 && (mask & 4)) || (i == 3 && y == 6 && (mask & 8)))
+                        continue;
+                    polygon[count++] = ring[i];
+                }
+                for (uint32_t i = 0; i < count; ++i)
+                {
+                    indices[offset++] = v + 10;
+                    indices[offset++] = polygon[i];
+                    indices[offset++] = polygon[(i + 1) % count];
+                }
+            }
+    }
+    return indices;
+}
+
+struct LodSettings
+{
+    math::float3 cameraPosition = {10, 7, 11};
+    // Vertical focal length in pixels: viewport height / (2 * tan(vertical FOV / 2)).
+    float projectionScale = 1;
+    float quality = 1;
+    bool frozen = false;
+    bool adaptive = true;
+};
+
+// A balanced quadtree (or uniform reference) covers the whole quad with 8 x 8 cell patches.
+struct Surface
+{
+    static constexpr uint32_t kPatchCount = 1u << (2 * kMaxLevel);
+    static constexpr uint32_t kNodeCount = (4 * kPatchCount - 1) / 3;
+    static constexpr uint32_t kVertexCount = 81;
+    static constexpr uint32_t kTriangleCount = 128;
+
+    ComPtr<IBuffer> vertices, indices, patches, triangleArgs, clusterArgs, counts, lodState, tree;
+    ComPtr<IBuffer> clasData, clasHandles, clasScratch, blasData, blasHandles, blasScratch;
+    ComPtr<IBuffer> instances, tlasScratch;
+    ComPtr<IAccelerationStructure> tlas;
+    ComPtr<IComputePipeline> selectPipeline, generatePipeline, instancePipeline;
+    ComPtr<IComputePipeline> treePipeline, balancePipeline, compactPipeline, finishPipeline;
+    ClusterOperationDesc clasBuild = {}, blasBuild = {};
+    AccelerationStructureBuildInput tlasInput = {};
+    uint32_t handleOffset = 0;
+    uint64_t allocatedBytes = 0;
+
+    Result buffer(
+        IDevice* device,
+        uint64_t size,
+        BufferUsage usage,
+        const char* label,
+        ComPtr<IBuffer>& result,
+        const void* data = nullptr
+    )
+    {
+        BufferDesc desc = {};
+        desc.size = size;
+        desc.usage = usage | BufferUsage::CopySource;
+        desc.label = label;
+        SLANG_RETURN_ON_FAIL(device->createBuffer(desc, data, result.writeRef()));
+        allocatedBytes += size;
+        return SLANG_OK;
+    }
+
+    Result initialize(IDevice* device, const char* shaderModule)
+    {
+        // These backends have a 64-bit BLAS address or OptiX traversable handle in their native instance record.
+        // Derive the byte offset from the public native layouts, not a shader constant.
+        switch (device->getDeviceType())
+        {
+        case DeviceType::D3D12:
+            handleOffset = uint32_t(offsetof(AccelerationStructureInstanceDescD3D12, AccelerationStructure));
+            break;
+        case DeviceType::Vulkan:
+            handleOffset = uint32_t(offsetof(AccelerationStructureInstanceDescVulkan, accelerationStructureReference));
+            break;
+        case DeviceType::CUDA:
+            handleOffset = uint32_t(offsetof(AccelerationStructureInstanceDescOptix, traversableHandle));
+            break;
+        default:
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        SLANG_RETURN_ON_FAIL(createComputePipeline(device, shaderModule, "selectLevel", selectPipeline.writeRef()));
+        SLANG_RETURN_ON_FAIL(
+            createComputePipeline(device, shaderModule, "generateSurface", generatePipeline.writeRef())
+        );
+        SLANG_RETURN_ON_FAIL(createComputePipeline(device, shaderModule, "writeInstance", instancePipeline.writeRef()));
+
+        SLANG_RETURN_ON_FAIL(createComputePipeline(device, shaderModule, "selectTree", treePipeline.writeRef()));
+        SLANG_RETURN_ON_FAIL(createComputePipeline(device, shaderModule, "balanceTree", balancePipeline.writeRef()));
+        SLANG_RETURN_ON_FAIL(createComputePipeline(device, shaderModule, "compactLeaves", compactPipeline.writeRef()));
+        SLANG_RETURN_ON_FAIL(createComputePipeline(device, shaderModule, "finishSelection", finishPipeline.writeRef()));
+
+        const auto input =
+            BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::AccelerationStructureBuildInput;
+        SLANG_RETURN_ON_FAIL(buffer(device, kPatchCount * kVertexCount * 12, input, "vertices", vertices));
+        SLANG_RETURN_ON_FAIL(buffer(device, kPatchCount * 4 * sizeof(uint32_t), input, "patches", patches));
+        auto indexData = makeTransitionPatterns();
+        SLANG_RETURN_ON_FAIL(
+            buffer(device, indexData.size() * sizeof(uint32_t), input, "indices", indices, indexData.data())
+        );
+        SLANG_RETURN_ON_FAIL(
+            buffer(device, kPatchCount * sizeof(TriangleClusterArgs), input, "triangleArgs", triangleArgs)
+        );
+        SLANG_RETURN_ON_FAIL(buffer(device, sizeof(ClusterArgs), input, "clusterArgs", clusterArgs));
+        SLANG_RETURN_ON_FAIL(buffer(device, 2 * sizeof(uint32_t), input, "counts", counts));
+        const uint32_t initialState[] = {0, 0, 0}; // uniform level, uniform initialized, adaptive initialized
+        SLANG_RETURN_ON_FAIL(buffer(device, sizeof(initialState), input, "lodState", lodState, initialState));
+
+        std::vector<uint32_t> initialTree(kNodeCount, 0);
+        SLANG_RETURN_ON_FAIL(buffer(device, kNodeCount * sizeof(uint32_t), input, "tree", tree, initialTree.data()));
+
+        clasBuild.params.type = ClusterOperationType::CLASFromTriangles;
+        clasBuild.params.mode = ClusterOperationMode::ImplicitDestinations;
+        clasBuild.params.maxArgCount = kPatchCount;
+        auto& clas = clasBuild.params.clas;
+        clas.maxTriangleCount = kTriangleCount;
+        clas.maxVertexCount = kVertexCount;
+        clas.maxTotalTriangleCount = kPatchCount * kTriangleCount;
+        clas.maxTotalVertexCount = kPatchCount * kVertexCount;
+        clasBuild.argsBuffer = triangleArgs;
+        clasBuild.argsBufferStride = sizeof(TriangleClusterArgs);
+        clasBuild.argCountBuffer = counts;
+
+        blasBuild.params.type = ClusterOperationType::BLASFromCLAS;
+        blasBuild.params.mode = ClusterOperationMode::ImplicitDestinations;
+        blasBuild.params.maxArgCount = 1;
+        blasBuild.params.blas.maxClasCount = kPatchCount;
+        blasBuild.params.blas.maxTotalClasCount = kPatchCount;
+        blasBuild.argsBuffer = clusterArgs;
+        blasBuild.argsBufferStride = sizeof(ClusterArgs);
+        blasBuild.argCountBuffer = BufferOffsetPair(counts, sizeof(uint32_t));
+
+        auto allocateBuild = [&](ClusterOperationDesc& build,
+                                 ComPtr<IBuffer>& data,
+                                 ComPtr<IBuffer>& handles,
+                                 ComPtr<IBuffer>& scratch) -> Result
+        {
+            ClusterOperationSizes sizes = {};
+            SLANG_RETURN_ON_FAIL(device->getClusterOperationSizes(build.params, &sizes));
+            // Dedicated buffers start at offset zero; device allocations supply native alignment.
+            uint64_t handleBytes = (uint64_t(build.params.maxArgCount) * 8 + kClusterOutputAlignment - 1) &
+                                   ~uint64_t(kClusterOutputAlignment - 1);
+            SLANG_RETURN_ON_FAIL(
+                buffer(device, sizes.resultSize, BufferUsage::AccelerationStructure, "clusterData", data)
+            );
+            // Vulkan requires AS-storage usage for the destination address array. On D3D12
+            // this is an ordinary UAV, not an AS resource with a permanent native AS state.
+            auto handleUsage = input;
+            if (device->getDeviceType() == DeviceType::Vulkan)
+                handleUsage |= BufferUsage::AccelerationStructure;
+            SLANG_RETURN_ON_FAIL(buffer(device, handleBytes, handleUsage, "clusterHandles", handles));
+            SLANG_RETURN_ON_FAIL(
+                buffer(device, sizes.scratchSize, BufferUsage::UnorderedAccess, "clusterScratch", scratch)
+            );
+            build.resultBuffer = data;
+            build.addressesBuffer = handles;
+            build.scratchBuffer = scratch;
+            return SLANG_OK;
+        };
+        SLANG_RETURN_ON_FAIL(allocateBuild(clasBuild, clasData, clasHandles, clasScratch));
+        SLANG_RETURN_ON_FAIL(allocateBuild(blasBuild, blasData, blasHandles, blasScratch));
+
+        AccelerationStructureInstanceDescGeneric instance = {};
+        instance.transform[0][0] = instance.transform[1][1] = instance.transform[2][2] = 1;
+        instance.instanceMask = 0xff;
+        auto type = getAccelerationStructureInstanceDescType(device);
+        uint32_t stride = uint32_t(getAccelerationStructureInstanceDescSize(type));
+        std::vector<uint8_t> native(stride);
+        convertAccelerationStructureInstanceDescs(1, type, native.data(), stride, &instance, sizeof(instance));
+        SLANG_RETURN_ON_FAIL(buffer(device, stride, input, "tlasInstance", instances, native.data()));
+        tlasInput.type = AccelerationStructureBuildInputType::Instances;
+        tlasInput.instances.instanceBuffer = instances;
+        tlasInput.instances.instanceCount = 1;
+        tlasInput.instances.instanceStride = stride;
+        AccelerationStructureBuildDesc build = {};
+        build.inputs = &tlasInput;
+        build.inputCount = 1;
+        AccelerationStructureSizes sizes = {};
+        SLANG_RETURN_ON_FAIL(device->getAccelerationStructureSizes(build, &sizes));
+        SLANG_RETURN_ON_FAIL(
+            buffer(device, sizes.scratchSize, BufferUsage::UnorderedAccess, "tlasScratch", tlasScratch)
+        );
+        AccelerationStructureDesc desc = {};
+        desc.kind = AccelerationStructureKind::TopLevel;
+        desc.size = sizes.accelerationStructureSize;
+        desc.label = "surfaceTLAS";
+        allocatedBytes += desc.size;
+        return device->createAccelerationStructure(desc, tlas.writeRef());
+    }
+
+    Result rebuild(ICommandQueue* queue, float time, float amplitude, const LodSettings& lod)
+    {
+        // CUDA obtains the TLAS traversable handle when the build is submitted. Shader
+        // bindings capture that handle during recording, so submit builds before recording
+        // tracing. Both submissions use the same queue; no intermediate wait or readback.
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(encoder.writeRef()));
+        SLANG_RETURN_ON_FAIL(build(encoder, time, amplitude, lod));
+        ComPtr<ICommandBuffer> commands;
+        SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
+        return queue->submit(commands);
+    }
+
+    Result build(ICommandEncoder* encoder, float time, float amplitude, const LodSettings& lod)
+    {
+        if (lod.projectionScale <= 0 || lod.quality <= 0)
+            return SLANG_E_INVALID_ARG;
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(selectPipeline)->getEntryPoint(0));
+        SLANG_RETURN_ON_FAIL(cursor["adaptive"].setData(lod.adaptive ? 1u : 0u));
+        SLANG_RETURN_ON_FAIL(cursor["lodState"].setBinding(lodState));
+        SLANG_RETURN_ON_FAIL(cursor["counts"].setBinding(counts));
+        SLANG_RETURN_ON_FAIL(cursor["clusterArgs"].setBinding(clusterArgs));
+        SLANG_RETURN_ON_FAIL(cursor["handlesAddress"].setData(clasHandles->getDeviceAddress()));
+        SLANG_RETURN_ON_FAIL(cursor["cameraPosition"].setData(lod.cameraPosition));
+        SLANG_RETURN_ON_FAIL(cursor["projectionScale"].setData(lod.projectionScale));
+        SLANG_RETURN_ON_FAIL(cursor["quality"].setData(lod.quality));
+        SLANG_RETURN_ON_FAIL(cursor["frozen"].setData(lod.frozen ? 1u : 0u));
+        SLANG_RETURN_ON_FAIL(cursor["amplitude"].setData(amplitude));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        encoder->globalBarrier();
+
+        if (lod.adaptive)
+        {
+            // Top-down selection sees this frame's parent and last frame's own split bit.
+            for (uint32_t level = 0; level < kMaxLevel; ++level)
+            {
+                pass = encoder->beginComputePass();
+                cursor = ShaderCursor(pass->bindPipeline(treePipeline)->getEntryPoint(0));
+                SLANG_RETURN_ON_FAIL(cursor["tree"].setBinding(tree));
+                SLANG_RETURN_ON_FAIL(cursor["lodState"].setBinding(lodState));
+                SLANG_RETURN_ON_FAIL(cursor["level"].setData(level));
+                SLANG_RETURN_ON_FAIL(cursor["cameraPosition"].setData(lod.cameraPosition));
+                SLANG_RETURN_ON_FAIL(cursor["projectionScale"].setData(lod.projectionScale));
+                SLANG_RETURN_ON_FAIL(cursor["quality"].setData(lod.quality));
+                SLANG_RETURN_ON_FAIL(cursor["frozen"].setData(lod.frozen ? 1u : 0u));
+                SLANG_RETURN_ON_FAIL(cursor["amplitude"].setData(amplitude));
+                pass->dispatchCompute(((1u << (2 * level)) + 63) / 64, 1, 1);
+                pass->end();
+                encoder->globalBarrier();
+            }
+            // A split at level L requires its own parent and the parents of its
+            // same-level face neighbors to split. Descending L=5..1 propagates
+            // every requirement to the root, so no convergence heuristic is needed.
+            for (uint32_t level = kMaxLevel - 1; level > 0; --level)
+            {
+                pass = encoder->beginComputePass();
+                cursor = ShaderCursor(pass->bindPipeline(balancePipeline)->getEntryPoint(0));
+                SLANG_RETURN_ON_FAIL(cursor["tree"].setBinding(tree));
+                SLANG_RETURN_ON_FAIL(cursor["level"].setData(level));
+                pass->dispatchCompute(((1u << (2 * level)) + 63) / 64, 1, 1);
+                pass->end();
+                encoder->globalBarrier();
+            }
+            pass = encoder->beginComputePass();
+            cursor = ShaderCursor(pass->bindPipeline(compactPipeline)->getEntryPoint(0));
+            SLANG_RETURN_ON_FAIL(cursor["tree"].setBinding(tree));
+            SLANG_RETURN_ON_FAIL(cursor["counts"].setBinding(counts));
+            SLANG_RETURN_ON_FAIL(cursor["patches"].setBinding(patches));
+            pass->dispatchCompute(kPatchCount / 64, 1, 1);
+            pass->end();
+            encoder->globalBarrier();
+            pass = encoder->beginComputePass();
+            cursor = ShaderCursor(pass->bindPipeline(finishPipeline)->getEntryPoint(0));
+            SLANG_RETURN_ON_FAIL(cursor["lodState"].setBinding(lodState));
+            SLANG_RETURN_ON_FAIL(cursor["counts"].setBinding(counts));
+            SLANG_RETURN_ON_FAIL(cursor["clusterArgs"].setBinding(clusterArgs));
+            SLANG_RETURN_ON_FAIL(cursor["handlesAddress"].setData(clasHandles->getDeviceAddress()));
+            pass->dispatchCompute(1, 1, 1);
+            pass->end();
+            encoder->globalBarrier();
+        }
+
+        pass = encoder->beginComputePass();
+        cursor = ShaderCursor(pass->bindPipeline(generatePipeline)->getEntryPoint(0));
+        SLANG_RETURN_ON_FAIL(cursor["adaptive"].setData(lod.adaptive ? 1u : 0u));
+        SLANG_RETURN_ON_FAIL(cursor["vertices"].setBinding(vertices));
+        SLANG_RETURN_ON_FAIL(cursor["patches"].setBinding(patches));
+        SLANG_RETURN_ON_FAIL(cursor["triangleArgs"].setBinding(triangleArgs));
+        SLANG_RETURN_ON_FAIL(cursor["counts"].setBinding(counts));
+        SLANG_RETURN_ON_FAIL(cursor["lodState"].setBinding(lodState));
+        SLANG_RETURN_ON_FAIL(cursor["vertexAddress"].setData(vertices->getDeviceAddress()));
+        SLANG_RETURN_ON_FAIL(cursor["indexAddress"].setData(indices->getDeviceAddress()));
+        SLANG_RETURN_ON_FAIL(cursor["time"].setData(time));
+        SLANG_RETURN_ON_FAIL(cursor["amplitude"].setData(amplitude));
+        pass->dispatchCompute(kPatchCount, 1, 1);
+        pass->end();
+
+        // Address-only inputs are invisible to automatic shader-binding state tracking.
+        encoder->globalBarrier();
+        encoder->setBufferState(vertices, ResourceState::AccelerationStructureBuildInput);
+        encoder->setBufferState(indices, ResourceState::AccelerationStructureBuildInput);
+        encoder->executeClusterOperation(clasBuild);
+        encoder->globalBarrier();
+        encoder->setBufferState(clasData, ResourceState::AccelerationStructureRead);
+        encoder->setBufferState(clasHandles, ResourceState::ShaderResource);
+        encoder->executeClusterOperation(blasBuild);
+        encoder->globalBarrier();
+        encoder->setBufferState(blasData, ResourceState::AccelerationStructureRead);
+
+        pass = encoder->beginComputePass();
+        cursor = ShaderCursor(pass->bindPipeline(instancePipeline)->getEntryPoint(0));
+        SLANG_RETURN_ON_FAIL(cursor["handles"].setBinding(blasHandles));
+        SLANG_RETURN_ON_FAIL(cursor["instances"].setBinding(instances));
+        SLANG_RETURN_ON_FAIL(cursor["handleOffset"].setData(handleOffset));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        encoder->globalBarrier();
+        AccelerationStructureBuildDesc build = {};
+        build.inputs = &tlasInput;
+        build.inputCount = 1;
+        encoder->buildAccelerationStructure(build, tlas, nullptr, tlasScratch, 0, nullptr);
+        encoder->globalBarrier();
+        return SLANG_OK;
+    }
+};
+
+struct Renderer
+{
+    ComPtr<IRayTracingPipeline> pipeline;
+    ComPtr<IShaderTable> table;
+
+    Result initialize(IDevice* device, const char* module, const char* raygen = "renderRaygen")
+    {
+        ComPtr<IShaderProgram> program;
+        SLANG_RETURN_ON_FAIL(createProgram(device, module, {raygen, "mainMiss", "mainClosestHit"}, program.writeRef()));
+        HitGroupDesc group = {};
+        group.hitGroupName = "surface";
+        group.closestHitEntryPoint = "mainClosestHit";
+        RayTracingPipelineDesc desc = {};
+        desc.program = program;
+        desc.hitGroupCount = 1;
+        desc.hitGroups = &group;
+        desc.maxRecursion = 1;       // Primary and shadow rays are both launched from raygen.
+        desc.maxRayPayloadSize = 24; // CUDA aligns the trailing float2 barycentrics to eight bytes.
+        desc.maxAttributeSizeInBytes = 8;
+        desc.flags = RayTracingPipelineFlags::EnableClusters;
+        SLANG_RETURN_ON_FAIL(device->createRayTracingPipeline(desc, pipeline.writeRef()));
+        const char* miss = "mainMiss";
+        const char* hit = "surface";
+        ShaderTableDesc tableDesc = {};
+        tableDesc.program = program;
+        tableDesc.rayGenShaderCount = 1;
+        tableDesc.rayGenShaderEntryPointNames = &raygen;
+        tableDesc.missShaderCount = 1;
+        tableDesc.missShaderEntryPointNames = &miss;
+        tableDesc.hitGroupCount = 1;
+        tableDesc.hitGroupNames = &hit;
+        return device->createShaderTable(tableDesc, table.writeRef());
+    }
+};
+
+class ExampleClusterDisplacement : public ExampleBase
+{
+public:
+    Result init(DeviceType deviceType) override
+    {
+        SLANG_RETURN_ON_FAIL(createDevice(
+            deviceType,
+            {Feature::Surface,
+             Feature::AccelerationStructure,
+             Feature::ClusterAccelerationStructure,
+             Feature::RayTracing},
+            {{"CLUSTER_MAX_LEVEL", std::to_string(kMaxLevel)},
+             {"CLUSTER_SURFACE_SIZE", std::to_string(kSurfaceSize)},
+             {"CLUSTER_TARGET_EDGE_PIXELS", std::to_string(kTargetEdgePixels)},
+             {"CLUSTER_LOD_HYSTERESIS", std::to_string(kLodHysteresis)}},
+            m_device.writeRef()
+        ));
+        if (m_device->getDeviceType() != DeviceType::D3D12 && m_device->getDeviceType() != DeviceType::Vulkan &&
+            m_device->getDeviceType() != DeviceType::CUDA)
+        {
+            LOG_INFO("Cluster displacement currently supports D3D12, Vulkan, and CUDA.");
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Cluster displacement", 960, 640));
+        SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
+        SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format, 1.f));
+        SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
+        m_blitter = std::make_unique<Blitter>(m_device);
+        SLANG_RETURN_ON_FAIL(m_scene.initialize(m_device, "cluster-displacement.slang"));
+        SLANG_RETURN_ON_FAIL(m_renderer.initialize(m_device, "cluster-displacement.slang"));
+        m_controller.setCamera(&m_camera);
+        m_controller.moveSpeed = 3;
+        resetCamera();
+        return SLANG_OK;
+    }
+
+    void shutdown() override
+    {
+        if (m_queue)
+            m_queue->waitOnHost();
+        m_renderer = {};
+        m_scene = {};
+        m_output.setNull();
+        m_blitter.reset();
+        m_queue.setNull();
+        m_surface.setNull();
+        m_device.setNull();
+    }
+
+    Result update(double time) override
+    {
+        double elapsed = m_previousTime < 0 ? 0 : std::max(0.0, time - m_previousTime);
+        m_previousTime = time;
+        m_controller.update(float(std::min(elapsed, 0.1)));
+        if (!m_paused)
+            m_animationTime += float(elapsed);
+        return SLANG_OK;
+    }
+
+    Result draw() override
+    {
+        SLANG_RETURN_ON_FAIL(m_surfaceResult);
+        if (!m_surface->getConfig())
+            return SLANG_OK;
+        // One resource set: retire the preceding frame before reusing geometry, scratch,
+        // handles, TLAS, or the output texture. This wait never reads geometry or handles.
+        SLANG_RETURN_ON_FAIL(m_queue->waitOnHost());
+        ComPtr<ITexture> image;
+        m_surface->acquireNextImage(image.writeRef());
+        if (!image)
+            return SLANG_OK;
+        auto size = image->getDesc().size;
+        if (!m_output || m_output->getDesc().size.width != size.width || m_output->getDesc().size.height != size.height)
+        {
+            TextureDesc desc = {};
+            desc.type = TextureType::Texture2D;
+            desc.size = size;
+            desc.format = Format::RGBA32Float;
+            desc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess;
+            desc.label = "clusterImage";
+            SLANG_RETURN_ON_FAIL(m_device->createTexture(desc, nullptr, m_output.writeRef()));
+        }
+        m_camera.width = size.width;
+        m_camera.height = size.height;
+        m_camera.recompute();
+        LodSettings lod;
+        lod.cameraPosition = m_camera.position;
+        lod.projectionScale = float(size.height) / (2 * math::length(m_camera.imageV));
+        lod.quality = m_quality;
+        lod.frozen = m_freezeLod;
+        lod.adaptive = m_adaptive;
+        SLANG_RETURN_ON_FAIL(m_scene.rebuild(m_queue, m_animationTime, m_amplitude, lod));
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
+        auto pass = encoder->beginRayTracingPass();
+        auto root = pass->bindPipeline(m_renderer.pipeline, m_renderer.table);
+        ShaderCursor globals(root);
+        SLANG_RETURN_ON_FAIL(globals["tlas"].setBinding(m_scene.tlas));
+        SLANG_RETURN_ON_FAIL(globals["surfaceVertices"].setBinding(m_scene.vertices));
+        SLANG_RETURN_ON_FAIL(globals["surfaceIndices"].setBinding(m_scene.indices));
+        SLANG_RETURN_ON_FAIL(globals["surfacePatches"].setBinding(m_scene.patches));
+        SLANG_RETURN_ON_FAIL(globals["output"].setBinding(m_output));
+        ShaderCursor cursor(root->getEntryPoint(0));
+        SLANG_RETURN_ON_FAIL(cursor["cameraPosition"].setData(m_camera.position));
+        SLANG_RETURN_ON_FAIL(cursor["imageU"].setData(m_camera.imageU));
+        SLANG_RETURN_ON_FAIL(cursor["imageV"].setData(m_camera.imageV));
+        SLANG_RETURN_ON_FAIL(cursor["imageW"].setData(m_camera.imageW));
+        SLANG_RETURN_ON_FAIL(cursor["viewMode"].setData(m_viewMode));
+        pass->dispatchRays(0, size.width, size.height, 1);
+        pass->end();
+        SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_output, encoder));
+        clearOverlay();
+        printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
+        printOverlay("Space: Pause | F: Freeze LOD | -/=: Quality | [/]: Amplitude\n");
+        printOverlay("C: Cycle views | 1: Shaded | 2: Clusters | 3: Levels | 4: Edges\n");
+        printOverlay("T: Adaptive/uniform | R: Reset view | F1: Overlay | F2: Fit windows | Esc: Close\n\n");
+        printOverlay(
+            "%s | Amplitude: %.2f | Quality: %.3gx | LOD: %s\n",
+            m_paused ? "Paused" : "Animated",
+            m_amplitude,
+            m_quality,
+            m_freezeLod ? "frozen" : "automatic"
+        );
+        const char* views[] = {"Shaded", "Cluster colors", "Level colors (0 blue -> 6 purple)", "Triangle edges"};
+        printOverlay(
+            "%s | %s levels 0-6 | Up to 4096 patches\n",
+            views[m_viewMode],
+            m_adaptive ? "Adaptive" : "Uniform"
+        );
+        printOverlay("Geometry + AS buffers (one set): %.2f MiB", double(m_scene.allocatedBytes) / (1024 * 1024));
+        SLANG_RETURN_ON_FAIL(drawOverlay(encoder, image));
+        ComPtr<ICommandBuffer> commands;
+        SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_queue->submit(commands));
+        return m_surface->present();
+    }
+
+    void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    {
+        m_surfaceResult = m_queue->waitOnHost();
+        if (SLANG_FAILED(m_surfaceResult))
+            return;
+        if (framebufferWidth > 0 && framebufferHeight > 0)
+        {
+            SurfaceConfig config;
+            config.width = framebufferWidth;
+            config.height = framebufferHeight;
+            m_surfaceResult = m_surface->configure(config);
+        }
+        else
+            m_surfaceResult = m_surface->unconfigure();
+    }
+
+    void onMousePosition(float x, float y) override { m_controller.onMousePosition(x, y); }
+    void onMouseButton(int button, int action, int mods) override { m_controller.onMouseButton(button, action); }
+    void onKey(int key, int scancode, int action, int mods) override
+    {
+        if (m_controller.onKey(key, action) || action != GLFW_PRESS)
+            return;
+        switch (key)
+        {
+        case GLFW_KEY_SPACE:
+            m_paused = !m_paused;
+            break;
+        case GLFW_KEY_C:
+            m_viewMode = (m_viewMode + 1) % 4;
+            break;
+        case GLFW_KEY_1:
+        case GLFW_KEY_2:
+        case GLFW_KEY_3:
+        case GLFW_KEY_4:
+            m_viewMode = uint32_t(key - GLFW_KEY_1);
+            break;
+        case GLFW_KEY_T:
+            m_adaptive = !m_adaptive;
+            break;
+        case GLFW_KEY_F:
+            m_freezeLod = !m_freezeLod;
+            break;
+        case GLFW_KEY_MINUS:
+            m_quality = std::max(0.125f, m_quality * 0.5f);
+            break;
+        case GLFW_KEY_EQUAL:
+            m_quality = std::min(8.f, m_quality * 2.f);
+            break;
+        case GLFW_KEY_LEFT_BRACKET:
+            m_amplitude = std::max(0.f, m_amplitude - 0.1f);
+            break;
+        case GLFW_KEY_RIGHT_BRACKET:
+            m_amplitude = std::min(3.f, m_amplitude + 0.1f);
+            break;
+        case GLFW_KEY_R:
+            resetCamera();
+            break;
+        }
+    }
+
+    void resetCamera()
+    {
+        m_camera.position = {10, 7, 11};
+        m_camera.target = {0, 0, 0};
+        m_camera.up = {0, 1, 0};
+        m_camera.fov = 45;
+        m_camera.recompute();
+        m_controller.reset();
+    }
+
+    ComPtr<IDevice> m_device;
+    ComPtr<ICommandQueue> m_queue;
+    ComPtr<ISurface> m_surface;
+    ComPtr<ITexture> m_output;
+    std::unique_ptr<Blitter> m_blitter;
+    Surface m_scene;
+    Renderer m_renderer;
+    Camera m_camera;
+    FlyCameraController m_controller;
+    Result m_surfaceResult = SLANG_OK;
+    double m_previousTime = -1;
+    float m_animationTime = 0;
+    float m_amplitude = 1;
+    bool m_paused = false;
+    bool m_freezeLod = false;
+    bool m_adaptive = true;
+    float m_quality = 1;
+    uint32_t m_viewMode = 0;
+};
+
+EXAMPLE_MAIN(ExampleClusterDisplacement)

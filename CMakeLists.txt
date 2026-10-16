@@ -1219,6 +1219,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
             target_link_libraries(${name} PRIVATE slang-rhi slang glfw Threads::Threads slang-rhi-warnings)
         endfunction()
 
+        add_example(example-cluster-displacement examples/cluster-displacement/example-cluster-displacement.cpp)
         add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
         add_example(example-surface examples/surface/example-surface.cpp)
