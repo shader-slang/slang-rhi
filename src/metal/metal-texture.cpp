@@ -133,6 +133,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             break;
         }
     }
+    if (is_set(desc.usage, TextureUsage::Typeless))
+    {
+        // Allow views with a different pixel format (beyond sRGB/non-sRGB variants).
+        textureUsage |= MTL::TextureUsagePixelFormatView;
+    }
 
     textureDesc->setUsage(textureUsage);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);

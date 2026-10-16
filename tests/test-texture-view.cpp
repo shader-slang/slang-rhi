@@ -1524,3 +1524,92 @@ GPU_TEST_CASE("texture-view-srgb-whole-texture", D3D12 | Vulkan | Metal)
     CHECK(result[2] == doctest::Approx(0.2158f).epsilon(0.01));
     CHECK(result[3] == doctest::Approx(1.0f));
 }
+
+// Test that a typeless texture can be written through a view with a different format of the same texel size and
+// read back through its own format, i.e. that both views alias the texture memory.
+GPU_TEST_CASE("texture-view-typeless-reinterpret", D3D12 | Vulkan | Metal)
+{
+    const char* writeSource = R"(
+        [shader("compute")]
+        [numthreads(8, 8, 1)]
+        void computeMain(uint3 tid: SV_DispatchThreadID, RWTexture2D<uint> texture)
+        {
+            texture[tid.xy] = 0x44332211;
+        }
+    )";
+    const char* readSource = R"(
+        [shader("compute")]
+        [numthreads(8, 8, 1)]
+        void computeMain(uint3 tid: SV_DispatchThreadID, Texture2D<float4> texture, RWStructuredBuffer<float4> result)
+        {
+            result[tid.y * 64 + tid.x] = texture.Load(int3(tid.xy, 0));
+        }
+    )";
+
+    auto createPipeline = [&](const char* source)
+    {
+        ComPtr<IShaderProgram> shaderProgram;
+        REQUIRE_CALL(loadComputeProgramFromSource(device, source, shaderProgram.writeRef()));
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = shaderProgram.get();
+        ComPtr<IComputePipeline> pipeline;
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+        return pipeline;
+    };
+    ComPtr<IComputePipeline> writePipeline = createPipeline(writeSource);
+    ComPtr<IComputePipeline> readPipeline = createPipeline(readSource);
+
+    const uint32_t kSize = 64;
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2D;
+    textureDesc.size = {kSize, kSize, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::Typeless;
+    textureDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, nullptr, texture.writeRef()));
+
+    TextureViewDesc uintViewDesc = {};
+    uintViewDesc.format = Format::R32Uint;
+    ComPtr<ITextureView> uintView;
+    REQUIRE_CALL(device->createTextureView(texture, uintViewDesc, uintView.writeRef()));
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = kSize * kSize * 4 * sizeof(float);
+    bufferDesc.elementSize = 4 * sizeof(float);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    {
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(writePipeline));
+        cursor["texture"].setBinding(uintView);
+        pass->dispatchCompute(kSize / 8, kSize / 8, 1);
+        pass->end();
+    }
+    {
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(readPipeline));
+        cursor["texture"].setBinding(texture->getDefaultView());
+        cursor["result"].setBinding(buffer);
+        pass->dispatchCompute(kSize / 8, kSize / 8, 1);
+        pass->end();
+    }
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    ComPtr<ISlangBlob> resultBlob;
+    REQUIRE_CALL(device->readBuffer(buffer, 0, bufferDesc.size, resultBlob.writeRef()));
+    const float* result = static_cast<const float*>(resultBlob->getBufferPointer());
+    const float expected[4] = {0x11 / 255.f, 0x22 / 255.f, 0x33 / 255.f, 0x44 / 255.f};
+    uint32_t mismatches = 0;
+    for (uint32_t i = 0; i < kSize * kSize; ++i)
+        for (uint32_t c = 0; c < 4; ++c)
+            if (std::abs(result[i * 4 + c] - expected[c]) > 1e-3f)
+                mismatches++;
+    CHECK_EQ(mismatches, 0);
+}
