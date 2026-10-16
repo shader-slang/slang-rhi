@@ -415,3 +415,127 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-srt-motion", ALL)
         RayTracingPipelineFlags::EnableMotion
     );
 }
+
+// Build a triangle BLAS whose index count is smaller than its vertex count and check that only the
+// triangles defined by the indices are part of the acceleration structure.
+GPU_TEST_CASE("ray-tracing-triangle-index-count", D3D12 | Vulkan | Metal)
+{
+    if (!device->hasFeature(Feature::RayQuery))
+        SKIP("ray query not supported");
+    SKIP_IF_ARM64_WARP(device);
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+    // Two triangles: one around (0.25, 0.25) and one around (-0.75, 0.25).
+    const Vertex vertices[] = {
+        {0.f, 0.f, 1.f},
+        {1.f, 0.f, 1.f},
+        {0.f, 1.f, 1.f},
+        {-1.f, 0.f, 1.f},
+        {0.f, 0.f, 1.f},
+        {-1.f, 1.f, 1.f},
+    };
+    // The index buffer holds indices for both triangles, but the build only uses the first three. Building
+    // with more triangles than indicated by the index count would include the second triangle.
+    const uint32_t indices[] = {0, 1, 2, 3, 4, 5};
+    const uint32_t vertexCount = SLANG_COUNT_OF(vertices);
+    const uint32_t indexCount = 3;
+
+    BufferDesc vertexBufferDesc;
+    vertexBufferDesc.size = sizeof(vertices);
+    vertexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    vertexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, vertices);
+    REQUIRE(vertexBuffer != nullptr);
+
+    BufferDesc indexBufferDesc;
+    indexBufferDesc.size = sizeof(indices);
+    indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    ComPtr<IBuffer> indexBuffer = device->createBuffer(indexBufferDesc, indices);
+    REQUIRE(indexBuffer != nullptr);
+
+    AccelerationStructureBuildInput buildInput = {};
+    buildInput.type = AccelerationStructureBuildInputType::Triangles;
+    buildInput.triangles.vertexBuffers[0] = vertexBuffer;
+    buildInput.triangles.vertexBufferCount = 1;
+    buildInput.triangles.vertexFormat = Format::RGB32Float;
+    buildInput.triangles.vertexCount = vertexCount;
+    buildInput.triangles.vertexStride = sizeof(Vertex);
+    buildInput.triangles.indexBuffer = indexBuffer;
+    buildInput.triangles.indexFormat = IndexFormat::Uint32;
+    buildInput.triangles.indexCount = indexCount;
+    buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
+
+    AccelerationStructureBuildDesc buildDesc = {};
+    buildDesc.inputs = &buildInput;
+    buildDesc.inputCount = 1;
+
+    AccelerationStructureSizes sizes;
+    REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+    BufferDesc scratchBufferDesc;
+    scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+    scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+    scratchBufferDesc.size = sizes.scratchSize;
+    ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+    REQUIRE(scratchBuffer != nullptr);
+
+    AccelerationStructureDesc blasDesc;
+    blasDesc.kind = AccelerationStructureKind::BottomLevel;
+    blasDesc.size = sizes.accelerationStructureSize;
+    ComPtr<IAccelerationStructure> blas;
+    REQUIRE_CALL(device->createAccelerationStructure(blasDesc, blas.writeRef()));
+
+    auto commandEncoder = queue->createCommandEncoder();
+    commandEncoder->buildAccelerationStructure(buildDesc, blas, nullptr, scratchBuffer, 0, nullptr);
+    REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    TLAS tlas(device, queue, blas);
+
+    const char* shaderSource = R"(
+        [shader("compute")]
+        [numthreads(2, 1, 1)]
+        void computeMain(uint3 tid: SV_DispatchThreadID, RaytracingAccelerationStructure scene, RWStructuredBuffer<uint> result)
+        {
+            RayDesc ray;
+            ray.Origin = float3(tid.x == 0 ? 0.25 : -0.75, 0.25, 0.0);
+            ray.Direction = float3(0.0, 0.0, 1.0);
+            ray.TMin = 0.0;
+            ray.TMax = 10.0;
+            RayQuery<RAY_FLAG_FORCE_OPAQUE> query;
+            query.TraceRayInline(scene, RAY_FLAG_NONE, 0xff, ray);
+            query.Proceed();
+            result[tid.x] = query.CommittedStatus() == COMMITTED_TRIANGLE_HIT ? 1 : 0;
+        }
+    )";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadComputeProgramFromSource(device, shaderSource, shaderProgram.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    BufferDesc resultBufferDesc = {};
+    resultBufferDesc.size = 2 * sizeof(uint32_t);
+    resultBufferDesc.elementSize = sizeof(uint32_t);
+    resultBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    resultBufferDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> resultBuffer;
+    REQUIRE_CALL(device->createBuffer(resultBufferDesc, nullptr, resultBuffer.writeRef()));
+
+    commandEncoder = queue->createCommandEncoder();
+    auto passEncoder = commandEncoder->beginComputePass();
+    ShaderCursor cursor(passEncoder->bindPipeline(pipeline));
+    cursor["scene"].setBinding(tlas.tlas);
+    cursor["result"].setBinding(resultBuffer);
+    passEncoder->dispatchCompute(1, 1, 1);
+    passEncoder->end();
+    REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    // The first triangle is hit, the second one (not covered by the index count) is not.
+    compareComputeResult(device, resultBuffer, makeArray<uint32_t>(1u, 0u));
+}
