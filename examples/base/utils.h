@@ -6,8 +6,11 @@
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cmath>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -618,5 +621,41 @@ private:
     double m_previousTime = -1, m_lastReport = 0, m_total = 0, m_frameTime = 0;
 };
 
+// ---------------------------------------------------------------------------------------
+// FixedStepClock
+// ---------------------------------------------------------------------------------------
+
+// Every backend receives the same absolute application time. Never use draw
+// duration as simulation time; clamp catch-up after a stall to keep input usable.
+class FixedStepClock
+{
+public:
+    explicit FixedStepClock(double step = 1.0 / 120.0, uint32_t maxCatchUpSteps = 8)
+        : m_step(std::isfinite(step) && step > 0 ? step : 1.0 / 120.0)
+        , m_maxCatchUpSteps(maxCatchUpSteps)
+    {
+    }
+    double step() const { return m_step; }
+    uint32_t update(double time, bool running)
+    {
+        double elapsed = m_lastTime < 0 ? 0 : std::clamp(time - m_lastTime, 0.0, m_maxCatchUpSteps * m_step);
+        m_lastTime = time;
+        if (!running)
+        {
+            m_accumulator = 0;
+            return 0;
+        }
+        m_accumulator += elapsed;
+        uint32_t steps = uint32_t(std::floor((m_accumulator + 1e-10) / m_step));
+        m_accumulator = std::max(0.0, m_accumulator - steps * m_step);
+        return steps;
+    }
+    void reset() { m_accumulator = 0; }
+
+private:
+    double m_step;
+    uint32_t m_maxCatchUpSteps;
+    double m_lastTime = -1, m_accumulator = 0;
+};
 
 } // namespace rhi

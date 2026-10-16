@@ -72,6 +72,8 @@ public:
     virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) { return SLANG_OK; }
     // Called when the mouse is moved.
     virtual void onMousePosition(float x, float y) {}
+    // Called when the mouse enters or leaves any backend window.
+    virtual void onMouseEnter(bool entered) {}
     // Called when a mouse button is pressed or released.
     virtual void onMouseButton(int button, int action, int mods) {}
     // Called when the mouse wheel is scrolled.
@@ -112,6 +114,9 @@ public:
     void destroyWindow();
     // Returns whether the window has been asked to close.
     bool shouldClose() const;
+    // Returns the cached window size in the same coordinates as mouse input.
+    int getWindowWidth() const { return m_windowWidth; }
+    int getWindowHeight() const { return m_windowHeight; }
 
     // Surface management
 
@@ -206,6 +211,7 @@ inline void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
 inline void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
 inline void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 inline void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+inline void glfwCursorEnterCallback(GLFWwindow* window, int entered);
 inline void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 inline void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -480,6 +486,7 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
                 glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
                 glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
                 glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
+                glfwSetCursorEnterCallback(m_window, detail::glfwCursorEnterCallback);
                 glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
                 glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
                 glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
@@ -526,6 +533,7 @@ inline void ExampleBase::destroyWindow()
         {
             if (detail::mainExample == m_runner)
                 detail::setMainExample(nullptr);
+            detail::glfwCursorEnterCallback(m_window, GLFW_FALSE);
             glfwSetWindowUserPointer(m_window, nullptr);
             glfwDestroyWindow(m_window);
             m_window = m_runner->window = nullptr;
@@ -882,6 +890,18 @@ inline void glfwCursorPosCallback(GLFWwindow*, double x, double y)
              example.m_mousePos[0] = float(x);
              example.m_mousePos[1] = float(y);
              example.onMousePosition(float(x), float(y));
+             return SLANG_OK;
+         }}
+    );
+}
+
+inline void glfwCursorEnterCallback(GLFWwindow*, int entered)
+{
+    broadcastEvent(
+        {ExampleRunner::Event::Input,
+         [entered](ExampleBase& example)
+         {
+             example.onMouseEnter(entered != 0);
              return SLANG_OK;
          }}
     );
