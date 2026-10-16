@@ -472,8 +472,6 @@ public:
 
     virtual Result draw() override
     {
-        SLANG_RETURN_ON_FAIL(m_surfaceResult);
-
         // Skip rendering if surface is not configured (eg. when window is minimized)
         if (!m_surface->getConfig())
         {
@@ -531,7 +529,7 @@ public:
 
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
+        printCameraControls();
         printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n\n");
         printOverlay(
             "%s%s | Bounces: %u | Accumulation: %s\n",
@@ -557,23 +555,21 @@ public:
         return presentSurface();
     }
 
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
     {
         // Wait for GPU to be idle before resizing
-        m_surfaceResult = m_queue->waitOnHost();
-        if (SLANG_FAILED(m_surfaceResult))
-            return;
+        SLANG_RETURN_ON_FAIL(m_queue->waitOnHost());
         // Configure or unconfigure the surface based on the new framebuffer size
         if (framebufferWidth > 0 && framebufferHeight > 0)
         {
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surfaceResult = configureSurface(m_surface, surfaceConfig);
+            return configureSurface(m_surface, surfaceConfig);
         }
         else
         {
-            m_surfaceResult = m_surface->unconfigure();
+            return m_surface->unconfigure();
         }
     }
 
@@ -635,7 +631,7 @@ public:
 
     Camera m_camera;
     Scene m_scene;
-    FlyCameraController m_cameraController;
+    CameraController m_cameraController;
     PathTracer m_pathTracer;
     Accumulator m_accumulator;
     ToneMapper m_toneMapper;
@@ -647,7 +643,6 @@ public:
     uint32_t m_maxBounces = PATH_TRACER_DEFAULT_BOUNCES;
     bool m_accumulate = true;
     uint32_t m_frame = 0;
-    Result m_surfaceResult = SLANG_OK;
 };
 
 EXAMPLE_MAIN(ExamplePathTracer)
