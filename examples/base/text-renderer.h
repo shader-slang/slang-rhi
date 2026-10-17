@@ -42,7 +42,7 @@ namespace rhi {
 
 // A fixed-width text grid with a translucent background panel. Call clear(),
 // append(), then render() after tone mapping. Layout uses the target dimensions
-// and clips to the screen; pixelRatio and scale control the font size.
+// and clips to the screen; contentScale controls the font size and padding.
 // Raster and compute paths share the same glyph lookup and premultiplied colors.
 class TextRenderer
 {
@@ -88,7 +88,7 @@ public:
         }
     }
 
-    Result render(ICommandEncoder* encoder, ITexture* target, float pixelRatio = 1.f, float scale = 1.f)
+    Result render(ICommandEncoder* encoder, ITexture* target, float contentScale = 1.f)
     {
         if (m_text.empty())
             return SLANG_OK;
@@ -96,8 +96,8 @@ public:
             return SLANG_E_INVALID_ARG;
         const auto& desc = target->getDesc();
         uint32_t width = desc.size.width, height = desc.size.height;
-        float padding = margin * pixelRatio;
-        float fontScale = scale * pixelRatio;
+        float padding = margin * contentScale;
+        float fontScale = contentScale;
         if (!width || !height || !std::isfinite(padding) || padding < 0 || !std::isfinite(fontScale) || fontScale <= 0)
             return SLANG_E_INVALID_ARG;
         // Whole framebuffer pixels preserve the bitmap's stroke widths at fractional DPI scales.
