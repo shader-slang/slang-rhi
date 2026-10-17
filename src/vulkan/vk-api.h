@@ -12,6 +12,7 @@
 #endif
 
 #define VK_NO_PROTOTYPES
+#define VK_ENABLE_BETA_EXTENSIONS
 #include <vulkan/vulkan.h>
 
 #if SLANG_LINUX_FAMILY && !SLANG_ANDROID
@@ -261,6 +262,8 @@ protected:
 
 #define VK_API_DEVICE_OPT_PROCS(x) \
     VK_API_DEVICE_PLATFORM_OPT_PROCS(x) \
+    x(vkGetBufferMemoryRequirements2) \
+    x(vkGetImageMemoryRequirements2) \
     x(vkCmdSetPrimitiveTopologyEXT) \
     x(vkGetBufferDeviceAddress) \
     x(vkGetBufferDeviceAddressKHR) \

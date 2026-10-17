@@ -15,6 +15,7 @@ class QueryPool;
 class InputLayout;
 class ShaderTable;
 class Heap;
+class ResourceHeap;
 
 class CommandBuffer;
 class CommandEncoder;
