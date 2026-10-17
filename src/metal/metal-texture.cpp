@@ -133,6 +133,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             break;
         }
     }
+    if (is_set(desc.usage, TextureUsage::Typeless))
+    {
+        // Allow views with a different pixel format (beyond sRGB/non-sRGB variants).
+        textureUsage |= MTL::TextureUsagePixelFormatView;
+    }
 
     textureDesc->setUsage(textureUsage);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
@@ -263,7 +268,9 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     const TextureDesc& textureDesc = textureImpl->m_desc;
     uint32_t layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
-    if (sr.layer == 0 && sr.layerCount == layerCount && sr.mip == 0 && sr.mipCount == textureDesc.mipCount)
+    // Reuse the texture itself only for a view of the whole texture in the texture's own format.
+    if (viewImpl->m_desc.format == textureDesc.format && sr.layer == 0 && sr.layerCount == layerCount && sr.mip == 0 &&
+        sr.mipCount == textureDesc.mipCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;
         returnComPtr(outView, viewImpl);
