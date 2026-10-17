@@ -2,6 +2,8 @@
 
 #include <memory>
 
+namespace {
+
 using namespace rhi;
 
 // List of shaders to cycle through using the left/right arrow keys.
@@ -206,4 +208,6 @@ public:
     int m_shaderIndex = 0;
 };
 
-EXAMPLE_MAIN(ExampleShaderToy)
+} // namespace
+
+EXAMPLE_MAIN(ExampleShaderToy, "shader-toy", "ShaderToy")

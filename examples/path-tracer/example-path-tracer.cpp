@@ -5,6 +5,8 @@
 
 #include <slang-rhi/acceleration-structure-utils.h>
 
+namespace {
+
 using namespace rhi;
 using namespace rhi::math;
 
@@ -645,4 +647,6 @@ public:
     uint32_t m_frame = 0;
 };
 
-EXAMPLE_MAIN(ExamplePathTracer)
+} // namespace
+
+EXAMPLE_MAIN(ExamplePathTracer, "path-tracer", "Path tracer")

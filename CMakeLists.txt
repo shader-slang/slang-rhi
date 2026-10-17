@@ -1209,12 +1209,11 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         find_package(Threads REQUIRED)
     endif()
 
-    function(add_example name source)
-        add_executable(${name} ${source})
+    function(add_example name)
+        add_executable(${name} ${ARGN})
         target_compile_features(${name} PRIVATE cxx_std_20)
-        get_filename_component(example_dir "${source}" DIRECTORY)
         if(EMSCRIPTEN)
-            set(example_dir "/${example_dir}")
+            set(example_root "/examples")
             set_target_properties(${name} PROPERTIES SUFFIX ".html")
             target_link_options(${name} PRIVATE
                 "-sUSE_GLFW=3"
@@ -1229,11 +1228,11 @@ if(SLANG_RHI_BUILD_EXAMPLES)
                 ${example_shaders} "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/example.html"
             )
         else()
-            set(example_dir "${CMAKE_CURRENT_SOURCE_DIR}/${example_dir}")
+            set(example_root "${CMAKE_CURRENT_SOURCE_DIR}/examples")
             target_link_libraries(${name} PRIVATE glfw Threads::Threads)
         endif()
         target_compile_definitions(${name} PRIVATE
-            EXAMPLE_DIR="${example_dir}"
+            EXAMPLE_ROOT="${example_root}"
             SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
             SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
             SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
@@ -1244,15 +1243,23 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         target_link_libraries(${name} PRIVATE slang-rhi slang slang-rhi-warnings)
     endfunction()
 
+    set(example_sources
+        examples/surface/example-surface.cpp
+        examples/triangle/example-triangle.cpp
+        examples/shader-toy/example-shader-toy.cpp
+        examples/raster/example-raster.cpp
+        examples/particles/example-particles.cpp
+    )
     # The path tracer requires acceleration structures, unavailable in WebGPU.
     if(NOT EMSCRIPTEN)
-        add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+        list(APPEND example_sources examples/path-tracer/example-path-tracer.cpp)
     endif()
-    add_example(example-particles examples/particles/example-particles.cpp)
-    add_example(example-raster examples/raster/example-raster.cpp)
-    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
-    add_example(example-surface examples/surface/example-surface.cpp)
-    add_example(example-triangle examples/triangle/example-triangle.cpp)
+    foreach(source IN LISTS example_sources)
+        get_filename_component(name "${source}" NAME_WE)
+        add_example(${name} ${source})
+    endforeach()
+    add_example(example-runner examples/example-runner.cpp ${example_sources})
+    target_compile_definitions(example-runner PRIVATE EXAMPLE_COMBINED=1)
 
     if(EMSCRIPTEN)
         add_executable(wasm-test examples/wasm/wasm-test.cpp)

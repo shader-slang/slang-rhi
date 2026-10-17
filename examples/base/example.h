@@ -19,6 +19,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <string_view>
 #include <string>
 #include <thread>
@@ -27,6 +28,7 @@
 #if SLANG_WASM
 #include <emscripten.h>
 #include <emscripten/html5.h>
+#include <sys/stat.h>
 #else
 #if SLANG_WINDOWS_FAMILY
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -216,6 +218,16 @@ private:
     friend struct detail::ExampleRunner;
 };
 
+// A stable identifier, display name, and factory shared by standalone and combined executables.
+// Capability checks remain in init(), so there is only one source of feature requirements.
+struct ExampleDesc
+{
+    const char* name;
+    const char* title;
+    const char* shaderSearchPath;
+    ExampleBase* (*create)();
+};
+
 namespace detail {
 inline void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
 inline void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
@@ -338,6 +350,43 @@ inline std::vector<std::unique_ptr<ExampleRunner>>& getExamples()
     return examples;
 }
 
+// Selection is accessed only on the main thread. A switch stops every worker before
+// the registry is rebuilt; no old worker or queued window task may outlive that round.
+inline std::span<const ExampleDesc> exampleRegistry;
+inline size_t activeExampleIndex = 0;
+inline size_t requestedExampleIndex = 0;
+inline bool switchRequested = false;
+inline bool closingExamples = false;
+
+inline void requestExample(size_t index)
+{
+    if (closingExamples || index >= exampleRegistry.size() || (index == activeExampleIndex && !switchRequested))
+        return;
+    requestedExampleIndex = index;
+    switchRequested = true;
+#if SLANG_WASM
+    EM_ASM({
+        Module['rhiReady'] = false;
+        Module['rhiSwitching'] = true;
+    });
+#endif
+    for (auto& example : getExamples())
+        example->stop();
+}
+
+#if SLANG_WASM
+inline void processBrowserExampleSelection()
+{
+    int index = EM_ASM_INT({
+        const index = Module['rhiRequestedExample'];
+        Module['rhiRequestedExample'] = -1;
+        return Number.isInteger(index) ? index : -1;
+    });
+    if (index >= 0)
+        requestExample(size_t(index));
+}
+#endif
+
 inline ExampleRunner* mainExample = nullptr;
 inline std::thread::id mainThread;
 inline std::mutex mainTaskMutex;
@@ -436,6 +485,8 @@ inline void layoutWindows(GLFWmonitor* monitor = nullptr);
 
 inline void glfwWindowCloseCallback(GLFWwindow*)
 {
+    closingExamples = true;
+    switchRequested = false;
     for (auto& example : getExamples())
         example->stop();
 }
@@ -562,6 +613,9 @@ inline void ExampleBase::destroyWindow()
                 detail::setMainExample(nullptr);
             detail::glfwCursorEnterCallback(m_window, GLFW_FALSE);
             glfwSetWindowUserPointer(m_window, nullptr);
+            // Emscripten invokes the close callback even for programmatic destruction.
+            // Replacing an example must not be interpreted as a request to exit the runner.
+            glfwSetWindowCloseCallback(m_window, nullptr);
             glfwDestroyWindow(m_window);
             m_window = m_runner->window = nullptr;
             detail::updateMainExample();
@@ -693,6 +747,8 @@ inline void ExampleBase::clearOverlay()
 inline void ExampleBase::printOverlayHeader()
 {
     printOverlay("F1: Show/hide overlay | F2: Fit windows | F3: VSync | Esc: Close\n");
+    if (detail::exampleRegistry.size() > 1)
+        printOverlay("F4: Next example | Shift+F4: Previous example\n");
 }
 
 inline void ExampleBase::printCameraControls()
@@ -1009,6 +1065,16 @@ inline void glfwScrollCallback(GLFWwindow*, double x, double y)
 
 inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+    if (key == GLFW_KEY_F4 && exampleRegistry.size() > 1)
+    {
+        if (action == GLFW_PRESS)
+        {
+            size_t index = switchRequested ? requestedExampleIndex : activeExampleIndex;
+            size_t offset = (mods & GLFW_MOD_SHIFT) ? exampleRegistry.size() - 1 : 1;
+            requestExample((index + offset) % exampleRegistry.size());
+        }
+        return;
+    }
     if (key == GLFW_KEY_F2)
     {
         if (action == GLFW_PRESS)
@@ -1060,7 +1126,7 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
     example->m_shaderSearchPath = shaderSearchPath;
 #if SLANG_WASM
     // Examples without local shaders still need a search directory for ../base imports.
-    EM_ASM({ FS.mkdirTree(UTF8ToString($0)); }, shaderSearchPath);
+    mkdir(shaderSearchPath, 0777);
 #endif
     Result result = example->init(deviceType);
     initialized = SLANG_SUCCEEDED(result);
@@ -1084,14 +1150,20 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
         }
     }
 #if SLANG_WASM
-    EM_ASM({
-        Module["rhiReady"] = true;
-        Module["rhiFrameCount"] = 0;
-    });
+    EM_ASM(
+        {
+            Module['rhiReady'] = !!arguments[0];
+            Module['rhiSwitching'] = false;
+        },
+        initialized
+    );
 #endif
     while (initialized && !stopping)
     {
 #if SLANG_WASM
+        processBrowserExampleSelection();
+        if (stopping)
+            break;
         glfwPollEvents();
         if (window)
         {
@@ -1189,16 +1261,14 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
     // Destroy all GPU resources on their owning thread, then destroy the window via the main thread.
     example.reset();
     done = true;
-#if SLANG_WASM
-    EM_ASM({ Module["rhiStopped"] = true; });
-#else
+#if !SLANG_WASM
     glfwPostEmptyEvent();
 #endif
 }
 
 // By default, wait for all workers before each common frame, including its input batch and
 // timestamp, while keeping the GLFW event pump active. --free-running lets workers advance independently.
-inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample)(), const char* shaderSearchPath)
+inline int runExamples(int argc, const char** argv, std::span<const ExampleDesc> registry)
 {
     std::vector<DeviceType> deviceTypes = {
 #if SLANG_WASM
@@ -1214,11 +1284,43 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
 #endif
     };
 
+    if (registry.empty())
+        return 1;
+    exampleRegistry = registry;
+    activeExampleIndex = requestedExampleIndex = 0;
+    switchRequested = closingExamples = false;
     bool syncFrames = true;
     bool deviceSelected = false;
+    bool exampleSelected = false;
+    bool listExamples = false;
     for (int i = 1; i < argc; ++i)
     {
         std::string option = argv[i];
+        if (option == "--list-examples")
+        {
+            listExamples = true;
+            continue;
+        }
+        if (option == "--example" && !exampleSelected && i + 1 < argc)
+        {
+            exampleSelected = true;
+            std::string_view name = argv[++i];
+            auto selected = std::find_if(
+                registry.begin(),
+                registry.end(),
+                [&](const ExampleDesc& desc)
+                {
+                    return name == desc.name;
+                }
+            );
+            if (selected == registry.end())
+            {
+                LOG_ERROR("Unknown example: %s (use --list-examples).", argv[i]);
+                return 1;
+            }
+            activeExampleIndex = size_t(selected - registry.begin());
+            continue;
+        }
         if (option == "--free-running" && syncFrames)
         {
             syncFrames = false;
@@ -1226,7 +1328,11 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         }
         if (option != "--device" || deviceSelected || i + 1 == argc)
         {
-            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda|wgpu>] [--free-running]", argv[0]);
+            LOG_ERROR(
+                "Usage: %s [--example <name>] [--list-examples] [--device <d3d11|d3d12|vulkan|metal|cpu|cuda|wgpu>] "
+                "[--free-running]",
+                argv[0]
+            );
             return 1;
         }
         deviceSelected = true;
@@ -1254,6 +1360,13 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         deviceTypes = {*selectedDevice};
     }
 
+    if (listExamples)
+    {
+        for (const auto& desc : registry)
+            std::printf("%s: %s\n", desc.name, desc.title);
+        return 0;
+    }
+
     if (!glfwInit())
     {
         LOG_ERROR("Failed to initialize GLFW");
@@ -1270,69 +1383,136 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
 #endif
     auto& examples = getExamples();
     int exitCode = 0;
-    // Finish building the main-thread registry before workers can request windows.
     std::vector<DeviceType> supportedTypes;
     for (DeviceType deviceType : deviceTypes)
     {
         if (getRHI()->isDeviceTypeSupported(deviceType))
         {
-            // Prime backend/adapter discovery before concurrent device creation. Driver
-            // loaders may otherwise race during their first initialization (notably Vulkan).
+            // Prime discovery once, before concurrent device creation.
             getRHI()->getAdapter(deviceType, 0);
             supportedTypes.push_back(deviceType);
-            examples.push_back(std::make_unique<ExampleRunner>());
         }
         else
             LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
     }
-    for (size_t i = 0; i < examples.size(); ++i)
-    {
-        auto& example = *examples[i];
-        example.done = false;
 #if SLANG_WASM
-        example.syncFrames = false;
-        example.run(createExample, supportedTypes[i], shaderSearchPath);
-#else
-        example.syncFrames = syncFrames;
-        example.thread = std::thread(&ExampleRunner::run, &example, createExample, supportedTypes[i], shaderSearchPath);
-#endif
+    EM_ASM({ Module['rhiExamples'] = []; });
+    for (const auto& desc : registry)
+    {
+        EM_ASM(
+            { Module['rhiExamples'].push({name : UTF8ToString(arguments[0]), title : UTF8ToString(arguments[1])}); },
+            desc.name,
+            desc.title
+        );
     }
-
-#if !SLANG_WASM
-    // Keep servicing window requests and native messages during initialization AND shutdown.
-    // In particular, DXGI may synchronously send window messages from a rendering thread.
+    EM_ASM({
+        if (Module['onExamplesReady'])
+            Module['onExamplesReady']();
+    });
+#endif
+    size_t lastWorkingIndex = registry.size();
     for (;;)
     {
-        processMainTasks();
-        bool allDone = true;
-        for (auto& example : examples)
-            allDone &= example->done.load();
-        if (allDone)
-            break;
-        if (syncFrames)
-            startSynchronizedFrame();
-        glfwWaitEventsTimeout(0.01);
-        // Some platforms return immediately when no windows exist yet.
-        if (!mainExample)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+        const auto& desc = registry[activeExampleIndex];
+        switchRequested = false;
+        layoutMargin = 100;
+        glfwSetTime(0);
+        LOG_INFO("Example: %s", desc.title);
+#if SLANG_WASM
+        EM_ASM(
+            {
+                Module['rhiExample'] = UTF8ToString(arguments[0]);
+                Module['rhiFrameCount'] = 0;
+                Module['rhiReady'] = false;
+                Module['rhiStopped'] = false;
+                Module['rhiSwitching'] = true;
+                if (Module['onExampleChanged'])
+                    Module['onExampleChanged'](arguments[1]);
+            },
+            desc.name,
+            int(activeExampleIndex)
+        );
 #endif
-    bool anyInitialized = false;
-    for (auto& example : examples)
-    {
-#if !SLANG_WASM
-        if (example->thread.joinable())
-            example->thread.join();
+        // Finish the main-thread registry before any worker can request a window.
+        for (size_t i = 0; i < supportedTypes.size(); ++i)
+            examples.push_back(std::make_unique<ExampleRunner>());
+        for (size_t i = 0; i < examples.size(); ++i)
+        {
+            auto& example = *examples[i];
+            example.done = false;
+#if SLANG_WASM
+            example.syncFrames = false;
+            example.run(desc.create, supportedTypes[i], desc.shaderSearchPath);
+#else
+            example.syncFrames = syncFrames;
+            example.thread =
+                std::thread(&ExampleRunner::run, &example, desc.create, supportedTypes[i], desc.shaderSearchPath);
 #endif
-        exitCode |= example->exitCode;
-        anyInitialized |= example->initialized;
-    }
-    if (!anyInitialized)
-        exitCode = 1;
-    examples.clear();
-    mainExample = nullptr;
+        }
 
+#if !SLANG_WASM
+        // Service window requests during initialization AND shutdown. A switch only
+        // asks workers to stop: joining before pumping these tasks would deadlock.
+        for (;;)
+        {
+            processMainTasks();
+            bool allDone = true;
+            for (auto& example : examples)
+                allDone &= example->done.load();
+            if (allDone)
+                break;
+            if (syncFrames)
+                startSynchronizedFrame();
+            glfwWaitEventsTimeout(0.01);
+            if (!mainExample)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+#else
+        // Changes made while shutdown yielded are handled before starting another example.
+        processBrowserExampleSelection();
+#endif
+        bool anyInitialized = false;
+        for (auto& example : examples)
+        {
+#if !SLANG_WASM
+            if (example->thread.joinable())
+                example->thread.join();
+#endif
+            exitCode |= example->exitCode;
+            anyInitialized |= example->initialized;
+        }
+        examples.clear();
+        mainExample = nullptr;
+        if (anyInitialized)
+            lastWorkingIndex = activeExampleIndex;
+        if (closingExamples)
+            break;
+        if (!anyInitialized && !switchRequested)
+        {
+            // A runtime selection unsupported by every backend must not strand the user
+            // without a window. An unsupported initial selection still fails normally.
+            if (lastWorkingIndex < registry.size() && lastWorkingIndex != activeExampleIndex)
+            {
+                LOG_WARNING("No backend could run %s; returning to %s.", desc.title, registry[lastWorkingIndex].title);
+                requestedExampleIndex = lastWorkingIndex;
+                switchRequested = true;
+            }
+            else
+                exitCode = 1;
+        }
+        if (!switchRequested)
+            break;
+        activeExampleIndex = requestedExampleIndex;
+    }
+    exampleRegistry = {};
     glfwTerminate();
+#if SLANG_WASM
+    EM_ASM({
+        Module['rhiReady'] = false;
+        Module['rhiSwitching'] = false;
+        Module['rhiStopped'] = true;
+    });
+#endif
 
     return exitCode;
 }
@@ -1341,16 +1521,29 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
 
 } // namespace rhi
 
-#define EXAMPLE_MAIN(Example)                                                                                          \
+// Each translation unit exports its descriptor. Only standalone builds define main().
+#if defined(EXAMPLE_COMBINED)
+#define EXAMPLE_STANDALONE_MAIN(Example)
+#else
+#define EXAMPLE_STANDALONE_MAIN(Example)                                                                               \
     int main(int argc, const char** argv)                                                                              \
     {                                                                                                                  \
-        return rhi::detail::runExamples(                                                                               \
-            argc,                                                                                                      \
-            argv,                                                                                                      \
+        const rhi::ExampleDesc desc = get##Example();                                                                  \
+        return rhi::detail::runExamples(argc, argv, std::span(&desc, 1));                                              \
+    }
+#endif
+
+#define EXAMPLE_MAIN(Example, Name, Title)                                                                             \
+    rhi::ExampleDesc get##Example()                                                                                    \
+    {                                                                                                                  \
+        return {                                                                                                       \
+            Name,                                                                                                      \
+            Title,                                                                                                     \
+            EXAMPLE_ROOT "/" Name,                                                                                     \
             []() -> rhi::ExampleBase*                                                                                  \
             {                                                                                                          \
                 return new Example();                                                                                  \
-            },                                                                                                         \
-            EXAMPLE_DIR                                                                                                \
-        );                                                                                                             \
-    }
+            }                                                                                                          \
+        };                                                                                                             \
+    }                                                                                                                  \
+    EXAMPLE_STANDALONE_MAIN(Example)

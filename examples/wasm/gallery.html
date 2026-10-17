@@ -17,16 +17,21 @@
 </head>
 <body>
   <h1>slang-rhi examples</h1>
-  <p>Interactive graphics using Slang and WebGPU. Open an example, click its canvas, and use the controls shown on screen. Press F1 to hide the overlay.</p>
+  <p>Interactive graphics using Slang and WebGPU. Open an example, click its canvas, and use the controls shown on screen. Press F1 to hide the overlay. Use the dropdown or F4 / Shift+F4 to switch examples without reloading.</p>
   <nav aria-label="Examples">
-    <a href="example-surface.html"><strong>Surface</strong><span>Clear and present a window image.</span></a>
-    <a href="example-triangle.html"><strong>Triangle</strong><span>A vertex buffer and a graphics pipeline.</span></a>
-    <a href="example-shader-toy.html"><strong>ShaderToy</strong><span>Compute shaders, an ocean, and interactive input.</span></a>
-    <a href="example-raster.html"><strong>Raster</strong><span>The Slang logo, materials, shadows, and environment lighting.</span></a>
-    <a href="example-particles.html"><strong>Particles</strong><span>A GPU simulation with interactive forces and indirect drawing.</span></a>
+    <a href="example-runner.html?example=surface"><strong>Surface</strong><span>Clear and present a window image.</span></a>
+    <a href="example-runner.html?example=triangle"><strong>Triangle</strong><span>A vertex buffer and a graphics pipeline.</span></a>
+    <a href="example-runner.html?example=shader-toy"><strong>ShaderToy</strong><span>Compute shaders, an ocean, and interactive input.</span></a>
+    <a href="example-runner.html?example=raster"><strong>Raster</strong><span>The Slang logo, materials, shadows, and environment lighting.</span></a>
+    <a href="example-runner.html?example=particles"><strong>Particles</strong><span>A GPU simulation with interactive forces and indirect drawing.</span></a>
   </nav>
   <p id="support">Requires a WebGPU-capable browser on localhost or HTTPS. Shaders compile on first use, so initial loading may take a moment.</p>
   <p>The native path tracer requires acceleration structures and ray tracing, which this WebGPU backend does not support.</p>
+  <details><summary>Standalone examples</summary>
+    <p><a href="example-surface.html">Surface</a> ? <a href="example-triangle.html">Triangle</a> ?
+    <a href="example-shader-toy.html">ShaderToy</a> ? <a href="example-raster.html">Raster</a> ?
+    <a href="example-particles.html">Particles</a></p>
+  </details>
   <p><a href="wasm-test.html">Run the WebGPU smoke test</a></p>
   <script>if (!navigator.gpu) document.getElementById('support').textContent = 'WebGPU is unavailable here. Use a WebGPU-capable browser on localhost or HTTPS.';</script>
 </body>

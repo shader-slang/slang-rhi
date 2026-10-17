@@ -10,6 +10,7 @@
     body { margin: 0; }
     header { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; padding: 14px 20px; }
     a { color: #80c9eb; }
+    select { font: inherit; color: inherit; background: #1b222d; border: 1px solid #35404e; padding: 5px; }
     #status { margin-left: auto; color: #b5c0cb; }
     main { height: calc(100vh - 110px); min-height: 240px; }
     canvas { display: block; width: 100%; height: 100%; outline: none; }
@@ -18,12 +19,14 @@
   </style>
 </head>
 <body>
-  <header><a href="index.html">All examples</a><span>F1: show/hide UI</span><span id="status" role="status">Loading...</span></header>
+  <header><a href="index.html">All examples</a><label id="example-picker" hidden>Example <select id="example-select" aria-label="Example"></select></label><span>F1: show/hide UI</span><span id="status" role="status">Loading...</span></header>
   <main id="viewport"><canvas id="canvas" tabindex="0" aria-label="Interactive graphics example"></canvas></main>
   <details id="log"><summary>Output and controls</summary><pre id="output"></pre></details>
   <script>
     const canvas = document.getElementById('canvas');
     const status = document.getElementById('status');
+    const exampleSelect = document.getElementById('example-select');
+    const initialExample = new URLSearchParams(location.search).get('example');
     let failed = false;
     function report(text, error) {
       const output = document.getElementById('output');
@@ -37,23 +40,54 @@
     }
     var Module = {
       canvas,
+      arguments: initialExample ? ['--example', initialExample] : [],
+      onExamplesReady: () => {
+        exampleSelect.replaceChildren(...Module.rhiExamples.map((example, index) => {
+          const option = document.createElement('option');
+          option.value = String(index);
+          option.textContent = example.title;
+          return option;
+        }));
+        document.getElementById('example-picker').hidden = Module.rhiExamples.length < 2;
+      },
+      onExampleChanged: index => {
+        failed = false;
+        exampleSelect.value = String(index);
+        const example = Module.rhiExamples[index];
+        document.title = example.title + ' | slang-rhi';
+        if (Module.rhiExamples.length > 1) {
+          const url = new URL(location.href);
+          url.searchParams.set('example', example.name);
+          history.replaceState(null, '', url);
+        }
+      },
       print: text => report(text, /^\[Error\]|^FAILED:/.test(text)),
       printErr: text => report(text, !/^\[Warning\]/.test(text)),
       onAbort: reason => report(String(reason), true),
       onExit: code => { if (code) report('Exited with code ' + code, true); },
       setStatus: text => { if (!failed && text) status.textContent = text; }
     };
+    exampleSelect.addEventListener('change', () => {
+      Module.rhiRequestedExample = Number(exampleSelect.value);
+      canvas.focus();
+    });
     window.addEventListener('error', event => report(event.message, true));
     window.addEventListener('unhandledrejection', event => report(String(event.reason), true));
     if (!navigator.gpu) report('WebGPU is unavailable. Use a WebGPU-capable browser on localhost or HTTPS.', true);
     canvas.addEventListener('contextmenu', event => event.preventDefault());
     canvas.addEventListener('pointerdown', () => canvas.focus());
     window.addEventListener('keydown', event => {
-      if (event.key === 'F1' || (document.activeElement === canvas && [' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)))
+      if (event.key === 'F1' || event.key === 'F4' || (document.activeElement === canvas && [' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)))
         event.preventDefault();
     }, true);
     function updateStatus() {
-      if (!failed && Module.rhiFrameCount > 0) status.textContent = Module.rhiStopped ? 'Stopped - reload to restart' : 'WebGPU';
+      if (!failed) {
+        if (Module.rhiStopped) {
+          status.textContent = 'Stopped - reload to restart';
+          exampleSelect.disabled = true;
+        } else if (Module.rhiSwitching) status.textContent = 'Loading example...';
+        else if (Module.rhiFrameCount > 0) status.textContent = 'WebGPU';
+      }
       requestAnimationFrame(updateStatus);
     }
     requestAnimationFrame(updateStatus);

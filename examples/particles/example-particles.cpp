@@ -12,6 +12,8 @@
 #include <cmath>
 #include <memory>
 
+namespace {
+
 using namespace rhi;
 
 // XY: center in logo coordinates; Z: scale into particle world space.
@@ -732,4 +734,6 @@ private:
     bool m_paused = false, m_singleStep = false, m_reset = true, m_bloom = true, m_countValid = false;
 };
 
-EXAMPLE_MAIN(ExampleParticles)
+} // namespace
+
+EXAMPLE_MAIN(ExampleParticles, "particles", "Particles")

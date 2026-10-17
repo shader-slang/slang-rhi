@@ -18,6 +18,8 @@
 #include <memory>
 #include <vector>
 
+namespace {
+
 using namespace rhi;
 
 struct Material
@@ -926,4 +928,6 @@ private:
     double m_time = -1.0;
 };
 
-EXAMPLE_MAIN(ExampleRaster)
+} // namespace
+
+EXAMPLE_MAIN(ExampleRaster, "raster", "Raster")
