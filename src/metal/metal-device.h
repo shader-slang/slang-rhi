@@ -185,6 +185,8 @@ public:
 
     bool m_hasArgumentBufferTier2 = false;
 
+    RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
+
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_hasResidencySet = false;
     bool m_residencySetDirty = false;
