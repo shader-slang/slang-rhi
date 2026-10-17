@@ -25,6 +25,7 @@ public:
 
         m_blitter = std::make_unique<Blitter>(m_device);
 
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
         m_pipelines.resize(kShaders.size());
         return loadShader();
     }
@@ -103,25 +104,30 @@ public:
         // Start command encoding
         ComPtr<ICommandEncoder> commandEncoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
 
         // Start compute pass
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
-        ShaderCursor cursor(passEncoder->bindPipeline(m_pipelines[m_shaderIndex]));
-        float resolution[3] = {float(width), float(height), 1.0f};
-        cursor["iResolution"].setData(resolution);
-        cursor["iTime"].setData(float(m_time));
-        cursor["iTimeDelta"].setData(float(m_timeDelta));
-        cursor["iFrameRate"].setData(float(m_frameRate));
-        cursor["iFrame"].setData(m_frame);
-        float mouse[4] = {
-            m_stickyMousePos[0],
-            m_stickyMousePos[1],
-            m_combinedMouseDown ? 1.f : 0.f,
-            m_combinedMouseClicked ? 1.f : 0.f
-        };
-        cursor["iMouse"].setData(mouse);
-        cursor["texture"].setBinding(m_texture);
-        passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+        {
+            PROFILE_SCOPE(passEncoder, kShaders[m_shaderIndex]);
+            ShaderCursor cursor(passEncoder->bindPipeline(m_pipelines[m_shaderIndex]));
+            float resolution[3] = {float(width), float(height), 1.0f};
+            cursor["iResolution"].setData(resolution);
+            cursor["iTime"].setData(float(m_time));
+            cursor["iTimeDelta"].setData(float(m_timeDelta));
+            cursor["iFrameRate"].setData(float(m_frameRate));
+            cursor["iFrame"].setData(m_frame);
+            float mouse[4] = {
+                m_stickyMousePos[0],
+                m_stickyMousePos[1],
+                m_combinedMouseDown ? 1.f : 0.f,
+                m_combinedMouseClicked ? 1.f : 0.f
+            };
+            cursor["iMouse"].setData(mouse);
+            cursor["texture"].setBinding(m_texture);
+            passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+        }
         passEncoder->end();
 
         // Blit result to the surface image
@@ -136,7 +142,9 @@ public:
         // Submit command buffer
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
+        profile.markSubmitted();
 
         m_frame += 1;
 
