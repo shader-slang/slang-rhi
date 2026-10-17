@@ -140,9 +140,9 @@ public:
     // Overlay utility
 
     // Initializes the optional text overlay for the output format.
-    // Scale multiplies the standard text size, independently of the window's pixel density.
+    // Scale multiplies the native 6x9 font size; combined with pixel density, it rounds to a whole pixel scale.
     // Uses rasterization or a compute fallback, depending on the device and target.
-    Result initOverlay(IDevice* device, Format format, float scale = 1.5f);
+    Result initOverlay(IDevice* device, Format format, float scale = 2.f);
 
     // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
     void clearOverlay();
@@ -198,7 +198,7 @@ private:
     int m_framebufferHeight = 0;
     bool m_minimized = false;
     bool m_overlayVisible = true;
-    float m_overlayScale = 1.5f;
+    float m_overlayScale = 1.f;
     std::unique_ptr<TextRenderer> m_textRenderer;
 
     friend struct detail::ExampleRunner;

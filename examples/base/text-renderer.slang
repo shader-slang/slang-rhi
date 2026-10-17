@@ -1,6 +1,7 @@
 Texture2D<float> fontAtlas;
 StructuredBuffer<uint> characters;
 uint2 gridSize;
+uint2 glyphSize;
 float2 panelOrigin;
 float2 panelEnd;
 float2 textOrigin;
@@ -30,12 +31,12 @@ float4 overlayColor(float2 pixel)
     if (all(position >= 0))
     {
         uint2 local = uint2(floor(position));
-        uint2 cell = local / uint2(6, 9);
-        uint2 glyphPixel = local % uint2(6, 9);
-        if (all(cell < gridSize) && glyphPixel.x < 5 && glyphPixel.y < 7)
+        uint2 cell = local / glyphSize;
+        uint2 glyphPixel = local % glyphSize;
+        if (all(cell < gridSize))
         {
             uint glyph = characters[cell.y * gridSize.x + cell.x];
-            uint2 atlasPixel = uint2(glyph % 16, glyph / 16) * 8 + glyphPixel;
+            uint2 atlasPixel = uint2(glyph % 16, glyph / 16) * glyphSize + glyphPixel;
             coverage = fontAtlas.Load(int3(atlasPixel, 0));
         }
     }
