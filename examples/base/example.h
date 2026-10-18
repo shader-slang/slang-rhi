@@ -140,9 +140,9 @@ public:
     // Overlay utility
 
     // Initializes the optional text overlay for the output format.
-    // Scale multiplies the native 6x9 font size; combined with pixel density, it rounds to a whole pixel scale.
+    // The window content scale multiplies the native 6x9 font size, rounded to whole pixels.
     // Uses rasterization or a compute fallback, depending on the device and target.
-    Result initOverlay(IDevice* device, Format format, float scale = 2.f);
+    Result initOverlay(IDevice* device, Format format);
 
     // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
     void clearOverlay();
@@ -196,9 +196,9 @@ private:
     int m_windowHeight = 0;
     int m_framebufferWidth = 0;
     int m_framebufferHeight = 0;
+    float m_contentScale = 1.f; // Use the X scale uniformly to preserve the bitmap font's aspect ratio.
     bool m_minimized = false;
     bool m_overlayVisible = true;
-    float m_overlayScale = 1.f;
     std::unique_ptr<TextRenderer> m_textRenderer;
 
     friend struct detail::ExampleRunner;
@@ -210,6 +210,7 @@ inline void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
 inline void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
 inline void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
 inline void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
+inline void glfwWindowContentScaleCallback(GLFWwindow* window, float xscale, float yscale);
 inline void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 inline void glfwCursorEnterCallback(GLFWwindow* window, int entered);
 inline void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
@@ -288,6 +289,18 @@ struct ExampleRunner
                  example.m_framebufferHeight = framebufferHeight;
                  example.m_frameStats.reset();
                  return example.onResize(width, height, framebufferWidth, framebufferHeight);
+             }}
+        );
+    }
+
+    void setContentScale(float scale)
+    {
+        postEvent(
+            {Event::Input,
+             [scale](ExampleBase& example)
+             {
+                 example.m_contentScale = scale;
+                 return SLANG_OK;
              }}
         );
     }
@@ -485,6 +498,7 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
                 glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
                 glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
                 glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
+                glfwSetWindowContentScaleCallback(m_window, detail::glfwWindowContentScaleCallback);
                 glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
                 glfwSetCursorEnterCallback(m_window, detail::glfwCursorEnterCallback);
                 glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
@@ -493,6 +507,7 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
                 glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
                 glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
                 glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+                glfwGetWindowContentScale(m_window, &m_contentScale, nullptr);
                 if (detail::mainExample)
                 {
                     int w, h;
@@ -608,12 +623,10 @@ inline Result ExampleBase::presentSurface()
     return SLANG_OK;
 }
 
-inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
+inline Result ExampleBase::initOverlay(IDevice* device, Format format)
 {
     m_textRenderer = std::make_unique<TextRenderer>();
-    SLANG_RETURN_ON_FAIL(m_textRenderer->init(device, format));
-    m_overlayScale = scale;
-    return SLANG_OK;
+    return m_textRenderer->init(device, format);
 }
 
 inline void ExampleBase::clearOverlay()
@@ -661,8 +674,8 @@ inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image
         return SLANG_OK;
     if (!encoder || !image)
         return SLANG_E_INVALID_ARG;
-    float pixelRatio = float(image->getDesc().size.width) / std::max(m_windowWidth, 1);
-    return m_textRenderer->render(encoder, image, pixelRatio, m_overlayScale);
+    // Content scale already maps UI dimensions to framebuffer pixels, including on Retina displays.
+    return m_textRenderer->render(encoder, image, m_contentScale);
 }
 
 namespace detail {
@@ -873,6 +886,11 @@ inline void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
 inline void glfwFramebufferSizeCallback(GLFWwindow* window, int, int)
 {
     static_cast<ExampleRunner*>(glfwGetWindowUserPointer(window))->resize();
+}
+
+inline void glfwWindowContentScaleCallback(GLFWwindow* window, float xscale, float)
+{
+    static_cast<ExampleRunner*>(glfwGetWindowUserPointer(window))->setContentScale(xscale);
 }
 
 inline void broadcastEvent(ExampleRunner::Event event)
