@@ -26,7 +26,6 @@ int main()
             }
         }
     } callback;
-    // Keep test callers and their lambdas covered by the preset's *main* pattern.
     auto testBindings = [](IDevice* device, bool graphics, bool deferred) -> Result
     {
         const char* source = R"(

@@ -46,28 +46,15 @@ cmake --build build --config Debug --target wasm-test
 python -m http.server 8000 --bind 127.0.0.1 --directory build/Debug
 ```
 
-Open `http://localhost:8000/wasm-test.html` in a WebGPU-capable browser to verify
-the build.
+Open `http://localhost:8000/wasm-test.html` in a browser with WebGPU and JSPI support.
+The preset uses `-sJSPI`; additional JavaScript-facing exports that can wait must
+be listed in `-sJSPI_EXPORTS` and their returned promises awaited (`main` is included by default).
 
-The preset uses an explicit `ASYNCIFY_ONLY` allowlist in
-[CMakePresets.json](../CMakePresets.json). When adding callers of RHI operations
-that can wait, ensure every intermediate caller is covered by the allowlist.
-This includes adapter enumeration (and its `call_once` helpers), buffer mapping,
-readback, staging uploads, and the binding helpers that allocate constant-buffer
-pages during draw or dispatch recording. Native binding and layout creation do
-not wait for validation, but constant-buffer mapping can still suspend recording.
-Pipeline creation waits on the asynchronous WebGPU entry points, except for
-deferred pipelines resolved by `finish()`, which must not yield.
-The allowlist must also cover application callers of these operations; the example
-keeps its test callers inside `main` so the `*main*` pattern covers them. Verify
-both Debug and optimized builds, since inlining changes which stack frames remain.
-
-The preset also passes `-sBINARYEN_EXTRA_PASSES=--optimize-level=0` to work around
-an Asyncify optimizer failure with WebAssembly exceptions in Emscripten 5.0.7
-(Binaryen 129): `Module::getFunction: __asyncify_get_call_index does not exist`.
-This disables Asyncify's internal optimization passes; the normal LLVM and
-Binaryen Release optimization passes still run. Recheck this workaround when
-upgrading the SDK, using both build configurations and the browser smoke test.
+Asyncify is a historical, unsupported alternative: replace `-sJSPI` with
+`-sASYNCIFY -sBINARYEN_EXTRA_PASSES=--optimize-level=0`, restore the `wgpu::wait`
+polling loop and `ASYNCIFY_ONLY` allowlist from Git history, and remove the example's
+JSPI browser check. Adapt the allowlist to cover every caller on a suspending call
+chain, including application code and indirect callers.
 
 ## Common options
 
