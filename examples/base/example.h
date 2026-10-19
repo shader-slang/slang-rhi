@@ -2,6 +2,7 @@
 
 #include "utils.h"
 #include "text-renderer.h"
+#include "profiler.h"
 
 #include <slang.h>
 #include <slang-rhi.h>
@@ -137,6 +138,18 @@ public:
     // Returns the current frame statistics.
     const FrameStats& getFrameStats() const { return m_frameStats; }
 
+    // Profiler
+
+    // Initializes optional profiling of explicitly marked regions on the example's queue.
+    // Initialize once; shutdown() must wait for submissions before destruction.
+    Result initProfiler(IDevice* device);
+
+    // Returns the profiler. Requires successful initProfiler().
+    Profiler& getProfiler();
+
+    // Toggles profiling independently of overlay visibility. Does nothing if uninitialized.
+    void toggleProfiler();
+
     // Overlay utility
 
     // Initializes the optional text overlay for the output format.
@@ -200,6 +213,7 @@ private:
     bool m_minimized = false;
     bool m_overlayVisible = true;
     std::unique_ptr<TextRenderer> m_textRenderer;
+    std::unique_ptr<Profiler> m_profiler;
 
     friend struct detail::ExampleRunner;
 };
@@ -623,6 +637,27 @@ inline Result ExampleBase::presentSurface()
     return SLANG_OK;
 }
 
+inline Result ExampleBase::initProfiler(IDevice* device)
+{
+    auto profiler = std::make_unique<Profiler>();
+    SLANG_RETURN_ON_FAIL(profiler->init(device));
+    m_profiler = std::move(profiler);
+    return SLANG_OK;
+}
+
+inline Profiler& ExampleBase::getProfiler()
+{
+    ASSERT(m_profiler, "Profiler must be initialized before accessing it");
+    return *m_profiler;
+}
+
+inline void ExampleBase::toggleProfiler()
+{
+    if (!m_profiler)
+        return;
+    m_profiler->setEnabled(!m_profiler->enabled());
+}
+
 inline Result ExampleBase::initOverlay(IDevice* device, Format format)
 {
     m_textRenderer = std::make_unique<TextRenderer>();
@@ -637,7 +672,10 @@ inline void ExampleBase::clearOverlay()
 
 inline void ExampleBase::printOverlayHeader()
 {
-    printOverlay("F1: Show/hide overlay | F2: Fit windows | F3: VSync | Esc: Close\n");
+    printOverlay("F1: Overlay | F2: Fit windows | F3: VSync");
+    if (m_profiler)
+        printOverlay(" | F4: Profiler");
+    printOverlay(" | Esc: Close\n");
 }
 
 inline void ExampleBase::printCameraControls()
@@ -675,6 +713,8 @@ inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image
     if (!encoder || !image)
         return SLANG_E_INVALID_ARG;
     // Content scale already maps UI dimensions to framebuffer pixels, including on Retina displays.
+    if (m_profiler)
+        printOverlay("%s", m_profiler->getDisplayText().c_str());
     return m_textRenderer->render(encoder, image, m_contentScale);
 }
 
@@ -977,6 +1017,11 @@ inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
              {
                  if (action == GLFW_PRESS)
                      example.toggleVsync();
+             }
+             else if (key == GLFW_KEY_F4)
+             {
+                 if (action == GLFW_PRESS)
+                     example.toggleProfiler();
              }
              else
                  example.onKey(key, scancode, action, mods);

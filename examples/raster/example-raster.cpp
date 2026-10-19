@@ -501,13 +501,15 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     RenderPassDesc pass = {};
     pass.depthStencilAttachment = &depth;
     auto renderPass = encoder->beginRenderPass(pass);
+    Profiler::pushRegion(renderPass, "Raster frame");
+    Profiler::pushRegion(renderPass, "Shadows");
     renderPass->pushDebugGroup("Shadow map", {});
     ShaderCursor shadowCursor(renderPass->bindPipeline(m_shadowPipeline));
     SLANG_RETURN_ON_FAIL(shadowCursor["frame"]["lightViewProjection"].setData(lightViewProjection));
     renderPass->setRenderState(renderState(kShadowSize, kShadowSize));
-    DrawArguments draw = {};
-    draw.vertexCount = m_indexCount;
-    renderPass->drawIndexed(draw);
+    DrawArguments shadowDraw = {};
+    shadowDraw.vertexCount = m_indexCount;
+    renderPass->drawIndexed(shadowDraw);
     if (settings.spheres)
     {
         ShaderCursor cursor(renderPass->bindPipeline(m_sphereShadowPipeline));
@@ -520,6 +522,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         renderPass->drawIndexed(sphereDraw);
     }
     renderPass->popDebugGroup();
+    Profiler::popRegion(renderPass);
     renderPass->end();
 
     RenderPassColorAttachment color = {};
@@ -529,6 +532,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     pass.colorAttachmentCount = 1;
     pass.depthStencilAttachment = nullptr;
     renderPass = encoder->beginRenderPass(pass);
+    Profiler::pushRegion(renderPass, "Scene");
     renderPass->pushDebugGroup("Procedural environment background", {});
     ShaderCursor background(renderPass->bindPipeline(msaa ? m_msaaBackgroundPipeline : m_backgroundPipeline));
     SLANG_RETURN_ON_FAIL(background["frame"]["cameraRight"].setData(camera.imageU));
@@ -587,6 +591,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         SLANG_RETURN_ON_FAIL(cursor["material"]["metallic"].setData(material.metallic));
         SLANG_RETURN_ON_FAIL(cursor["material"]["roughness"].setData(material.roughness));
         SLANG_RETURN_ON_FAIL(cursor["material"]["groundPattern"].setData(material.groundPattern));
+        DrawArguments draw = {};
         draw.startIndexLocation = mesh.firstIndex;
         draw.vertexCount = mesh.indexCount;
         renderPass->drawIndexed(draw);
@@ -605,6 +610,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         renderPass->popDebugGroup();
     }
     renderPass->popDebugGroup();
+    Profiler::popRegion(renderPass);
     renderPass->end();
 
     if (settings.bloom)
@@ -612,6 +618,8 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         for (uint32_t i = 0; i < 3; ++i)
         {
             auto computePass = encoder->beginComputePass();
+            if (i == 0)
+                Profiler::pushRegion(computePass, "Bloom");
             computePass->pushDebugGroup(
                 i == 0   ? "Bloom highlights"
                 : i == 1 ? "Bloom horizontal"
@@ -626,6 +634,8 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
             auto size = m_bloom[i % 2]->getDesc().size;
             computePass->dispatchCompute(math::divRoundUp(size.width, 8u), math::divRoundUp(size.height, 8u), 1);
             computePass->popDebugGroup();
+            if (i == 2)
+                Profiler::popRegion(computePass);
             computePass->end();
         }
     }
@@ -635,6 +645,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     color.loadOp = LoadOp::Clear;
     pass.depthStencilAttachment = nullptr;
     renderPass = encoder->beginRenderPass(pass);
+    Profiler::pushRegion(renderPass, "Tone map");
     renderPass->pushDebugGroup("Tone mapping", {});
     ShaderCursor cursor(renderPass->bindPipeline(m_toneMapPipeline));
     SLANG_RETURN_ON_FAIL(cursor["source"].setBinding(m_hdr));
@@ -651,10 +662,12 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     state.scissorRects[0] = ScissorRect::fromSize(m_width, m_height);
     state.scissorRectCount = 1;
     renderPass->setRenderState(state);
-    draw = {};
+    DrawArguments draw = {};
     draw.vertexCount = 3;
     renderPass->draw(draw);
     renderPass->popDebugGroup();
+    Profiler::popRegion(renderPass); // Tone map
+    Profiler::popRegion(renderPass); // Raster frame
     renderPass->end();
     return SLANG_OK;
 }
@@ -754,6 +767,8 @@ public:
         SLANG_RETURN_ON_FAIL(m_renderer->init(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_renderer->resize(m_surface->getConfig()->width, m_surface->getConfig()->height));
 
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
+
         m_cameraController.setCamera(&m_camera);
         resetCamera();
         return SLANG_OK;
@@ -791,11 +806,15 @@ public:
         m_camera.recompute();
         ComPtr<ICommandEncoder> encoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
         SLANG_RETURN_ON_FAIL(m_renderer->render(encoder, image, m_camera, m_settings));
         SLANG_RETURN_ON_FAIL(drawStatusOverlay(encoder, image));
         ComPtr<ICommandBuffer> commands;
         SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
+        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commands));
+        profile.markSubmitted();
         return presentSurface();
     }
 
