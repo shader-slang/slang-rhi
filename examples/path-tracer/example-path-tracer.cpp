@@ -330,6 +330,8 @@ struct PathTracer
             computePass = encoder->beginComputePass();
             root = computePass->bindPipeline(computePipeline);
         }
+        IPassEncoder* timingPass = rayPass ? static_cast<IPassEncoder*>(rayPass) : computePass;
+        Profiler::pushRegion(timingPass, modeName());
         SLANG_RETURN_ON_FAIL(scene.bind(ShaderCursor(root)["g_scene"]));
         ShaderCursor cursor(root->getEntryPoint(0));
         SLANG_RETURN_ON_FAIL(cursor["camera"]["position"].setData(camera.position));
@@ -343,13 +345,13 @@ struct PathTracer
         if (rayPass)
         {
             rayPass->dispatchRays(0, size.width, size.height, 1);
-            rayPass->end();
         }
         else
         {
             computePass->dispatchCompute(divRoundUp(size.width, 8u), divRoundUp(size.height, 8u), 1);
-            computePass->end();
         }
+        Profiler::popRegion(timingPass);
+        timingPass->end();
         return SLANG_OK;
     }
 };
@@ -382,6 +384,7 @@ struct Accumulator
             reset = true;
         }
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        Profiler::pushRegion(passEncoder, "Accumulation");
         IShaderObject* shaderObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor = ShaderCursor(shaderObject->getEntryPoint(0));
         SLANG_RETURN_ON_FAIL(cursor["input"].setBinding(input));
@@ -390,6 +393,7 @@ struct Accumulator
         SLANG_RETURN_ON_FAIL(cursor["reset"].setData(reset ? 1u : 0u));
         Extent3D size = input->getDesc().size;
         passEncoder->dispatchCompute(divRoundUp(size.width, 8u), divRoundUp(size.height, 8u), 1);
+        Profiler::popRegion(passEncoder);
         passEncoder->end();
         return SLANG_OK;
     }
@@ -408,12 +412,14 @@ struct ToneMapper
     Result execute(ICommandEncoder* commandEncoder, ITexture* input, ITexture* output)
     {
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        Profiler::pushRegion(passEncoder, "Tone map");
         IShaderObject* shaderObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor = ShaderCursor(shaderObject->getEntryPoint(0));
         SLANG_RETURN_ON_FAIL(cursor["input"].setBinding(input));
         SLANG_RETURN_ON_FAIL(cursor["output"].setBinding(output));
         Extent3D size = input->getDesc().size;
         passEncoder->dispatchCompute(divRoundUp(size.width, 8u), divRoundUp(size.height, 8u), 1);
+        Profiler::popRegion(passEncoder);
         passEncoder->end();
         return SLANG_OK;
     }
@@ -446,6 +452,7 @@ public:
         SLANG_RETURN_ON_FAIL(m_pathTracer.initialize(m_device));
         SLANG_RETURN_ON_FAIL(m_accumulator.initialize(m_device));
         SLANG_RETURN_ON_FAIL(m_toneMapper.initialize(m_device));
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
         return SLANG_OK;
     }
 
@@ -515,6 +522,8 @@ public:
         // Start command encoding
         ComPtr<ICommandEncoder> commandEncoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
 
         SLANG_RETURN_ON_FAIL(
             m_pathTracer.execute(commandEncoder, m_scene, m_camera, m_renderTexture, m_frame, m_maxBounces)
@@ -547,7 +556,9 @@ public:
         // Submit command buffer
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
+        profile.markSubmitted();
 
         m_frame += 1;
 
