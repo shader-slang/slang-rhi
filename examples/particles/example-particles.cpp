@@ -534,10 +534,10 @@ public:
         if (!image)
             return SLANG_OK;
         SLANG_RETURN_ON_FAIL(pollReadbacks());
-        ComPtr<ICommandEncoder> encoder;
-        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         auto profile = getProfiler().frame();
         SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         if (m_reset)
         {
             m_renderer->reset(encoder);
@@ -597,9 +597,8 @@ public:
             submit.signalFenceValues = &readback->value;
             submit.signalFenceCount = 1;
         }
-        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(submit));
-        profile.markSubmitted();
+        SLANG_RETURN_ON_FAIL(profile.end());
         return presentSurface();
     }
 
