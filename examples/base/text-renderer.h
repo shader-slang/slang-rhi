@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.h"
+#include "font-monogram.h"
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
@@ -14,101 +15,23 @@
 
 namespace rhi::bitmap_font {
 
-// Small hand-defined 5x7 glyphs, stored in 8x8 atlas cells. Lowercase ASCII is
-// displayed as uppercase. Other characters use '?'; this is an example HUD font.
-struct Glyph
-{
-    char character;
-    uint8_t rows[7];
-};
-
-// clang-format off
-inline constexpr Glyph kGlyphs[] = {
-    {' ', {0, 0, 0, 0, 0, 0, 0}},
-    {'A', {14, 17, 17, 31, 17, 17, 17}},
-    {'B', {30, 17, 17, 30, 17, 17, 30}},
-    {'C', {14, 17, 16, 16, 16, 17, 14}},
-    {'D', {30, 17, 17, 17, 17, 17, 30}},
-    {'E', {31, 16, 16, 30, 16, 16, 31}},
-    {'F', {31, 16, 16, 30, 16, 16, 16}},
-    {'G', {14, 17, 16, 23, 17, 17, 15}},
-    {'H', {17, 17, 17, 31, 17, 17, 17}},
-    {'I', {14, 4, 4, 4, 4, 4, 14}},
-    {'J', {7, 2, 2, 2, 18, 18, 12}},
-    {'K', {17, 18, 20, 24, 20, 18, 17}},
-    {'L', {16, 16, 16, 16, 16, 16, 31}},
-    {'M', {17, 27, 21, 21, 17, 17, 17}},
-    {'N', {17, 25, 25, 21, 19, 19, 17}},
-    {'O', {14, 17, 17, 17, 17, 17, 14}},
-    {'P', {30, 17, 17, 30, 16, 16, 16}},
-    {'Q', {14, 17, 17, 17, 21, 18, 13}},
-    {'R', {30, 17, 17, 30, 20, 18, 17}},
-    {'S', {15, 16, 16, 14, 1, 1, 30}},
-    {'T', {31, 4, 4, 4, 4, 4, 4}},
-    {'U', {17, 17, 17, 17, 17, 17, 14}},
-    {'V', {17, 17, 17, 17, 17, 10, 4}},
-    {'W', {17, 17, 17, 21, 21, 21, 10}},
-    {'X', {17, 17, 10, 4, 10, 17, 17}},
-    {'Y', {17, 17, 10, 4, 4, 4, 4}},
-    {'Z', {31, 1, 2, 4, 8, 16, 31}},
-    {'0', {14, 17, 19, 21, 25, 17, 14}},
-    {'1', {4, 12, 4, 4, 4, 4, 14}},
-    {'2', {14, 17, 1, 2, 4, 8, 31}},
-    {'3', {30, 1, 1, 14, 1, 1, 30}},
-    {'4', {2, 6, 10, 18, 31, 2, 2}},
-    {'5', {31, 16, 16, 30, 1, 1, 30}},
-    {'6', {14, 16, 16, 30, 17, 17, 14}},
-    {'7', {31, 1, 2, 4, 8, 8, 8}},
-    {'8', {14, 17, 17, 14, 17, 17, 14}},
-    {'9', {14, 17, 17, 15, 1, 1, 14}},
-    {'.', {0, 0, 0, 0, 0, 12, 12}},
-    {',', {0, 0, 0, 0, 0, 4, 8}},
-    {':', {0, 4, 4, 0, 4, 4, 0}},
-    {';', {0, 4, 4, 0, 4, 4, 8}},
-    {'-', {0, 0, 0, 31, 0, 0, 0}},
-    {'+', {0, 4, 4, 31, 4, 4, 0}},
-    {'=', {0, 0, 31, 0, 31, 0, 0}},
-    {'/', {1, 2, 2, 4, 8, 8, 16}},
-    {'\\', {16, 8, 8, 4, 2, 2, 1}},
-    {'[', {14, 8, 8, 8, 8, 8, 14}},
-    {']', {14, 2, 2, 2, 2, 2, 14}},
-    {'(', {2, 4, 8, 8, 8, 4, 2}},
-    {')', {8, 4, 2, 2, 2, 4, 8}},
-    {'<', {1, 2, 4, 8, 4, 2, 1}},
-    {'>', {16, 8, 4, 2, 4, 8, 16}},
-    {'!', {4, 4, 4, 4, 4, 0, 4}},
-    {'?', {14, 17, 1, 2, 4, 0, 4}},
-    {'_', {0, 0, 0, 0, 0, 0, 31}},
-    {'|', {4, 4, 4, 4, 4, 4, 4}},
-    {'%', {25, 25, 2, 4, 8, 19, 19}},
-    {'*', {0, 21, 14, 31, 14, 21, 0}},
-    {'\'', {4, 4, 8, 0, 0, 0, 0}},
-    {'"', {10, 10, 10, 0, 0, 0, 0}},
-};
-// clang-format on
-
-inline constexpr uint32_t kWidth = 128, kHeight = 48;
+// Printable ASCII in 6x9 cells, including lowercase. Unsupported bytes use '?'.
+inline constexpr uint32_t kWidth = 16 * kGlyphWidth, kHeight = 6 * kGlyphHeight;
 
 inline unsigned char glyphCharacter(unsigned char c)
 {
-    if (c >= 'a' && c <= 'z')
-        c -= 'a' - 'A';
-    for (const auto& glyph : kGlyphs)
-        if (glyph.character == c)
-            return c;
-    return '?';
+    return c >= ' ' && c <= '~' ? c : '?';
 }
 
 inline std::array<uint8_t, kWidth * kHeight> createAtlas()
 {
     std::array<uint8_t, kWidth * kHeight> pixels = {};
-    for (const auto& glyph : kGlyphs)
+    for (uint32_t index = 0; index < std::size(kGlyphs); ++index)
     {
-        uint32_t index = uint32_t(glyph.character - ' ');
-        uint32_t x = (index % 16) * 8, y = (index / 16) * 8;
-        for (uint32_t row = 0; row < 7; ++row)
-            for (uint32_t column = 0; column < 5; ++column)
-                pixels[(y + row) * kWidth + x + column] = (glyph.rows[row] & (16 >> column)) ? 255 : 0;
+        uint32_t x = (index % 16) * kGlyphWidth, y = (index / 16) * kGlyphHeight;
+        for (uint32_t row = 0; row < kGlyphHeight; ++row)
+            for (uint32_t column = 0; column < kGlyphWidth; ++column)
+                pixels[(y + row) * kWidth + x + column] = (kGlyphs[index][row] & (1 << column)) ? 255 : 0;
     }
     return pixels;
 }
@@ -119,7 +42,7 @@ namespace rhi {
 
 // A fixed-width text grid with a translucent background panel. Call clear(),
 // append(), then render() after tone mapping. Layout uses the target dimensions
-// and clips to the screen; pixelRatio and scale control the font size.
+// and clips to the screen; contentScale controls the font size and padding.
 // Raster and compute paths share the same glyph lookup and premultiplied colors.
 class TextRenderer
 {
@@ -165,7 +88,7 @@ public:
         }
     }
 
-    Result render(ICommandEncoder* encoder, ITexture* target, float pixelRatio = 1.f, float scale = 1.5f)
+    Result render(ICommandEncoder* encoder, ITexture* target, float contentScale = 1.f)
     {
         if (m_text.empty())
             return SLANG_OK;
@@ -173,19 +96,31 @@ public:
             return SLANG_E_INVALID_ARG;
         const auto& desc = target->getDesc();
         uint32_t width = desc.size.width, height = desc.size.height;
-        float padding = margin * pixelRatio;
-        float fontScale = 1.5f * scale * pixelRatio;
+        float padding = margin * contentScale;
+        float fontScale = contentScale;
         if (!width || !height || !std::isfinite(padding) || padding < 0 || !std::isfinite(fontScale) || fontScale <= 0)
             return SLANG_E_INVALID_ARG;
+        // Whole framebuffer pixels preserve the bitmap's stroke widths at fractional DPI scales.
+        fontScale = std::max(1.f, std::round(fontScale));
+        padding = std::round(padding);
         if (padding >= width || padding >= height)
             return SLANG_OK;
 
         // Bound the grid by both the screen and its fixed upload buffer. Only
         // complete rows with bottom panel padding fit; long words wrap at the column limit.
-        uint32_t maxColumns =
-            uint32_t(std::clamp(std::floor((width - 4 * padding) / (6 * fontScale)), 1.f, float(kMaxCells)));
+        uint32_t maxColumns = uint32_t(
+            std::clamp(
+                std::floor((width - 4 * padding) / (bitmap_font::kGlyphWidth * fontScale)),
+                1.f,
+                float(kMaxCells)
+            )
+        );
         uint32_t maxRows = uint32_t(
-            std::clamp(std::floor((height - 3 * padding) / (9 * fontScale)), 0.f, float(kMaxCells / maxColumns))
+            std::clamp(
+                std::floor((height - 3 * padding) / (bitmap_font::kGlyphHeight * fontScale)),
+                0.f,
+                float(kMaxCells / maxColumns)
+            )
         );
         if (!maxRows)
             return SLANG_OK;
@@ -220,7 +155,9 @@ public:
         math::float2 panelOrigin(padding);
         math::float2 textOrigin(2 * padding);
         math::float2 panelEnd =
-            textOrigin + math::float2(columns * 6.f, rows * 9.f) * fontScale + math::float2(padding);
+            textOrigin +
+            math::float2(columns * bitmap_font::kGlyphWidth, rows * bitmap_font::kGlyphHeight) * fontScale +
+            math::float2(padding);
         ScissorRect bounds = {
             uint32_t(std::floor(padding)),
             uint32_t(std::floor(padding)),
@@ -259,9 +196,11 @@ public:
         // normalized presentation images store encoded values and blend as stored.
         uint32_t encodeSrgb = format.kind == FormatKind::Normalized && !format.isSrgb;
         uint32_t gridSize[] = {columns, rows};
+        uint32_t glyphSize[] = {bitmap_font::kGlyphWidth, bitmap_font::kGlyphHeight};
         SLANG_RETURN_ON_FAIL(cursor["fontAtlas"].setBinding(m_atlas));
         SLANG_RETURN_ON_FAIL(cursor["characters"].setBinding(m_buffer));
         SLANG_RETURN_ON_FAIL(cursor["gridSize"].setData(gridSize));
+        SLANG_RETURN_ON_FAIL(cursor["glyphSize"].setData(glyphSize));
         SLANG_RETURN_ON_FAIL(cursor["panelOrigin"].setData(panelOrigin));
         SLANG_RETURN_ON_FAIL(cursor["panelEnd"].setData(panelEnd));
         SLANG_RETURN_ON_FAIL(cursor["textOrigin"].setData(textOrigin));

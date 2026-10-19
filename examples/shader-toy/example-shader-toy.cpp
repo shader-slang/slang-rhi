@@ -25,6 +25,7 @@ public:
 
         m_blitter = std::make_unique<Blitter>(m_device);
 
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
         m_pipelines.resize(kShaders.size());
         return loadShader();
     }
@@ -101,10 +102,14 @@ public:
         }
 
         // Start command encoding
-        ComPtr<ICommandEncoder> commandEncoder = m_queue->createCommandEncoder();
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
 
         // Start compute pass
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        Profiler::pushRegion(passEncoder, kShaders[m_shaderIndex]);
         ShaderCursor cursor(passEncoder->bindPipeline(m_pipelines[m_shaderIndex]));
         float resolution[3] = {float(width), float(height), 1.0f};
         cursor["iResolution"].setData(resolution);
@@ -121,41 +126,46 @@ public:
         cursor["iMouse"].setData(mouse);
         cursor["texture"].setBinding(m_texture);
         passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+        Profiler::popRegion(passEncoder);
         passEncoder->end();
 
         // Blit result to the surface image
         SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_texture, commandEncoder));
 
         clearOverlay();
-        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n");
-        printOverlay("F1: Show/hide overlay | F2: Fit windows | Esc: Close\n\n");
+        printOverlayHeader();
+        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n\n");
         printOverlay("Shader: %s", kShaders[m_shaderIndex]);
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
         // Submit command buffer
-        SLANG_RETURN_ON_FAIL(m_queue->submit(commandEncoder->finish()));
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(profile.end());
+        SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
+        profile.markSubmitted();
 
         m_frame += 1;
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
     {
         // Wait for GPU to be idle before resizing
-        m_device->getQueue(QueueType::Graphics)->waitOnHost();
+        SLANG_RETURN_ON_FAIL(m_queue->waitOnHost());
         // Configure or unconfigure the surface based on the new framebuffer size
         if (framebufferWidth > 0 && framebufferHeight > 0)
         {
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surface->configure(surfaceConfig);
+            return configureSurface(m_surface, surfaceConfig);
         }
         else
         {
-            m_surface->unconfigure();
+            return m_surface->unconfigure();
         }
     }
 

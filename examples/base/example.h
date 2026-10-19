@@ -2,6 +2,7 @@
 
 #include "utils.h"
 #include "text-renderer.h"
+#include "profiler.h"
 
 #include <slang.h>
 #include <slang-rhi.h>
@@ -34,6 +35,11 @@
 #include <GLFW/glfw3native.h>
 #include <slang-rhi/glfw.h>
 
+// X11 defines None as a macro after slang-rhi.h has already removed it.
+#ifdef None
+#undef None
+#endif
+
 namespace rhi {
 
 namespace detail {
@@ -64,9 +70,11 @@ public:
     // Event callbacks
 
     // Called when the window is resized.
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) {}
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) { return SLANG_OK; }
     // Called when the mouse is moved.
     virtual void onMousePosition(float x, float y) {}
+    // Called when the mouse enters or leaves any backend window.
+    virtual void onMouseEnter(bool entered) {}
     // Called when a mouse button is pressed or released.
     virtual void onMouseButton(int button, int action, int mods) {}
     // Called when the mouse wheel is scrolled.
@@ -101,28 +109,63 @@ public:
     // Window management
 
     // Creates a window with the specified title and size.
-    // Automatically appends device and adapter information to the title.
+    // Automatically appends device, adapter, FPS, and VSync information to the title.
     Result createWindow(IDevice* device, const char* title, uint32_t width = 640, uint32_t height = 360);
     // Destroys the window.
     void destroyWindow();
     // Returns whether the window has been asked to close.
     bool shouldClose() const;
+    // Returns the cached window size in the same coordinates as mouse input.
+    int getWindowWidth() const { return m_windowWidth; }
+    int getWindowHeight() const { return m_windowHeight; }
 
     // Surface management
 
     // Creates a surface for the window with the specified format.
     // Use Format::Undefined to use the preferred format.
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
+    // Configures a surface using the shared VSync preference, including after resizing.
+    Result configureSurface(ISurface* surface, SurfaceConfig config);
+    // Presents the window surface and records application frame timing.
+    Result presentSurface();
+    // Applied by the runner between frames; input callbacks run on the owning worker.
+    void toggleVsync()
+    {
+        m_vsync = !m_vsync;
+        m_vsyncChanged = true;
+    }
+
+    // Returns the current frame statistics.
+    const FrameStats& getFrameStats() const { return m_frameStats; }
+
+    // Profiler
+
+    // Initializes optional profiling of explicitly marked regions on the example's queue.
+    // Initialize once; shutdown() must wait for submissions before destruction.
+    Result initProfiler(IDevice* device);
+
+    // Returns the profiler. Requires successful initProfiler().
+    Profiler& getProfiler();
+
+    // Toggles profiling independently of overlay visibility. Does nothing if uninitialized.
+    void toggleProfiler();
 
     // Overlay utility
 
     // Initializes the optional text overlay for the output format.
-    // Scale multiplies the standard text size, independently of the window's pixel density.
+    // The window content scale multiplies the native 6x9 font size, rounded to whole pixels.
     // Uses rasterization or a compute fallback, depending on the device and target.
-    Result initOverlay(IDevice* device, Format format, float scale = 1.5f);
+    Result initOverlay(IDevice* device, Format format);
 
     // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
     void clearOverlay();
+
+    // Prints the common shortcuts as the first overlay line. Call after clearOverlay(),
+    // before appending example-specific controls and information.
+    void printOverlayHeader();
+
+    // Prints the shared CameraController shortcuts.
+    void printCameraControls();
 
     // Appends printf-formatted text; include explicit newlines between lines or blocks.
     // Does nothing when hidden or uninitialized. Failed formatting is skipped without changing accumulated text.
@@ -152,16 +195,27 @@ public:
     bool m_mouseDown[3] = {false, false, false};
 
 private:
-    friend struct detail::ExampleRunner;
+    Result updateWindowTitle();
+    Result applyVsync();
+
+    std::string m_windowTitle;
+    FrameStats m_frameStats;
+    bool m_vsync = true;
+    bool m_vsyncChanged = false;
+    ComPtr<ISurface> m_presentationSurface;
+    ComPtr<ICommandQueue> m_presentationQueue;
     detail::ExampleRunner* m_runner = nullptr;
     int m_windowWidth = 0;
     int m_windowHeight = 0;
     int m_framebufferWidth = 0;
     int m_framebufferHeight = 0;
+    float m_contentScale = 1.f; // Use the X scale uniformly to preserve the bitmap font's aspect ratio.
     bool m_minimized = false;
     bool m_overlayVisible = true;
-    float m_overlayScale = 1.5f;
     std::unique_ptr<TextRenderer> m_textRenderer;
+    std::unique_ptr<Profiler> m_profiler;
+
+    friend struct detail::ExampleRunner;
 };
 
 namespace detail {
@@ -170,7 +224,9 @@ inline void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
 inline void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
 inline void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
 inline void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
+inline void glfwWindowContentScaleCallback(GLFWwindow* window, float xscale, float yscale);
 inline void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+inline void glfwCursorEnterCallback(GLFWwindow* window, int entered);
 inline void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 inline void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -187,7 +243,7 @@ struct ExampleRunner
             MousePosition,
             Input
         } type;
-        std::function<void(ExampleBase&)> dispatch;
+        std::function<Result(ExampleBase&)> dispatch;
     };
 
     GLFWwindow* window = nullptr;
@@ -245,7 +301,20 @@ struct ExampleRunner
                  example.m_windowHeight = height;
                  example.m_framebufferWidth = framebufferWidth;
                  example.m_framebufferHeight = framebufferHeight;
-                 example.onResize(width, height, framebufferWidth, framebufferHeight);
+                 example.m_frameStats.reset();
+                 return example.onResize(width, height, framebufferWidth, framebufferHeight);
+             }}
+        );
+    }
+
+    void setContentScale(float scale)
+    {
+        postEvent(
+            {Event::Input,
+             [scale](ExampleBase& example)
+             {
+                 example.m_contentScale = scale;
+                 return SLANG_OK;
              }}
         );
     }
@@ -258,6 +327,8 @@ struct ExampleRunner
              [value](ExampleBase& example)
              {
                  example.m_minimized = value;
+                 example.m_frameStats.reset();
+                 return SLANG_OK;
              }}
         );
     }
@@ -273,7 +344,7 @@ struct ExampleRunner
     }
 
     void run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath);
-    void processEvents(ExampleBase& example, const std::vector<Event>& pending);
+    Result processEvents(ExampleBase& example, const std::vector<Event>& pending);
 };
 
 inline std::vector<std::unique_ptr<ExampleRunner>>& getExamples()
@@ -384,6 +455,8 @@ inline ExampleBase::ExampleBase() = default;
 inline ExampleBase::~ExampleBase()
 {
     m_textRenderer.reset();
+    m_presentationSurface.setNull();
+    m_presentationQueue.setNull();
     destroyWindow();
 }
 
@@ -420,38 +493,61 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
         getRHI()->getDeviceTypeName(deviceInfo.deviceType),
         deviceInfo.adapterName
     );
+    m_windowTitle = fullTitle;
 
+    SLANG_RETURN_ON_FAIL(
+        detail::runOnMainThread(
+            [&]() -> Result
+            {
+                if (m_runner->stopping)
+                    return SLANG_FAIL;
+                glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+                m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
+                if (!m_window)
+                    return SLANG_FAIL;
+                m_runner->window = m_window;
+                glfwSetWindowUserPointer(m_window, m_runner);
+                glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
+                glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
+                glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
+                glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
+                glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
+                glfwSetWindowContentScaleCallback(m_window, detail::glfwWindowContentScaleCallback);
+                glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
+                glfwSetCursorEnterCallback(m_window, detail::glfwCursorEnterCallback);
+                glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
+                glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
+                glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
+                glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
+                glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
+                glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+                glfwGetWindowContentScale(m_window, &m_contentScale, nullptr);
+                if (detail::mainExample)
+                {
+                    int w, h;
+                    glfwGetWindowSize(detail::mainExample->window, &w, &h);
+                    glfwSetWindowSize(m_window, w, h);
+                }
+                detail::updateMainExample();
+                detail::layoutWindows();
+                return SLANG_OK;
+            }
+        )
+    );
+    return updateWindowTitle();
+}
+
+inline Result ExampleBase::updateWindowTitle()
+{
+    char status[128];
+    snprintf(status, sizeof(status), " | %.1f FPS | VSync: %s", m_frameStats.fps(), m_vsync ? "On" : "Off");
+    std::string title = m_windowTitle + status;
     return detail::runOnMainThread(
         [&]() -> Result
         {
-            if (m_runner->stopping)
-                return SLANG_FAIL;
-            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-            m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
             if (!m_window)
-                return SLANG_FAIL;
-            m_runner->window = m_window;
-            glfwSetWindowUserPointer(m_window, m_runner);
-            glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
-            glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
-            glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
-            glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
-            glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
-            glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
-            glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
-            glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
-            glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
-            glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
-            glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
-            glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
-            if (detail::mainExample)
-            {
-                int w, h;
-                glfwGetWindowSize(detail::mainExample->window, &w, &h);
-                glfwSetWindowSize(m_window, w, h);
-            }
-            detail::updateMainExample();
-            detail::layoutWindows();
+                return SLANG_E_INVALID_HANDLE;
+            glfwSetWindowTitle(m_window, title.c_str());
             return SLANG_OK;
         }
     );
@@ -466,6 +562,7 @@ inline void ExampleBase::destroyWindow()
         {
             if (detail::mainExample == m_runner)
                 detail::setMainExample(nullptr);
+            detail::glfwCursorEnterCallback(m_window, GLFW_FALSE);
             glfwSetWindowUserPointer(m_window, nullptr);
             glfwDestroyWindow(m_window);
             m_window = m_runner->window = nullptr;
@@ -484,36 +581,106 @@ inline bool ExampleBase::shouldClose() const
 inline Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
 {
     ASSERT(m_window, "Window must be created before creating surface");
+    SLANG_RETURN_ON_FAIL(device->getQueue(QueueType::Graphics, m_presentationQueue.writeRef()));
     // Native surface creation may modify the Cocoa view. Transfer exclusive device access
     // to the main thread for this operation; subsequent rendering stays on the worker.
-    return detail::runOnMainThread(
-        [&]() -> Result
-        {
-            SLANG_RHI_DEVICE_SCOPE(device);
-            glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
-            glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
-            SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
-            SurfaceConfig surfaceConfig;
-            surfaceConfig.width = m_framebufferWidth;
-            surfaceConfig.height = m_framebufferHeight;
-            surfaceConfig.format = format;
-            return (*outSurface)->configure(surfaceConfig);
-        }
+    SLANG_RETURN_ON_FAIL(
+        detail::runOnMainThread(
+            [&]() -> Result
+            {
+                SLANG_RHI_DEVICE_SCOPE(device);
+                glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
+                glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
+                SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
+                SurfaceConfig surfaceConfig;
+                surfaceConfig.width = m_framebufferWidth;
+                surfaceConfig.height = m_framebufferHeight;
+                surfaceConfig.format = format;
+                return configureSurface(*outSurface, surfaceConfig);
+            }
+        )
     );
+    m_presentationSurface = *outSurface;
+    return SLANG_OK;
 }
 
-inline Result ExampleBase::initOverlay(IDevice* device, Format format, float scale)
+inline Result ExampleBase::configureSurface(ISurface* surface, SurfaceConfig config)
+{
+    config.vsync = m_vsync;
+    return surface->configure(config);
+}
+
+inline Result ExampleBase::applyVsync()
+{
+    if (!m_vsyncChanged)
+        return SLANG_OK;
+    if (m_presentationSurface && m_presentationSurface->getConfig())
+    {
+        SurfaceConfig config = *m_presentationSurface->getConfig();
+        if (config.vsync != m_vsync)
+        {
+            SLANG_RETURN_ON_FAIL(m_presentationQueue->waitOnHost());
+            SLANG_RETURN_ON_FAIL(configureSurface(m_presentationSurface, config));
+        }
+    }
+    // An unconfigured (minimized) surface picks up the preference on restore.
+    m_vsyncChanged = false;
+    m_frameStats.reset();
+    return updateWindowTitle();
+}
+
+inline Result ExampleBase::presentSurface()
+{
+    SLANG_RETURN_ON_FAIL(m_presentationSurface->present());
+    if (m_frameStats.update(glfwGetTime()))
+        return updateWindowTitle();
+    return SLANG_OK;
+}
+
+inline Result ExampleBase::initProfiler(IDevice* device)
+{
+    auto profiler = std::make_unique<Profiler>();
+    SLANG_RETURN_ON_FAIL(profiler->init(device));
+    m_profiler = std::move(profiler);
+    return SLANG_OK;
+}
+
+inline Profiler& ExampleBase::getProfiler()
+{
+    ASSERT(m_profiler, "Profiler must be initialized before accessing it");
+    return *m_profiler;
+}
+
+inline void ExampleBase::toggleProfiler()
+{
+    if (!m_profiler)
+        return;
+    m_profiler->setEnabled(!m_profiler->enabled());
+}
+
+inline Result ExampleBase::initOverlay(IDevice* device, Format format)
 {
     m_textRenderer = std::make_unique<TextRenderer>();
-    SLANG_RETURN_ON_FAIL(m_textRenderer->init(device, format));
-    m_overlayScale = scale;
-    return SLANG_OK;
+    return m_textRenderer->init(device, format);
 }
 
 inline void ExampleBase::clearOverlay()
 {
     if (m_textRenderer)
         m_textRenderer->clear();
+}
+
+inline void ExampleBase::printOverlayHeader()
+{
+    printOverlay("F1: Overlay | F2: Fit windows | F3: VSync");
+    if (m_profiler)
+        printOverlay(" | F4: Profiler");
+    printOverlay(" | Esc: Close\n");
+}
+
+inline void ExampleBase::printCameraControls()
+{
+    printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
 }
 
 inline void ExampleBase::printOverlay(const char* format, ...)
@@ -545,8 +712,10 @@ inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image
         return SLANG_OK;
     if (!encoder || !image)
         return SLANG_E_INVALID_ARG;
-    float pixelRatio = float(image->getDesc().size.width) / std::max(m_windowWidth, 1);
-    return m_textRenderer->render(encoder, image, pixelRatio, m_overlayScale);
+    // Content scale already maps UI dimensions to framebuffer pixels, including on Retina displays.
+    if (m_profiler)
+        printOverlay("%s", m_profiler->getDisplayText().c_str());
+    return m_textRenderer->render(encoder, image, m_contentScale);
 }
 
 namespace detail {
@@ -759,6 +928,11 @@ inline void glfwFramebufferSizeCallback(GLFWwindow* window, int, int)
     static_cast<ExampleRunner*>(glfwGetWindowUserPointer(window))->resize();
 }
 
+inline void glfwWindowContentScaleCallback(GLFWwindow* window, float xscale, float)
+{
+    static_cast<ExampleRunner*>(glfwGetWindowUserPointer(window))->setContentScale(xscale);
+}
+
 inline void broadcastEvent(ExampleRunner::Event event)
 {
     for (auto& example : getExamples())
@@ -774,6 +948,19 @@ inline void glfwCursorPosCallback(GLFWwindow*, double x, double y)
              example.m_mousePos[0] = float(x);
              example.m_mousePos[1] = float(y);
              example.onMousePosition(float(x), float(y));
+             return SLANG_OK;
+         }}
+    );
+}
+
+inline void glfwCursorEnterCallback(GLFWwindow*, int entered)
+{
+    broadcastEvent(
+        {ExampleRunner::Event::Input,
+         [entered](ExampleBase& example)
+         {
+             example.onMouseEnter(entered != 0);
+             return SLANG_OK;
          }}
     );
 }
@@ -787,6 +974,7 @@ inline void glfwMouseButtonCallback(GLFWwindow*, int button, int action, int mod
              if (button >= 0 && button < SLANG_COUNT_OF(example.m_mouseDown))
                  example.m_mouseDown[button] = action == GLFW_PRESS;
              example.onMouseButton(button, action, mods);
+             return SLANG_OK;
          }}
     );
 }
@@ -798,6 +986,7 @@ inline void glfwScrollCallback(GLFWwindow*, double x, double y)
          [=](ExampleBase& example)
          {
              example.onScroll(float(x), float(y));
+             return SLANG_OK;
          }}
     );
 }
@@ -824,20 +1013,32 @@ inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int actio
                  if (action == GLFW_PRESS)
                      example.toggleOverlay();
              }
+             else if (key == GLFW_KEY_F3)
+             {
+                 if (action == GLFW_PRESS)
+                     example.toggleVsync();
+             }
+             else if (key == GLFW_KEY_F4)
+             {
+                 if (action == GLFW_PRESS)
+                     example.toggleProfiler();
+             }
              else
                  example.onKey(key, scancode, action, mods);
+             return SLANG_OK;
          }}
     );
 }
 
-inline void ExampleRunner::processEvents(ExampleBase& example, const std::vector<Event>& pending)
+inline Result ExampleRunner::processEvents(ExampleBase& example, const std::vector<Event>& pending)
 {
     for (const Event& event : pending)
     {
         if (stopping)
             break;
-        event.dispatch(example);
+        SLANG_RETURN_ON_FAIL(event.dispatch(example));
     }
+    return SLANG_OK;
 }
 
 inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath)
@@ -894,9 +1095,22 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
             else
                 pending.swap(events);
         }
-        processEvents(*example, pending);
+        result = processEvents(*example, pending);
+        if (SLANG_FAILED(result))
+        {
+            LOG_ERROR("%s: example event failed (0x%08x).", name, unsigned(result));
+            exitCode = 1;
+            break;
+        }
         if (stopping)
             break;
+        result = example->applyVsync();
+        if (SLANG_FAILED(result))
+        {
+            LOG_ERROR("%s: could not apply VSync (0x%08x).", name, unsigned(result));
+            exitCode = 1;
+            break;
+        }
         bool minimized = example->m_window && (example->m_minimized || example->m_framebufferWidth == 0 ||
                                                example->m_framebufferHeight == 0);
         if (minimized && !syncFrames)
