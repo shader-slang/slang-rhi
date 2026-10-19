@@ -520,10 +520,10 @@ public:
         m_camera.recompute();
 
         // Start command encoding
-        ComPtr<ICommandEncoder> commandEncoder;
-        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
         auto profile = getProfiler().frame();
         SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
 
         SLANG_RETURN_ON_FAIL(
             m_pathTracer.execute(commandEncoder, m_scene, m_camera, m_renderTexture, m_frame, m_maxBounces)
@@ -556,9 +556,8 @@ public:
         // Submit command buffer
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
-        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
-        profile.markSubmitted();
+        SLANG_RETURN_ON_FAIL(profile.end());
 
         m_frame += 1;
 

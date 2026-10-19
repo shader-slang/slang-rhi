@@ -804,17 +804,16 @@ public:
         m_camera.width = image->getDesc().size.width;
         m_camera.height = image->getDesc().size.height;
         m_camera.recompute();
-        ComPtr<ICommandEncoder> encoder;
-        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         auto profile = getProfiler().frame();
         SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         SLANG_RETURN_ON_FAIL(m_renderer->render(encoder, image, m_camera, m_settings));
         SLANG_RETURN_ON_FAIL(drawStatusOverlay(encoder, image));
         ComPtr<ICommandBuffer> commands;
         SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
-        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commands));
-        profile.markSubmitted();
+        SLANG_RETURN_ON_FAIL(profile.end());
         return presentSurface();
     }
 
