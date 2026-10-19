@@ -86,3 +86,8 @@ features through [GitHub issues](https://github.com/shader-slang/slang-rhi/issue
 - [WinPixEventRuntime](https://www.nuget.org/packages/WinPixEventRuntime) (MIT)
 - [D3D12 Memory Allocator](https://gpuopen.com/d3d12-memory-allocator) (MIT)
 - [Vulkan Memory Allocator](https://gpuopen.com/vulkan-memory-allocator) (MIT)
+
+The example overlays use [Monogram](https://datagoblin.itch.io/monogram) by datagoblin
+(CC0-1.0), adapted from Luiz Bills' [font-monogram](https://github.com/luizbills/font-monogram)
+(Unlicense). The font data, attribution, and Unlicense text are included in
+[examples/base/font-monogram.h](examples/base/font-monogram.h).
