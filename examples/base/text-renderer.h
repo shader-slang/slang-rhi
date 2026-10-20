@@ -127,7 +127,7 @@ public:
         std::vector<std::string_view> lines;
         std::string_view remaining(m_text);
         uint32_t columns = 1;
-        while (lines.size() < maxRows)
+        while (!remaining.empty() && lines.size() < maxRows)
         {
             size_t newline = remaining.find('\n');
             auto line = remaining.substr(0, newline);
@@ -142,8 +142,6 @@ public:
             }
             lines.push_back(line.substr(0, count));
             columns = std::max(columns, uint32_t(count));
-            if (skip == remaining.size() && newline == std::string_view::npos)
-                break;
             remaining.remove_prefix(skip);
         }
         uint32_t rows = uint32_t(lines.size());
