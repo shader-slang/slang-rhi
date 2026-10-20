@@ -12,6 +12,10 @@
 #include <string>
 #include <fstream>
 
+#if SLANG_RHI_ENABLE_D3D12
+#include <d3d12.h>
+#endif
+
 /// Enable dumping intermediate shader files (HLSL, SPIR-V, PTX etc.) to disk for debugging purposes.
 #define DUMP_INTERMEDIATES 0
 
@@ -763,6 +767,9 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
 
     D3D12DeviceExtendedDesc extDesc = {};
+#if SLANG_RHI_ENABLE_D3D12
+    D3D12ExperimentalFeaturesDesc experimentalDesc;
+#endif
     bool requireSpecificD3D12ShaderModel = false;
     if (deviceType == DeviceType::D3D12)
     {
@@ -786,6 +793,14 @@ ComPtr<IDevice> createTestingDevice(
             extDesc.highestShaderModel = 0x68;
         }
         deviceDesc.next = &extDesc;
+#if SLANG_RHI_ENABLE_D3D12
+        if (extDesc.highestShaderModel >= 0x6a)
+        {
+            experimentalDesc.featureCount = 1;
+            experimentalDesc.featureIIDs = &D3D12ExperimentalShaderModels;
+            extDesc.next = &experimentalDesc;
+        }
+#endif
     }
 
 #if SLANG_RHI_DEBUG
@@ -912,10 +927,21 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
     D3D12DeviceExtendedDesc d3d12ExtDesc = {};
+#if SLANG_RHI_ENABLE_D3D12
+    D3D12ExperimentalFeaturesDesc experimentalDesc;
+#endif
     if (deviceType == DeviceType::D3D12 && options().d3d12ShaderModel != 0)
     {
         d3d12ExtDesc.highestShaderModel = options().d3d12ShaderModel;
         desc.next = &d3d12ExtDesc;
+#if SLANG_RHI_ENABLE_D3D12
+        if (d3d12ExtDesc.highestShaderModel >= 0x6a)
+        {
+            experimentalDesc.featureCount = 1;
+            experimentalDesc.featureIIDs = &D3D12ExperimentalShaderModels;
+            d3d12ExtDesc.next = &experimentalDesc;
+        }
+#endif
     }
 #if SLANG_RHI_ENABLE_NVAPI
     if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)

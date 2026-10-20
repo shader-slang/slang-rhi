@@ -105,11 +105,13 @@ public:
 
     // Create a device and retain the missing features if the example requires
     // features that this backend does not support.
+    // deviceExtensions supplies the optional DeviceDesc::next chain.
     Result createDevice(
         DeviceType deviceType,
         std::vector<Feature> requiredFeatures,
         std::vector<std::pair<std::string, std::string>> preprocessorMacros,
-        IDevice** outDevice
+        IDevice** outDevice,
+        const void* deviceExtensions = nullptr
     );
 
     // Window management
@@ -588,7 +590,8 @@ inline Result ExampleBase::createDevice(
     DeviceType deviceType,
     std::vector<Feature> requiredFeatures,
     std::vector<std::pair<std::string, std::string>> preprocessorMacros,
-    IDevice** outDevice
+    IDevice** outDevice,
+    const void* deviceExtensions
 )
 {
     SLANG_RETURN_ON_FAIL(
@@ -598,7 +601,8 @@ inline Result ExampleBase::createDevice(
             m_desc->shaderSearchPath,
             preprocessorMacros,
             outDevice,
-            &m_missingFeatures
+            &m_missingFeatures,
+            deviceExtensions
         )
     );
     m_deviceType = (*outDevice)->getDeviceType();

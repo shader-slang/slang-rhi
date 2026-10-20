@@ -1,6 +1,15 @@
 // Procedural texture fitting with Slang autodiff and optional cooperative vectors.
 #include "../base/example.h"
 #include "trainer.h"
+#include <slang-rhi/agility-sdk.h>
+
+#if SLANG_RHI_ENABLE_D3D12
+#include <d3d12.h>
+#endif
+
+#if !defined(EXAMPLE_COMBINED)
+SLANG_RHI_EXPORT_AGILITY_SDK
+#endif
 
 namespace {
 
@@ -15,7 +24,15 @@ public:
         // The differentiated shader requires DXC on Direct3D.
         if (deviceType == DeviceType::D3D11 || deviceType == DeviceType::D3D12)
             features.push_back(Feature::SM_6_0);
-        SLANG_RETURN_ON_FAIL(createDevice(deviceType, features, {}, m_device.writeRef()));
+        const void* deviceExtensions = nullptr;
+#if SLANG_RHI_ENABLE_D3D12
+        D3D12ExperimentalFeaturesDesc experimental;
+        experimental.featureCount = 1;
+        experimental.featureIIDs = &D3D12ExperimentalShaderModels;
+        if (deviceType == DeviceType::D3D12)
+            deviceExtensions = &experimental;
+#endif
+        SLANG_RETURN_ON_FAIL(createDevice(deviceType, features, {}, m_device.writeRef(), deviceExtensions));
         SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));

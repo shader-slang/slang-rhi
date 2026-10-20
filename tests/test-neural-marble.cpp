@@ -135,6 +135,8 @@ GPU_TEST_CASE("neural-marble-learning", D3D12 | Vulkan | Metal | CUDA | WGPU | D
     REQUIRE(device);
     neural_marble::Trainer trainer;
     REQUIRE_CALL(trainer.init(device));
+    if (device->getDeviceType() == DeviceType::D3D12 && device->hasFeature(Feature::CooperativeVector))
+        REQUIRE(trainer.cooperativeSupported());
     trainer.setCooperative(false);
     auto queue = device->getQueue(QueueType::Graphics);
 

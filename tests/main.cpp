@@ -11,7 +11,6 @@
 #include <cstdio>
 #include <string_view>
 
-// Due to current issues in slang we don't enable Agility SDK yet
 SLANG_RHI_EXPORT_AGILITY_SDK
 
 namespace rhi::testing {

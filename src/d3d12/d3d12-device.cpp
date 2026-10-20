@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
+#include <filesystem>
 
 namespace rhi::d3d12 {
 
@@ -1093,15 +1094,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
                     addFeature(Feature::ClusterAccelerationStructure);
                 }
 
-                // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
-                // so we query the number of cooperative vector properties to determine if it is supported.
-                NvU32 propertyCount = 0;
-                if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
-                        NVAPI_OK &&
-                    propertyCount > 0)
+                // Native LinAlg shaders require SM 6.10. NVAPI still supplies
+                // conversion, but its property list alone does not establish
+                // support for shaders on the active DirectX runtime.
+                uint32_t propertyCount = 0;
+                if (shaderModelData.HighestShaderModel >= D3D_SHADER_MODEL(0x6a) &&
+                    SLANG_SUCCEEDED(getCooperativeVectorProperties(nullptr, &propertyCount)) && propertyCount > 0)
                 {
-                    // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
-                    // hardware/driver support.
                     addFeature(Feature::CooperativeVector);
                 }
             }
@@ -1234,13 +1233,34 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         addFeature(Feature::ShaderExecutionReordering);
     }
 
+    // LinAlg's HLSL headers are distributed beside the fetched DXC binaries.
+    // Resolve relative to the library so deployed examples do not depend on
+    // the source tree or the process working directory.
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+    std::string hlslIncludeArg;
+    if (const char* libraryPath = findSharedLibraryPath((void*)&getRHI))
+    {
+        auto hlslPath = std::filesystem::path(libraryPath).parent_path() / "hlsl";
+        if (std::filesystem::exists(hlslPath))
+        {
+            hlslIncludeArg = "-I" + hlslPath.string();
+            slang::CompilerOptionEntry option = {};
+            option.name = slang::CompilerOptionName::DownstreamArgs;
+            option.value.kind = slang::CompilerOptionValueKind::String;
+            option.value.stringValue0 = "dxc";
+            option.value.stringValue1 = hlslIncludeArg.c_str();
+            compilerOptions.push_back(option);
+        }
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         compileTarget,
         profileName,
         getCapabilities(),
-        std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}}
+        std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}},
+        compilerOptions
     ));
 
     // Create queue.
@@ -2184,6 +2204,56 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
             props.biasInterpretation = translateCooperativeVectorComponentType(nvProps.biasInterpretation);
             props.resultType = translateCooperativeVectorComponentType(nvProps.resultType);
             props.transpose = nvProps.transpose;
+#if defined(D3D12_PREVIEW_SDK_VERSION) && D3D12_PREVIEW_SDK_VERSION >= 721
+            // Intersect NVAPI's conversion-compatible tuples with the native
+            // shader operation support. The query describes interpreted values,
+            // whereas inputType describes the vector's storage representation.
+            auto nativeType = [](CooperativeVectorComponentType type)
+            {
+                switch (type)
+                {
+#define CASE_TYPE(rhiType, native)                                                                                     \
+    case CooperativeVectorComponentType::rhiType:                                                                      \
+        return D3D12_LINEAR_ALGEBRA_DATATYPE_##native
+                    CASE_TYPE(Float16, FLOAT16);
+                    CASE_TYPE(Float32, FLOAT32);
+                    CASE_TYPE(Sint8, SINT8);
+                    CASE_TYPE(Uint8, UINT8);
+                    CASE_TYPE(Sint16, SINT16);
+                    CASE_TYPE(Uint16, UINT16);
+                    CASE_TYPE(Sint32, SINT32);
+                    CASE_TYPE(Uint32, UINT32);
+                    CASE_TYPE(FloatE4M3, FLOAT8_E4M3FN);
+                    CASE_TYPE(FloatE5M2, FLOAT8_E5M2);
+#undef CASE_TYPE
+                default:
+                    return D3D12_LINEAR_ALGEBRA_DATATYPE(0);
+                }
+            };
+            D3D12_FEATURE_DATA_LINEAR_ALGEBRA_MATRIX_OPERATION_SUPPORT support = {};
+            support.OperationType = D3D12_LINEAR_ALGEBRA_OPERATION_TYPE_THREAD_VECTOR_MATRIX_MULTIPLY;
+            auto& multiply = support.ThreadVectorMatrixMultiply;
+            multiply.VectorInputType = nativeType(props.inputInterpretation);
+            multiply.MatrixInputType = nativeType(props.matrixInterpretation);
+            multiply.BiasInputType = nativeType(props.biasInterpretation);
+            multiply.VectorResultType = nativeType(props.resultType);
+            if (!multiply.VectorInputType || !multiply.MatrixInputType || !multiply.BiasInputType ||
+                !multiply.VectorResultType)
+                continue;
+            // The duplicated LINEAR_ALGEBRA in this enumerant is in SDK 721.
+            if (FAILED(m_device->CheckFeatureSupport(
+                    D3D12_FEATURE_LINEAR_ALGEBRA_LINEAR_ALGEBRA_MATRIX_OPERATION_SUPPORT,
+                    &support,
+                    sizeof(support)
+                )) ||
+                !(multiply.SupportFlags & D3D12_LINEAR_ALGEBRA_MULTIPLICATION_SUPPORT_FLAG_SUPPORTED))
+                continue;
+            props.transpose =
+                props.transpose && (multiply.SupportFlags & D3D12_LINEAR_ALGEBRA_MULTIPLICATION_SUPPORT_FLAG_TRANSPOSE);
+#else
+            // Older SDKs cannot verify support for the native shader path.
+            continue;
+#endif
             m_cooperativeVectorProperties.push_back(props);
         }
     }

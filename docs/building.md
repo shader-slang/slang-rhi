@@ -82,6 +82,22 @@ and `lib/` directories. Use a Slang version compatible with this checkout.
 See [CMakeLists.txt](../CMakeLists.txt) for the full set of options and the
 selected dependency versions.
 
+The Windows D3D12 build uses DXC 1.10.2605.24 and Agility SDK
+1.721.3-preview for Shader Model 6.10 Linear Algebra (cooperative vectors).
+Executables select the bundled runtime by including `slang-rhi/agility-sdk.h`
+and placing `SLANG_RHI_EXPORT_AGILITY_SDK` at file scope. Applications using the
+preview shader model must also enable
+`D3D12ExperimentalShaderModels` before device creation, using
+`D3D12ExperimentalFeaturesDesc`. The neural marble example does this explicitly;
+other examples do not enable experimental shader models automatically. Deploy
+the `hlsl/` directory alongside DXC and the executable/library: Slang's generated
+LinAlg shaders include DXC's `dx/linalg.h` at runtime. CMake copies and installs
+these headers with the compiler.
+
+To override the dependencies with a retail Agility SDK, also set
+`SLANG_RHI_AGILITY_SDK_VERSION=D3D12_SDK_VERSION`. A retail configuration does not
+enable the SM 6.10 cooperative-vector path.
+
 ## Run tests and examples
 
 Run from the build output directory:
@@ -168,11 +184,13 @@ learning rates, batch size, and steps per frame in
 per-sample gradient storage and training cost; compare convergence at equal
 elapsed training time when tuning these settings.
 
-Cooperative execution is enabled on Vulkan devices advertising the required
-FP16 configuration. The overlay reports `Cooperative vectors` when that path
-is active; unsupported devices use ordinary math. D3D12, CUDA, Metal, and
-WebGPU also use ordinary math; Slang's native CUDA buffer overload does not
-emit the correct matrix address.
+Cooperative execution is enabled on Vulkan and D3D12 devices advertising the
+required FP16 configuration. Run `example-neural-marble --device d3d12` for the
+DirectX path, which requires SM 6.10 support (NVIDIA R615 or newer). D3D12 checks
+native Linear Algebra operation support and retains NVAPI matrix conversion.
+The overlay reports `Cooperative vectors` when that path is active; unsupported
+devices use ordinary math. CUDA, Metal, and WebGPU also use ordinary math;
+Slang's native CUDA buffer overload does not emit the correct matrix address.
 Direct3D requires Shader Model 6/DXC; the example skips D3D11 because FXC cannot
 efficiently compile the differentiated arrays.
 
@@ -185,3 +203,11 @@ with GPU scheduling, so grid update comparisons allow floating-point roundoff:
 ```sh
 ./build/Debug/slang-rhi-tests -tc="neural-marble-*"
 ```
+
+To exercise SM 6.10 explicitly, including the cooperative-vector conversion
+tests, use `-select-devices=d3d12 -require-devices=d3d12
+-d3d12-shader-model=6.10`. The test harness enables experimental shader models
+for this selection before creating any devices. Its default D3D12 suite remains
+capped at SM 6.8; run the SM 6.10 configuration separately to check marble's
+cooperative execution path. Enabling experimental features after devices have
+already been created can invalidate those devices.

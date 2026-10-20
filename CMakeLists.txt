@@ -207,8 +207,8 @@ option(SLANG_RHI_FETCH_DXC "Fetch DirectXShaderCompiler for the D3D12 backend" O
 
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
-    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2602/dxc_2026_02_20.zip")
-    set(SLANG_RHI_DXC_URL_HASH "SHA256=a1e89031421cf3c1fca6627766ab3020ca4f962ac7e2caa7fab2b33a8436151e")
+    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.10.2605.24/dxc_preview_2026_05_22.zip")
+    set(SLANG_RHI_DXC_URL_HASH "SHA256=045e2cfd900135f640954553038febbc98692599c5606376726d00541dae69b6")
 endif()
 
 # WinPixEventRuntime
@@ -219,12 +219,12 @@ endif()
 
 # Agility SDK
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_URL)
-    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.619.1")
-    set(SLANG_RHI_AGILITY_SDK_URL_HASH "SHA256=9073a264301e93183844026239c9081717d52d13fb71aae68a0555c576b8de44")
+    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.721.3-preview")
+    set(SLANG_RHI_AGILITY_SDK_URL_HASH "SHA256=0131bce1e4bace3fc08c03018c29a09ede2570b263721c6449b0ec75762ab22d")
 endif()
-# If using a preview version of Agility SDK, set this to D3D12_PREVIEW_SDK_VERSION
+# When overriding with a retail Agility SDK, set this to D3D12_SDK_VERSION.
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
-    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION")
+    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_PREVIEW_SDK_VERSION")
 endif()
 
 # Aftermath
@@ -537,6 +537,12 @@ if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     if(SLANG_RHI_FETCH_DXC)
         message(STATUS "Fetching DirectXShaderCompiler ...")
         FetchPackage(dxc URL "${SLANG_RHI_DXC_URL}" URL_HASH "${SLANG_RHI_DXC_URL_HASH}")
+        # SM 6.10 LinAlg uses HLSL headers at runtime. Ship these with the compiler.
+        file(GLOB_RECURSE dxc_hlsl_headers RELATIVE "${dxc_SOURCE_DIR}/inc/hlsl" "${dxc_SOURCE_DIR}/inc/hlsl/*")
+        foreach(header IN LISTS dxc_hlsl_headers)
+            get_filename_component(header_dir "${header}" DIRECTORY)
+            copy_file("${dxc_SOURCE_DIR}/inc/hlsl/${header}" "hlsl/${header_dir}")
+        endforeach()
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
             copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)

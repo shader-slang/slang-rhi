@@ -92,8 +92,8 @@ public:
         );
 
         // CUDA's native cooperative-vector buffer overload is not supported by
-        // this shader. Vulkan uses the exact FP16 tuple below.
-        if (device->getDeviceType() == DeviceType::Vulkan &&
+        // this shader. Vulkan and D3D12 use the exact FP16 tuple below.
+        if ((device->getDeviceType() == DeviceType::Vulkan || device->getDeviceType() == DeviceType::D3D12) &&
             device->hasFeature(Feature::CooperativeVector) && device->hasFeature(Feature::Half))
         {
             uint32_t count = 0;
