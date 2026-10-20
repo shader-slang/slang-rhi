@@ -4,6 +4,7 @@
 
 #include <slang-rhi.h>
 
+#include <string>
 #include <vector>
 
 namespace rhi::wgpu {
@@ -15,6 +16,7 @@ Result createWGPUInstance(API& api, WGPUInstance* outInstance);
 Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter);
 
 WGPUStringView translateString(const char* str);
+std::string translateString(WGPUStringView str);
 
 WGPUTextureFormat translateTextureFormat(Format format);
 WGPUVertexFormat translateVertexFormat(Format format);
