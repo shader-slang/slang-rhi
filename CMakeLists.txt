@@ -1103,6 +1103,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-link-time-type.cpp
         tests/test-math.cpp
         tests/test-native-handle.cpp
+        tests/test-neural-marble.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
@@ -1227,6 +1228,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         endfunction()
 
         add_example(example-autodiff examples/autodiff/example-autodiff.cpp)
+        add_example(example-neural-marble examples/neural-marble/example-neural-marble.cpp)
         add_example(example-particles examples/particles/example-particles.cpp)
         add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
         add_example(example-raster examples/raster/example-raster.cpp)
