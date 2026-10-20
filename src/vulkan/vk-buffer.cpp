@@ -40,17 +40,29 @@ Result createVkBuffer(
     return SLANG_OK;
 }
 
-// Helper function to allocate VkDeviceMemory with optional external memory support
+// Helper function to allocate VkDeviceMemory with optional external memory support.
+// The memory type must have all of reqMemoryProperties. If a type that also has all of
+// preferredMemoryProperties exists, it is used instead.
 Result allocateVkMemory(
     const VulkanApi& api,
     const VkMemoryRequirements& memoryReqs,
     VkMemoryPropertyFlags reqMemoryProperties,
+    VkMemoryPropertyFlags preferredMemoryProperties,
     bool needsDeviceAddress,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
     VkDeviceMemory* outMemory
 )
 {
-    int memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
+    int memoryTypeIndex = -1;
+    if (preferredMemoryProperties)
+    {
+        memoryTypeIndex =
+            api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties | preferredMemoryProperties);
+    }
+    if (memoryTypeIndex < 0)
+    {
+        memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
+    }
     SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
 
     VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
@@ -100,6 +112,7 @@ Result allocateVkMemoryForBuffer(
     VkBuffer buffer,
     VkBufferUsageFlags bufferUsage,
     VkMemoryPropertyFlags reqMemoryProperties,
+    VkMemoryPropertyFlags preferredMemoryProperties,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
     VkDeviceMemory* outMemory
 )
@@ -113,6 +126,7 @@ Result allocateVkMemoryForBuffer(
         api,
         memoryReqs,
         reqMemoryProperties,
+        preferredMemoryProperties,
         needsDeviceAddress,
         externalMemoryHandleTypeFlags,
         outMemory
@@ -124,7 +138,8 @@ Result VKBufferHandleRAII::init(
     Size bufferSize,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags reqMemoryProperties,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkMemoryPropertyFlags preferredMemoryProperties
 )
 {
     SLANG_RHI_ASSERT(!isInitialized());
@@ -137,9 +152,15 @@ Result VKBufferHandleRAII::init(
     SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
 
     // Allocate memory
-    SLANG_RETURN_ON_FAIL(
-        allocateVkMemoryForBuffer(api, m_buffer, usage, reqMemoryProperties, externalMemoryHandleTypeFlags, &m_memory)
-    );
+    SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
+        api,
+        m_buffer,
+        usage,
+        reqMemoryProperties,
+        preferredMemoryProperties,
+        externalMemoryHandleTypeFlags,
+        &m_memory
+    ));
 
     // Bind buffer to memory
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
@@ -394,6 +415,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     const Size bufferSize = desc.size;
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
+    VkMemoryPropertyFlags preferredMemoryProperties = 0;
 
     VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
     if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
@@ -419,6 +441,12 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
+    if (desc.memoryType == MemoryType::ReadBack)
+    {
+        // Readback memory is read by the CPU, so prefer a cached memory type.
+        // Uncached (write-combined) memory is very slow to read from the CPU.
+        preferredMemoryProperties = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     if (is_set(desc.usage, BufferUsage::Shared))
@@ -429,13 +457,20 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 #else
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-        SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags)
-        );
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(
+            m_api,
+            desc.size,
+            usage,
+            reqMemoryProperties,
+            externalMemoryHandleTypeFlags,
+            preferredMemoryProperties
+        ));
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, 0, preferredMemoryProperties)
+        );
     }
 
     _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
