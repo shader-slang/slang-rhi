@@ -1226,6 +1226,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
             set(example_sources "${example_sources}" PARENT_SCOPE)
         endfunction()
 
+        add_example(example-autodiff examples/autodiff/example-autodiff.cpp)
         add_example(example-particles examples/particles/example-particles.cpp)
         add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
         add_example(example-raster examples/raster/example-raster.cpp)
