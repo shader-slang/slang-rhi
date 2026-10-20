@@ -42,7 +42,8 @@ Result createVkBuffer(
 
 // Helper function to allocate VkDeviceMemory with optional external memory support.
 // The memory type must have all of reqMemoryProperties. If a type that also has all of
-// preferredMemoryProperties exists, it is used instead.
+// preferredMemoryProperties exists, it is tried first, and the required-only type is used
+// if that type is out of memory.
 Result allocateVkMemory(
     const VulkanApi& api,
     const VkMemoryRequirements& memoryReqs,
@@ -53,15 +54,14 @@ Result allocateVkMemory(
     VkDeviceMemory* outMemory
 )
 {
-    int memoryTypeIndex = -1;
+    int requiredMemoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
+    int memoryTypeIndex = requiredMemoryTypeIndex;
     if (preferredMemoryProperties)
     {
-        memoryTypeIndex =
+        int preferredMemoryTypeIndex =
             api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties | preferredMemoryProperties);
-    }
-    if (memoryTypeIndex < 0)
-    {
-        memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
+        if (preferredMemoryTypeIndex >= 0)
+            memoryTypeIndex = preferredMemoryTypeIndex;
     }
     SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
 
@@ -102,7 +102,15 @@ Result allocateVkMemory(
         allocateInfo.pNext = &flagInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory));
+    VkResult result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
+    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY && memoryTypeIndex != requiredMemoryTypeIndex)
+    {
+        // The preferred memory type may live in a heap that is full, while a required-only type
+        // still has room.
+        allocateInfo.memoryTypeIndex = requiredMemoryTypeIndex;
+        result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
+    }
+    SLANG_VK_RETURN_ON_FAIL(result);
     return SLANG_OK;
 }
 
