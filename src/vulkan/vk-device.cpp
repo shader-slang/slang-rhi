@@ -356,6 +356,16 @@ Result DeviceImpl::initVulkanInstance(
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
+        // Query the available instance extensions
+        uint32_t extensionCount = 0;
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+        std::vector<VkExtensionProperties> extensions;
+        extensions.resize(extensionCount);
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions.data());
+        std::set<std::string> extensionNames;
+        for (const auto& e : extensions)
+            extensionNames.emplace(e.extensionName);
+
         std::vector<const char*> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
@@ -374,7 +384,10 @@ Result DeviceImpl::initVulkanInstance(
 #if SLANG_ANDROID
         instanceExtensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #else
-        instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
 #endif
 

@@ -43,6 +43,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     WGPUSurfaceSourceWindowsHWND descHWD = {};
 #elif SLANG_LINUX_FAMILY
     WGPUSurfaceSourceXlibWindow descXlib = {};
+    WGPUSurfaceSourceWaylandSurface descWayland = {};
 #elif SLANG_APPLE_FAMILY
     WGPUSurfaceSourceMetalLayer descMetal = {};
 #elif SLANG_WASM
@@ -71,6 +72,12 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         descXlib.display = (void*)windowHandle.handleValues[0];
         descXlib.window = (uint64_t)windowHandle.handleValues[1];
         desc.nextInChain = (WGPUChainedStruct*)&descXlib;
+        break;
+    case WindowHandleType::WaylandSurface:
+        descWayland.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+        descWayland.display = (void*)windowHandle.handleValues[0];
+        descWayland.surface = (void*)windowHandle.handleValues[1];
+        desc.nextInChain = (WGPUChainedStruct*)&descWayland;
         break;
 #elif SLANG_WASM
     case WindowHandleType::WGPUCanvas:
