@@ -73,7 +73,8 @@ float3 marble(float2 uv)
     float cloud = smoothstep(0.15f, 0.9f, noise(uv * 3.0f + 7.0f));
     float3 navy = lerp(float3(0.012f, 0.028f, 0.075f), float3(0.08f, 0.20f, 0.29f), cloud);
     float3 color = lerp(navy, float3(0.62f, 0.76f, 0.80f), pow(band, 3.0f) * 0.8f);
-    float vein = exp(-pow((band - 0.36f) / 0.075f, 2.0f));
+    float veinDistance = (band - 0.36f) / 0.075f;
+    float vein = exp(-veinDistance * veinDistance);
     return lerp(color, float3(0.83f, 0.52f, 0.13f), vein * 0.85f);
 }
 
