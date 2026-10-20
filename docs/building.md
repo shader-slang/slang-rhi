@@ -47,6 +47,10 @@ python -m http.server 8000 --bind 127.0.0.1 --directory build/Debug
 ```
 
 Open `http://localhost:8000/wasm-test.html` in a browser with WebGPU and JSPI support.
+The browser smoke test lives in `tests/wasm` and is built when
+`SLANG_RHI_BUILD_TESTS` is enabled, independently of `SLANG_RHI_BUILD_EXAMPLES`.
+CI currently compiles it in Debug and Release but does not run it in a browser.
+
 The preset uses `-sJSPI`; additional JavaScript-facing exports that can wait must
 be listed in `-sJSPI_EXPORTS` and their returned promises awaited (`main` is included by default).
 
@@ -66,7 +70,7 @@ cmake --preset default -DSLANG_RHI_BUILD_EXAMPLES=OFF
 
 | Option | Default | Purpose |
 |--------|---------|---------|
-| `SLANG_RHI_BUILD_TESTS` | `ON` for standalone builds | Build the test executable. Requires a static, non-Emscripten build. |
+| `SLANG_RHI_BUILD_TESTS` | `ON` for standalone builds | Build the native test suite (requires a static build) or the WASM browser smoke test. |
 | `SLANG_RHI_BUILD_TESTS_WITH_GLFW` | `ON` for standalone builds | Include tests that require GLFW. |
 | `SLANG_RHI_BUILD_EXAMPLES` | `ON` for standalone builds | Build example applications. |
 | `SLANG_RHI_BUILD_SHARED` | `OFF` | Build a shared library instead of a static library. |

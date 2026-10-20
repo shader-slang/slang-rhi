@@ -1032,7 +1032,7 @@ target_compile_definitions(slang-rhi
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Tests currently require linking statically due to reaching into internal details of the RHI implementation.
+# Native tests require linking statically due to reaching into internal details of the RHI implementation.
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
@@ -1199,6 +1199,20 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
 
 endif()
 
+if(SLANG_RHI_BUILD_TESTS AND EMSCRIPTEN)
+    add_executable(wasm-test tests/wasm/wasm-test.cpp)
+    target_compile_features(wasm-test PRIVATE cxx_std_17)
+    target_link_libraries(wasm-test PRIVATE slang-rhi slang)
+    set_target_properties(wasm-test PROPERTIES
+        SUFFIX ".html"
+        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html"
+    )
+    target_link_options(wasm-test PRIVATE
+        "--use-port=emdawnwebgpu"
+        "SHELL:--shell-file \"${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html\""
+    )
+endif()
+
 if(SLANG_RHI_BUILD_EXAMPLES)
     if(NOT EMSCRIPTEN)
         find_package(Threads REQUIRED)
@@ -1236,18 +1250,6 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 
         add_example_executable(example-runner examples/example-runner.cpp ${example_sources})
         target_compile_definitions(example-runner PRIVATE EXAMPLE_COMBINED=1)
-    else()
-        add_executable(wasm-test examples/wasm/wasm-test.cpp)
-        target_compile_features(wasm-test PRIVATE cxx_std_17)
-        target_link_libraries(wasm-test PRIVATE slang-rhi slang)
-        set_target_properties(wasm-test PROPERTIES
-            OUTPUT_NAME "wasm-test"
-            SUFFIX ".html"
-        )
-        target_link_options(wasm-test PRIVATE
-            "--use-port=emdawnwebgpu"
-            "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
-        )
     endif()
 endif()
 
