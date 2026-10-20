@@ -146,7 +146,8 @@ inline Result createDevice(
     const char* shaderSearchPath,
     std::vector<std::pair<std::string, std::string>> preprocessorMacros,
     IDevice** outDevice,
-    std::vector<Feature>* outMissingFeatures = nullptr
+    std::vector<Feature>* outMissingFeatures = nullptr,
+    const void* deviceExtensions = nullptr
 )
 {
     *outDevice = nullptr;
@@ -155,6 +156,7 @@ inline Result createDevice(
 
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
+    deviceDesc.next = deviceExtensions;
 #if SLANG_RHI_DEBUG
     deviceDesc.enableValidation = true;
     static DebugPrinter debugPrinter(DebugMessageType::Warning);

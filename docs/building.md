@@ -103,6 +103,22 @@ and `lib/` directories. Use a Slang version compatible with this checkout.
 See [CMakeLists.txt](../CMakeLists.txt) for the full set of options and the
 selected dependency versions.
 
+The Windows D3D12 build uses DXC 1.10.2605.24 and Agility SDK
+1.721.3-preview for Shader Model 6.10 Linear Algebra (cooperative vectors).
+Executables select the bundled runtime by including `slang-rhi/agility-sdk.h`
+and placing `SLANG_RHI_EXPORT_AGILITY_SDK` at file scope. Applications using the
+preview shader model must also enable
+`D3D12ExperimentalShaderModels` before device creation, using
+`D3D12ExperimentalFeaturesDesc`. The neural marble example does this explicitly;
+other examples do not enable experimental shader models automatically. Deploy
+the `hlsl/` directory alongside DXC and the executable/library: Slang's generated
+LinAlg shaders include DXC's `dx/linalg.h` at runtime. CMake copies and installs
+these headers with the compiler.
+
+To override the dependencies with a retail Agility SDK, also set
+`SLANG_RHI_AGILITY_SDK_VERSION=D3D12_SDK_VERSION`. A retail configuration does not
+enable the SM 6.10 cooperative-vector path.
+
 ## Run tests and examples
 
 Run from the build output directory:

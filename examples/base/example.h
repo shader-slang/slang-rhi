@@ -77,11 +77,13 @@ public:
 
     // Create a device and retain the missing features if the example requires
     // features that this backend does not support.
+    // deviceExtensions supplies the optional DeviceDesc::next chain.
     Result createDevice(
         DeviceType deviceType,
         std::vector<Feature> requiredFeatures,
         std::vector<std::pair<std::string, std::string>> preprocessorMacros,
-        IDevice** outDevice
+        IDevice** outDevice,
+        const void* deviceExtensions = nullptr
     );
 
     // Window management
