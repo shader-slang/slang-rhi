@@ -1,5 +1,7 @@
 #include "../base/example.h"
 
+namespace {
+
 using namespace rhi;
 
 class ExampleSurface : public ExampleBase
@@ -10,7 +12,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Surface"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -107,4 +109,6 @@ public:
     float m_grey = 0.5f;
 };
 
-EXAMPLE_MAIN(ExampleSurface)
+} // namespace
+
+EXAMPLE_MAIN(ExampleSurface, "surface", "Surface")

@@ -90,11 +90,15 @@ Run from the build output directory:
 cd build/Debug
 ./slang-rhi-tests -check-devices
 ./example-triangle
+./example-runner
 ```
 
 On Windows, append `.exe` to executable names. Tests and examples need the
 corresponding build options enabled; windowed examples also need a display and
 a backend that supports rendering and presentation.
+
+Desktop builds produce individual binaries such as `example-triangle` and a
+combined `example-runner`.
 
 GPU test names end in the backend name. Use doctest's test-case filter to select
 tests, or select a backend explicitly:

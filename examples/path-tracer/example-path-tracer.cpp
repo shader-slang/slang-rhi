@@ -5,6 +5,8 @@
 
 #include <slang-rhi/acceleration-structure-utils.h>
 
+namespace {
+
 using namespace rhi;
 using namespace rhi::math;
 
@@ -438,7 +440,7 @@ public:
             m_missingFeatures = {Feature::RayTracing, Feature::RayQuery};
             return SLANG_E_NOT_AVAILABLE;
         }
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Path tracer"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -655,4 +657,6 @@ public:
     uint32_t m_frame = 0;
 };
 
-EXAMPLE_MAIN(ExamplePathTracer)
+} // namespace
+
+EXAMPLE_MAIN(ExamplePathTracer, "path-tracer", "Path tracer")
