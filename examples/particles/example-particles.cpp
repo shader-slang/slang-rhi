@@ -12,6 +12,8 @@
 #include <cmath>
 #include <memory>
 
+namespace {
+
 using namespace rhi;
 
 // XY: center in logo coordinates; Z: scale into particle world space.
@@ -472,7 +474,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Particle energy sculpture", 960, 720));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
@@ -741,4 +743,6 @@ private:
     bool m_paused = false, m_singleStep = false, m_reset = true, m_bloom = true, m_countValid = false;
 };
 
-EXAMPLE_MAIN(ExampleParticles)
+} // namespace
+
+EXAMPLE_MAIN(ExampleParticles, "particles", "Particles")

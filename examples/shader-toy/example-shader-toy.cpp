@@ -2,6 +2,8 @@
 
 #include <memory>
 
+namespace {
+
 using namespace rhi;
 
 // List of shaders to cycle through using the left/right arrow keys.
@@ -17,7 +19,7 @@ public:
     Result init(DeviceType deviceType) override
     {
         SLANG_RETURN_ON_FAIL(createDevice(deviceType, {Feature::Surface}, {}, m_device.writeRef()));
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "ShaderToy"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -212,4 +214,6 @@ public:
     int m_shaderIndex = 0;
 };
 
-EXAMPLE_MAIN(ExampleShaderToy)
+} // namespace
+
+EXAMPLE_MAIN(ExampleShaderToy, "shader-toy", "ShaderToy")

@@ -14,6 +14,10 @@ public:
     WGPUSurface m_surface = nullptr;
     WGPUPresentMode m_vsyncOffMode = WGPUPresentMode(0);
     WGPUPresentMode m_vsyncOnMode = WGPUPresentMode(0);
+#if SLANG_WASM
+    // The canvas texture expires when execution yields; render into a persistent image instead.
+    RefPtr<TextureImpl> m_texture;
+#endif
 
     ~SurfaceImpl();
 

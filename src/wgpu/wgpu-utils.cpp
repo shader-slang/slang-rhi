@@ -117,6 +117,11 @@ WGPUStringView translateString(const char* str)
     return str ? WGPUStringView{str, ::strlen(str)} : WGPUStringView{nullptr, 0};
 }
 
+std::string translateString(WGPUStringView str)
+{
+    return str.length ? std::string(str.data, str.length) : std::string();
+}
+
 WGPUTextureFormat translateTextureFormat(Format format)
 {
     switch (format)

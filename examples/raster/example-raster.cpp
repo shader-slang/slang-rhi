@@ -18,6 +18,8 @@
 #include <memory>
 #include <vector>
 
+namespace {
+
 using namespace rhi;
 
 struct Material
@@ -758,7 +760,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Slang logo", 960, 640));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
@@ -944,4 +946,6 @@ private:
     double m_time = -1.0;
 };
 
-EXAMPLE_MAIN(ExampleRaster)
+} // namespace
+
+EXAMPLE_MAIN(ExampleRaster, "raster", "Raster")

@@ -13,7 +13,7 @@
                 if (typeof WebAssembly === 'undefined' ||
                     typeof WebAssembly.Suspending !== 'function' ||
                     typeof WebAssembly.promising !== 'function') {
-                    var message = 'This example requires a browser with WebAssembly JSPI support. Please update your browser.';
+                    var message = 'This test requires a browser with WebAssembly JSPI support. Please update your browser.';
                     Module.printErr(message);
                     throw new Error(message);
                 }
