@@ -668,9 +668,9 @@ public:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("Space: Pause bulge | F: Freeze LOD | -/+: Tessellation | [/]: Height\n");
-        printOverlay("C: Cycle views | 1: Shaded | 2: Clusters | 3: Levels | 4: Triangles\n");
-        printOverlay("T: Adaptive/uniform | X: Approach | Z: Detail | R: Overview\n\n");
+        printOverlay("^3Space^0: Pause bulge | ^3F^0: Freeze LOD | ^3-/=^0: Tessellation | ^3[/]^0: Height\n");
+        printOverlay("^3C^0: Cycle views | ^31^0: Shaded | ^32^0: Clusters | ^33^0: Levels | ^34^0: Triangles\n");
+        printOverlay("^3T^0: LOD mode | ^3X^0: Approach | ^3Z^0: Detail | ^3R^0: Overview | ^3Scroll^0: Speed\n\n");
         printOverlay(
             "%s | Height: %.2f | Target edge: %.2f px | LOD: %s\n",
             m_paused ? "Bulge paused" : "Moving bulge",
@@ -702,7 +702,7 @@ public:
             );
         }
         printOverlay(
-            "Scroll: Speed %.4g units/s | Geometry + AS buffers: %.2f MiB",
+            "Speed: %.4g units/s | Geometry + AS buffers: %.2f MiB\n",
             m_controller.moveSpeed,
             double(m_scene.allocatedBytes) / (1024 * 1024)
         );

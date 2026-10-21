@@ -415,11 +415,11 @@ public:
         SLANG_RETURN_ON_FAIL(composePanels(encoder, image));
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Space: Pause | R: Restart training | G: New marble | C: Execution mode\n");
+        printOverlay("^3Space^0: Pause | ^3R^0: Restart training | ^3G^0: New marble | ^3C^0: Execution mode\n\n");
         printOverlay("Left: Reference | Middle: Learned | Right: RGB RMSE\n");
         printOverlay("Error scale: 0 (dark) to 0.25+ (orange)\n");
         printOverlay(
-            "%s | Step %u | Marble %u | %s\n",
+            "%s | Step: %u | Marble: %u | %s\n",
             m_paused ? "Paused" : "Training",
             m_trainer->stepCount(),
             m_trainer->seed(),

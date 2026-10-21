@@ -121,19 +121,20 @@ public:
         m_timingLastRefresh = 0;
     }
 
-    // Format the averaged timings. Frame::begin updates them even when the overlay is hidden.
+    // Format the averaged timings, with one blank line after newline-terminated overlay text.
+    // Frame::begin updates them even when the overlay is hidden.
     std::string getDisplayText() const
     {
         if (!m_enabled)
-            return "\n\nProfiler off\n";
+            return "\nProfiler: off\n";
         if (!m_supported)
-            return "\n\nProfiler unavailable\n";
+            return "\nProfiler: unavailable\n";
         if (m_displayTimings.empty())
-            return "\n\nProfiler timing pending\n";
+            return "\nProfiler: timing pending\n";
 
         std::ostringstream text;
         text.imbue(std::locale::classic());
-        text << "\n\n" << std::fixed << std::setprecision(2);
+        text << '\n' << std::fixed << std::setprecision(2);
         // Walk children in first-seen order, keeping repeated regions under their parent.
         auto printChildren = [&](auto&& self, uint32_t parent, uint32_t depth) -> void
         {

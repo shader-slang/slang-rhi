@@ -174,7 +174,9 @@ public:
     // Prints the shared CameraController shortcuts.
     void printCameraControls();
 
-    // Appends printf-formatted text; include explicit newlines between lines or blocks.
+    // Appends printf-formatted text; end each line with a newline, including the final status line.
+    // ^0 restores the default color; ^1-^7 select red, green, yellow, blue, cyan, magenta, white.
+    // Color persists until changed or clearOverlay(); unknown codes are printed literally.
     // Does nothing when hidden or uninitialized. Failed formatting is skipped without changing accumulated text.
 #if defined(__GNUC__) || defined(__clang__)
     __attribute__((format(printf, 2, 3)))
@@ -417,14 +419,14 @@ struct ExamplePicker
         std::string text;
         if (open)
         {
-            text = "Select example\nUp/Down: Choose | Enter: Open | Esc: Cancel\n\n";
+            text = "^5Select example^0\n^3Up/Down^0: Choose | ^3Enter^0: Open | ^3Esc^0: Cancel\n\n";
             for (size_t i = 0; i < registry.size(); ++i)
             {
-                text += i == selectedIndex ? "> " : "  ";
+                text += i == selectedIndex ? "^3> " : "  ";
                 text += registry[i].title;
                 if (i == currentIndex)
-                    text += " (current)";
-                text += '\n';
+                    text += "^2 (current)";
+                text += "^0\n";
             }
         }
         // Publish text snapshots; workers never read the main-thread picker state.
@@ -795,17 +797,17 @@ inline void ExampleBase::clearOverlay()
 
 inline void ExampleBase::printOverlayHeader()
 {
-    printOverlay("F1: Overlay | F2: Fit windows | F3: VSync");
+    printOverlay("^3F1^0: Overlay | ^3F2^0: Fit windows | ^3F3^0: VSync");
     if (m_profiler)
-        printOverlay(" | F4: Profiler");
+        printOverlay(" | ^3F4^0: Profiler");
     if (detail::examplePicker.isAvailable())
-        printOverlay(" | F5: Pick example");
-    printOverlay(" | Esc: Close\n");
+        printOverlay(" | ^3F5^0: Pick example");
+    printOverlay(" | ^3Esc^0: Close\n");
 }
 
 inline void ExampleBase::printCameraControls()
 {
-    printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
+    printOverlay("^3Left drag^0: Look | ^3W/A/S/D^0: Move | ^3Q/E^0: Down/up | ^3Shift^0: Faster\n");
 }
 
 inline void ExampleBase::printOverlay(const char* format, ...)

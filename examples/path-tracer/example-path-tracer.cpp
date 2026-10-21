@@ -541,7 +541,7 @@ public:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n\n");
+        printOverlay("^3T^0: Tracing mode | ^3[/]^0: Bounces | ^3Space^0: Accumulation | ^3R^0: Reset view\n\n");
         printOverlay(
             "%s%s | Bounces: %u | Accumulation: %s\n",
             m_pathTracer.modeName(),
@@ -550,7 +550,7 @@ public:
             m_accumulate ? "on" : "off"
         );
         printOverlay(
-            "Samples/pixel: %llu",
+            "Samples/pixel: %llu\n",
             static_cast<unsigned long long>(m_accumulate ? uint64_t(m_frame) + 1 : 1) * PATH_TRACER_SAMPLES_PER_PIXEL
         );
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));

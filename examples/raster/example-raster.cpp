@@ -904,7 +904,7 @@ private:
 
     const char* msaaStatus() const
     {
-        return !m_renderer->supportsMsaa() ? "UNAVAILABLE" : m_settings.msaa ? "4X" : "OFF";
+        return !m_renderer->supportsMsaa() ? "unavailable" : m_settings.msaa ? "4x" : "off";
     }
 
     Result drawStatusOverlay(ICommandEncoder* encoder, ITexture* image)
@@ -912,23 +912,23 @@ private:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("Right drag: Light | [ / ]: Roughness | - / =: Exposure | B: Bloom\n");
-        printOverlay("N: Environment | , / .: Rotate environment | I: Lighting\n");
-        printOverlay("M: MSAA | G: Sphere grid | R: Reset\n\n");
+        printOverlay("^3Right drag^0: Light | ^3[/]^0: Roughness | ^3-/=^0: Exposure | ^3B^0: Bloom\n");
+        printOverlay("^3N^0: Environment | ^3,/.^0: Rotate environment | ^3I^0: Lighting\n");
+        printOverlay("^3M^0: MSAA | ^3G^0: Sphere grid | ^3R^0: Reset\n\n");
         printOverlay(
-            "Roughness %.2f | Exposure %+.2f | Bloom %s\n",
+            "Roughness: %.2f | Exposure: %+.2f | Bloom: %s\n",
             m_settings.roughness,
             m_settings.exposure,
             m_settings.bloom ? "on" : "off"
         );
         printOverlay(
-            "MSAA %s | Spheres %u | Environment %s\n",
+            "MSAA: %s | Spheres: %u | Environment: %s\n",
             msaaStatus(),
             m_settings.spheres ? kSphereCount : 0u,
             m_settings.environmentPreset == 0 ? "studio" : "outdoor"
         );
         printOverlay(
-            "Environment angle %+.0f deg | Lighting %s",
+            "Environment angle: %+.0f deg | Lighting: %s\n",
             math::degrees(m_settings.environmentRotation),
             m_settings.environmentLighting ? "on" : "off"
         );
