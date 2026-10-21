@@ -318,7 +318,7 @@ GPU_TEST_CASE("upload-buffer-deferred-writes", Vulkan | WGPU)
     CHECK(std::memcmp(result, expected, sizeof(expected)) == 0);
 }
 
-// Native aliases can change the allocation without touching the mapped wrapper's dirty flag.
+// Native aliases can change the allocation without going through the mapped wrapper.
 GPU_TEST_CASE("upload-buffer-native-alias-writes", WGPU)
 {
     for (MemoryType memoryType : {MemoryType::DeviceLocal, MemoryType::Upload})
@@ -349,7 +349,7 @@ GPU_TEST_CASE("upload-buffer-native-alias-writes", WGPU)
         data[0] = 9;
         REQUIRE_CALL(device->unmapBuffer(imported));
 
-        // Consume the original's dirty flag, then write through the other alias again.
+        // Refresh the original, then verify that another write through the alias is still observed.
         if (memoryType == MemoryType::Upload)
         {
             REQUIRE_CALL(device->mapBuffer(original, CpuAccessMode::Write, (void**)&data));

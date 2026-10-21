@@ -24,7 +24,7 @@ BufferImpl::~BufferImpl()
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    m_uploadDataExternallyMutable = true;
+    m_uploadDataNeedsReadback = true;
     outHandle->type = NativeHandleType::WGPUBuffer;
     outHandle->value = (uint64_t)m_buffer;
     return SLANG_OK;
@@ -57,6 +57,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         // CopySrc lets readBuffer() and mapBuffer() read what shaders wrote to the GPU buffer.
         bufferDesc.usage |= WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
         buffer->m_uploadData = std::make_unique<uint8_t[]>(bufferDesc.size);
+        // ShaderResource also translates to WebGPU Storage, but cannot write through the RHI.
+        buffer->m_uploadDataNeedsReadback = is_set(desc.usage, BufferUsage::UnorderedAccess);
     }
     else if (desc.memoryType == MemoryType::ReadBack)
     {
@@ -121,7 +123,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
             return SLANG_E_INVALID_ARG;
         }
         buffer->m_uploadData = std::make_unique<uint8_t[]>(paddedSize);
-        buffer->m_uploadDataExternallyMutable = true;
+        buffer->m_uploadDataNeedsReadback = true;
         SLANG_RETURN_ON_FAIL(readBuffer(buffer, 0, fixedDesc.size, buffer->m_uploadData.get()));
     }
 
@@ -141,17 +143,9 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 
     if (bufferImpl->m_uploadData)
     {
-        // Submitted copies, writable shader bindings, or native aliases may change the GPU data.
-        // ShaderResource also translates to WebGPU Storage, but cannot write through the RHI.
-        if (bufferImpl->m_uploadDataStale.exchange(false) || bufferImpl->m_uploadDataExternallyMutable ||
-            is_set(bufferImpl->m_desc.usage, BufferUsage::UnorderedAccess))
+        if (bufferImpl->m_uploadDataNeedsReadback)
         {
-            Result result = readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get());
-            if (SLANG_FAILED(result))
-            {
-                bufferImpl->m_uploadDataStale = true;
-                return result;
-            }
+            SLANG_RETURN_ON_FAIL(readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get()));
         }
         *outData = bufferImpl->m_uploadData.get();
         return SLANG_OK;

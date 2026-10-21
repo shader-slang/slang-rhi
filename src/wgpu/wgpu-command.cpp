@@ -24,7 +24,6 @@ class CommandRecorder
 public:
     DeviceImpl* m_device;
     Context& m_ctx;
-    CommandBufferImpl* m_commandBuffer = nullptr;
 
     WGPUCommandEncoder m_commandEncoder = nullptr;
     WGPURenderPassEncoder m_renderPassEncoder = nullptr;
@@ -99,7 +98,6 @@ public:
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* encoderLabel)
 {
-    m_commandBuffer = commandBuffer;
     WGPUCommandEncoderDescriptor encoderDesc = {};
     encoderDesc.label = translateString(encoderLabel);
     m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, &encoderDesc);
@@ -148,7 +146,7 @@ void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
     if (dst->m_uploadData)
-        m_commandBuffer->m_uploadBufferWriteTargets.insert(dst);
+        dst->m_uploadDataNeedsReadback = true;
     m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
         m_commandEncoder,
         src->m_buffer,
@@ -263,7 +261,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
     if (dst->m_uploadData)
-        m_commandBuffer->m_uploadBufferWriteTargets.insert(dst);
+        dst->m_uploadDataNeedsReadback = true;
 
     const TextureDesc& srcDesc = src->getDesc();
     Extent3D textureSize = srcDesc.size;
@@ -330,7 +328,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
     if (buffer->m_uploadData)
-        m_commandBuffer->m_uploadBufferWriteTargets.insert(buffer);
+        buffer->m_uploadDataNeedsReadback = true;
     m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, buffer->m_buffer, cmd.range.offset, cmd.range.size);
 }
 
@@ -954,13 +952,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     }
     device->m_ctx.api.wgpuQueueSubmit(m_queue, commandBuffers.size(), commandBuffers.data());
 
-    for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
-    {
-        auto commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        for (BufferImpl* buffer : commandBuffer->m_uploadBufferWriteTargets)
-            buffer->m_uploadDataStale = true;
-    }
-
     // Signal fences.
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
@@ -1104,7 +1095,6 @@ CommandBufferImpl::~CommandBufferImpl()
 Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    m_uploadBufferWriteTargets.clear();
     m_constantBufferPool.reset();
     m_bindingCache.reset(device);
     return CommandBuffer::reset();
@@ -1112,9 +1102,6 @@ Result CommandBufferImpl::reset()
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    // Native submissions bypass CommandQueueImpl::submit(), so their writes cannot be tracked there.
-    for (BufferImpl* buffer : m_uploadBufferWriteTargets)
-        buffer->m_uploadDataExternallyMutable = true;
     outHandle->type = NativeHandleType::WGPUCommandBuffer;
     outHandle->value = (uint64_t)m_commandBuffer;
     return SLANG_OK;
