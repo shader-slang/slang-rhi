@@ -1951,14 +1951,16 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer
+    // create staging buffer (prefer cached memory, the CPU reads from it)
     VKBufferHandleRAII staging;
 
     SLANG_RETURN_ON_FAIL(staging.init(
         m_api,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        0,
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
     ));
 
     // Copy from real buffer to staging buffer

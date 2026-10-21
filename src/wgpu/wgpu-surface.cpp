@@ -4,6 +4,7 @@
 #include "wgpu-utils.h"
 
 #include "../core/reverse-map.h"
+#include "../core/deferred.h"
 #if SLANG_APPLE_FAMILY
 #include "../cocoa-util.h"
 #endif
@@ -204,6 +205,10 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     wgpuConfig.device = m_device->m_ctx.device;
     wgpuConfig.format = translateTextureFormat(resolvedConfig.format);
     wgpuConfig.usage = usage;
+#if SLANG_WASM
+    // Only present() accesses the canvas. Application usage applies to the persistent image.
+    wgpuConfig.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_RenderAttachment;
+#endif
     // TODO: support more view formats
     wgpuConfig.viewFormatCount = 1;
     wgpuConfig.viewFormats = &wgpuConfig.format;
@@ -213,6 +218,9 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     wgpuConfig.presentMode = resolvedConfig.vsync ? m_vsyncOnMode : m_vsyncOffMode;
     m_device->m_ctx.api.wgpuSurfaceConfigure(m_surface, &wgpuConfig);
 
+#if SLANG_WASM
+    m_texture = nullptr;
+#endif
     setConfig(resolvedConfig);
     m_configured = true;
 
@@ -227,6 +235,9 @@ Result SurfaceImpl::unconfigure()
     }
 
     m_device->m_ctx.api.wgpuSurfaceUnconfigure(m_surface);
+#if SLANG_WASM
+    m_texture = nullptr;
+#endif
     m_configured = false;
 
     return SLANG_OK;
@@ -241,6 +252,13 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
+#if SLANG_WASM
+    if (m_texture)
+    {
+        returnComPtrCopy(outTexture, m_texture);
+        return SLANG_OK;
+    }
+#else
     WGPUSurfaceTexture surfaceTexture;
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
@@ -248,6 +266,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     {
         return SLANG_FAIL;
     }
+#endif
 
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
@@ -261,7 +280,22 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     textureDesc.defaultState = ResourceState::Present;
 
     RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
+#if SLANG_WASM
+    // Keep CopySrc internal so the public descriptor still matches the surface configuration.
+    WGPUTextureDescriptor desc = {};
+    desc.dimension = WGPUTextureDimension_2D;
+    desc.size = {m_config.width, m_config.height, 1};
+    desc.mipLevelCount = 1;
+    desc.sampleCount = 1;
+    desc.format = translateTextureFormat(m_config.format);
+    desc.usage = translateTextureUsage(m_config.usage) | WGPUTextureUsage_CopySrc;
+    texture->m_texture = m_device->m_ctx.api.wgpuDeviceCreateTexture(m_device->m_ctx.device, &desc);
+    if (!texture->m_texture)
+        return SLANG_FAIL;
+    m_texture = texture;
+#else
     texture->m_texture = surfaceTexture.texture;
+#endif
     returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
@@ -272,7 +306,47 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
-#if !SLANG_WASM
+#if SLANG_WASM
+    if (!m_texture)
+        return SLANG_FAIL;
+
+    // Acquisition through submission must not yield: the browser can expire the canvas texture
+    // on the next event-loop turn. Native copy commands need no shaders, mappings, or waits.
+    auto& api = m_device->m_ctx.api;
+    WGPUSurfaceTexture surfaceTexture = {};
+    api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
+    SLANG_RHI_DEFERRED({
+        if (surfaceTexture.texture)
+            api.wgpuTextureRelease(surfaceTexture.texture);
+    });
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
+        surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
+        return SLANG_FAIL;
+
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    WGPUCommandEncoder encoder = api.wgpuDeviceCreateCommandEncoder(m_device->m_ctx.device, &encoderDesc);
+    if (!encoder)
+        return SLANG_FAIL;
+    SLANG_RHI_DEFERRED({ api.wgpuCommandEncoderRelease(encoder); });
+
+    WGPUTexelCopyTextureInfo source = {};
+    source.texture = m_texture->m_texture;
+    source.aspect = WGPUTextureAspect_All;
+    WGPUTexelCopyTextureInfo destination = {};
+    destination.texture = surfaceTexture.texture;
+    destination.aspect = WGPUTextureAspect_All;
+    WGPUExtent3D size = {m_config.width, m_config.height, 1};
+    api.wgpuCommandEncoderCopyTextureToTexture(encoder, &source, &destination, &size);
+
+    WGPUCommandBufferDescriptor commandsDesc = {};
+    WGPUCommandBuffer commands = api.wgpuCommandEncoderFinish(encoder, &commandsDesc);
+    if (!commands)
+        return SLANG_FAIL;
+    SLANG_RHI_DEFERRED({ api.wgpuCommandBufferRelease(commands); });
+    WGPUQueue queue = api.wgpuDeviceGetQueue(m_device->m_ctx.device);
+    SLANG_RHI_DEFERRED({ api.wgpuQueueRelease(queue); });
+    api.wgpuQueueSubmit(queue, 1, &commands);
+#else
     m_device->m_ctx.api.wgpuSurfacePresent(m_surface);
 #endif
     return SLANG_OK;

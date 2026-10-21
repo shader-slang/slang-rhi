@@ -20,6 +20,8 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <span>
 #include <string_view>
 #include <string>
 #include <thread>
@@ -42,9 +44,13 @@
 
 namespace rhi {
 
+struct ExampleDesc;
+
 namespace detail {
 struct ExampleRunner;
-}
+inline constexpr int kInitialWindowWidth = 960;
+inline constexpr int kInitialWindowHeight = 540;
+} // namespace detail
 
 // Base class for examples.
 // Derive from this class to implement an example.
@@ -108,9 +114,10 @@ public:
 
     // Window management
 
-    // Creates a window with the specified title and size.
+    // Creates a window using the registered title and the common initial size.
+    // The initial layout reduces the size as needed to fit all backend windows.
     // Automatically appends device, adapter, FPS, and VSync information to the title.
-    Result createWindow(IDevice* device, const char* title, uint32_t width = 640, uint32_t height = 360);
+    Result createWindow(IDevice* device);
     // Destroys the window.
     void destroyWindow();
     // Returns whether the window has been asked to close.
@@ -175,18 +182,17 @@ public:
     void
     printOverlay(const char* format, ...);
 
-    // Draws accumulated overlay text over the existing image without clearing it.
+    // Draws the picker when open, otherwise the accumulated overlay text, over the existing image.
     // Call after the example has finished rendering, before submission.
-    // Does nothing when hidden, uninitialized, or empty; the image must use the initialized output format.
+    // The picker ignores normal overlay visibility. The image must use the initialized output format.
     Result drawOverlay(ICommandEncoder* encoder, ITexture* image);
 
-    // Returns whether overlay drawing is enabled, independently of initialization.
+    // Returns whether the normal overlay is enabled, independently of the picker and initialization.
     bool isOverlayVisible() const { return m_overlayVisible; }
     // Toggles overlay visibility without creating or destroying its resources.
     void toggleOverlay() { m_overlayVisible = !m_overlayVisible; }
 
 public:
-    const char* m_shaderSearchPath = nullptr;
     DeviceType m_deviceType = DeviceType::Default;
     std::vector<Feature> m_missingFeatures;
     GLFWwindow* m_window = nullptr;
@@ -198,6 +204,7 @@ private:
     Result updateWindowTitle();
     Result applyVsync();
 
+    const ExampleDesc* m_desc = nullptr;
     std::string m_windowTitle;
     FrameStats m_frameStats;
     bool m_vsync = true;
@@ -212,13 +219,35 @@ private:
     float m_contentScale = 1.f; // Use the X scale uniformly to preserve the bitmap font's aspect ratio.
     bool m_minimized = false;
     bool m_overlayVisible = true;
+    std::string m_examplePickerText;
     std::unique_ptr<TextRenderer> m_textRenderer;
     std::unique_ptr<Profiler> m_profiler;
 
     friend struct detail::ExampleRunner;
 };
 
+// A stable identifier, display name, and factory shared by standalone and combined executables.
+// Capability checks remain in init(), so there is only one source of feature requirements.
+struct ExampleDesc
+{
+    const char* name;
+    const char* title;
+    const char* shaderSearchPath;
+    ExampleBase* (*create)();
+};
+
 namespace detail {
+inline std::vector<ExampleDesc>& getRegisteredExamples()
+{
+    static std::vector<ExampleDesc> examples;
+    return examples;
+}
+
+struct ExampleRegistration
+{
+    explicit ExampleRegistration(ExampleDesc desc) { getRegisteredExamples().push_back(desc); }
+};
+
 inline void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
 inline void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
 inline void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
@@ -286,6 +315,18 @@ struct ExampleRunner
         eventReady.notify_one();
     }
 
+    void setExamplePickerText(std::string text)
+    {
+        postEvent(
+            {Event::Input,
+             [text = std::move(text)](ExampleBase& example)
+             {
+                 example.m_examplePickerText = text;
+                 return SLANG_OK;
+             }}
+        );
+    }
+
     void resize()
     {
         int width, height, framebufferWidth, framebufferHeight;
@@ -343,7 +384,7 @@ struct ExampleRunner
         eventReady.notify_one();
     }
 
-    void run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath);
+    void run(const ExampleDesc& desc, DeviceType deviceType);
     Result processEvents(ExampleBase& example, const std::vector<Event>& pending);
 };
 
@@ -352,6 +393,94 @@ inline std::vector<std::unique_ptr<ExampleRunner>>& getExamples()
     static std::vector<std::unique_ptr<ExampleRunner>> examples;
     return examples;
 }
+
+// Mutable picker state belongs to the main thread. Workers only read the registry,
+// which stays unchanged until all workers and their queued window tasks have finished.
+struct ExamplePicker
+{
+    std::span<const ExampleDesc> registry;
+    bool open = false;
+    size_t currentIndex = 0;
+    size_t selectedIndex = 0;
+    std::optional<size_t> pendingIndex;
+
+    bool isAvailable() const { return registry.size() > 1; }
+
+    void reset(std::span<const ExampleDesc> examples = {})
+    {
+        *this = {};
+        registry = examples;
+    }
+
+    void updateText()
+    {
+        std::string text;
+        if (open)
+        {
+            text = "Select example\nUp/Down: Choose | Enter: Open | Esc: Cancel\n\n";
+            for (size_t i = 0; i < registry.size(); ++i)
+            {
+                text += i == selectedIndex ? "> " : "  ";
+                text += registry[i].title;
+                if (i == currentIndex)
+                    text += " (current)";
+                text += '\n';
+            }
+        }
+        // Publish text snapshots; workers never read the main-thread picker state.
+        for (auto& example : getExamples())
+            example->setExamplePickerText(text);
+    }
+
+    void show()
+    {
+        if (open || pendingIndex)
+            return;
+        open = true;
+        selectedIndex = currentIndex;
+        updateText();
+    }
+
+    void hide()
+    {
+        open = false;
+        updateText();
+    }
+
+    bool handleKey(int key, int action)
+    {
+        if (!open)
+            return false;
+
+        switch (key)
+        {
+        case GLFW_KEY_UP:
+        case GLFW_KEY_DOWN:
+            if (action == GLFW_PRESS)
+            {
+                size_t offset = key == GLFW_KEY_UP ? registry.size() - 1 : 1;
+                selectedIndex = (selectedIndex + offset) % registry.size();
+                updateText();
+            }
+            return true;
+        case GLFW_KEY_ENTER:
+        case GLFW_KEY_KP_ENTER:
+        case GLFW_KEY_ESCAPE:
+            if (action == GLFW_RELEASE)
+            {
+                hide();
+                if (key != GLFW_KEY_ESCAPE && selectedIndex != currentIndex)
+                    pendingIndex = selectedIndex;
+            }
+            return true;
+        default:
+            // Let controls held before opening finish normally.
+            return action != GLFW_RELEASE;
+        }
+    }
+};
+
+inline ExamplePicker examplePicker;
 
 inline ExampleRunner* mainExample = nullptr;
 inline std::thread::id mainThread;
@@ -440,12 +569,7 @@ inline void startSynchronizedFrame()
 }
 
 inline void layoutWindows(GLFWmonitor* monitor = nullptr);
-
-inline void glfwWindowCloseCallback(GLFWwindow*)
-{
-    for (auto& example : getExamples())
-        example->stop();
-}
+inline void fitWindowsToMonitor(bool initialLayout = false);
 
 } // namespace detail
 
@@ -471,7 +595,7 @@ inline Result ExampleBase::createDevice(
         rhi::createDevice(
             deviceType,
             requiredFeatures,
-            m_shaderSearchPath,
+            m_desc->shaderSearchPath,
             preprocessorMacros,
             outDevice,
             &m_missingFeatures
@@ -481,7 +605,7 @@ inline Result ExampleBase::createDevice(
     return SLANG_OK;
 }
 
-inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t width, uint32_t height)
+inline Result ExampleBase::createWindow(IDevice* device)
 {
     const auto& deviceInfo = device->getInfo();
     char fullTitle[1024];
@@ -489,7 +613,7 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
         fullTitle,
         sizeof(fullTitle),
         "%s | %s (%s)",
-        title,
+        m_desc->title,
         getRHI()->getDeviceTypeName(deviceInfo.deviceType),
         deviceInfo.adapterName
     );
@@ -502,7 +626,13 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
                 if (m_runner->stopping)
                     return SLANG_FAIL;
                 glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-                m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
+                m_window = glfwCreateWindow(
+                    detail::kInitialWindowWidth,
+                    detail::kInitialWindowHeight,
+                    fullTitle,
+                    nullptr,
+                    nullptr
+                );
                 if (!m_window)
                     return SLANG_FAIL;
                 m_runner->window = m_window;
@@ -518,18 +648,11 @@ inline Result ExampleBase::createWindow(IDevice* device, const char* title, uint
                 glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
                 glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
                 glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
-                glfwSetWindowCloseCallback(m_window, detail::glfwWindowCloseCallback);
+                detail::updateMainExample();
+                detail::fitWindowsToMonitor(true);
                 glfwGetWindowSize(m_window, &m_windowWidth, &m_windowHeight);
                 glfwGetFramebufferSize(m_window, &m_framebufferWidth, &m_framebufferHeight);
                 glfwGetWindowContentScale(m_window, &m_contentScale, nullptr);
-                if (detail::mainExample)
-                {
-                    int w, h;
-                    glfwGetWindowSize(detail::mainExample->window, &w, &h);
-                    glfwSetWindowSize(m_window, w, h);
-                }
-                detail::updateMainExample();
-                detail::layoutWindows();
                 return SLANG_OK;
             }
         )
@@ -675,6 +798,8 @@ inline void ExampleBase::printOverlayHeader()
     printOverlay("F1: Overlay | F2: Fit windows | F3: VSync");
     if (m_profiler)
         printOverlay(" | F4: Profiler");
+    if (detail::examplePicker.isAvailable())
+        printOverlay(" | F5: Pick example");
     printOverlay(" | Esc: Close\n");
 }
 
@@ -685,7 +810,7 @@ inline void ExampleBase::printCameraControls()
 
 inline void ExampleBase::printOverlay(const char* format, ...)
 {
-    if (!format || !m_overlayVisible || !m_textRenderer)
+    if (!format || !m_overlayVisible || !m_examplePickerText.empty() || !m_textRenderer)
         return;
     va_list args;
     va_start(args, format);
@@ -708,12 +833,17 @@ inline void ExampleBase::printOverlay(const char* format, ...)
 
 inline Result ExampleBase::drawOverlay(ICommandEncoder* encoder, ITexture* image)
 {
-    if (!m_overlayVisible || !m_textRenderer)
+    if ((!m_overlayVisible && m_examplePickerText.empty()) || !m_textRenderer)
         return SLANG_OK;
     if (!encoder || !image)
         return SLANG_E_INVALID_ARG;
     // Content scale already maps UI dimensions to framebuffer pixels, including on Retina displays.
-    if (m_profiler)
+    if (!m_examplePickerText.empty())
+    {
+        m_textRenderer->clear();
+        m_textRenderer->append(m_examplePickerText);
+    }
+    else if (m_profiler)
         printOverlay("%s", m_profiler->getDisplayText().c_str());
     return m_textRenderer->render(encoder, image, m_contentScale);
 }
@@ -755,7 +885,8 @@ inline GLFWmonitor* getExampleMonitor()
 
 inline void layoutWindows(GLFWmonitor* monitor)
 {
-    if (!mainExample || layoutInProgress || (getExamples().size() <= 1 && layoutMargin != 0))
+    // Keep a single window freely movable unless explicitly fitting it to a monitor.
+    if (!mainExample || layoutInProgress || (!monitor && getExamples().size() <= 1 && layoutMargin != 0))
         return;
     if (!monitor)
         monitor = getExampleMonitor();
@@ -785,7 +916,7 @@ inline void layoutWindows(GLFWmonitor* monitor)
             continue;
         int left, top, right, bottom;
         glfwGetWindowFrameSize(example->window, &left, &top, &right, &bottom);
-        if (x > wx + layoutMargin && x + cellWidth > wx + ww)
+        if (x > wx + layoutMargin && x + cellWidth > wx + ww - layoutMargin)
         {
             x = wx + layoutMargin;
             y += cellHeight;
@@ -796,7 +927,7 @@ inline void layoutWindows(GLFWmonitor* monitor)
     layoutInProgress = false;
 }
 
-inline void fitWindowsToMonitor()
+inline void fitWindowsToMonitor(bool initialLayout)
 {
     if (!mainExample || layoutInProgress || syncingWindows)
         return;
@@ -808,7 +939,7 @@ inline void fitWindowsToMonitor()
     if (ww <= 0 || wh <= 0)
         return;
 
-    // Restore before measuring decorations, suppressing recursive window sync.
+    // F2 restores before measuring decorations, suppressing recursive window sync.
     // Resize callbacks still queue the new framebuffer sizes for the workers.
     layoutInProgress = syncingWindows = true;
     int count = 0, frameWidth = 0, frameHeight = 0;
@@ -816,7 +947,8 @@ inline void fitWindowsToMonitor()
     {
         if (!example->window || example->stopping)
             continue;
-        glfwRestoreWindow(example->window);
+        if (!initialLayout)
+            glfwRestoreWindow(example->window);
         int left, top, right, bottom;
         glfwGetWindowFrameSize(example->window, &left, &top, &right, &bottom);
         frameWidth = std::max(frameWidth, left + right);
@@ -824,10 +956,12 @@ inline void fitWindowsToMonitor()
         ++count;
     }
 
-    int width, height;
-    glfwGetWindowSize(mainExample->window, &width, &height);
+    int width = kInitialWindowWidth, height = kInitialWindowHeight;
+    if (!initialLayout)
+        glfwGetWindowSize(mainExample->window, &width, &height);
     width = std::max(width, 1);
     height = std::max(height, 1);
+    int margin = initialLayout ? std::min({100, ww / 10, wh / 10}) : 0;
     int bestWidth = 0, bestHeight = 0;
     int64_t bestArea = 0;
     // Try every uniform grid and maximize render area while preserving the
@@ -835,8 +969,13 @@ inline void fitWindowsToMonitor()
     for (int columns = 1; columns <= count; ++columns)
     {
         int rows = (count + columns - 1) / columns;
-        int availableWidth = ww / columns - frameWidth;
-        int availableHeight = wh / rows - frameHeight;
+        int availableWidth = (ww - 2 * margin) / columns - frameWidth;
+        int availableHeight = (wh - 2 * margin) / rows - frameHeight;
+        if (initialLayout)
+        {
+            availableWidth = std::min(availableWidth, width);
+            availableHeight = std::min(availableHeight, height);
+        }
         if (availableWidth <= 0 || availableHeight <= 0)
             continue;
         int h = std::min(availableHeight, int(int64_t(availableWidth) * height / width));
@@ -851,7 +990,7 @@ inline void fitWindowsToMonitor()
     }
     if (bestArea > 0)
     {
-        layoutMargin = 0;
+        layoutMargin = margin;
         for (auto& example : getExamples())
         {
             if (example->window && !example->stopping)
@@ -993,15 +1132,21 @@ inline void glfwScrollCallback(GLFWwindow*, double x, double y)
 
 inline void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_F2)
+    if (examplePicker.handleKey(key, action))
+        return;
+    if (key == GLFW_KEY_F2 && action == GLFW_PRESS)
     {
-        if (action == GLFW_PRESS)
-            fitWindowsToMonitor();
+        fitWindowsToMonitor();
+        return;
+    }
+    if (key == GLFW_KEY_F5 && action == GLFW_PRESS && examplePicker.isAvailable())
+    {
+        examplePicker.show();
         return;
     }
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {
-        glfwWindowCloseCallback(window);
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
         return;
     }
     broadcastEvent(
@@ -1041,12 +1186,12 @@ inline Result ExampleRunner::processEvents(ExampleBase& example, const std::vect
     return SLANG_OK;
 }
 
-inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType deviceType, const char* shaderSearchPath)
+inline void ExampleRunner::run(const ExampleDesc& desc, DeviceType deviceType)
 {
     const char* name = getRHI()->getDeviceTypeName(deviceType);
-    std::unique_ptr<ExampleBase> example(createExample());
+    std::unique_ptr<ExampleBase> example(desc.create());
     example->m_runner = this;
-    example->m_shaderSearchPath = shaderSearchPath;
+    example->m_desc = &desc;
     Result result = example->init(deviceType);
     initialized = SLANG_SUCCEEDED(result);
     if (SLANG_FAILED(result) && !stopping)
@@ -1146,10 +1291,86 @@ inline void ExampleRunner::run(ExampleBase* (*createExample)(), DeviceType devic
     glfwPostEmptyEvent();
 }
 
+struct ExampleRoundResult
+{
+    bool anyInitialized = false;
+    bool closing = false;
+    int exitCode = 0;
+};
+
+// Run one selection across all backends, servicing main-thread tasks through shutdown.
+inline ExampleRoundResult runExampleRound(
+    const ExampleDesc& desc,
+    std::span<const DeviceType> deviceTypes,
+    bool syncFrames
+)
+{
+    auto& examples = getExamples();
+    glfwSetTime(0);
+    LOG_INFO("Example: %s", desc.title);
+    // Finish the main-thread registry before any worker can request a window.
+    for (size_t i = 0; i < deviceTypes.size(); ++i)
+        examples.push_back(std::make_unique<ExampleRunner>());
+    for (size_t i = 0; i < examples.size(); ++i)
+    {
+        auto& example = *examples[i];
+        example.done = false;
+        example.syncFrames = syncFrames;
+        example.thread = std::thread(&ExampleRunner::run, &example, std::cref(desc), deviceTypes[i]);
+    }
+
+    // Service window requests during initialization AND shutdown. A switch only
+    // asks workers to stop: joining before pumping these tasks would deadlock.
+    ExampleRoundResult result;
+    for (;;)
+    {
+        // Observe close requests before queued tasks can destroy their windows.
+        for (auto& example : examples)
+            if (example->window && glfwWindowShouldClose(example->window))
+                result.closing = true;
+        processMainTasks();
+        if (result.closing || examplePicker.pendingIndex)
+        {
+            for (auto& example : examples)
+                if (!example->stopping)
+                    example->stop();
+        }
+        bool allDone = true;
+        for (auto& example : examples)
+            allDone &= example->done.load();
+        if (allDone)
+            break;
+        if (syncFrames)
+            startSynchronizedFrame();
+        glfwWaitEventsTimeout(0.01);
+        if (!mainExample)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    for (auto& example : examples)
+    {
+        if (example->thread.joinable())
+            example->thread.join();
+        result.exitCode |= example->exitCode;
+        result.anyInitialized |= example->initialized;
+    }
+    examples.clear();
+    mainExample = nullptr;
+    examplePicker.hide();
+    return result;
+}
+
 // By default, wait for all workers before each common frame, including its input batch and
 // timestamp, while keeping the GLFW event pump active. --free-running lets workers advance independently.
-inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample)(), const char* shaderSearchPath)
+inline int runExamples(
+    int argc,
+    const char** argv,
+    std::span<const ExampleDesc> registry,
+    std::string_view defaultExample = {}
+)
 {
+    ASSERT(!registry.empty(), "The example registry must not be empty.");
+
     std::vector<DeviceType> deviceTypes = {
         DeviceType::D3D11,
         DeviceType::D3D12,
@@ -1160,11 +1381,40 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         DeviceType::WGPU,
     };
 
+    auto findExample = [&](std::string_view name) -> std::optional<size_t>
+    {
+        for (size_t i = 0; i < registry.size(); ++i)
+            if (name == registry[i].name)
+                return i;
+        return std::nullopt;
+    };
+
+    size_t initialIndex = findExample(defaultExample).value_or(0);
     bool syncFrames = true;
     bool deviceSelected = false;
+    bool exampleSelected = false;
+    bool listExamples = false;
+
     for (int i = 1; i < argc; ++i)
     {
         std::string option = argv[i];
+        if (option == "--list-examples")
+        {
+            listExamples = true;
+            continue;
+        }
+        if (option == "--example" && !exampleSelected && i + 1 < argc)
+        {
+            exampleSelected = true;
+            auto selected = findExample(argv[++i]);
+            if (!selected)
+            {
+                LOG_ERROR("Unknown example: %s (use --list-examples).", argv[i]);
+                return 1;
+            }
+            initialIndex = *selected;
+            continue;
+        }
         if (option == "--free-running" && syncFrames)
         {
             syncFrames = false;
@@ -1172,7 +1422,11 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         }
         if (option != "--device" || deviceSelected || i + 1 == argc)
         {
-            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda|wgpu>] [--free-running]", argv[0]);
+            LOG_ERROR(
+                "Usage: %s [--example <name>] [--list-examples] [--device <d3d11|d3d12|vulkan|metal|cpu|cuda|wgpu>] "
+                "[--free-running]",
+                argv[0]
+            );
             return 1;
         }
         deviceSelected = true;
@@ -1200,6 +1454,14 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
         deviceTypes = {*selectedDevice};
     }
 
+    if (listExamples)
+    {
+        for (const auto& desc : registry)
+            std::printf("%s: %s\n", desc.name, desc.title);
+        return 0;
+    }
+
+    examplePicker.reset(registry);
     if (!glfwInit())
     {
         LOG_ERROR("Failed to initialize GLFW");
@@ -1214,80 +1476,98 @@ inline int runExamples(int argc, const char** argv, ExampleBase* (*createExample
     debugLayerOptions.coreValidation = true;
     getRHI()->setDebugLayerOptions(debugLayerOptions);
 #endif
-    auto& examples = getExamples();
     int exitCode = 0;
-    // Finish building the main-thread registry before workers can request windows.
     std::vector<DeviceType> supportedTypes;
     for (DeviceType deviceType : deviceTypes)
     {
         if (getRHI()->isDeviceTypeSupported(deviceType))
         {
-            // Prime backend/adapter discovery before concurrent device creation. Driver
-            // loaders may otherwise race during their first initialization (notably Vulkan).
+            // Prime discovery once, before concurrent device creation.
             getRHI()->getAdapter(deviceType, 0);
             supportedTypes.push_back(deviceType);
-            examples.push_back(std::make_unique<ExampleRunner>());
         }
         else
             LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
     }
-    for (size_t i = 0; i < examples.size(); ++i)
-    {
-        auto& example = *examples[i];
-        example.syncFrames = syncFrames;
-        example.done = false;
-        example.thread = std::thread(&ExampleRunner::run, &example, createExample, supportedTypes[i], shaderSearchPath);
-    }
-
-    // Keep servicing window requests and native messages during initialization AND shutdown.
-    // In particular, DXGI may synchronously send window messages from a rendering thread.
+    std::optional<size_t> lastWorkingIndex;
+    size_t activeIndex = initialIndex;
     for (;;)
     {
-        processMainTasks();
-        bool allDone = true;
-        for (auto& example : examples)
-            allDone &= example->done.load();
-        if (allDone)
+        examplePicker.currentIndex = activeIndex;
+        examplePicker.pendingIndex.reset();
+        layoutMargin = 100;
+        const auto& desc = registry[activeIndex];
+        auto result = runExampleRound(desc, supportedTypes, syncFrames);
+        exitCode |= result.exitCode;
+        if (result.anyInitialized)
+            lastWorkingIndex = activeIndex;
+        if (result.closing)
             break;
-        if (syncFrames)
-            startSynchronizedFrame();
-        glfwWaitEventsTimeout(0.01);
-        // Some platforms return immediately when no windows exist yet.
-        if (!mainExample)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    bool anyInitialized = false;
-    for (auto& example : examples)
-    {
-        if (example->thread.joinable())
-            example->thread.join();
-        exitCode |= example->exitCode;
-        anyInitialized |= example->initialized;
-    }
-    if (!anyInitialized)
-        exitCode = 1;
-    examples.clear();
-    mainExample = nullptr;
 
+        auto nextIndex = examplePicker.pendingIndex;
+        if (!result.anyInitialized && !nextIndex)
+        {
+            // A runtime selection unsupported by every backend must not strand the user
+            // without a window. An unsupported initial selection still fails normally.
+            if (lastWorkingIndex && *lastWorkingIndex != activeIndex)
+            {
+                LOG_WARNING("No backend could run %s; returning to %s.", desc.title, registry[*lastWorkingIndex].title);
+                nextIndex = lastWorkingIndex;
+            }
+            else
+                exitCode = 1;
+        }
+        if (!nextIndex)
+            break;
+        activeIndex = *nextIndex;
+    }
+    examplePicker.reset();
     glfwTerminate();
 
     return exitCode;
+}
+
+inline int runRegisteredExamples(int argc, const char** argv, std::string_view defaultExample = {})
+{
+    auto& registry = getRegisteredExamples();
+    // Static registration order varies across translation units.
+    std::sort(
+        registry.begin(),
+        registry.end(),
+        [](const ExampleDesc& a, const ExampleDesc& b)
+        {
+            return std::string_view(a.name) < std::string_view(b.name);
+        }
+    );
+    return runExamples(argc, argv, registry, defaultExample);
 }
 
 } // namespace detail
 
 } // namespace rhi
 
-#define EXAMPLE_MAIN(Example)                                                                                          \
+// Each translation unit registers its descriptor without constructing an example.
+// Only standalone builds define main().
+#if defined(EXAMPLE_COMBINED)
+#define EXAMPLE_STANDALONE_MAIN()
+#else
+#define EXAMPLE_STANDALONE_MAIN()                                                                                      \
     int main(int argc, const char** argv)                                                                              \
     {                                                                                                                  \
-        return rhi::detail::runExamples(                                                                               \
-            argc,                                                                                                      \
-            argv,                                                                                                      \
-            []() -> rhi::ExampleBase*                                                                                  \
-            {                                                                                                          \
-                return new Example();                                                                                  \
-            },                                                                                                         \
-            EXAMPLE_DIR                                                                                                \
-        );                                                                                                             \
+        return rhi::detail::runRegisteredExamples(argc, argv);                                                         \
     }
+#endif
+
+#define EXAMPLE_MAIN(Example, Name, Title)                                                                             \
+    namespace {                                                                                                        \
+    const rhi::detail::ExampleRegistration register##Example({                                                         \
+        Name,                                                                                                          \
+        Title,                                                                                                         \
+        EXAMPLE_DIR,                                                                                                   \
+        []() -> rhi::ExampleBase*                                                                                      \
+        {                                                                                                              \
+            return new Example();                                                                                      \
+        },                                                                                                             \
+    });                                                                                                                \
+    }                                                                                                                  \
+    EXAMPLE_STANDALONE_MAIN()
