@@ -1,3 +1,9 @@
+// Path tracing example: a scene of diffuse and mirror objects rendered with a
+// ray tracing pipeline or compute ray queries, depending on device support.
+// Samples accumulate across frames before tone mapping; camera movement resets
+// accumulation. Requires acceleration structures and either tracing mode.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 #include "../base/camera.h"
 #include "../base/geometry.h"

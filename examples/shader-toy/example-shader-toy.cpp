@@ -1,3 +1,8 @@
+// Shader toy example: compute shaders render procedural images to a texture
+// using time, resolution, and mouse input, then blit it to the window surface.
+// Includes circle and ocean shaders that can be switched at runtime.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 
 #include <memory>

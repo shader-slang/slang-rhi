@@ -1,13 +1,8 @@
-// Automatic differentiation example: a small neural graphics primitive (NGP) for 2D
-// texture fitting. A trainable hash grid and neural network learn a procedural marble
-// texture entirely on the GPU. Slang autodiff differentiates the RGB loss through the
-// network and grid interpolation; custom derivatives write gradients into shared
-// buffers, and separate compute passes update parameters with Adam.
-// Supported Vulkan devices can use FP16 cooperative vectors for network evaluation
-// and backpropagation, while master weights and optimizer state remain FP32.
-// The three panels show the reference, learned texture, and error. Training starts
-// immediately: Space pauses, R resets training, G changes the target, and C switches
-// execution mode. The overlay shows validation loss, GPU timings, and shared controls.
+// Automatic differentiation example: a hash grid and neural network learn a
+// procedural marble texture on the GPU using Slang autodiff and Adam updates.
+// Supported Vulkan devices can use FP16 cooperative vectors with FP32 optimizer
+// state. Three panels show the reference, learned texture, and error.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "settings.h"

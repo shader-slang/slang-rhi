@@ -1,3 +1,8 @@
+// Surface example: acquire a window surface image, clear it to an animated
+// grayscale value, and present it. Demonstrates the minimal frame lifecycle
+// with a render pass and command submission.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 
 namespace {

@@ -1,9 +1,7 @@
 // Rasterization example: a Slang logo and instanced material spheres lit by a
 // directional light and procedural environments. The frame records a shadow pass,
 // an HDR scene with optional 4x MSAA, compute bloom, and fullscreen tone mapping.
-// Shader cursors bind resources and parameters; debug groups label the GPU passes.
-// Fly the camera with mouse and keyboard, or drag to move the light. The overlay lists
-// the remaining controls; F1 toggles it.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/logo.h"

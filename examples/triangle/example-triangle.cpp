@@ -1,3 +1,8 @@
+// Triangle example: render a colored triangle using a vertex buffer, input
+// layout, and graphics pipeline. Demonstrates shader loading, resource binding,
+// and a draw call to the window surface.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 
 namespace {

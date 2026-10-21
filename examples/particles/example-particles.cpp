@@ -1,7 +1,7 @@
 // GPU particle example: compute shaders simulate, compact, and spawn particles
 // that gather into the Slang logo and burst apart. GPU-generated draw arguments
-// drive indirect rendering, followed by bloom and tone mapping. Move the mouse
-// to stir particles; the overlay lists the remaining controls.
+// drive indirect rendering, followed by bloom and tone mapping.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/logo.h"
