@@ -1,12 +1,14 @@
 #include "testing.h"
 
+#if SLANG_RHI_ENABLE_VULKAN
+#include "vulkan/vk-device.h"
+#include "core/deferred.h"
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
 
-// skip D3D11: too many UAVs
-// skip CPU: invalid results
-// skip WGPU: null views don't exist, would need to create dummy resources
-GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
+static void testNullViews(IDevice* device)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-null-views", "computeMain", shaderProgram.writeRef()));
@@ -118,50 +120,202 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         REQUIRE_CALL(device->createBuffer(desc, nullptr, result.writeRef()));
     }
 
+    // Exercise explicit clearing as well as default-null slots, across descriptor
+    // pool reuse and multiple binding-data snapshots in the same command buffer.
+    for (int iteration = 0; iteration < 3; ++iteration)
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
         auto passEncoder = commandEncoder->beginComputePass();
         IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject);
-        REQUIRE_CALL(cursor["buffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["buffer1"].setBinding(buffer));
+        REQUIRE_CALL(cursor["rwBuffer1"].setBinding(rwBuffer));
+        REQUIRE_CALL(cursor["structuredBuffer1"].setBinding(structuredBuffer));
+        REQUIRE_CALL(cursor["rwStructuredBuffer1"].setBinding(rwStructuredBuffer));
+        REQUIRE_CALL(cursor["texture1"].setBinding(texture));
+        REQUIRE_CALL(cursor["rwTexture1"].setBinding(rwTexture));
+        REQUIRE_CALL(cursor["result"].setBinding(result));
         REQUIRE_CALL(cursor["buffer2"].setBinding(buffer));
+        REQUIRE_CALL(cursor["rwBuffer2"].setBinding(rwBuffer));
+        REQUIRE_CALL(cursor["structuredBuffer2"].setBinding(structuredBuffer));
+        REQUIRE_CALL(cursor["rwStructuredBuffer2"].setBinding(rwStructuredBuffer));
+        REQUIRE_CALL(cursor["texture2"].setBinding(texture));
+        REQUIRE_CALL(cursor["rwTexture2"].setBinding(rwTexture));
+        REQUIRE_CALL(cursor["textureArray2"].setBinding(textureArray));
+        REQUIRE_CALL(cursor["rwTextureArray2"].setBinding(rwTextureArray));
+        REQUIRE_CALL(cursor["samplerState2"].setBinding(sampler));
+        passEncoder->dispatchCompute(1, 1, 1);
+
+        REQUIRE_CALL(cursor["buffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
         // "buffer3" not set explicitly
         REQUIRE_CALL(cursor["rwBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
-        REQUIRE_CALL(cursor["rwBuffer2"].setBinding(rwBuffer));
         // "rwBuffer3" not set explicitly
         REQUIRE_CALL(cursor["structuredBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
-        REQUIRE_CALL(cursor["structuredBuffer2"].setBinding(structuredBuffer));
         // "structuredBuffer3" not set explicitly
         REQUIRE_CALL(cursor["rwStructuredBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
-        REQUIRE_CALL(cursor["rwStructuredBuffer2"].setBinding(rwStructuredBuffer));
         // "rwStructuredBuffer3" not set explicitly
         REQUIRE_CALL(cursor["texture1"].setBinding(static_cast<ITexture*>(nullptr)));
-        REQUIRE_CALL(cursor["texture2"].setBinding(texture));
         // "texture3" not set explicitly
         REQUIRE_CALL(cursor["rwTexture1"].setBinding(static_cast<ITexture*>(nullptr)));
-        REQUIRE_CALL(cursor["rwTexture2"].setBinding(rwTexture));
         // "rwTexture3" not set explicitly
         REQUIRE_CALL(cursor["textureArray1"].setBinding(static_cast<ITexture*>(nullptr)));
-        REQUIRE_CALL(cursor["textureArray2"].setBinding(textureArray));
         // "textureArray3" not set explicitly
         REQUIRE_CALL(cursor["rwTextureArray1"].setBinding(static_cast<ITexture*>(nullptr)));
-        REQUIRE_CALL(cursor["rwTextureArray2"].setBinding(rwTextureArray));
-        // "rwTextureArray3" not set explicitly
         REQUIRE_CALL(cursor["samplerState1"].setBinding(static_cast<ISampler*>(nullptr)));
-        REQUIRE_CALL(cursor["samplerState2"].setBinding(sampler));
         // "samplerState3" not set explicitly
-        REQUIRE_CALL(cursor["result"].setBinding(result));
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
 
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
-    }
+        ComPtr<ICommandBuffer> commands;
+        REQUIRE_CALL(commandEncoder->finish(commands.writeRef()));
+        REQUIRE_CALL(queue->submit(commands));
+        REQUIRE_CALL(queue->waitOnHost());
 
-    compareComputeResult(device, result, std::array{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 5.f});
+        compareComputeResult(device, result, std::array{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 5.f});
+    }
 }
+
+// skip D3D11: too many UAVs
+// skip CPU: invalid results
+// skip WGPU: null views don't exist, would need to create dummy resources
+GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
+{
+    testNullViews(device);
+}
+
+#if SLANG_RHI_ENABLE_VULKAN
+GPU_TEST_CASE("null-views-without-null-descriptor", Vulkan | DontCreateDevice)
+{
+    // Use a private device so forcing the fallback never alters a cached device.
+    // Exercise it even on drivers that natively support nullDescriptor.
+    auto localDevice = createTestingDevice(ctx, DeviceType::Vulkan, false);
+    auto vkDevice = static_cast<vk::DeviceImpl*>(getUnderlyingDevice(localDevice));
+    auto& nullDescriptor = vkDevice->m_api.m_extendedFeatures.robustness2Features.nullDescriptor;
+    VkBool32 savedNullDescriptor = nullDescriptor;
+    SLANG_RHI_DEFERRED({ nullDescriptor = savedNullDescriptor; });
+    nullDescriptor = VK_FALSE;
+    testNullViews(localDevice);
+}
+
+GPU_TEST_CASE("null-acceleration-structure-descriptors", Vulkan | DontCreateDevice)
+{
+    auto localDevice = createTestingDevice(ctx, DeviceType::Vulkan, false);
+    if (!localDevice->hasFeature(Feature::AccelerationStructure))
+        SKIP("acceleration structures not supported");
+
+    auto vkDevice = static_cast<vk::DeviceImpl*>(getUnderlyingDevice(localDevice));
+    auto& nullDescriptor = vkDevice->m_api.m_extendedFeatures.robustness2Features.nullDescriptor;
+    VkBool32 savedNullDescriptor = nullDescriptor;
+    SLANG_RHI_DEFERRED({ nullDescriptor = savedNullDescriptor; });
+
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadComputeProgramFromSource(
+        localDevice,
+        R"(
+        RaytracingAccelerationStructure unusedAS[3];
+        RWStructuredBuffer<uint> output;
+        [shader("compute")][numthreads(1, 1, 1)]
+        void computeMain() { output[0] = 42; }
+    )",
+        program.writeRef()
+    ));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    auto pipeline = localDevice->createComputePipeline(pipelineDesc);
+    REQUIRE(pipeline);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(uint32_t);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    auto output = localDevice->createBuffer(bufferDesc);
+    REQUIRE(output);
+    auto queue = localDevice->getQueue(QueueType::Graphics);
+    for (VkBool32 supported : {savedNullDescriptor, VkBool32(VK_FALSE)})
+    {
+        nullDescriptor = supported;
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        auto root = pass->bindPipeline(pipeline);
+        REQUIRE_CALL(ShaderCursor(root)["output"].setBinding(output));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        ComPtr<ICommandBuffer> commands;
+        REQUIRE_CALL(encoder->finish(commands.writeRef()));
+        REQUIRE_CALL(queue->submit(commands));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(localDevice, output, std::array{42u});
+    }
+}
+
+GPU_TEST_CASE("null-combined-texture-sampler-descriptors", Vulkan | DontCreateDevice)
+{
+    auto localDevice = createTestingDevice(ctx, DeviceType::Vulkan, false);
+    auto vkDevice = static_cast<vk::DeviceImpl*>(getUnderlyingDevice(localDevice));
+    auto& nullDescriptor = vkDevice->m_api.m_extendedFeatures.robustness2Features.nullDescriptor;
+    VkBool32 savedNullDescriptor = nullDescriptor;
+    SLANG_RHI_DEFERRED({ nullDescriptor = savedNullDescriptor; });
+
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadComputeProgramFromSource(
+        localDevice,
+        R"(
+        Sampler2D<float> unused[2];
+        Sampler2D<float> used[2];
+        RWStructuredBuffer<float> output;
+        [shader("compute")][numthreads(1, 1, 1)]
+        void computeMain()
+        {
+            output[0] = used[0].SampleLevel(float2(0), 0) + used[1].SampleLevel(float2(0), 0);
+        }
+    )",
+        program.writeRef()
+    ));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    auto pipeline = localDevice->createComputePipeline(pipelineDesc);
+    REQUIRE(pipeline);
+
+    TextureDesc textureDesc = {};
+    textureDesc.size = {1, 1, 1};
+    textureDesc.format = Format::R32Float;
+    textureDesc.usage = TextureUsage::ShaderResource;
+    float value = 5.f;
+    SubresourceData data = {&value, sizeof(value), sizeof(value)};
+    auto texture = localDevice->createTexture(textureDesc, &data);
+    auto sampler = localDevice->createSampler({});
+    REQUIRE(texture);
+    REQUIRE(sampler);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(float);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    auto output = localDevice->createBuffer(bufferDesc);
+    REQUIRE(output);
+    auto queue = localDevice->getQueue(QueueType::Graphics);
+    for (VkBool32 supported : {savedNullDescriptor, VkBool32(VK_FALSE)})
+    {
+        nullDescriptor = supported;
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        auto root = pass->bindPipeline(pipeline);
+        ShaderCursor cursor(root);
+        REQUIRE_CALL(cursor["used"][0].setBinding(Binding(texture, sampler)));
+        REQUIRE_CALL(cursor["used"][1].setBinding(Binding(texture, sampler)));
+        REQUIRE_CALL(cursor["output"].setBinding(output));
+        REQUIRE_CALL(cursor["unused"][0].setBinding(Binding(texture, sampler)));
+        pass->dispatchCompute(1, 1, 1);
+        // Clear an existing binding; leave the other array element default-null.
+        REQUIRE_CALL(cursor["unused"][0].setBinding(Binding(static_cast<ITexture*>(nullptr), nullptr)));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        ComPtr<ICommandBuffer> commands;
+        REQUIRE_CALL(encoder->finish(commands.writeRef()));
+        REQUIRE_CALL(queue->submit(commands));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(localDevice, output, std::array{10.f});
+    }
+}
+#endif
 
 GPU_TEST_CASE("typed-buffer-binding-neighbors", CUDA)
 {

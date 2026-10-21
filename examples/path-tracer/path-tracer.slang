@@ -188,17 +188,17 @@ struct RayQueryTracer : ITracer
     }
 };
 
-[shader("miss")]
-void mainMiss(inout RayPayload payload)
-{
-    payload.hit = {float2(0), 0xffffffff, 0};
-}
+// [shader("miss")]
+// void mainMiss(inout RayPayload payload)
+// {
+//     payload.hit = {float2(0), 0xffffffff, 0};
+// }
 
-[shader("closesthit")]
-void mainClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes attributes)
-{
-    payload.hit = {attributes.barycentrics, InstanceID(), PrimitiveIndex()};
-}
+// [shader("closesthit")]
+// void mainClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes attributes)
+// {
+//     payload.hit = {attributes.barycentrics, InstanceID(), PrimitiveIndex()};
+// }
 
 float3 tracePath<T : ITracer>(T tracer, RayDesc ray, inout RNG rng, uint maxBounces)
 {
@@ -240,14 +240,14 @@ float4 renderPixel<T : ITracer>(T tracer, uint2 pixel, uint2 dimensions, Camera 
     return float4(radiance / PATH_TRACER_SAMPLES_PER_PIXEL, 1);
 }
 
-[shader("raygeneration")]
-void renderRaygen(RWTexture2D<float4> output, uniform Camera camera, uniform uint frame, uniform uint maxBounces)
-{
-    uint2 pixel = DispatchRaysIndex().xy;
-    uint2 dimensions;
-    output.GetDimensions(dimensions.x, dimensions.y);
-    output[pixel] = renderPixel(RayPipelineTracer(), pixel, dimensions, camera, frame, maxBounces);
-}
+// [shader("raygeneration")]
+// void renderRaygen(RWTexture2D<float4> output, uniform Camera camera, uniform uint frame, uniform uint maxBounces)
+// {
+//     uint2 pixel = DispatchRaysIndex().xy;
+//     uint2 dimensions;
+//     output.GetDimensions(dimensions.x, dimensions.y);
+//     output[pixel] = renderPixel(RayPipelineTracer(), pixel, dimensions, camera, frame, maxBounces);
+// }
 
 [shader("compute")]
 [numthreads(8, 8, 1)]

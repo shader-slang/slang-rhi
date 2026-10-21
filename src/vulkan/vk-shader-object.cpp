@@ -13,6 +13,16 @@
 
 namespace rhi::vk {
 
+// Each binding-data snapshot allocates fresh descriptor sets. Without
+// nullDescriptor, leave null resources unwritten: this is valid only for
+// bindings not statically used by the shader. Applications must populate every
+// element of a statically used descriptor binding.
+// Do not write VK_NULL_HANDLE even for unused bindings on these devices.
+inline bool shouldWriteResourceDescriptor(DeviceImpl* device, const void* resource)
+{
+    return resource || device->m_api.m_extendedFeatures.robustness2Features.nullDescriptor;
+}
+
 inline void writeDescriptor(DeviceImpl* device, const VkWriteDescriptorSet& write)
 {
     device->m_api.vkUpdateDescriptorSets(device->m_device, 1, &write, 0, nullptr);
@@ -28,6 +38,9 @@ inline void writePlainBufferDescriptor(
     BufferRange range
 )
 {
+    if (!shouldWriteResourceDescriptor(device, buffer))
+        return;
+
     VkDescriptorBufferInfo bufferInfo = {};
     bufferInfo.range = VK_WHOLE_SIZE;
 
@@ -61,6 +74,9 @@ inline void writeTexelBufferDescriptor(
     BufferRange range
 )
 {
+    if (!shouldWriteResourceDescriptor(device, buffer))
+        return;
+
     VkBufferView bufferView = buffer ? buffer->getView(format, range) : VK_NULL_HANDLE;
 
     VkWriteDescriptorSet write = {};
@@ -83,13 +99,17 @@ inline void writeTextureSamplerDescriptor(
     SamplerImpl* sampler
 )
 {
+    if (!shouldWriteResourceDescriptor(device, textureView))
+        return;
+
     VkDescriptorImageInfo imageInfo = {};
-    if (textureView && sampler)
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    if (textureView)
     {
         imageInfo.imageView = textureView->getView().imageView;
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.sampler = sampler->m_sampler;
     }
+    // nullDescriptor permits a null image view, but never a null sampler.
+    imageInfo.sampler = sampler ? sampler->m_sampler : device->m_defaultSampler;
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -111,13 +131,8 @@ inline void writeAccelerationStructureDescriptor(
     AccelerationStructureImpl* as
 )
 {
-    // The Vulkan spec states: If the nullDescriptor feature is not enabled, each element of
-    // pAccelerationStructures must not be VK_NULL_HANDLE
-    if (!as && !device->m_api.m_extendedFeatures.robustness2Features.nullDescriptor)
-    {
-        SLANG_RHI_ASSERT_FAILURE("nullDescriptor feature is not available on the device");
+    if (!shouldWriteResourceDescriptor(device, as))
         return;
-    }
 
     VkWriteDescriptorSetAccelerationStructureKHR writeAS = {};
     writeAS.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
@@ -145,13 +160,16 @@ inline void writeTextureDescriptor(
     TextureViewImpl* textureView
 )
 {
+    if (!shouldWriteResourceDescriptor(device, textureView))
+        return;
+
     VkDescriptorImageInfo imageInfo = {};
+    imageInfo.imageLayout = descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+                                ? VK_IMAGE_LAYOUT_GENERAL
+                                : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (textureView)
     {
         imageInfo.imageView = textureView->getView().imageView;
-        imageInfo.imageLayout = descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-                                    ? VK_IMAGE_LAYOUT_GENERAL
-                                    : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
     imageInfo.sampler = 0;
 

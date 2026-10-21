@@ -1914,6 +1914,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
+    /// Sets a resource binding. Null resources do not have portable read/write semantics.
+    /// On Vulkan devices without nullDescriptor, null resources are left unwritten and
+    /// must not be statically used by the shader. Every element of a statically used
+    /// descriptor array must be bound on those devices.
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
         const ShaderOffset& offset,

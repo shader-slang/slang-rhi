@@ -21,11 +21,16 @@ Texture2DArray<float> textureArray2;
 Texture2DArray<float> textureArray3;
 RWTexture2DArray<float> rwTextureArray1;
 RWTexture2DArray<float> rwTextureArray2;
+// Vulkan counts storage texel buffers and images against the same per-stage
+// limit. Keep the Vulkan test within MoltenVK's limit of eight.
+#if !defined(__VULKAN__)
 RWTexture2DArray<float> rwTextureArray3;
+#endif
 SamplerState samplerState1;
 SamplerState samplerState2;
 SamplerState samplerState3;
-#if defined(__D3D12__) || defined(__VULKAN__)
+// Vulkan acceleration structures are covered by a separate feature-gated test.
+#if defined(__D3D12__)
 RaytracingAccelerationStructure as1;
 RaytracingAccelerationStructure as2;
 RaytracingAccelerationStructure as3;
