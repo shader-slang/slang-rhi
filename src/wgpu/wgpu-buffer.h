@@ -28,9 +28,11 @@ public:
     /// asynchronous. Upload buffers are therefore regular GPU buffers with a CPU copy that is
     /// returned by mapBuffer() and written to the GPU buffer by unmapBuffer().
     std::unique_ptr<uint8_t[]> m_uploadData;
-    /// Set when a recorded copy or clear writes this upload buffer. Mapping then refreshes the
+    /// Set when a submitted copy or clear writes this upload buffer. Mapping then refreshes the
     /// CPU copy from the GPU buffer first.
     std::atomic<bool> m_uploadDataStale{false};
+    /// Imported or exported native buffers can be modified without going through this wrapper.
+    std::atomic<bool> m_uploadDataExternallyMutable{false};
 };
 
 } // namespace rhi::wgpu

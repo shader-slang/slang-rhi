@@ -65,6 +65,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
     virtual Result writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data) override;
+    virtual Result unmapBufferRange(Buffer* buffer, Offset offset, Size size) override;
 
     /// Write data to a buffer with wgpuQueueWriteBuffer, which takes effect before any
     /// later submission. The offset must be a multiple of 4 bytes. The size is padded to a

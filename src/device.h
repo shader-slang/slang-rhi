@@ -465,6 +465,10 @@ public:
     /// kept mapped. The default implementation maps the buffer, copies the data and unmaps it.
     virtual Result writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data);
 
+    /// Unmap a buffer whose CPU writes are confined to the given range. Used by staging allocations
+    /// so backends with a CPU copy can upload only the modified range. Read mappings ignore the range.
+    virtual Result unmapBufferRange(Buffer* buffer, Offset offset, Size size);
+
     virtual Result createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline);
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);

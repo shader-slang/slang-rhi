@@ -4,6 +4,8 @@
 #include "wgpu-shader-object.h"
 #include "wgpu-constant-buffer-pool.h"
 
+#include <set>
+
 namespace rhi::wgpu {
 
 class CommandQueueImpl : public CommandQueue
@@ -52,6 +54,8 @@ public:
     WGPUCommandBuffer m_commandBuffer = nullptr;
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
+    // Destinations are retained by m_commandList. Mark their CPU copies stale only on submission.
+    std::set<BufferImpl*> m_uploadBufferWriteTargets;
 
     CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();

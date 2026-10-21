@@ -376,6 +376,13 @@ Result Device::writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const
     return unmapBuffer(buffer);
 }
 
+Result Device::unmapBufferRange(Buffer* buffer, Offset offset, Size size)
+{
+    SLANG_UNUSED(offset);
+    SLANG_UNUSED(size);
+    return unmapBuffer(buffer);
+}
+
 Result Device::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);

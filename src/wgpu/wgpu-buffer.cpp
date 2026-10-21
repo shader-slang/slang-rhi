@@ -24,6 +24,7 @@ BufferImpl::~BufferImpl()
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
+    m_uploadDataExternallyMutable = true;
     outHandle->type = NativeHandleType::WGPUBuffer;
     outHandle->value = (uint64_t)m_buffer;
     return SLANG_OK;
@@ -120,6 +121,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
             return SLANG_E_INVALID_ARG;
         }
         buffer->m_uploadData = std::make_unique<uint8_t[]>(paddedSize);
+        buffer->m_uploadDataExternallyMutable = true;
         SLANG_RETURN_ON_FAIL(readBuffer(buffer, 0, fixedDesc.size, buffer->m_uploadData.get()));
     }
 
@@ -139,12 +141,17 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 
     if (bufferImpl->m_uploadData)
     {
-        // Shaders or recorded copies may have written the GPU buffer, and unmapping writes the whole
-        // CPU copy back.
-        if (bufferImpl->m_uploadDataStale.exchange(false) ||
-            (m_ctx.api.wgpuBufferGetUsage(bufferImpl->m_buffer) & WGPUBufferUsage_Storage))
+        // Submitted copies, writable shader bindings, or native aliases may change the GPU data.
+        // ShaderResource also translates to WebGPU Storage, but cannot write through the RHI.
+        if (bufferImpl->m_uploadDataStale.exchange(false) || bufferImpl->m_uploadDataExternallyMutable ||
+            is_set(bufferImpl->m_desc.usage, BufferUsage::UnorderedAccess))
         {
-            SLANG_RETURN_ON_FAIL(readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get()));
+            Result result = readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get());
+            if (SLANG_FAILED(result))
+            {
+                bufferImpl->m_uploadDataStale = true;
+                return result;
+            }
         }
         *outData = bufferImpl->m_uploadData.get();
         return SLANG_OK;
@@ -194,9 +201,19 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    return unmapBufferRange(bufferImpl, 0, bufferImpl->m_desc.size);
+}
+
+Result DeviceImpl::unmapBufferRange(Buffer* buffer, Offset offset, Size size)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (bufferImpl->m_uploadData)
     {
-        writeBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get());
+        SLANG_RHI_ASSERT(offset + size <= bufferImpl->m_desc.size);
+        // Preserve neighboring bytes when the modified range is not aligned to a WebGPU write.
+        Offset begin = offset & ~Offset(3);
+        Offset end = math::calcAligned2(offset + size, 4);
+        writeBuffer(bufferImpl, begin, end - begin, bufferImpl->m_uploadData.get() + begin);
         return SLANG_OK;
     }
     m_ctx.api.wgpuBufferUnmap(bufferImpl->m_buffer);
@@ -209,12 +226,7 @@ Result DeviceImpl::writeUploadBuffer(Buffer* buffer, Offset offset, Size size, c
     SLANG_RHI_ASSERT(bufferImpl->m_uploadData);
     SLANG_RHI_ASSERT(offset + size <= bufferImpl->m_desc.size);
     std::memcpy(bufferImpl->m_uploadData.get() + offset, data, size);
-    // Queue writes need 4-byte aligned offsets and sizes. Write the enclosing aligned range from the
-    // CPU copy, so that neighboring bytes keep their current values.
-    Offset begin = offset & ~Offset(3);
-    Offset end = math::calcAligned2(offset + size, 4);
-    writeBuffer(bufferImpl, begin, end - begin, bufferImpl->m_uploadData.get() + begin);
-    return SLANG_OK;
+    return unmapBufferRange(bufferImpl, offset, size);
 }
 
 void DeviceImpl::writeBuffer(BufferImpl* buffer, Offset offset, Size size, const void* data)

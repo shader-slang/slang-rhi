@@ -74,6 +74,7 @@ public:
 
         // Unmap page
         Result unmap(Device* device);
+        Result unmap(Device* device, Offset offset, Size size);
 
         // Debug check consistency of page's heap.
         void checkConsistency();

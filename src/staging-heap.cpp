@@ -177,7 +177,7 @@ Result StagingHeap::map(const Allocation& allocation, void** outAddress)
 Result StagingHeap::unmap(const Allocation& allocation)
 {
     if (!m_keepPagesMapped)
-        return allocation.getPage()->unmap(m_device);
+        return allocation.getPage()->unmap(m_device, allocation.getOffset(), allocation.getSize());
     else
         return SLANG_OK;
 }
@@ -426,8 +426,13 @@ Result StagingHeap::Page::map(Device* device)
 
 Result StagingHeap::Page::unmap(Device* device)
 {
+    return unmap(device, 0, m_totalCapacity);
+}
+
+Result StagingHeap::Page::unmap(Device* device, Offset offset, Size size)
+{
     SLANG_RHI_ASSERT(m_mapped);
-    SLANG_RETURN_ON_FAIL(device->unmapBuffer(m_buffer));
+    SLANG_RETURN_ON_FAIL(device->unmapBufferRange(m_buffer, offset, size));
     m_mapped = nullptr;
     return SLANG_OK;
 }
