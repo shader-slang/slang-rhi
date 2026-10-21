@@ -47,19 +47,19 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 
 void DeviceImpl::reportError(const char* func, WGPUStringView message)
 {
-    std::string msg = "WGPU error in " + std::string(func) + ": " + std::string(message.data, message.length);
+    std::string msg = "WGPU error in " + std::string(func) + ": " + translateString(message);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
 }
 
 void DeviceImpl::reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message)
 {
-    std::string msg = "WGPU device lost: " + std::string(message.data, message.length);
+    std::string msg = "WGPU device lost: " + translateString(message);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
 }
 
 void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView message)
 {
-    std::string msg = "WGPU uncaptured error: " + std::string(message.data, message.length);
+    std::string msg = "WGPU uncaptured error: " + translateString(message);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
     SLANG_UNUSED(type);
 }
@@ -161,8 +161,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             DeviceRequestState* requestState = (DeviceRequestState*)userdata1;
             requestState->status = status_;
             requestState->device = device;
-            if (message.length > 0)
-                requestState->message.assign(message.data, message.length);
+            requestState->message = translateString(message);
         };
         callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = nullptr;
@@ -198,7 +197,20 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         WGPUAdapterInfo wgpuAdapterInfo = {};
         api.wgpuAdapterGetInfo(m_ctx.adapter, &wgpuAdapterInfo);
         SLANG_RHI_DEFERRED({ api.wgpuAdapterInfoFreeMembers(wgpuAdapterInfo); });
-        m_adapterName = std::string(wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
+        m_adapterName = translateString(wgpuAdapterInfo.device);
+        // Browsers may expose only the vendor and architecture instead of a device name.
+        if (m_adapterName.empty())
+        {
+            m_adapterName = translateString(wgpuAdapterInfo.description);
+        }
+        if (m_adapterName.empty())
+        {
+            m_adapterName = translateString(wgpuAdapterInfo.vendor);
+            const auto architecture = translateString(wgpuAdapterInfo.architecture);
+            if (!m_adapterName.empty() && !architecture.empty())
+                m_adapterName += " / ";
+            m_adapterName += architecture;
+        }
         m_info.adapterName = m_adapterName.c_str();
         subgroupMinSize = wgpuAdapterInfo.subgroupMinSize;
         subgroupMaxSize = wgpuAdapterInfo.subgroupMaxSize;

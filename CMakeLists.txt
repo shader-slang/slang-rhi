@@ -1032,7 +1032,7 @@ target_compile_definitions(slang-rhi
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Tests currently require linking statically due to reaching into internal details of the RHI implementation.
+# Native tests require linking statically due to reaching into internal details of the RHI implementation.
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
@@ -1154,6 +1154,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/test-wgpu-pipeline-creation.cpp
         tests/memory-report.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
@@ -1199,38 +1200,57 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
 
 endif()
 
+if(SLANG_RHI_BUILD_TESTS AND EMSCRIPTEN)
+    add_executable(wasm-test tests/wasm/wasm-test.cpp)
+    target_compile_features(wasm-test PRIVATE cxx_std_17)
+    target_link_libraries(wasm-test PRIVATE slang-rhi slang)
+    set_target_properties(wasm-test PROPERTIES
+        SUFFIX ".html"
+        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html"
+    )
+    target_link_options(wasm-test PRIVATE
+        "--use-port=emdawnwebgpu"
+        "SHELL:--shell-file \"${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html\""
+    )
+endif()
+
 if(SLANG_RHI_BUILD_EXAMPLES)
     if(NOT EMSCRIPTEN)
-        function(add_example name source)
-            add_executable(${name} ${source})
+        find_package(Threads REQUIRED)
+        function(add_example_executable name)
+            add_executable(${name} ${ARGN})
             target_compile_features(${name} PRIVATE cxx_std_20)
-            get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
             target_compile_definitions(${name}
                 PRIVATE
-                EXAMPLE_DIR="${EXAMPLE_DIR}"
                 SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+                SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+                SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
                 $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
                 $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
                 $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
             )
-            target_link_libraries(${name} PRIVATE slang-rhi slang glfw slang-rhi-warnings)
+            target_link_libraries(${name} PRIVATE slang-rhi slang glfw Threads::Threads slang-rhi-warnings)
         endfunction()
 
+        set(example_sources "")
+        function(add_example name source)
+            get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
+            set_property(SOURCE ${source} APPEND PROPERTY COMPILE_DEFINITIONS EXAMPLE_DIR="${EXAMPLE_DIR}")
+            add_example_executable(${name} ${source})
+            list(APPEND example_sources ${source})
+            set(example_sources "${example_sources}" PARENT_SCOPE)
+        endfunction()
+
+        add_example(example-autodiff examples/autodiff/example-autodiff.cpp)
+        add_example(example-particles examples/particles/example-particles.cpp)
+        add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+        add_example(example-raster examples/raster/example-raster.cpp)
         add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
         add_example(example-surface examples/surface/example-surface.cpp)
         add_example(example-triangle examples/triangle/example-triangle.cpp)
-    else()
-        add_executable(wasm-test examples/wasm/wasm-test.cpp)
-        target_compile_features(wasm-test PRIVATE cxx_std_17)
-        target_link_libraries(wasm-test PRIVATE slang-rhi slang)
-        set_target_properties(wasm-test PROPERTIES
-            OUTPUT_NAME "wasm-test"
-            SUFFIX ".html"
-        )
-        target_link_options(wasm-test PRIVATE
-            "--use-port=emdawnwebgpu"
-            "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
-        )
+
+        add_example_executable(example-runner examples/example-runner.cpp ${example_sources})
+        target_compile_definitions(example-runner PRIVATE EXAMPLE_COMBINED=1)
     endif()
 endif()
 

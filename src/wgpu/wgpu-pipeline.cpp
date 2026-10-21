@@ -7,6 +7,47 @@
 
 namespace rhi::wgpu {
 
+// Creates a pipeline through the async entry point and waits for it. Browsers run the synchronous
+// entry points on the GPU process's main thread, where a long driver compile trips the GPU watchdog
+// and loses the device. The async entry point also reports why a pipeline is invalid.
+// Pipelines resolved by finish() keep the synchronous entry point (see PipelineResolutionScope).
+template<typename Pipeline, typename CallbackInfo, typename Descriptor, typename CreateAsync, typename Create>
+static Pipeline createPipeline(
+    DeviceImpl* device,
+    const Descriptor& desc,
+    const char* funcName,
+    CreateAsync createAsync,
+    Create create
+)
+{
+    if (PipelineResolutionScope::isActive())
+        return create(device->m_ctx.device, &desc);
+    struct Request
+    {
+        DeviceImpl* device;
+        const char* funcName;
+        Pipeline pipeline = nullptr;
+    };
+    Request request = {device, funcName};
+    CallbackInfo callbackInfo = {};
+    // The callback only runs inside wait(), so it cannot outlive the request.
+    callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+    callbackInfo.callback =
+        [](WGPUCreatePipelineAsyncStatus status, Pipeline pipeline, WGPUStringView message, void* userdata1, void*)
+    {
+        Request* request = static_cast<Request*>(userdata1);
+        if (status == WGPUCreatePipelineAsyncStatus_Success)
+            request->pipeline = pipeline;
+        else
+            request->device->reportError(request->funcName, message);
+    };
+    callbackInfo.userdata1 = &request;
+    WGPUFuture future = createAsync(device->m_ctx.device, &desc, callbackInfo);
+    if (wait(device->m_ctx, future) != WGPUWaitStatus_Success)
+        return nullptr;
+    return request.pipeline;
+}
+
 RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
     : RenderPipeline(device, desc)
 {
@@ -126,7 +167,13 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipelineDesc.label = translateString(desc.label);
 
     WGPURenderPipeline renderPipeline = {};
-    renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
+    renderPipeline = createPipeline<WGPURenderPipeline, WGPUCreateRenderPipelineAsyncCallbackInfo>(
+        this,
+        pipelineDesc,
+        "wgpuDeviceCreateRenderPipelineAsync",
+        m_ctx.api.wgpuDeviceCreateRenderPipelineAsync,
+        m_ctx.api.wgpuDeviceCreateRenderPipeline
+    );
     if (!renderPipeline)
     {
         return SLANG_FAIL;
@@ -197,7 +244,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipelineDesc.label = translateString(desc.label);
 
     WGPUComputePipeline computePipeline = {};
-    computePipeline = m_ctx.api.wgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);
+    computePipeline = createPipeline<WGPUComputePipeline, WGPUCreateComputePipelineAsyncCallbackInfo>(
+        this,
+        pipelineDesc,
+        "wgpuDeviceCreateComputePipelineAsync",
+        m_ctx.api.wgpuDeviceCreateComputePipelineAsync,
+        m_ctx.api.wgpuDeviceCreateComputePipeline
+    );
     if (!computePipeline)
     {
         return SLANG_FAIL;

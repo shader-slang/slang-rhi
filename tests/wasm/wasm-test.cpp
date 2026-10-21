@@ -26,8 +26,7 @@ int main()
             }
         }
     } callback;
-    // Keep test callers and their lambdas covered by the preset's *main* pattern.
-    auto testBindings = [](IDevice* device, bool graphics) -> Result
+    auto testBindings = [](IDevice* device, bool graphics, bool deferred) -> Result
     {
         const char* source = R"(
             RWStructuredBuffer<uint> result;
@@ -115,12 +114,17 @@ int main()
                 return SLANG_FAIL;
             ComPtr<ITexture> texture;
 #ifdef __EMSCRIPTEN__
-            // Even successful binding creation must not yield after canvas acquisition.
+            SLANG_RETURN_ON_FAIL(surface->acquireNextImage(texture.writeRef()));
+            if (texture->getDesc().usage != surface->getConfig()->usage)
+                return SLANG_FAIL;
+            // Acquired surface images must survive browser turns before rendering.
+            // The backend must defer actual canvas acquisition until present().
+            emscripten_sleep(0);
+            // Binding creation itself should still avoid unnecessary yields.
             EM_ASM({
                 Module['rhiBindingYielded'] = false;
                 setTimeout(function() { Module['rhiBindingYielded'] = true; }, 0);
             });
-            SLANG_RETURN_ON_FAIL(surface->acquireNextImage(texture.writeRef()));
 #else
             TextureDesc textureDesc = {};
             textureDesc.size = {1, 1, 1};
@@ -153,6 +157,9 @@ int main()
         {
             ComputePipelineDesc pipelineDesc = {};
             pipelineDesc.program = program;
+            // A deferred pipeline is created while finish() resolves pipelines.
+            if (deferred)
+                pipelineDesc.compilationPolicy = PipelineCompilationPolicy::Deferred;
             auto pipeline = device->createComputePipeline(pipelineDesc);
             if (!pipeline)
                 return SLANG_FAIL;
@@ -160,19 +167,33 @@ int main()
             SLANG_RETURN_ON_FAIL(ShaderCursor(pass->bindPipeline(pipeline))["result"].setBinding(buffer));
             pass->dispatchCompute(1, 1, 1);
             pass->end();
+#ifdef __EMSCRIPTEN__
+            // Resolving deferred pipelines in finish() must not yield either.
+            if (deferred)
+                EM_ASM({
+                    Module['rhiBindingYielded'] = false;
+                    setTimeout(function() { Module['rhiBindingYielded'] = true; }, 0);
+                });
+#endif
         }
         ComPtr<ICommandBuffer> commands;
         SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
         SLANG_RETURN_ON_FAIL(queue->submit(commands));
 #ifdef __EMSCRIPTEN__
-        if (graphics && EM_ASM_INT({ return Module['rhiBindingYielded'] ? 1 : 0; }))
+        if ((graphics || deferred) && EM_ASM_INT({ return Module['rhiBindingYielded'] ? 1 : 0; }))
         {
-            printf("FAILED: binding recording yielded before canvas submission\n");
+            printf("FAILED: %s yielded before submission\n", graphics ? "binding recording" : "pipeline resolution");
             return SLANG_FAIL;
         }
 #endif
         if (surface)
+        {
+#ifdef __EMSCRIPTEN__
+            // Rendering can also yield after submission, for example during profiler readback.
+            emscripten_sleep(0);
+#endif
             SLANG_RETURN_ON_FAIL(surface->present());
+        }
         SLANG_RETURN_ON_FAIL(queue->waitOnHost());
         ComPtr<ISlangBlob> data;
         SLANG_RETURN_ON_FAIL(device->readBuffer(buffer, 0, sizeof(uint32_t), data.writeRef()));
@@ -400,12 +421,13 @@ int main()
                 printf("FAILED: Buffer creation failed (Result: %x)\n", res);
             }
 
-            // Exercise graphics and compute resource bindings.
-            for (int stage = 0; stage < 2; ++stage)
+            // Exercise graphics, compute and deferred compute resource bindings.
+            for (int stage = 0; stage < 3; ++stage)
             {
-                const char* name = stage ? "graphics" : "compute";
+                const char* names[] = {"compute", "graphics", "deferred compute"};
+                const char* name = names[stage];
                 printf("Testing %s bindings...\n", name);
-                if (SLANG_FAILED(testBindings(device, stage != 0)))
+                if (SLANG_FAILED(testBindings(device, stage == 1, stage == 2)))
                 {
                     printf("FAILED: %s bindings\n", name);
                     device->release();
