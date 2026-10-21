@@ -1,3 +1,9 @@
+// Path tracing example: a scene of diffuse and mirror objects rendered with a
+// ray tracing pipeline or compute ray queries, depending on device support.
+// Samples accumulate across frames before tone mapping; camera movement resets
+// accumulation. Requires acceleration structures and either tracing mode.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 #include "../base/camera.h"
 #include "../base/geometry.h"
@@ -541,7 +547,7 @@ public:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n\n");
+        printOverlay("^3T^0: Tracing mode | ^3[/]^0: Bounces | ^3Space^0: Accumulation | ^3R^0: Reset view\n\n");
         printOverlay(
             "%s%s | Bounces: %u | Accumulation: %s\n",
             m_pathTracer.modeName(),
@@ -550,7 +556,7 @@ public:
             m_accumulate ? "on" : "off"
         );
         printOverlay(
-            "Samples/pixel: %llu",
+            "Samples/pixel: %llu\n",
             static_cast<unsigned long long>(m_accumulate ? uint64_t(m_frame) + 1 : 1) * PATH_TRACER_SAMPLES_PER_PIXEL
         );
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));

@@ -1,3 +1,8 @@
+// Shader toy example: compute shaders render procedural images to a texture
+// using time, resolution, and mouse input, then blit it to the window surface.
+// Includes circle and ocean shaders that can be switched at runtime.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 
 #include <memory>
@@ -136,8 +141,8 @@ public:
 
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n\n");
-        printOverlay("Shader: %s", kShaders[m_shaderIndex]);
+        printOverlay("^3Left/Right arrows^0: Shader | ^3Mouse buttons^0: Interact\n\n");
+        printOverlay("Shader: %s\n", kShaders[m_shaderIndex]);
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
         // Submit command buffer

@@ -1,7 +1,7 @@
 // GPU particle example: compute shaders simulate, compact, and spawn particles
 // that gather into the Slang logo and burst apart. GPU-generated draw arguments
-// drive indirect rendering, followed by bloom and tone mapping. Move the mouse
-// to stir particles; the overlay lists the remaining controls.
+// drive indirect rendering, followed by bloom and tone mapping.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/logo.h"
@@ -711,9 +711,9 @@ private:
     {
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Move mouse: Stir | Left: Attract | Right: Repel\n");
-        printOverlay("[ / ]: Emission | Space: Pause | N: Single step\n");
-        printOverlay("F: Burst | R: Reset | B: Bloom | D: Direct/indirect draw\n\n");
+        printOverlay("^3Mouse^0: Stir | ^3Left mouse^0: Attract | ^3Right mouse^0: Repel\n");
+        printOverlay("^3[/]^0: Emission | ^3Space^0: Pause | ^3N^0: Single step\n");
+        printOverlay("^3F^0: Burst | ^3R^0: Reset | ^3B^0: Bloom | ^3D^0: Direct/indirect draw\n\n");
         printOverlay(
             "%s | Emission: %u/sec | %s | Bloom: %s\n",
             m_renderer->indirect() ? "Indirect draw" : "Direct draw",

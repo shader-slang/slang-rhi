@@ -1,54 +1,9 @@
-// Filtered procedural terrain with GPU-selected subdivision and cluster ray tracing.
-// Requires surface, acceleration-structure, cluster-acceleration-structure, and
-// ray-tracing support on D3D12, Vulkan, or CUDA/OptiX.
-//
-// Build: cmake --build build --config Debug --target example-cluster-displacement
-// Run:   build/Debug/example-cluster-displacement --device d3d12
-// Use --device vulkan or --device cuda for the other supported backends.
-//
-// A persistent sparse quadtree covers a 12-by-12 quad at levels 0-12, with an
-// 8,192-patch budget independent of depth. Two adaptation rounds per frame merge
-// leaf siblings, propagate refinement requests to coarse neighbors, then split
-// in projected-edge priority buckets. A cooperative GPU group allocates/recycles
-// sibling blocks in parallel. Every intermediate tree covers the surface
-// and has at most a one-level difference across edges. Teleports settle over
-// several frames. Budget pressure gradually raises the target size to reclaim
-// less useful patches; hysteresis reduces split/merge churn.
-// Sixteen transition patterns omit unmatched fine-edge vertices. Canonical
-// integer coordinates define both positions and filter footprints, including at
-// corners. Leaf filter footprints extend smoothly across two coarse mesh cells;
-// sparse tree queries evaluate their maximum without a dense filter lattice.
-// This avoids narrow ridges when adjacent patches use different noise bands.
-// Thirteen filtered fBm octaves produce a smooth basin and rocky hills, with a
-// localized moving bulge. Each patch has 81 vertices and at most 128 triangles.
-// The uniform reference stays capped at level 6 to fit the same buffers.
-// There is no LOD morphing; changing the filter footprint can still cause popping.
-//
-// Each frame selects and balances the tree, compacts leaves, generates geometry,
-// builds CLAS from triangles and a BLAS from the CLAS handles, patches the native
-// TLAS instance on the GPU, rebuilds the TLAS, and traces primary and shadow rays.
-// Selection and AS handles stay on the GPU; only overlay statistics are read back.
-// Build submission precedes trace recording because CUDA obtains the TLAS handle
-// during submission. One resource set is reused after a queue wait; the overlay reports requested geometry/AS bytes,
-// excluding the render texture, swapchain, pipelines, and driver overhead.
-//
-// Controls: left drag to look; W/A/S/D and Q/E to move; Shift to move faster.
-// Space pauses animation; F freezes LOD; T toggles adaptive/uniform selection.
-// The selection modes retain independent state, including while frozen.
-// Minus/plus adjusts the target projected mesh edge (64-0.5 pixels); smaller is
-// finer. Adaptive selection measures displaced triangle edges, including stitches.
-// The split threshold allows 15% hysteresis; depth and patch-budget limits can
-// prevent reaching the requested density. The overlay shows budget relaxation.
-// The uniform reference retains its simpler distance-based density estimate.
-// Brackets adjust amplitude (0-3). Keys 1-4 select shaded, cluster, level, or solid
-// triangle colors; C cycles them. Triangle colors are stable for unchanged topology.
-// X approaches the surface at the center of the view by 5x (and slows movement).
-// Z moves to a detail view; R returns to the overview. Scroll changes movement
-// speed for close exploration (0.0001-30 units/second); Shift temporarily speeds up.
-// F1 toggles the overlay; F2 fits windows; F3 toggles VSync; F4 toggles profiling.
-// GPU timings separate LOD evaluation/balancing/allocation, geometry generation,
-// CLAS/BLAS/TLAS builds, and ray tracing. Repeated LOD rounds are summed; timing
-// excludes presentation and CPU recording. Escape closes.
+// Cluster displacement example: filtered procedural terrain with GPU-selected
+// subdivision and cluster ray tracing. A sparse quadtree adapts mesh density to
+// the view; a uniform reference and diagnostic views help compare LOD behavior.
+// Requires cluster acceleration structures and ray tracing on a supported
+// D3D12, Vulkan, or CUDA/OptiX device.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/camera.h"
@@ -131,7 +86,23 @@ struct LodSettings
     bool adaptive = true;
 };
 
-// A balanced quadtree (or uniform reference) covers the whole quad with 8 x 8 cell patches.
+// A persistent sparse quadtree covers a 12-by-12 quad at levels 0-12, with an
+// 8,192-patch budget independent of depth. Two adaptation rounds per frame merge
+// leaf siblings, propagate refinement requests to coarse neighbors, then split
+// in projected-edge priority buckets. A cooperative GPU group allocates/recycles
+// sibling blocks in parallel. Every intermediate tree covers the surface
+// and has at most a one-level difference across edges. Teleports settle over
+// several frames. Budget pressure gradually raises the target size to reclaim
+// less useful patches; hysteresis reduces split/merge churn.
+// Sixteen transition patterns omit unmatched fine-edge vertices. Canonical
+// integer coordinates define both positions and filter footprints, including at
+// corners. Leaf filter footprints extend smoothly across two coarse mesh cells;
+// sparse tree queries evaluate their maximum without a dense filter lattice.
+// This avoids narrow ridges when adjacent patches use different noise bands.
+// Thirteen filtered fBm octaves produce a smooth basin and rocky hills, with a
+// localized moving bulge. Each patch has 81 vertices and at most 128 triangles.
+// The uniform reference stays capped at level 6 to fit the same buffers.
+// There is no LOD morphing; changing the filter footprint can still cause popping.
 struct Surface
 {
     static constexpr uint32_t kPatchCount = kPatchBudget;
@@ -152,6 +123,7 @@ struct Surface
     ClusterOperationDesc clasBuild = {}, blasBuild = {};
     AccelerationStructureBuildInput tlasInput = {};
     uint32_t handleOffset = 0;
+    // Requested geometry/AS bytes, excluding render targets, pipelines, and driver overhead.
     uint64_t allocatedBytes = 0;
 
     Result buffer(
@@ -668,9 +640,9 @@ public:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("Space: Pause bulge | F: Freeze LOD | -/+: Tessellation | [/]: Height\n");
-        printOverlay("C: Cycle views | 1: Shaded | 2: Clusters | 3: Levels | 4: Triangles\n");
-        printOverlay("T: Adaptive/uniform | X: Approach | Z: Detail | R: Overview\n\n");
+        printOverlay("^3Space^0: Pause bulge | ^3F^0: Freeze LOD | ^3-/=^0: Tessellation | ^3[/]^0: Height\n");
+        printOverlay("^3C^0: Cycle views | ^31^0: Shaded | ^32^0: Clusters | ^33^0: Levels | ^34^0: Triangles\n");
+        printOverlay("^3T^0: LOD mode | ^3X^0: Approach | ^3Z^0: Detail | ^3R^0: Overview | ^3Scroll^0: Speed\n\n");
         printOverlay(
             "%s | Height: %.2f | Target edge: %.2f px | LOD: %s\n",
             m_paused ? "Bulge paused" : "Moving bulge",
@@ -702,7 +674,7 @@ public:
             );
         }
         printOverlay(
-            "Scroll: Speed %.4g units/s | Geometry + AS buffers: %.2f MiB",
+            "Speed: %.4g units/s | Geometry + AS buffers: %.2f MiB\n",
             m_controller.moveSpeed,
             double(m_scene.allocatedBytes) / (1024 * 1024)
         );

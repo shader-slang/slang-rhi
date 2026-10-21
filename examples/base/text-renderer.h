@@ -74,17 +74,37 @@ public:
         return device->createBuffer(buffer, nullptr, m_buffer.writeRef());
     }
 
-    void clear() { m_text.clear(); }
+    void clear()
+    {
+        m_text.clear();
+        m_colors.clear();
+        m_color = 0;
+    }
 
     // Normalize once so wrapping and glyph lookup use the same character widths.
+    // ^0 restores textColor; ^1-^7 select red, green, yellow, blue, cyan, magenta, white.
+    // Color persists across appends and newlines until changed or clear() is called.
+    // Unknown or incomplete codes are literal text; codes must be contained in one append.
     void append(std::string_view text)
     {
-        for (unsigned char c : text)
+        for (size_t i = 0; i < text.size(); ++i)
         {
+            unsigned char c = text[i];
+            if (c == '^' && i + 1 < text.size() && text[i + 1] >= '0' && text[i + 1] <= '7')
+            {
+                m_color = uint8_t(text[++i] - '0');
+                continue;
+            }
             if (c == '\t')
+            {
                 m_text.append(4, ' ');
+                m_colors.insert(m_colors.end(), 4, m_color);
+            }
             else if (c != '\r')
+            {
                 m_text += c == '\n' ? '\n' : char(bitmap_font::glyphCharacter(c));
+                m_colors.push_back(m_color);
+            }
         }
     }
 
@@ -147,8 +167,15 @@ public:
         uint32_t rows = uint32_t(lines.size());
         m_grid.assign(columns * rows, 0); // Atlas cell zero is a space.
         for (uint32_t row = 0; row < rows; ++row)
+        {
+            size_t offset = size_t(lines[row].data() - m_text.data());
             for (uint32_t column = 0; column < lines[row].size(); ++column)
-                m_grid[row * columns + column] = uint32_t(lines[row][column] - ' ');
+            {
+                // Low byte: atlas glyph index. Next byte: palette index (zero uses textColor).
+                m_grid[row * columns + column] =
+                    uint32_t(lines[row][column] - ' ') | (uint32_t(m_colors[offset + column]) << 8);
+            }
+        }
 
         math::float2 panelOrigin(padding);
         math::float2 textOrigin(2 * padding);
@@ -281,6 +308,8 @@ private:
     ComPtr<IDevice> m_device;
     Format m_outputFormat = Format::Undefined;
     std::string m_text;
+    std::vector<uint8_t> m_colors;
+    uint8_t m_color = 0;
     std::vector<uint32_t> m_grid;
     ComPtr<ITexture> m_atlas;
     ComPtr<IBuffer> m_buffer;
