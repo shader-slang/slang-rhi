@@ -937,7 +937,12 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     MTL::AccelerationStructureCommandEncoder* encoder = getAccelerationStructureCommandEncoder();
 
     AccelerationStructureBuildDescConverter converter;
-    if (converter.convert(cmd.desc, m_device->getAccelerationStructureArray(), m_device->m_debugCallback) != SLANG_OK)
+    if (converter.convert(
+            cmd.desc,
+            m_device->getAccelerationStructureArray(),
+            m_device->m_hasRowMajorPreTransform,
+            m_device->m_debugCallback
+        ) != SLANG_OK)
         return;
 
     switch (cmd.desc.mode)

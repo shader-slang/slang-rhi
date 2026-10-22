@@ -52,7 +52,14 @@ GPU_TEST_CASE("acceleration-structure-pre-transform", D3D12 | Vulkan | Metal)
     blasBuildDesc.inputCount = 1;
 
     AccelerationStructureSizes blasSizes = {};
-    REQUIRE_CALL(device->getAccelerationStructureSizes(blasBuildDesc, &blasSizes));
+    Result sizesResult = device->getAccelerationStructureSizes(blasBuildDesc, &blasSizes);
+    // Metal reads a row-major pre-transform only on GPU family Apple9 with macOS 15 / iOS 18;
+    // elsewhere the backend rejects the build instead of misplacing the geometry.
+    if (device->getDeviceType() == DeviceType::Metal && sizesResult == SLANG_E_NOT_AVAILABLE)
+    {
+        SKIP("Metal device cannot read a row-major pre-transform");
+    }
+    REQUIRE_CALL(sizesResult);
     AccelerationStructureDesc blasDesc = {};
     blasDesc.kind = AccelerationStructureKind::BottomLevel;
     blasDesc.size = blasSizes.accelerationStructureSize;
