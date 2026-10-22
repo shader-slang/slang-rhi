@@ -30,11 +30,13 @@ public:
     Profiler(Profiler&&) = delete;
     Profiler& operator=(Profiler&&) = delete;
 
-    // Keep this guard alive until submission. An early return discards the
-    // measurement; the caller must also discard the unsubmitted command buffer.
-    // Successful begin activates this profiler on the current thread until
-    // end or destruction. End recording before submitting through the RHI,
-    // then call markSubmitted only after the queue accepts the command buffers.
+    // A logical frame may record and submit any number of command buffers on one
+    // queue and recording thread. Submit or discard every instrumented buffer
+    // before end() or destruction; never submit/replay it after the frame closes.
+    // Successful end() publishes the measurement once all its queries resolve;
+    // missing or invalid timestamps discard the entire measurement. An
+    // early return discards the measurement, but submitted queries remain owned
+    // until completion. Neither path waits for GPU work or submits commands.
     // Only one profiler frame may record on a thread at a time.
     class Frame
     {
@@ -49,12 +51,9 @@ public:
         {
             if (m_begun)
             {
-                if (!m_ended)
-                {
-                    ASSERT(s_current == &m_profiler, "Profiler frame must end on its recording thread");
-                    s_current = nullptr;
-                }
-                m_profiler.cancelFrame();
+                ASSERT(s_current == &m_profiler, "Profiler frame must end on its recording thread");
+                s_current = nullptr;
+                m_profiler.endFrame(false);
             }
         }
 
@@ -65,36 +64,26 @@ public:
             SLANG_RETURN_ON_FAIL(m_profiler.beginFrame());
             s_current = &m_profiler;
             m_begun = true;
-            m_ended = false;
             return SLANG_OK;
         }
 
-        // Validate and close recording before submitting commands.
-        // Keep the query slot reserved until markSubmitted() or destruction.
+        // Close the frame after its last submission. Query collection is deferred
+        // until a later begin(); ending the frame does not imply GPU completion.
         Result end()
         {
-            if (!m_begun || m_ended || s_current != &m_profiler)
+            if (!m_begun || s_current != &m_profiler)
                 return SLANG_E_INVALID_ARG;
             if (!m_profiler.m_regionStack.empty())
                 return SLANG_E_INVALID_ARG;
             s_current = nullptr;
-            m_ended = true;
-            return SLANG_OK;
-        }
-
-        // Notify after a successful queue submission. This cannot fail; early
-        // returns before this notification cancel the unsubmitted measurement.
-        void markSubmitted()
-        {
-            ASSERT(m_begun && m_ended, "Profiler frame must begin and end before submission notification");
-            m_profiler.commitFrame();
+            m_profiler.endFrame(true);
             m_begun = false;
+            return SLANG_OK;
         }
 
     private:
         Profiler& m_profiler;
         bool m_begun = false;
-        bool m_ended = false;
     };
 
     // Create a frame guard. Call begin() to start recording and handle failures.
@@ -125,26 +114,27 @@ public:
     void setEnabled(bool enabled)
     {
         m_enabled = enabled;
-        m_discardThrough = m_serial;
+        m_lastSerial = m_serial;
         m_timingTotals.clear();
         m_displayTimings.clear();
         m_timingCount = 0;
         m_timingLastRefresh = 0;
     }
 
-    // Format the averaged timings. Frame::begin updates them even when the overlay is hidden.
+    // Format the averaged timings, with one blank line after newline-terminated overlay text.
+    // Frame::begin updates them even when the overlay is hidden.
     std::string getDisplayText() const
     {
         if (!m_enabled)
-            return "\n\nProfiler off\n";
+            return "\nProfiler: off\n";
         if (!m_supported)
-            return "\n\nProfiler unavailable\n";
+            return "\nProfiler: unavailable\n";
         if (m_displayTimings.empty())
-            return "\n\nProfiler timing pending\n";
+            return "\nProfiler: timing pending\n";
 
         std::ostringstream text;
         text.imbue(std::locale::classic());
-        text << "\n\n" << std::fixed << std::setprecision(2);
+        text << '\n' << std::fixed << std::setprecision(2);
         // Walk children in first-seen order, keeping repeated regions under their parent.
         auto printChildren = [&](auto&& self, uint32_t parent, uint32_t depth) -> void
         {
@@ -164,7 +154,9 @@ public:
     // Instrumentation uses the thread-local active frame. No active frame,
     // disabled/unsupported profiling, or a full query ring makes it a no-op.
     // Balance every push with a pop in the same frame, including skipped regions.
-    static void pushRegion(IPassEncoder* pass, const char* name)
+    // Accept either a pass encoder or a command encoder (e.g. for AS builds).
+    template<typename EncoderOrPass>
+    static void pushRegion(EncoderOrPass* encoderOrPass, const char* name)
     {
         auto* profiler = s_current;
         if (!profiler || profiler->m_active < 0)
@@ -177,12 +169,14 @@ public:
         if (index == kMaxRegions)
             return;
         frame.regions.push_back({name, parent});
-        pass->writeTimestamp(frame.pool, index * 2);
+        encoderOrPass->writeTimestamp(frame.pool, index * 2);
     }
 
     // Close the innermost region. Both endpoints must be on the same queue and
-    // recording thread, but may be in different passes.
-    static void popRegion(IPassEncoder* pass)
+    // recording thread, but may be in different passes or submissions. Spanning
+    // submissions measures elapsed GPU time, including any idle gap between them.
+    template<typename EncoderOrPass>
+    static void popRegion(EncoderOrPass* encoderOrPass)
     {
         auto* profiler = s_current;
         if (!profiler || profiler->m_active < 0)
@@ -193,7 +187,7 @@ public:
         if (index == kMaxRegions)
             return;
         auto& frame = profiler->m_frames[profiler->m_active];
-        pass->writeTimestamp(frame.pool, index * 2 + 1);
+        encoderOrPass->writeTimestamp(frame.pool, index * 2 + 1);
     }
 
 private:
@@ -206,6 +200,76 @@ private:
         double milliseconds;
     };
 
+    struct Region
+    {
+        std::string name;
+        uint32_t parent;
+    };
+
+    struct QueryFrame
+    {
+        ComPtr<IQueryPool> pool;
+        std::vector<Region> regions;
+        uint64_t serial = 0;
+        bool pending = false;
+        bool publish = false;
+    };
+
+    // A closed frame is reusable once every submitted query has completed.
+    bool isFrameReady(QueryFrame& frame)
+    {
+        uint32_t queryCount = uint32_t(frame.regions.size()) * 2;
+        QueryResultState state;
+        Result result = frame.pool->getResultState(0, queryCount, &state);
+        if (SLANG_SUCCEEDED(result) && state != QueryResultState::Reset)
+            return state == QueryResultState::Resolved;
+
+        // Missing timestamps or state errors discard the entire measurement.
+        // Reset on a range can hide pending queries beside unsubmitted ones,
+        // so inspect each endpoint before releasing the slot. Unknown completion
+        // also retains the slot until readiness can be established.
+        frame.publish = false;
+        for (uint32_t i = 0; i < queryCount; ++i)
+            if (SLANG_FAILED(frame.pool->getResultState(i, 1, &state)) || state == QueryResultState::Pending)
+                return false;
+        return true;
+    }
+
+    std::vector<Sample> collectSamples(const QueryFrame& frame)
+    {
+        std::array<uint64_t, kMaxRegions * 2> ticks;
+        uint32_t queryCount = uint32_t(frame.regions.size()) * 2;
+        if (SLANG_FAILED(frame.pool->getResult(0, queryCount, ticks.data())))
+            return {};
+
+        std::vector<Sample> samples;
+        // Map recorded regions to aggregated samples, including repeated parents.
+        std::array<uint32_t, kMaxRegions> sampleIndices;
+        for (size_t i = 0; i < frame.regions.size(); ++i)
+        {
+            // Discard invalid timestamps instead of displaying unsigned underflow.
+            if (ticks[i * 2 + 1] < ticks[i * 2])
+                return {};
+            const auto& region = frame.regions[i];
+            uint32_t parent = region.parent == kMaxRegions ? kMaxRegions : sampleIndices[region.parent];
+            double milliseconds = double(ticks[i * 2 + 1] - ticks[i * 2]) * 1000.0 / m_frequency;
+            auto sample = std::find_if(
+                samples.begin(),
+                samples.end(),
+                [&](const Sample& s)
+                {
+                    return s.parent == parent && s.name == region.name;
+                }
+            );
+            sampleIndices[i] = uint32_t(sample - samples.begin());
+            if (sample == samples.end())
+                samples.push_back({region.name, parent, milliseconds});
+            else
+                sample->milliseconds += milliseconds;
+        }
+        return samples;
+    }
+
     void poll()
     {
         if (!m_supported)
@@ -213,64 +277,17 @@ private:
         std::vector<Sample> latestSamples;
         for (auto& frame : m_frames)
         {
-            if (!frame.pending)
+            if (!frame.pending || !isFrameReady(frame))
                 continue;
-            QueryResultState state;
-            // Invalid timestamp batches (e.g. D3D11 disjoint queries) should
-            // only drop a measurement, leaving rendering and later frames running.
-            if (SLANG_FAILED(frame.pool->getResultState(0, uint32_t(frame.regions.size()) * 2, &state)))
-            {
-                frame.pending = false;
-                continue;
-            }
-            if (state != QueryResultState::Resolved)
-                continue;
-            std::array<uint64_t, kMaxRegions * 2> ticks;
-            if (SLANG_FAILED(frame.pool->getResult(0, uint32_t(frame.regions.size()) * 2, ticks.data())))
-            {
-                frame.pending = false;
-                continue;
-            }
-            if (frame.serial > m_lastSerial && frame.serial > m_discardThrough)
-            {
-                std::vector<Sample> samples;
-                // Map each recorded region to its aggregated sample, including repeated parents.
-                std::array<uint32_t, kMaxRegions> sampleIndices;
-                sampleIndices.fill(kMaxRegions);
-                for (size_t i = 0; i < frame.regions.size(); ++i)
-                {
-                    // Omit invalid pairs instead of displaying unsigned underflow.
-                    if (ticks[i * 2 + 1] < ticks[i * 2])
-                        continue;
-                    const auto& region = frame.regions[i];
-                    uint32_t parent = region.parent == kMaxRegions ? kMaxRegions : sampleIndices[region.parent];
-                    // Drop children of invalid regions rather than display them under the wrong parent.
-                    if (region.parent != kMaxRegions && parent == kMaxRegions)
-                        continue;
-                    double milliseconds = double(ticks[i * 2 + 1] - ticks[i * 2]) * 1000.0 / m_frequency;
-                    auto sample = std::find_if(
-                        samples.begin(),
-                        samples.end(),
-                        [&](const Sample& s)
-                        {
-                            return s.parent == parent && s.name == region.name;
-                        }
-                    );
-                    sampleIndices[i] = uint32_t(sample - samples.begin());
-                    if (sample == samples.end())
-                        samples.push_back({region.name, parent, milliseconds});
-                    else
-                        sample->milliseconds += milliseconds;
-                }
-                // A resolved batch may contain no usable timestamp pairs. Retain
-                // the last good batch rather than making the overlay flash pending.
-                if (!samples.empty())
-                {
-                    latestSamples = std::move(samples);
-                    m_lastSerial = frame.serial;
-                }
-            }
             frame.pending = false;
+            if (!frame.publish || frame.serial <= m_lastSerial)
+                continue;
+            auto samples = collectSamples(frame);
+            if (!samples.empty())
+            {
+                latestSamples = std::move(samples);
+                m_lastSerial = frame.serial;
+            }
         }
         updateTimings(latestSamples);
     }
@@ -314,8 +331,6 @@ private:
 
     Result beginFrame()
     {
-        if (m_recording)
-            return SLANG_E_INVALID_ARG;
         poll();
         if (m_supported && m_enabled)
         {
@@ -331,45 +346,26 @@ private:
                 break;
             }
         }
-        m_recording = true;
         return SLANG_OK;
     }
 
-    void commitFrame()
+    void endFrame(bool publish)
     {
         if (m_active >= 0)
         {
             auto& frame = m_frames[m_active];
             frame.pending = !frame.regions.empty();
+            frame.publish = publish;
         }
-        cancelFrame();
-    }
-
-    void cancelFrame()
-    {
         m_regionStack.clear();
         m_active = -1;
-        m_recording = false;
     }
 
-    struct Region
-    {
-        std::string name;
-        uint32_t parent;
-    };
-
-    struct QueryFrame
-    {
-        ComPtr<IQueryPool> pool;
-        std::vector<Region> regions;
-        uint64_t serial = 0;
-        bool pending = false;
-    };
     std::array<QueryFrame, kFrameCount> m_frames;
     std::vector<uint32_t> m_regionStack;
-    uint64_t m_frequency = 0, m_serial = 0, m_lastSerial = 0, m_discardThrough = 0;
+    uint64_t m_frequency = 0, m_serial = 0, m_lastSerial = 0;
     int m_active = -1;
-    bool m_supported = false, m_enabled = true, m_recording = false;
+    bool m_supported = false, m_enabled = true;
     std::vector<Sample> m_timingTotals, m_displayTimings;
     uint32_t m_timingCount = 0;
     double m_timingLastRefresh = 0;

@@ -1,6 +1,13 @@
+// Shader toy example: compute shaders render procedural images to a texture
+// using time, resolution, and mouse input, then blit it to the window surface.
+// Includes circle and ocean shaders that can be switched at runtime.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 
 #include <memory>
+
+namespace {
 
 using namespace rhi;
 
@@ -17,7 +24,7 @@ public:
     Result init(DeviceType deviceType) override
     {
         SLANG_RETURN_ON_FAIL(createDevice(deviceType, {Feature::Surface}, {}, m_device.writeRef()));
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "ShaderToy"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -102,10 +109,10 @@ public:
         }
 
         // Start command encoding
-        ComPtr<ICommandEncoder> commandEncoder;
-        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
         auto profile = getProfiler().frame();
         SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
 
         // Start compute pass
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
@@ -134,16 +141,15 @@ public:
 
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n\n");
-        printOverlay("Shader: %s", kShaders[m_shaderIndex]);
+        printOverlay("^3Left/Right arrows^0: Shader | ^3Mouse buttons^0: Interact\n\n");
+        printOverlay("Shader: %s\n", kShaders[m_shaderIndex]);
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
         // Submit command buffer
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
-        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
-        profile.markSubmitted();
+        SLANG_RETURN_ON_FAIL(profile.end());
 
         m_frame += 1;
 
@@ -213,4 +219,6 @@ public:
     int m_shaderIndex = 0;
 };
 
-EXAMPLE_MAIN(ExampleShaderToy)
+} // namespace
+
+EXAMPLE_MAIN(ExampleShaderToy, "shader-toy", "ShaderToy")

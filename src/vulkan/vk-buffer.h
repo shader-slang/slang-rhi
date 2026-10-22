@@ -8,13 +8,16 @@ namespace rhi::vk {
 class VKBufferHandleRAII
 {
 public:
-    /// Initialize a buffer with specified size, and memory props
+    /// Initialize a buffer with specified size, and memory props.
+    /// The memory type must have all of reqMemoryProperties, and one that also has
+    /// preferredMemoryProperties is used if available.
     Result init(
         const VulkanApi& api,
         Size bufferSize,
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags reqMemoryProperties,
-        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0
+        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0,
+        VkMemoryPropertyFlags preferredMemoryProperties = 0
     );
 
     /// Returns true if has been initialized

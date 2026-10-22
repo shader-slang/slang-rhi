@@ -47,19 +47,19 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 
 void DeviceImpl::reportError(const char* func, WGPUStringView message)
 {
-    std::string msg = "WGPU error in " + std::string(func) + ": " + std::string(message.data, message.length);
+    std::string msg = "WGPU error in " + std::string(func) + ": " + translateString(message);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
 }
 
 void DeviceImpl::reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message)
 {
-    std::string msg = "WGPU device lost: " + std::string(message.data, message.length);
+    std::string msg = "WGPU device lost: " + translateString(message);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
 }
 
 void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView message)
 {
-    std::string msg = "WGPU uncaptured error: " + std::string(message.data, message.length);
+    std::string msg = "WGPU uncaptured error: " + translateString(message);
     m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
     SLANG_UNUSED(type);
 }
@@ -161,8 +161,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             DeviceRequestState* requestState = (DeviceRequestState*)userdata1;
             requestState->status = status_;
             requestState->device = device;
-            if (message.length > 0)
-                requestState->message.assign(message.data, message.length);
+            requestState->message = translateString(message);
         };
         callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = nullptr;
@@ -198,7 +197,20 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         WGPUAdapterInfo wgpuAdapterInfo = {};
         api.wgpuAdapterGetInfo(m_ctx.adapter, &wgpuAdapterInfo);
         SLANG_RHI_DEFERRED({ api.wgpuAdapterInfoFreeMembers(wgpuAdapterInfo); });
-        m_adapterName = std::string(wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
+        m_adapterName = translateString(wgpuAdapterInfo.device);
+        // Browsers may expose only the vendor and architecture instead of a device name.
+        if (m_adapterName.empty())
+        {
+            m_adapterName = translateString(wgpuAdapterInfo.description);
+        }
+        if (m_adapterName.empty())
+        {
+            m_adapterName = translateString(wgpuAdapterInfo.vendor);
+            const auto architecture = translateString(wgpuAdapterInfo.architecture);
+            if (!m_adapterName.empty() && !architecture.empty())
+                m_adapterName += " / ";
+            m_adapterName += architecture;
+        }
         m_info.adapterName = m_adapterName.c_str();
         subgroupMinSize = wgpuAdapterInfo.subgroupMinSize;
         subgroupMaxSize = wgpuAdapterInfo.subgroupMaxSize;
@@ -464,8 +476,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
+    // Copy offsets, copy sizes and mappings must be multiples of 4 bytes. Copy the enclosing aligned range,
+    // which stays within the buffer as buffer sizes are padded to 4 bytes.
+    Offset copyOffset = offset & ~Offset(3);
+    Size copySize = math::calcAligned2(offset + size, 4) - copyOffset;
+
     WGPUBufferDescriptor stagingBufferDesc = {};
-    stagingBufferDesc.size = size;
+    stagingBufferDesc.size = copySize;
     stagingBufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
     WGPUBuffer stagingBuffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc);
     if (!stagingBuffer)
@@ -481,7 +498,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
 
-    m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(encoder, bufferImpl->m_buffer, offset, stagingBuffer, 0, size);
+    m_ctx.api
+        .wgpuCommandEncoderCopyBufferToBuffer(encoder, bufferImpl->m_buffer, copyOffset, stagingBuffer, 0, copySize);
     WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
     if (!commandBuffer)
     {
@@ -530,7 +548,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         };
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = this;
-        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
+        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, copySize, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
@@ -539,13 +557,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferUnmap(stagingBuffer); });
 
-    const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, size);
+    const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, copySize);
     if (!data)
     {
         return SLANG_FAIL;
     }
 
-    std::memcpy(outData, data, size);
+    std::memcpy(outData, static_cast<const uint8_t*>(data) + (offset - copyOffset), size);
 
     return SLANG_OK;
 }

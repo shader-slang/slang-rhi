@@ -1,9 +1,17 @@
+// Path tracing example: a scene of diffuse and mirror objects rendered with a
+// ray tracing pipeline or compute ray queries, depending on device support.
+// Samples accumulate across frames before tone mapping; camera movement resets
+// accumulation. Requires acceleration structures and either tracing mode.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 #include "../base/camera.h"
 #include "../base/geometry.h"
 #include "settings.h"
 
 #include <slang-rhi/acceleration-structure-utils.h>
+
+namespace {
 
 using namespace rhi;
 using namespace rhi::math;
@@ -438,7 +446,7 @@ public:
             m_missingFeatures = {Feature::RayTracing, Feature::RayQuery};
             return SLANG_E_NOT_AVAILABLE;
         }
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Path tracer"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -520,10 +528,10 @@ public:
         m_camera.recompute();
 
         // Start command encoding
-        ComPtr<ICommandEncoder> commandEncoder;
-        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
         auto profile = getProfiler().frame();
         SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
 
         SLANG_RETURN_ON_FAIL(
             m_pathTracer.execute(commandEncoder, m_scene, m_camera, m_renderTexture, m_frame, m_maxBounces)
@@ -539,7 +547,7 @@ public:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n\n");
+        printOverlay("^3T^0: Tracing mode | ^3[/]^0: Bounces | ^3Space^0: Accumulation | ^3R^0: Reset view\n\n");
         printOverlay(
             "%s%s | Bounces: %u | Accumulation: %s\n",
             m_pathTracer.modeName(),
@@ -548,7 +556,7 @@ public:
             m_accumulate ? "on" : "off"
         );
         printOverlay(
-            "Samples/pixel: %llu",
+            "Samples/pixel: %llu\n",
             static_cast<unsigned long long>(m_accumulate ? uint64_t(m_frame) + 1 : 1) * PATH_TRACER_SAMPLES_PER_PIXEL
         );
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
@@ -556,9 +564,8 @@ public:
         // Submit command buffer
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
-        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
-        profile.markSubmitted();
+        SLANG_RETURN_ON_FAIL(profile.end());
 
         m_frame += 1;
 
@@ -656,4 +663,6 @@ public:
     uint32_t m_frame = 0;
 };
 
-EXAMPLE_MAIN(ExamplePathTracer)
+} // namespace
+
+EXAMPLE_MAIN(ExamplePathTracer, "path-tracer", "Path tracer")

@@ -1,7 +1,7 @@
 // GPU particle example: compute shaders simulate, compact, and spawn particles
 // that gather into the Slang logo and burst apart. GPU-generated draw arguments
-// drive indirect rendering, followed by bloom and tone mapping. Move the mouse
-// to stir particles; the overlay lists the remaining controls.
+// drive indirect rendering, followed by bloom and tone mapping.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/logo.h"
@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+
+namespace {
 
 using namespace rhi;
 
@@ -472,7 +474,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Particle energy sculpture", 960, 720));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
@@ -534,10 +536,10 @@ public:
         if (!image)
             return SLANG_OK;
         SLANG_RETURN_ON_FAIL(pollReadbacks());
-        ComPtr<ICommandEncoder> encoder;
-        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         auto profile = getProfiler().frame();
         SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         if (m_reset)
         {
             m_renderer->reset(encoder);
@@ -597,9 +599,8 @@ public:
             submit.signalFenceValues = &readback->value;
             submit.signalFenceCount = 1;
         }
-        SLANG_RETURN_ON_FAIL(profile.end());
         SLANG_RETURN_ON_FAIL(m_queue->submit(submit));
-        profile.markSubmitted();
+        SLANG_RETURN_ON_FAIL(profile.end());
         return presentSurface();
     }
 
@@ -710,9 +711,9 @@ private:
     {
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Move mouse: Stir | Left: Attract | Right: Repel\n");
-        printOverlay("[ / ]: Emission | Space: Pause | N: Single step\n");
-        printOverlay("F: Burst | R: Reset | B: Bloom | D: Direct/indirect draw\n\n");
+        printOverlay("^3Mouse^0: Stir | ^3Left mouse^0: Attract | ^3Right mouse^0: Repel\n");
+        printOverlay("^3[/]^0: Emission | ^3Space^0: Pause | ^3N^0: Single step\n");
+        printOverlay("^3F^0: Burst | ^3R^0: Reset | ^3B^0: Bloom | ^3D^0: Direct/indirect draw\n\n");
         printOverlay(
             "%s | Emission: %u/sec | %s | Bloom: %s\n",
             m_renderer->indirect() ? "Indirect draw" : "Direct draw",
@@ -742,4 +743,6 @@ private:
     bool m_paused = false, m_singleStep = false, m_reset = true, m_bloom = true, m_countValid = false;
 };
 
-EXAMPLE_MAIN(ExampleParticles)
+} // namespace
+
+EXAMPLE_MAIN(ExampleParticles, "particles", "Particles")
