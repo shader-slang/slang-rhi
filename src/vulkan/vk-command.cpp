@@ -2078,21 +2078,14 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    // Increment last submitted ID which is used to track command buffer completion.
-    ++m_lastSubmittedID;
+    // Commit this ID and resource tracking only after the driver accepts the submission.
+    uint64_t submissionID = m_lastSubmittedID + 1;
 
-    // Collect & process command buffers.
+    // Collect command buffers.
     short_vector<VkCommandBuffer> vkCommandBuffers;
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        commandBuffer->m_submissionID = m_lastSubmittedID;
-        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
-        {
-            checked_cast<QueryPool*>(queryWrite.queryPool)
-                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
-        }
-        m_commandBuffersInFlight.push_back(commandBuffer);
         vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
     }
 
@@ -2114,7 +2107,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
     {
         addWaitSemaphore(m_surfaceSync.imageAvailableSemaphore, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-        m_surfaceSync.imageAvailableSemaphore = VK_NULL_HANDLE;
     }
 
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
@@ -2135,10 +2127,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
     {
         addSignalSemaphore(m_surfaceSync.renderFinishedSemaphore, 0);
-        m_surfaceSync.renderFinishedSemaphore = VK_NULL_HANDLE;
     }
 
-    addSignalSemaphore(m_trackingSemaphore, m_lastSubmittedID);
+    addSignalSemaphore(m_trackingSemaphore, submissionID);
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
@@ -2171,7 +2162,19 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     }
 
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
-    m_surfaceSync.fence = VK_NULL_HANDLE;
+    m_lastSubmittedID = submissionID;
+    for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
+    {
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+        commandBuffer->m_submissionID = submissionID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, submissionID);
+        }
+        m_commandBuffersInFlight.push_back(commandBuffer);
+    }
+    m_surfaceSync = {};
 
     retireCommandBuffers();
 

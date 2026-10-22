@@ -244,13 +244,16 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `setRenderState`      | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `draw`                | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawIndexed`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
-| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
+| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawMeshTasks`       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 
 WebGPU single indirect draws without a count buffer use the core WebGPU API.
 Other indirect-draw forms currently use Dawn's native multi-draw extension and
 require that optional feature to be enabled; they are unavailable in the Wasm path.
+
+Metal indirect draws issue one native indirect draw per argument record and do not
+support a count buffer.
 
 See [error handling and diagnostics](error-handling.md#webgpu-recording-and-validation)
 for WebGPU recording errors and asynchronous validation.

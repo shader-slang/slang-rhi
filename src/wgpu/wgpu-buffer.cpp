@@ -1,8 +1,11 @@
 #include "wgpu-buffer.h"
+#include "wgpu-command.h"
 #include "wgpu-device.h"
 #include "wgpu-utils.h"
 
 #include "core/deferred.h"
+
+#include <cstring>
 
 namespace rhi::wgpu {
 
@@ -43,17 +46,20 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     WGPUBufferDescriptor bufferDesc = {};
-    bufferDesc.size = desc.size;
+    // Buffer writes, mappings and copies must be multiples of 4 bytes.
+    bufferDesc.size = math::calcAligned2(desc.size, 4);
     bufferDesc.usage = translateBufferUsage(desc.usage);
-    // TODO:
-    // Warn if other usage flags if memory type is Upload/ReadBack.
-    // WGPU only allows MapWrite+CopySrc, MapRead+CopyDst exclusively.
     if (desc.memoryType == MemoryType::Upload)
     {
-        bufferDesc.usage = WGPUBufferUsage_MapWrite | WGPUBufferUsage_CopySrc;
+        // Upload buffers keep a CPU copy that is written to the GPU buffer when unmapped (see BufferImpl).
+        // This allows any usage, while mapping for writing is only allowed together with CopySrc.
+        // CopySrc lets readBuffer() and mapBuffer() read what shaders wrote to the GPU buffer.
+        bufferDesc.usage |= WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+        buffer->m_uploadData = std::make_unique<uint8_t[]>(bufferDesc.size);
     }
     else if (desc.memoryType == MemoryType::ReadBack)
     {
+        // WGPU only allows MapRead together with CopyDst.
         bufferDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
     }
     if (initData)
@@ -71,33 +77,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     if (initData)
     {
-        WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
-        m_ctx.api.wgpuQueueWriteBuffer(queue, buffer->m_buffer, 0, initData, desc.size);
-        SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
-
-        // Wait for the command buffer to finish executing
-        {
-            WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
-            WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
-            callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-#if !SLANG_WASM
-            callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-#else
-            callbackInfo.callback =
-                [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
-#endif
-            {
-                *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
-            };
-            callbackInfo.userdata1 = &status;
-            WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-            WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-            if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
-            {
-                *outBuffer = nullptr;
-                return SLANG_FAIL;
-            }
-        }
+        if (buffer->m_uploadData)
+            std::memcpy(buffer->m_uploadData.get(), initData, desc.size);
+        // Queue writes take effect before any later submission, so there is no need to wait.
+        writeBuffer(buffer, 0, desc.size, initData);
     }
 
     returnComPtr(outBuffer, buffer);
@@ -117,6 +100,29 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     buffer->m_buffer = (WGPUBuffer)handle.value;
     m_ctx.api.wgpuBufferAddRef(buffer->m_buffer);
 
+    // An imported upload buffer without MapWrite usage is mapped through a CPU copy, like the upload
+    // buffers created here. The copy starts with the buffer's current contents.
+    WGPUBufferUsage usage = m_ctx.api.wgpuBufferGetUsage(buffer->m_buffer);
+    if (fixedDesc.memoryType == MemoryType::Upload && !(usage & WGPUBufferUsage_MapWrite))
+    {
+        // Copies and queue writes of the CPU copy cover the size padded to 4 bytes.
+        const WGPUBufferUsage required = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+        const Size paddedSize = math::calcAligned2(fixedDesc.size, 4);
+        if ((usage & required) != required || m_ctx.api.wgpuBufferGetSize(buffer->m_buffer) < paddedSize)
+        {
+            handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "An imported upload buffer needs MapWrite usage, or CopyDst and CopySrc usage and a size "
+                "padded to a multiple of 4 bytes."
+            );
+            *outBuffer = nullptr;
+            return SLANG_E_INVALID_ARG;
+        }
+        buffer->m_uploadData = std::make_unique<uint8_t[]>(paddedSize);
+        SLANG_RETURN_ON_FAIL(readBuffer(buffer, 0, fixedDesc.size, buffer->m_uploadData.get()));
+    }
+
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }
@@ -131,6 +137,19 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
+    if (bufferImpl->m_uploadData)
+    {
+        // Shaders or recorded copies may have written the GPU buffer, and unmapping writes the whole
+        // CPU copy back.
+        if (bufferImpl->m_uploadDataStale.exchange(false) ||
+            (m_ctx.api.wgpuBufferGetUsage(bufferImpl->m_buffer) & WGPUBufferUsage_Storage))
+        {
+            SLANG_RETURN_ON_FAIL(readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get()));
+        }
+        *outData = bufferImpl->m_uploadData.get();
+        return SLANG_OK;
+    }
+
     WGPUMapMode mapMode = WGPUMapMode_None;
     switch (mode)
     {
@@ -143,7 +162,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     }
 
     size_t offset = 0;
-    size_t size = bufferImpl->m_desc.size;
+    size_t size = math::calcAligned2(bufferImpl->m_desc.size, 4);
 
     WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
     WGPUBufferMapCallbackInfo callbackInfo = {};
@@ -175,8 +194,45 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (bufferImpl->m_uploadData)
+    {
+        writeBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get());
+        return SLANG_OK;
+    }
     m_ctx.api.wgpuBufferUnmap(bufferImpl->m_buffer);
     return SLANG_OK;
+}
+
+Result DeviceImpl::writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    SLANG_RHI_ASSERT(bufferImpl->m_uploadData);
+    SLANG_RHI_ASSERT(offset + size <= bufferImpl->m_desc.size);
+    std::memcpy(bufferImpl->m_uploadData.get() + offset, data, size);
+    // Queue writes need 4-byte aligned offsets and sizes. Write the enclosing aligned range from the
+    // CPU copy, so that neighboring bytes keep their current values.
+    Offset begin = offset & ~Offset(3);
+    Offset end = math::calcAligned2(offset + size, 4);
+    writeBuffer(bufferImpl, begin, end - begin, bufferImpl->m_uploadData.get() + begin);
+    return SLANG_OK;
+}
+
+void DeviceImpl::writeBuffer(BufferImpl* buffer, Offset offset, Size size, const void* data)
+{
+    SLANG_RHI_ASSERT((offset & 3) == 0);
+    WGPUQueue queue = m_queue->m_queue;
+    Size alignedSize = size & ~Size(3);
+    if (alignedSize > 0)
+    {
+        m_ctx.api.wgpuQueueWriteBuffer(queue, buffer->m_buffer, offset, data, alignedSize);
+    }
+    if (alignedSize < size)
+    {
+        // Pad the last bytes, which stay within the buffer as its size is a multiple of 4.
+        uint8_t tail[4] = {};
+        std::memcpy(tail, static_cast<const uint8_t*>(data) + alignedSize, size - alignedSize);
+        m_ctx.api.wgpuQueueWriteBuffer(queue, buffer->m_buffer, offset + alignedSize, tail, sizeof(tail));
+    }
 }
 
 } // namespace rhi::wgpu

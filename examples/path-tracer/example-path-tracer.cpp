@@ -1,9 +1,17 @@
+// Path tracing example: a scene of diffuse and mirror objects rendered with a
+// ray tracing pipeline or compute ray queries, depending on device support.
+// Samples accumulate across frames before tone mapping; camera movement resets
+// accumulation. Requires acceleration structures and either tracing mode.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 #include "../base/camera.h"
 #include "../base/geometry.h"
 #include "settings.h"
 
 #include <slang-rhi/acceleration-structure-utils.h>
+
+namespace {
 
 using namespace rhi;
 using namespace rhi::math;
@@ -330,6 +338,8 @@ struct PathTracer
             computePass = encoder->beginComputePass();
             root = computePass->bindPipeline(computePipeline);
         }
+        IPassEncoder* timingPass = rayPass ? static_cast<IPassEncoder*>(rayPass) : computePass;
+        Profiler::pushRegion(timingPass, modeName());
         SLANG_RETURN_ON_FAIL(scene.bind(ShaderCursor(root)["g_scene"]));
         ShaderCursor cursor(root->getEntryPoint(0));
         SLANG_RETURN_ON_FAIL(cursor["camera"]["position"].setData(camera.position));
@@ -343,13 +353,13 @@ struct PathTracer
         if (rayPass)
         {
             rayPass->dispatchRays(0, size.width, size.height, 1);
-            rayPass->end();
         }
         else
         {
             computePass->dispatchCompute(divRoundUp(size.width, 8u), divRoundUp(size.height, 8u), 1);
-            computePass->end();
         }
+        Profiler::popRegion(timingPass);
+        timingPass->end();
         return SLANG_OK;
     }
 };
@@ -382,6 +392,7 @@ struct Accumulator
             reset = true;
         }
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        Profiler::pushRegion(passEncoder, "Accumulation");
         IShaderObject* shaderObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor = ShaderCursor(shaderObject->getEntryPoint(0));
         SLANG_RETURN_ON_FAIL(cursor["input"].setBinding(input));
@@ -390,6 +401,7 @@ struct Accumulator
         SLANG_RETURN_ON_FAIL(cursor["reset"].setData(reset ? 1u : 0u));
         Extent3D size = input->getDesc().size;
         passEncoder->dispatchCompute(divRoundUp(size.width, 8u), divRoundUp(size.height, 8u), 1);
+        Profiler::popRegion(passEncoder);
         passEncoder->end();
         return SLANG_OK;
     }
@@ -408,12 +420,14 @@ struct ToneMapper
     Result execute(ICommandEncoder* commandEncoder, ITexture* input, ITexture* output)
     {
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        Profiler::pushRegion(passEncoder, "Tone map");
         IShaderObject* shaderObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor = ShaderCursor(shaderObject->getEntryPoint(0));
         SLANG_RETURN_ON_FAIL(cursor["input"].setBinding(input));
         SLANG_RETURN_ON_FAIL(cursor["output"].setBinding(output));
         Extent3D size = input->getDesc().size;
         passEncoder->dispatchCompute(divRoundUp(size.width, 8u), divRoundUp(size.height, 8u), 1);
+        Profiler::popRegion(passEncoder);
         passEncoder->end();
         return SLANG_OK;
     }
@@ -432,7 +446,7 @@ public:
             m_missingFeatures = {Feature::RayTracing, Feature::RayQuery};
             return SLANG_E_NOT_AVAILABLE;
         }
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Path tracer", 960, 640));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -446,6 +460,7 @@ public:
         SLANG_RETURN_ON_FAIL(m_pathTracer.initialize(m_device));
         SLANG_RETURN_ON_FAIL(m_accumulator.initialize(m_device));
         SLANG_RETURN_ON_FAIL(m_toneMapper.initialize(m_device));
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
         return SLANG_OK;
     }
 
@@ -472,8 +487,6 @@ public:
 
     virtual Result draw() override
     {
-        SLANG_RETURN_ON_FAIL(m_surfaceResult);
-
         // Skip rendering if surface is not configured (eg. when window is minimized)
         if (!m_surface->getConfig())
         {
@@ -515,6 +528,8 @@ public:
         m_camera.recompute();
 
         // Start command encoding
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
         ComPtr<ICommandEncoder> commandEncoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
 
@@ -530,9 +545,9 @@ public:
         SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_outputTexture, commandEncoder));
 
         clearOverlay();
-        printOverlay("Left drag: Look | W/A/S/D: Move | Q/E: Down/up | Shift: Faster\n");
-        printOverlay("T: Tracing mode | [/]: Bounces | Space: Accumulation | R: Reset view\n");
-        printOverlay("F1: Overlay | F2: Fit windows | Esc: Close\n\n");
+        printOverlayHeader();
+        printCameraControls();
+        printOverlay("^3T^0: Tracing mode | ^3[/]^0: Bounces | ^3Space^0: Accumulation | ^3R^0: Reset view\n\n");
         printOverlay(
             "%s%s | Bounces: %u | Accumulation: %s\n",
             m_pathTracer.modeName(),
@@ -541,7 +556,7 @@ public:
             m_accumulate ? "on" : "off"
         );
         printOverlay(
-            "Samples/pixel: %llu",
+            "Samples/pixel: %llu\n",
             static_cast<unsigned long long>(m_accumulate ? uint64_t(m_frame) + 1 : 1) * PATH_TRACER_SAMPLES_PER_PIXEL
         );
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
@@ -550,30 +565,29 @@ public:
         ComPtr<ICommandBuffer> commandBuffer;
         SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
         SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
+        SLANG_RETURN_ON_FAIL(profile.end());
 
         m_frame += 1;
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
     {
         // Wait for GPU to be idle before resizing
-        m_surfaceResult = m_queue->waitOnHost();
-        if (SLANG_FAILED(m_surfaceResult))
-            return;
+        SLANG_RETURN_ON_FAIL(m_queue->waitOnHost());
         // Configure or unconfigure the surface based on the new framebuffer size
         if (framebufferWidth > 0 && framebufferHeight > 0)
         {
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surfaceResult = m_surface->configure(surfaceConfig);
+            return configureSurface(m_surface, surfaceConfig);
         }
         else
         {
-            m_surfaceResult = m_surface->unconfigure();
+            return m_surface->unconfigure();
         }
     }
 
@@ -635,7 +649,7 @@ public:
 
     Camera m_camera;
     Scene m_scene;
-    FlyCameraController m_cameraController;
+    CameraController m_cameraController;
     PathTracer m_pathTracer;
     Accumulator m_accumulator;
     ToneMapper m_toneMapper;
@@ -647,7 +661,8 @@ public:
     uint32_t m_maxBounces = PATH_TRACER_DEFAULT_BOUNCES;
     bool m_accumulate = true;
     uint32_t m_frame = 0;
-    Result m_surfaceResult = SLANG_OK;
 };
 
-EXAMPLE_MAIN(ExamplePathTracer)
+} // namespace
+
+EXAMPLE_MAIN(ExamplePathTracer, "path-tracer", "Path tracer")

@@ -108,6 +108,49 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
         compareComputeResult(device, dst, std::span<uint8_t>(zeros));
 }
 
+GPU_TEST_CASE("cuda-heap-destruction-releases-resident-page", CUDA)
+{
+    // Keep the test device's CUDA context alive while destroying a separate heap.
+    // Context destruction would otherwise hide a missing cuMemFree call.
+    auto* cudaDevice = getCUDADevice(device);
+    SLANG_CUDA_CTX_SCOPE(cudaDevice);
+
+    size_t freeBefore = 0;
+    size_t total = 0;
+    REQUIRE(cuMemGetInfo(&freeBefore, &total) == CUDA_SUCCESS);
+
+    HeapDesc heapDesc = {};
+    heapDesc.memoryType = MemoryType::DeviceLocal;
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(heapDesc, heap.writeRef()));
+
+    HeapAllocDesc allocDesc = {};
+    allocDesc.size = 1024 * 1024;
+    allocDesc.alignment = 128;
+    HeapAlloc allocation;
+    REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
+    REQUIRE_CALL(heap->free(allocation));
+
+    HeapReport report = {};
+    REQUIRE_CALL(heap->report(&report));
+    REQUIRE(report.numPages == 1);
+    REQUIRE(report.totalAllocated == 0);
+    constexpr size_t kMemoryInfoTolerance = 16 * 1024 * 1024;
+    REQUIRE(report.totalMemUsage > kMemoryInfoTolerance);
+
+    size_t freeWithPage = 0;
+    REQUIRE(cuMemGetInfo(&freeWithPage, &total) == CUDA_SUCCESS);
+    REQUIRE(freeBefore >= freeWithPage + report.totalMemUsage - kMemoryInfoTolerance);
+
+    // The freed allocation leaves its page resident for reuse. Releasing the
+    // PageImpl metadata alone must not strand its CUDA allocation.
+    heap.setNull();
+
+    size_t freeAfter = 0;
+    REQUIRE(cuMemGetInfo(&freeAfter, &total) == CUDA_SUCCESS);
+    CHECK(freeAfter >= freeWithPage + report.totalMemUsage - kMemoryInfoTolerance);
+}
+
 GPU_TEST_CASE("cuda-external-device", CUDA)
 {
     using namespace rhi::cuda;

@@ -305,8 +305,19 @@ HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
 
 HeapImpl::~HeapImpl()
 {
-    // Release all cached pages
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
+    SLANG_CUDA_CTX_SCOPE(deviceImpl);
+
+    // The base Heap destructor only deletes resident PageImpl objects, leaving
+    // their CUDA allocations behind. Release them through the backend path.
+    for (Page* page : m_pages)
+    {
+        Result result = freePage(page);
+        SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
+    }
+    m_pages.clear();
+
+    // This also frees the pages moved to the cache above when caching is on.
     m_pageCache.releaseAll(deviceImpl, m_desc.memoryType);
 }
 

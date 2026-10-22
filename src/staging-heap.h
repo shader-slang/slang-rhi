@@ -214,6 +214,9 @@ public:
     // Unmap memory for allocation if necessary (for heap that keeps pages mapped, this is noop)
     Result unmap(const Allocation& allocation);
 
+    // Write data to an allocation (through the device if pages are not kept mapped)
+    Result write(const Allocation& allocation, const void* data, size_t size);
+
 private:
     Device* m_device = nullptr;
     int m_nextPageId = 1;

@@ -42,7 +42,7 @@ struct Camera
     }
 };
 
-struct FlyCameraController
+struct CameraController
 {
     Camera* camera = nullptr;
     bool mouseDown = false;

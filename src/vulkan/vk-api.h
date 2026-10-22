@@ -23,6 +23,7 @@ typedef struct _XDisplay Display;
 typedef unsigned long Window;
 typedef unsigned long VisualID;
 #include <vulkan/vulkan_xlib.h>
+#include <vulkan/vulkan_wayland.h>
 #endif
 
 // Undef xlib macros
@@ -61,6 +62,7 @@ protected:
     x(vkGetInstanceProcAddr) \
     x(vkCreateInstance) \
     x(vkEnumerateInstanceLayerProperties) \
+    x(vkEnumerateInstanceExtensionProperties) \
     x(vkEnumerateDeviceExtensionProperties) \
     x(vkDestroyInstance) \
     /* */
@@ -217,6 +219,7 @@ protected:
     #else
         #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
             x(vkCreateXlibSurfaceKHR) \
+            x(vkCreateWaylandSurfaceKHR) \
             /* */
     #endif
 #else
