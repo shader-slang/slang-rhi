@@ -1,6 +1,7 @@
 #include "testing.h"
 
 #include <chrono>
+#include <future>
 #include <initializer_list>
 #include <cmath>
 
@@ -348,6 +349,96 @@ GPU_TEST_CASE("cmd-query-reuse-slot-without-reset", ALL)
     checkQueryResultReady(queryPool, 0, 1);
     REQUIRE_CALL(queryPool->getResult(0, 1, &secondTimestamp));
     CHECK(secondTimestamp >= firstTimestamp);
+}
+
+GPU_TEST_CASE("cmd-query-reuse-in-flight-results", ALL)
+{
+    if (!device->hasFeature(Feature::TimestampQuery))
+        SKIP("Timestamp queries not supported");
+
+    auto pool = createTimestampQueryPool(device, 6);
+    auto queue = device->getQueue(QueueType::Graphics);
+    REQUIRE_CALL(queue->submit(createTimestampCommandBuffer(queue, pool, {0, 1, 2, 3, 4, 5})));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    for (uint32_t frame = 0; frame < 64; ++frame)
+    {
+        REQUIRE_CALL(pool->reset());
+        auto encoder = queue->createCommandEncoder();
+        for (uint32_t region = 0; region < 3; ++region)
+        {
+            auto pass = encoder->beginComputePass();
+            pass->writeTimestamp(pool, region * 2);
+            pass->writeTimestamp(pool, region * 2 + 1);
+            pass->end();
+        }
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+
+        // Exercise both nonblocking readiness and direct blocking reads while
+        // the reused queries may still contain the previous submission's data.
+        QueryResultState state = QueryResultState::Pending;
+        REQUIRE_CALL(pool->getResultState(0, 6, &state));
+        bool readEarly = state == QueryResultState::Resolved || frame % 2 == 0;
+        uint64_t early[6] = {};
+        if (readEarly)
+            REQUIRE_CALL(pool->getResult(0, 6, early));
+
+        REQUIRE_CALL(queue->waitOnHost());
+        uint64_t completed[6] = {};
+        REQUIRE_CALL(pool->getResult(0, 6, completed));
+        if (readEarly)
+        {
+            for (uint32_t i = 0; i < 6; ++i)
+                CHECK(early[i] == completed[i]);
+        }
+    }
+}
+
+GPU_TEST_CASE("cmd-query-reuse-pending-submission", D3D12 | Vulkan)
+{
+    if (!device->hasFeature(Feature::TimestampQuery))
+        SKIP("Timestamp queries not supported");
+
+    auto pool = createTimestampQueryPool(device, 1);
+    auto queue = device->getQueue(QueueType::Graphics);
+    REQUIRE_CALL(queue->submit(createTimestampCommandBuffer(queue, pool, {0})));
+    REQUIRE_CALL(queue->waitOnHost());
+    checkQueryResultReady(pool, 0, 1);
+
+    ComPtr<IFence> gate;
+    REQUIRE_CALL(device->createFence(FenceDesc{}, gate.writeRef()));
+    auto commands = createTimestampCommandBuffer(queue, pool, {0});
+    ICommandBuffer* commandBuffers[] = {commands};
+    IFence* waitFences[] = {gate};
+    uint64_t waitValues[] = {1};
+    SubmitDesc submit = {};
+    submit.commandBuffers = commandBuffers;
+    submit.commandBufferCount = 1;
+    submit.waitFences = waitFences;
+    submit.waitFenceValues = waitValues;
+    submit.waitFenceCount = 1;
+    REQUIRE_CALL(queue->submit(submit));
+
+    // The previous use is available, but the latest timestamp cannot finish
+    // until we release the gate. A readiness check must return Pending without
+    // relying on getResult() to wait. Release the gate even if polling blocks.
+    QueryResultState state = QueryResultState::Reset;
+    auto poll = std::async(
+        std::launch::async,
+        [&]
+        {
+            return pool->getResultState(0, 1, &state);
+        }
+    );
+    bool returned = poll.wait_for(std::chrono::seconds(2)) == std::future_status::ready;
+    Result releaseResult = gate->setCurrentValue(1);
+    Result pollResult = poll.get();
+    REQUIRE_CALL(releaseResult);
+    REQUIRE_CALL(pollResult);
+    REQUIRE_CALL(queue->waitOnHost());
+    CHECK(returned);
+    CHECK(state == QueryResultState::Pending);
+    checkQueryResultReady(pool, 0, 1);
 }
 
 GPU_TEST_CASE("cmd-query-reset-invalidates-ready-result", ALL)

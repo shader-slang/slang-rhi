@@ -16,9 +16,13 @@ on:
       - "LICENSES/**"
       - "LICENSE"
       - "**.md"
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Let main finish any Pages deployment; superseded PR builds can be cancelled.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -100,6 +104,30 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
 
+      - name: Package browser examples
+        if: matrix.compiler == 'emscripten' && matrix.config == 'Release'
+        run: |
+          cmake --build build --config Release --target example-site
+          mkdir -p build/pages/examples
+          cp -a build/Release/site/. build/pages/examples/
+
+      - name: Upload browser examples for review
+        if: matrix.compiler == 'emscripten' && matrix.config == 'Release' && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-examples
+          path: build/pages
+          if-no-files-found: error
+
+      - name: Upload GitHub Pages artifact
+        if: >-
+          matrix.compiler == 'emscripten' && matrix.config == 'Release' &&
+          github.repository == 'shader-slang/slang-rhi' && github.ref == 'refs/heads/main' &&
+          github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/pages
+
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
         run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
@@ -130,6 +158,26 @@ jobs:
           path: build/coverage.lcov
           if-no-files-found: error
           overwrite: true
+
+  deploy-examples:
+    needs: build
+    if: >-
+      github.repository == 'shader-slang/slang-rhi' && github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}examples/
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy browser examples
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   coverage:
     needs: build

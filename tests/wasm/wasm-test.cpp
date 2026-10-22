@@ -26,7 +26,6 @@ int main()
             }
         }
     } callback;
-    // Keep test callers and their lambdas covered by the preset's *main* pattern.
     auto testBindings = [](IDevice* device, bool graphics, bool deferred) -> Result
     {
         const char* source = R"(
@@ -115,12 +114,17 @@ int main()
                 return SLANG_FAIL;
             ComPtr<ITexture> texture;
 #ifdef __EMSCRIPTEN__
-            // Even successful binding creation must not yield after canvas acquisition.
+            SLANG_RETURN_ON_FAIL(surface->acquireNextImage(texture.writeRef()));
+            if (texture->getDesc().usage != surface->getConfig()->usage)
+                return SLANG_FAIL;
+            // Acquired surface images must survive browser turns before rendering.
+            // The backend must defer actual canvas acquisition until present().
+            emscripten_sleep(0);
+            // Binding creation itself should still avoid unnecessary yields.
             EM_ASM({
                 Module['rhiBindingYielded'] = false;
                 setTimeout(function() { Module['rhiBindingYielded'] = true; }, 0);
             });
-            SLANG_RETURN_ON_FAIL(surface->acquireNextImage(texture.writeRef()));
 #else
             TextureDesc textureDesc = {};
             textureDesc.size = {1, 1, 1};
@@ -183,7 +187,13 @@ int main()
         }
 #endif
         if (surface)
+        {
+#ifdef __EMSCRIPTEN__
+            // Rendering can also yield after submission, for example during profiler readback.
+            emscripten_sleep(0);
+#endif
             SLANG_RETURN_ON_FAIL(surface->present());
+        }
         SLANG_RETURN_ON_FAIL(queue->waitOnHost());
         ComPtr<ISlangBlob> data;
         SLANG_RETURN_ON_FAIL(device->readBuffer(buffer, 0, sizeof(uint32_t), data.writeRef()));

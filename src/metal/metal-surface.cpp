@@ -41,7 +41,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     m_metalLayer->setDrawableSize(CGSize{(float)m_config.width, (float)m_config.height});
     const TextureUsage framebufferOnlyUsage = TextureUsage::Present | TextureUsage::RenderTarget;
     m_metalLayer->setFramebufferOnly((m_config.usage & ~framebufferOnlyUsage) == TextureUsage::None);
-    // m_metalLayer->setDisplaySyncEnabled(config.vsync);
+    CocoaUtil::setDisplaySyncEnabled(m_metalLayer.get(), config.vsync);
     m_configured = true;
 
     return SLANG_OK;

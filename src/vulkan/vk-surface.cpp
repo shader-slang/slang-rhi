@@ -128,12 +128,28 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 #else
     case WindowHandleType::XlibWindow:
     {
+        if (!api.vkCreateXlibSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
         VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
         SLANG_VK_RETURN_ON_FAIL_REPORT(
             api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
+        break;
+    }
+    case WindowHandleType::WaylandSurface:
+    {
+        if (!api.vkCreateWaylandSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
+        VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.display = (wl_display*)windowHandle.handleValues[0];
+        surfaceCreateInfo.surface = (wl_surface*)windowHandle.handleValues[1];
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateWaylandSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
             m_device
         );
         break;
