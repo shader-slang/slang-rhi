@@ -162,7 +162,8 @@ Result AccelerationStructureBuildDescConverter::convert(
                 );
             }
 
-            uint32_t triangleCount = max(triangles.vertexCount, triangles.indexCount) / 3;
+            // With an index buffer, the triangles are defined by the indices.
+            uint32_t triangleCount = (triangles.indexBuffer ? triangles.indexCount : triangles.vertexCount) / 3;
             triangleDescriptor->setTriangleCount(triangleCount);
 
             if (triangles.preTransformBuffer)
