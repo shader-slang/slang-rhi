@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="viewer.css">
+  <title>slang-rhi Examples</title>
+</head>
+<body>
+  <header>
+    <a class="brand" href="https://github.com/shader-slang/slang-rhi">slang-rhi <span>Examples</span></a>
+    <label id="example-picker" hidden><span class="sr-only">Example</span><select id="example-select" aria-label="Example"></select></label>
+    <div class="runtime-info">
+      <span id="fps" aria-label="Frames per second" hidden></span>
+      <a id="source" href="https://github.com/shader-slang/slang-rhi/tree/main/examples" target="_blank" rel="noopener">View source</a>
+    </div>
+  </header>
+  <main id="viewport">
+    <canvas id="canvas" tabindex="0" aria-label="Interactive graphics example"></canvas>
+    <div id="message" role="status" aria-live="polite">
+      <span id="status">Loading examples...</span>
+      <a id="restart" href="" hidden>Reload example</a>
+    </div>
+  </main>
+  <footer>
+    <details id="log">
+      <summary>Diagnostics</summary>
+      <p id="adapter" hidden></p>
+      <pre id="output" aria-label="Runtime log"></pre>
+    </details>
+  </footer>
+  <noscript>Enable JavaScript to run these examples.</noscript>
+  <template id="runtime-script">{{{ SCRIPT }}}</template>
+  <script src="viewer.js"></script>
+</body>
+</html>
