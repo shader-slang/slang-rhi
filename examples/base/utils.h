@@ -20,6 +20,7 @@
 #include <random>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 // ---------------------------------------------------------------------------------------
@@ -262,21 +263,23 @@ inline Result _createProgram(
         LOG_ERROR("Failed to load Slang module from '%s'", pathOrSource);
         return SLANG_FAIL;
     }
-    std::vector<slang::IComponentType*> entryPoints;
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
-        slang::IEntryPoint* entryPoint;
-        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, &entryPoint)))
+        ComPtr<slang::IEntryPoint> entryPoint;
+        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, entryPoint.writeRef())))
         {
             LOG_ERROR("Failed to find entry point '%s' in module '%s'", entryPointName, pathOrSource);
             return SLANG_FAIL;
         }
-        entryPoints.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(std::move(entryPoint));
     }
     ShaderProgramDesc programDesc = {};
     programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    programDesc.slangEntryPoints = entryPoints.data();
-    programDesc.slangEntryPointCount = entryPoints.size();
+    programDesc.slangEntryPoints = entryPointComponents.data();
+    programDesc.slangEntryPointCount = entryPointComponents.size();
     programDesc.slangGlobalScope = module;
     device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
     PRINT_DIAGNOSTICS(diagnostics);
