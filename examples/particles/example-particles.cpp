@@ -1,7 +1,7 @@
 // GPU particle example: compute shaders simulate, compact, and spawn particles
 // that gather into the Slang logo and burst apart. GPU-generated draw arguments
-// drive indirect rendering, followed by bloom and tone mapping. Move the mouse
-// to stir particles; the overlay lists the remaining controls.
+// drive indirect rendering, followed by bloom and tone mapping.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/logo.h"
@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+
+namespace {
 
 using namespace rhi;
 
@@ -285,6 +287,7 @@ Result Renderer::step(ICommandEncoder* encoder, SimulationParams params)
     uint32_t next = 1 - m_current;
     encoder->clearBuffer(m_counts[next]);
     auto pass = encoder->beginComputePass();
+    Profiler::pushRegion(pass, "Simulation step");
     pass->pushDebugGroup("Simulate and compact particles", {});
     ShaderCursor cursor(pass->bindPipeline(m_simulate));
     SLANG_RETURN_ON_FAIL(cursor["sim"].setData(params));
@@ -314,8 +317,8 @@ Result Renderer::step(ICommandEncoder* encoder, SimulationParams params)
     SLANG_RETURN_ON_FAIL(cursor["outputCount"].setBinding(m_counts[next]));
     SLANG_RETURN_ON_FAIL(cursor["drawArguments"].setBinding(m_arguments));
     pass->dispatchCompute(1, 1, 1);
-
     pass->popDebugGroup();
+    Profiler::popRegion(pass);
     pass->end();
     m_current = next;
     return SLANG_OK;
@@ -336,6 +339,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, bool bloom)
     desc.colorAttachments = &color;
     desc.colorAttachmentCount = 1;
     auto pass = encoder->beginRenderPass(desc);
+    Profiler::pushRegion(pass, "Particles + logo");
     pass->pushDebugGroup("Particle HDR scene", {});
     float aspect = float(m_width) / m_height;
     auto state = renderState();
@@ -371,8 +375,8 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, bool bloom)
         draw.instanceCount = m_capacity;
         pass->draw(draw);
     }
-
     pass->popDebugGroup();
+    Profiler::popRegion(pass);
     pass->end();
 
     if (bloom)
@@ -380,7 +384,8 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, bool bloom)
         for (uint32_t i = 0; i < 3; ++i)
         {
             auto compute = encoder->beginComputePass();
-
+            if (i == 0)
+                Profiler::pushRegion(compute, "Bloom");
             compute->pushDebugGroup("Particle bloom", {});
             ShaderCursor filter(compute->bindPipeline(m_bloomPipeline));
             SLANG_RETURN_ON_FAIL(filter["source"].setBinding(i == 0 ? m_hdr.get() : m_bloom[(i - 1) % 2].get()));
@@ -388,13 +393,15 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, bool bloom)
             SLANG_RETURN_ON_FAIL(filter["linearSampler"].setBinding(m_sampler));
             SLANG_RETURN_ON_FAIL(filter["bloomPass"].setData(i));
             compute->dispatchCompute(((m_width + 1) / 2 + 7) / 8, ((m_height + 1) / 2 + 7) / 8, 1);
-
             compute->popDebugGroup();
+            if (i == 2)
+                Profiler::popRegion(compute);
             compute->end();
         }
     }
     color.view = output->getDefaultView();
     pass = encoder->beginRenderPass(desc);
+    Profiler::pushRegion(pass, "Tone map");
     cursor = ShaderCursor(pass->bindPipeline(m_toneMapPipeline));
     SLANG_RETURN_ON_FAIL(cursor["source"].setBinding(m_hdr));
     SLANG_RETURN_ON_FAIL(cursor["bloom"].setBinding(bloom ? m_bloom[0].get() : m_hdr.get()));
@@ -406,7 +413,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, bool bloom)
     DrawArguments draw = {};
     draw.vertexCount = 3;
     pass->draw(draw);
-
+    Profiler::popRegion(pass);
     pass->end();
     return SLANG_OK;
 }
@@ -467,15 +474,16 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Particle energy sculpture", 960, 720));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
         m_renderer = std::make_unique<Renderer>();
         SLANG_RETURN_ON_FAIL(m_renderer->init(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_renderer->resize(m_surface->getConfig()->width, m_surface->getConfig()->height));
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
 
-        // Live-count telemetry is independent of simulation. D3D11
+        // Live-count telemetry is independent of simulation and profiling. D3D11
         // has no RHI fence implementation, so it simply omits this optional HUD value.
         if (deviceType != DeviceType::D3D11)
         {
@@ -528,6 +536,8 @@ public:
         if (!image)
             return SLANG_OK;
         SLANG_RETURN_ON_FAIL(pollReadbacks());
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
         ComPtr<ICommandEncoder> encoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         if (m_reset)
@@ -590,6 +600,7 @@ public:
             submit.signalFenceCount = 1;
         }
         SLANG_RETURN_ON_FAIL(m_queue->submit(submit));
+        SLANG_RETURN_ON_FAIL(profile.end());
         return presentSurface();
     }
 
@@ -700,9 +711,9 @@ private:
     {
         clearOverlay();
         printOverlayHeader();
-        printOverlay("Move mouse: Stir | Left: Attract | Right: Repel\n");
-        printOverlay("[ / ]: Emission | Space: Pause | N: Single step\n");
-        printOverlay("F: Burst | R: Reset | B: Bloom | D: Direct/indirect draw\n\n");
+        printOverlay("^3Mouse^0: Stir | ^3Left mouse^0: Attract | ^3Right mouse^0: Repel\n");
+        printOverlay("^3[/]^0: Emission | ^3Space^0: Pause | ^3N^0: Single step\n");
+        printOverlay("^3F^0: Burst | ^3R^0: Reset | ^3B^0: Bloom | ^3D^0: Direct/indirect draw\n\n");
         printOverlay(
             "%s | Emission: %u/sec | %s | Bloom: %s\n",
             m_renderer->indirect() ? "Indirect draw" : "Direct draw",
@@ -714,7 +725,7 @@ private:
             printOverlay("Live particles: %u / %u (delayed)\n", m_liveCount, m_renderer->capacity());
         else
             printOverlay("Live particles: %s\n", m_readbackFence ? "pending" : "readback unavailable");
-        printOverlay("Phase: %s", m_renderer->phaseName());
+        printOverlay("Phase: %s\n", m_renderer->phaseName());
         return drawOverlay(encoder, image);
     }
 
@@ -732,4 +743,6 @@ private:
     bool m_paused = false, m_singleStep = false, m_reset = true, m_bloom = true, m_countValid = false;
 };
 
-EXAMPLE_MAIN(ExampleParticles)
+} // namespace
+
+EXAMPLE_MAIN(ExampleParticles, "particles", "Particles")

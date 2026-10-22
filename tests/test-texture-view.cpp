@@ -1461,3 +1461,66 @@ GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
 
     device->getQueue(QueueType::Graphics)->waitOnHost();
 }
+
+// Test that a view covering the whole texture in a different (sRGB) format reads through the view's format.
+GPU_TEST_CASE("texture-view-srgb-whole-texture", D3D12 | Vulkan | Metal)
+{
+    const char* shaderSource = R"(
+        [shader("compute")]
+        [numthreads(1, 1, 1)]
+        void computeMain(Texture2D<float4> texture, RWStructuredBuffer<float4> result)
+        {
+            result[0] = texture.Load(int3(0, 0, 0));
+        }
+    )";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadComputeProgramFromSource(device, shaderSource, shaderProgram.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2D;
+    textureDesc.size = {1, 1, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::Typeless;
+    const uint8_t texel[4] = {128, 128, 128, 255};
+    SubresourceData subresourceData = {texel, 4, 4};
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, &subresourceData, texture.writeRef()));
+
+    TextureViewDesc viewDesc = {};
+    viewDesc.format = Format::RGBA8UnormSrgb;
+    ComPtr<ITextureView> view;
+    REQUIRE_CALL(device->createTextureView(texture, viewDesc, view.writeRef()));
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = 4 * sizeof(float);
+    bufferDesc.elementSize = 4 * sizeof(float);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    auto pass = encoder->beginComputePass();
+    ShaderCursor cursor(pass->bindPipeline(pipeline));
+    cursor["texture"].setBinding(view);
+    cursor["result"].setBinding(buffer);
+    pass->dispatchCompute(1, 1, 1);
+    pass->end();
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    // sRGB 128/255 decodes to ~0.2158 linear; the unorm value would be ~0.502.
+    ComPtr<ISlangBlob> resultBlob;
+    REQUIRE_CALL(device->readBuffer(buffer, 0, bufferDesc.size, resultBlob.writeRef()));
+    const float* result = static_cast<const float*>(resultBlob->getBufferPointer());
+    CHECK(result[0] == doctest::Approx(0.2158f).epsilon(0.01));
+    CHECK(result[1] == doctest::Approx(0.2158f).epsilon(0.01));
+    CHECK(result[2] == doctest::Approx(0.2158f).epsilon(0.01));
+    CHECK(result[3] == doctest::Approx(1.0f));
+}

@@ -1,9 +1,7 @@
 // Rasterization example: a Slang logo and instanced material spheres lit by a
 // directional light and procedural environments. The frame records a shadow pass,
 // an HDR scene with optional 4x MSAA, compute bloom, and fullscreen tone mapping.
-// Shader cursors bind resources and parameters; debug groups label the GPU passes.
-// Fly the camera with mouse and keyboard, or drag to move the light. The overlay lists
-// the remaining controls; F1 toggles it.
+// The overlay lists controls; F1 toggles it.
 
 #include "../base/example.h"
 #include "../base/logo.h"
@@ -17,6 +15,8 @@
 #include <iterator>
 #include <memory>
 #include <vector>
+
+namespace {
 
 using namespace rhi;
 
@@ -501,13 +501,15 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     RenderPassDesc pass = {};
     pass.depthStencilAttachment = &depth;
     auto renderPass = encoder->beginRenderPass(pass);
+    Profiler::pushRegion(renderPass, "Raster frame");
+    Profiler::pushRegion(renderPass, "Shadows");
     renderPass->pushDebugGroup("Shadow map", {});
     ShaderCursor shadowCursor(renderPass->bindPipeline(m_shadowPipeline));
     SLANG_RETURN_ON_FAIL(shadowCursor["frame"]["lightViewProjection"].setData(lightViewProjection));
     renderPass->setRenderState(renderState(kShadowSize, kShadowSize));
-    DrawArguments draw = {};
-    draw.vertexCount = m_indexCount;
-    renderPass->drawIndexed(draw);
+    DrawArguments shadowDraw = {};
+    shadowDraw.vertexCount = m_indexCount;
+    renderPass->drawIndexed(shadowDraw);
     if (settings.spheres)
     {
         ShaderCursor cursor(renderPass->bindPipeline(m_sphereShadowPipeline));
@@ -520,6 +522,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         renderPass->drawIndexed(sphereDraw);
     }
     renderPass->popDebugGroup();
+    Profiler::popRegion(renderPass);
     renderPass->end();
 
     RenderPassColorAttachment color = {};
@@ -529,6 +532,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     pass.colorAttachmentCount = 1;
     pass.depthStencilAttachment = nullptr;
     renderPass = encoder->beginRenderPass(pass);
+    Profiler::pushRegion(renderPass, "Scene");
     renderPass->pushDebugGroup("Procedural environment background", {});
     ShaderCursor background(renderPass->bindPipeline(msaa ? m_msaaBackgroundPipeline : m_backgroundPipeline));
     SLANG_RETURN_ON_FAIL(background["frame"]["cameraRight"].setData(camera.imageU));
@@ -587,6 +591,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         SLANG_RETURN_ON_FAIL(cursor["material"]["metallic"].setData(material.metallic));
         SLANG_RETURN_ON_FAIL(cursor["material"]["roughness"].setData(material.roughness));
         SLANG_RETURN_ON_FAIL(cursor["material"]["groundPattern"].setData(material.groundPattern));
+        DrawArguments draw = {};
         draw.startIndexLocation = mesh.firstIndex;
         draw.vertexCount = mesh.indexCount;
         renderPass->drawIndexed(draw);
@@ -605,6 +610,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         renderPass->popDebugGroup();
     }
     renderPass->popDebugGroup();
+    Profiler::popRegion(renderPass);
     renderPass->end();
 
     if (settings.bloom)
@@ -612,6 +618,8 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
         for (uint32_t i = 0; i < 3; ++i)
         {
             auto computePass = encoder->beginComputePass();
+            if (i == 0)
+                Profiler::pushRegion(computePass, "Bloom");
             computePass->pushDebugGroup(
                 i == 0   ? "Bloom highlights"
                 : i == 1 ? "Bloom horizontal"
@@ -626,6 +634,8 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
             auto size = m_bloom[i % 2]->getDesc().size;
             computePass->dispatchCompute(math::divRoundUp(size.width, 8u), math::divRoundUp(size.height, 8u), 1);
             computePass->popDebugGroup();
+            if (i == 2)
+                Profiler::popRegion(computePass);
             computePass->end();
         }
     }
@@ -635,6 +645,7 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     color.loadOp = LoadOp::Clear;
     pass.depthStencilAttachment = nullptr;
     renderPass = encoder->beginRenderPass(pass);
+    Profiler::pushRegion(renderPass, "Tone map");
     renderPass->pushDebugGroup("Tone mapping", {});
     ShaderCursor cursor(renderPass->bindPipeline(m_toneMapPipeline));
     SLANG_RETURN_ON_FAIL(cursor["source"].setBinding(m_hdr));
@@ -651,10 +662,12 @@ Result Renderer::render(ICommandEncoder* encoder, ITexture* output, const Camera
     state.scissorRects[0] = ScissorRect::fromSize(m_width, m_height);
     state.scissorRectCount = 1;
     renderPass->setRenderState(state);
-    draw = {};
+    DrawArguments draw = {};
     draw.vertexCount = 3;
     renderPass->draw(draw);
     renderPass->popDebugGroup();
+    Profiler::popRegion(renderPass); // Tone map
+    Profiler::popRegion(renderPass); // Raster frame
     renderPass->end();
     return SLANG_OK;
 }
@@ -745,7 +758,7 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Slang logo", 960, 640));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
@@ -753,6 +766,8 @@ public:
         m_renderer = std::make_unique<Renderer>();
         SLANG_RETURN_ON_FAIL(m_renderer->init(m_device, m_surface->getConfig()->format));
         SLANG_RETURN_ON_FAIL(m_renderer->resize(m_surface->getConfig()->width, m_surface->getConfig()->height));
+
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
 
         m_cameraController.setCamera(&m_camera);
         resetCamera();
@@ -789,6 +804,8 @@ public:
         m_camera.width = image->getDesc().size.width;
         m_camera.height = image->getDesc().size.height;
         m_camera.recompute();
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
         ComPtr<ICommandEncoder> encoder;
         SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(encoder.writeRef()));
         SLANG_RETURN_ON_FAIL(m_renderer->render(encoder, image, m_camera, m_settings));
@@ -796,6 +813,7 @@ public:
         ComPtr<ICommandBuffer> commands;
         SLANG_RETURN_ON_FAIL(encoder->finish(commands.writeRef()));
         SLANG_RETURN_ON_FAIL(m_queue->submit(commands));
+        SLANG_RETURN_ON_FAIL(profile.end());
         return presentSurface();
     }
 
@@ -884,7 +902,7 @@ private:
 
     const char* msaaStatus() const
     {
-        return !m_renderer->supportsMsaa() ? "UNAVAILABLE" : m_settings.msaa ? "4X" : "OFF";
+        return !m_renderer->supportsMsaa() ? "unavailable" : m_settings.msaa ? "4x" : "off";
     }
 
     Result drawStatusOverlay(ICommandEncoder* encoder, ITexture* image)
@@ -892,23 +910,23 @@ private:
         clearOverlay();
         printOverlayHeader();
         printCameraControls();
-        printOverlay("Right drag: Light | [ / ]: Roughness | - / =: Exposure | B: Bloom\n");
-        printOverlay("N: Environment | , / .: Rotate environment | I: Lighting\n");
-        printOverlay("M: MSAA | G: Sphere grid | R: Reset\n\n");
+        printOverlay("^3Right drag^0: Light | ^3[/]^0: Roughness | ^3-/=^0: Exposure | ^3B^0: Bloom\n");
+        printOverlay("^3N^0: Environment | ^3,/.^0: Rotate environment | ^3I^0: Lighting\n");
+        printOverlay("^3M^0: MSAA | ^3G^0: Sphere grid | ^3R^0: Reset\n\n");
         printOverlay(
-            "Roughness %.2f | Exposure %+.2f | Bloom %s\n",
+            "Roughness: %.2f | Exposure: %+.2f | Bloom: %s\n",
             m_settings.roughness,
             m_settings.exposure,
             m_settings.bloom ? "on" : "off"
         );
         printOverlay(
-            "MSAA %s | Spheres %u | Environment %s\n",
+            "MSAA: %s | Spheres: %u | Environment: %s\n",
             msaaStatus(),
             m_settings.spheres ? kSphereCount : 0u,
             m_settings.environmentPreset == 0 ? "studio" : "outdoor"
         );
         printOverlay(
-            "Environment angle %+.0f deg | Lighting %s",
+            "Environment angle: %+.0f deg | Lighting: %s\n",
             math::degrees(m_settings.environmentRotation),
             m_settings.environmentLighting ? "on" : "off"
         );
@@ -926,4 +944,6 @@ private:
     double m_time = -1.0;
 };
 
-EXAMPLE_MAIN(ExampleRaster)
+} // namespace
+
+EXAMPLE_MAIN(ExampleRaster, "raster", "Raster")
