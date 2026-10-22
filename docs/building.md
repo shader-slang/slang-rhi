@@ -52,6 +52,18 @@ Use `index.html?example=raster` to launch a specific example.
 The `example-site` target assembles a self-contained `site/` directory containing
 all runtime assets. To host the examples, publish its contents together over HTTPS.
 
+CI packages the Emscripten Release build on pull requests and on `main`. Pull
+requests expose a downloadable `browser-examples` artifact. Only pushes to
+upstream `main` deploy the site, after the full build matrix succeeds, to
+<https://shader-slang.github.io/slang-rhi/examples/> using GitHub Pages. The Pages
+artifact contains an `examples/` subdirectory, leaving the site root available
+for future content. Each deployment replaces the entire Pages site; future
+content must be included in the same artifact.
+
+Repository setup: select **GitHub Actions** under **Settings > Pages > Build and
+deployment > Source**, and restrict the `github-pages` environment to deployments
+from `main`. Pull requests and manual workflow runs do not deploy.
+
 The browser smoke test lives in `tests/wasm` and is built as `wasm-test` when
 `SLANG_RHI_BUILD_TESTS` is enabled, independently of `SLANG_RHI_BUILD_EXAMPLES`.
 Build `wasm-test` and serve `build/browser/Release` to open `wasm-test.html`.
