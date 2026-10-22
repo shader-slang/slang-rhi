@@ -12,11 +12,12 @@ var Module = {rhiState : 'loading'};
   let currentExample = null;
   let navigationTarget = null;
   let runtimeError = null;
+  let failureShown = false;
 
   function showStatus(text, error = false) {
     message.hidden = false;
     message.toggleAttribute('data-error', error);
-    status.textContent = text;
+    if (status.textContent !== text) status.textContent = text;
   }
 
   function report(text, level = 'info') {
@@ -138,7 +139,7 @@ var Module = {rhiState : 'loading'};
       byId('adapter').textContent = Module.rhiAdapterName || '';
     if (failed) {
       showStatus(runtimeError || 'Unable to run this example. See Diagnostics below.', true);
-      byId('log').open = true;
+      if (!failureShown) byId('log').open = true;
     } else if (running) {
       message.hidden = true;
       const fpsText = Module.rhiFps > 0 ? Module.rhiFps.toFixed(1) + ' FPS' : '-- FPS';
@@ -148,6 +149,7 @@ var Module = {rhiState : 'loading'};
     } else if (state === 'loading' || state === 'stopping') {
       showStatus('Loading example...');
     }
+    failureShown = failed;
     requestAnimationFrame(updateStatus);
   }
 

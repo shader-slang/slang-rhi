@@ -316,6 +316,25 @@ def check_lifecycle(browser, base_url, site):
     entry = "/index.html" if site else "/example-runner.html"
     page = browser.new_page()
     page.set_default_timeout(120000)
+
+    def check_stable_status(collapse_diagnostics=False):
+        # Let the viewer observe the terminal state before interacting with it.
+        page.evaluate("async () => { for (let i = 0; i < 2; ++i) await new Promise(requestAnimationFrame); }")
+        if collapse_diagnostics:
+            assert page.locator("#log").evaluate("element => element.open")
+            page.locator("#log summary").click()
+        mutations = page.evaluate("""async () => {
+            let mutations = 0;
+            const observer = new MutationObserver(records => mutations += records.length);
+            observer.observe(document.querySelector('#status'), {childList: true, characterData: true, subtree: true});
+            for (let i = 0; i < 5; ++i) await new Promise(requestAnimationFrame);
+            observer.disconnect();
+            return mutations;
+        }""")
+        assert mutations == 0, "Unchanged status text kept updating the live region"
+        if collapse_diagnostics:
+            assert not page.locator("#log").evaluate("element => element.open"), "Diagnostics reopened after being collapsed"
+
     try:
         page.goto(base_url + entry)
         page.wait_for_function("Module.rhiState === 'running' && Module.rhiFrameCount >= 8")
@@ -344,15 +363,25 @@ def check_lifecycle(browser, base_url, site):
         page.wait_for_function("document.querySelector('#output').textContent.includes('returning to Triangle')")
         page.wait_for_function("Module.rhiExample === 'triangle' && Module.rhiState === 'running' && Module.rhiFrameCount >= 8")
         assert page.locator("#example-select").is_enabled()
+        assert parse_qs(urlparse(page.url).query)["example"] == ["triangle"]
+
+        # The fallback must also clear pending navigation for subsequent canvas selections.
         page.locator("#canvas").focus()
+        page.keyboard.press("F5")
+        page.keyboard.press("ArrowUp")
+        page.keyboard.press("Enter")
+        page.wait_for_function("Module.rhiExample === 'surface' && Module.rhiState === 'running' && Module.rhiFrameCount >= 8")
+        assert parse_qs(urlparse(page.url).query)["example"] == ["surface"]
         page.keyboard.press("Escape")
         page.wait_for_function("Module.rhiState === 'stopped'")
         page.wait_for_function("document.querySelector('#status').textContent.includes('Example stopped')")
+        check_stable_status()
 
         page.goto(base_url + entry + "?example=invalid-example")
         page.wait_for_function("Module.rhiState === 'failed'")
         page.wait_for_function("document.querySelector('#message').hasAttribute('data-error')")
         assert "Unknown example" in page.locator("#output").inner_text()
+        check_stable_status(collapse_diagnostics=True)
 
         # Download failures belong to the viewer; C++ never starts in this case.
         page.route("**/example-runner.js", lambda route: route.abort())
@@ -360,6 +389,7 @@ def check_lifecycle(browser, base_url, site):
         page.wait_for_function("document.querySelector('#status').textContent.includes('Could not download')")
         assert page.locator("#example-select").is_disabled()
         assert page.locator("#restart").is_visible()
+        check_stable_status(collapse_diagnostics=True)
         print("PASS diagnostics, failed selection recovery, terminal failure, and download failure", flush=True)
     except Exception:
         print(page.locator("#output").inner_text(), flush=True)
