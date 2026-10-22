@@ -8,6 +8,8 @@
 
 #include <slang-rhi/capabilities.h>
 
+#include <cmath>
+
 #if SLANG_RHI_SHARED
 #ifdef SLANG_RHI_SHARED_EXPORT
 #define SLANG_RHI_API SLANG_DLL_EXPORT
@@ -2464,6 +2466,36 @@ enum class QueryResultState
     Resolved,
 };
 
+/// Units and counter width of timestamp query results on the device's queue.
+/// Units describe the representation, not the accuracy of a measurement.
+struct TimestampInfo
+{
+    double nanosecondsPerTick = 0.0;
+    /// Number of valid low bits (1-64), or zero when timestamp queries are unsupported.
+    uint32_t validBits = 0;
+
+    /// Convert two completed timestamps from the same queue to elapsed seconds.
+    /// The interval must be shorter than one counter rollover. This cannot detect multiple rollovers,
+    /// reversed timestamps, or timestamps from different queues/devices. Subtracts before converting
+    /// to floating point to preserve short intervals at large counter values.
+    /// D3D11 samples must share a valid non-disjoint timing region and frequency; read the current
+    /// DeviceInfo::timestampInfo after obtaining their results.
+    /// Returns SLANG_E_NOT_AVAILABLE for unsupported timestamps and SLANG_E_INVALID_ARG for invalid
+    /// metadata or a null output pointer. The output is unchanged on failure.
+    Result getElapsedSeconds(uint64_t start, uint64_t end, double* outSeconds) const
+    {
+        if (!outSeconds)
+            return SLANG_E_INVALID_ARG;
+        if (validBits == 0)
+            return SLANG_E_NOT_AVAILABLE;
+        if (validBits > 64 || !std::isfinite(nanosecondsPerTick) || nanosecondsPerTick <= 0.0)
+            return SLANG_E_INVALID_ARG;
+        const uint64_t mask = validBits == 64 ? ~uint64_t(0) : (uint64_t(1) << validBits) - 1;
+        *outSeconds = double((end - start) & mask) * (nanosecondsPerTick * 1e-9);
+        return SLANG_OK;
+    }
+};
+
 struct QueryPoolDesc
 {
     static constexpr StructType kStructType = StructType::QueryPoolDesc;
@@ -2696,6 +2728,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
+    /// Record a timestamp in a Timestamp query pool. See ICommandEncoder::writeTimestamp for semantics.
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
@@ -2977,6 +3010,15 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
+    /// Record a device timestamp. Requires Feature::TimestampQuery, a pool of QueryType::Timestamp,
+    /// and an index less than the pool's count. D3D11/D3D12 and Vulkan use bottom-of-pipe placement;
+    /// CUDA records a timing event in the queue's configured stream; CPU samples its host clock.
+    /// These are completion markers, not barriers preventing subsequent work from overlapping.
+    /// Intervals can include scheduling delays and interference from other work.
+    /// Compare completed results from the same queue using DeviceInfo::timestampInfo. Counters can
+    /// wrap and equal timestamps are valid. CUDA results have microsecond units and currently cannot
+    /// be recorded on a different stream supplied through SubmitDesc::cudaStream.
+    /// Use ICommandQueue::getTimestampCalibration separately to correlate CPU and GPU timelines.
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) = 0;
@@ -3019,6 +3061,17 @@ public:
 enum class QueueType
 {
     Graphics,
+};
+
+/// Queue scheduling preference. Strength and scope depend on the backend; this does not grant
+/// exclusive GPU access or guarantee execution deadlines. See DeviceDesc::queuePriority.
+enum class QueuePriority
+{
+    Default,
+    Low,
+    Normal,
+    High,
+    Realtime,
 };
 
 enum class CpuTimestampDomain
@@ -3408,6 +3461,9 @@ struct DeviceInfo
     /// ICommandQueue::getTimestampCalibration().
     uint64_t timestampFrequency = 0;
 
+    /// Metadata for duration conversion. Zero validBits means timestamp queries are unsupported.
+    TimestampInfo timestampInfo;
+
     /// The version of OptiX used by the device (0 if OptiX is not supported).
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t optixVersion = 0;
@@ -3514,6 +3570,16 @@ struct DeviceDesc
 
     // The underlying API/Platform of the device.
     DeviceType deviceType = DeviceType::Default;
+    /// Priority of the device's queue. Default preserves the backend's existing behavior.
+    /// D3D12 supports Normal, High, and Realtime (native GLOBAL_REALTIME); Low is unsupported.
+    /// Vulkan maps explicit priorities to global LOW, MEDIUM, HIGH, and REALTIME respectively.
+    /// CUDA maps Low/Normal/High to the least/zero/greatest supported stream priorities, creating an
+    /// owned stream with default synchronization flags; Realtime is unsupported. SubmitDesc::cudaStream
+    /// overrides use the caller's stream priority. Other backends support only Default and Normal.
+    /// Unsupported requests fail with SLANG_E_NOT_AVAILABLE. Native permission/creation failures
+    /// are reported without falling back. Vulkan devices imported via existingDeviceHandles require
+    /// Default because their queue priority cannot be changed or verified.
+    QueuePriority queuePriority = QueuePriority::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
     // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
     // VkPhysicalDevice, and the third is the VkDevice.

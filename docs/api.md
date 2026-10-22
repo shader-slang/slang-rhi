@@ -1,5 +1,64 @@
 # API implementation status
 
+## Timestamp durations
+
+Check `Feature::TimestampQuery` before recording timestamps. `DeviceInfo::timestampInfo` describes
+the queue's timestamp units and valid counter width; `validBits == 0` means unsupported. The metadata
+is populated for CPU, CUDA, D3D11, D3D12, and Vulkan when timestamp queries are supported. Metal and
+WebGPU currently do not advertise this feature. The legacy `timestampFrequency` remains available.
+Vulkan preserves its native fractional `timestampPeriod` and checks the selected queue family's
+`timestampValidBits` instead of assuming every device supports timestamps.
+
+Record two `writeTimestamp` calls around the work, submit, and use `IQueryPool::getResultState` for
+non-blocking readiness checks. `getResult` blocks if necessary. Read the current metadata after
+reading results (D3D11 updates it from disjoint queries), then convert:
+
+```cpp
+uint64_t timestamps[2];
+SLANG_RETURN_ON_FAIL(queryPool->getResult(0, 2, timestamps));
+double seconds;
+SLANG_RETURN_ON_FAIL(device->getInfo().timestampInfo.getElapsedSeconds(timestamps[0], timestamps[1], &seconds));
+```
+
+The helper subtracts integer counters before floating-point conversion and handles counter rollover.
+Both samples must come from the same queue and the elapsed interval must be shorter than one full
+counter period. Multiple rollovers cannot be detected. D3D11 intervals must also belong to a valid,
+non-disjoint timing region with the same frequency. Equal timestamps are valid, and counter units
+do not promise equivalent measurement accuracy across backends.
+
+D3D11/D3D12 and Vulkan use bottom-of-pipe timestamps. CUDA uses timing-enabled events on the queue's
+configured stream and exposes synthetic microsecond counters; timestamp submissions using a different
+`SubmitDesc::cudaStream` remain unsupported. CPU uses its host clock. Timestamp markers do not isolate
+work or prevent subsequent work from overlapping, and intervals can include scheduling delays and
+interference. CPU/GPU timeline correlation uses `getTimestampCalibration` separately.
+
+## Queue priority
+
+`DeviceDesc::queuePriority` configures the queue created with the device. `Default` preserves existing
+behavior. Explicit requests never fall back silently in RHI; unsupported mappings return
+`SLANG_E_NOT_AVAILABLE`, invalid enum values return `SLANG_E_INVALID_ARG`, and native creation or
+permission failures propagate with backend diagnostics.
+
+| Priority | D3D12 | Vulkan | CUDA | CPU, D3D11, Metal, WebGPU |
+|----------|-------|--------|------|--------------------------|
+| `Default` | Normal | Existing local priority, global medium | NULL default stream | Existing behavior |
+| `Low` | Unsupported | Global low | Least supported stream priority | Unsupported |
+| `Normal` | Normal | Global medium | Stream priority zero | Existing normal behavior |
+| `High` | High | Global high | Greatest supported stream priority | Unsupported |
+| `Realtime` | Global realtime | Global realtime | Unsupported | Unsupported |
+
+Vulkan uses core 1.4, `VK_KHR_global_priority`, or `VK_EXT_global_priority`; when priority queries are
+supported, it checks and enables `globalPriorityQuery` for explicit non-normal requests. Support does
+not imply permission: device creation may still fail. Imported Vulkan logical devices accept only
+`Default`, because their queue priority cannot be changed or verified.
+
+CUDA explicit priorities create an owned stream with default synchronization flags. Low and Normal
+can map to the same native priority. Low/High fail when the device exposes no distinct priority levels.
+An override in `SubmitDesc::cudaStream` retains that stream's own priority. D3D12 global realtime and
+Vulkan elevated global priorities may require privileges, which the application must manage.
+Priority strength and scope differ across backends; these settings do not provide exclusive GPU
+ownership, portable preemption guarantees, or execution deadlines.
+
 ## `IDevice` interface
 
 | API                                | CPU     | CUDA | D3D11 | D3D12 | Vulkan | Metal   | WGPU |

@@ -85,6 +85,7 @@ Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryR
             return SLANG_FAIL;
         }
         device->m_info.timestampFrequency = disjointData.Frequency;
+        device->m_info.timestampInfo = {1e9 / double(disjointData.Frequency), 64};
 
         uint64_t value = 0;
         hr = device->m_immediateContext
@@ -145,6 +146,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
             return SLANG_FAIL;
         }
         device->m_info.timestampFrequency = disjointData.Frequency;
+        device->m_info.timestampInfo = {1e9 / double(disjointData.Frequency), 64};
 
         while ((hr = device->m_immediateContext->GetData(query.timestampQuery, outData + i, sizeof(uint64_t), 0)) ==
                S_FALSE)

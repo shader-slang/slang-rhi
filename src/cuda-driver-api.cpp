@@ -122,6 +122,8 @@ extern "C" bool rhiCudaDriverApiInit()
         LOAD(cuMemAdvise, "v2");
         LOAD(cuStreamCreate);
         LOAD(cuStreamCreateWithPriority);
+        LOAD(cuCtxGetStreamPriorityRange);
+        LOAD(cuStreamGetPriority);
         LOAD(cuStreamWaitEvent);
         LOAD(cuStreamSynchronize);
         LOAD(cuStreamQuery);
@@ -240,6 +242,8 @@ static void shutdownImpl()
     UNLOAD(cuMemAdvise);
     UNLOAD(cuStreamCreate);
     UNLOAD(cuStreamCreateWithPriority);
+    UNLOAD(cuCtxGetStreamPriorityRange);
+    UNLOAD(cuStreamGetPriority);
     UNLOAD(cuStreamWaitEvent);
     UNLOAD(cuStreamSynchronize);
     UNLOAD(cuStreamQuery);

@@ -1945,6 +1945,34 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    switch (device->m_queuePriority)
+    {
+    case QueuePriority::Default:
+    case QueuePriority::Normal:
+        queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+        break;
+    case QueuePriority::High:
+        queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_HIGH;
+        break;
+    case QueuePriority::Realtime:
+        queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_GLOBAL_REALTIME;
+        break;
+    default:
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (device->m_queuePriority != QueuePriority::Default)
+    {
+        D3D12_FEATURE_DATA_COMMAND_QUEUE_PRIORITY prioritySupport = {};
+        prioritySupport.CommandListType = queueDesc.Type;
+        prioritySupport.Priority = queueDesc.Priority;
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_d3dDevice
+                ->CheckFeatureSupport(D3D12_FEATURE_COMMAND_QUEUE_PRIORITY, &prioritySupport, sizeof(prioritySupport)),
+            m_device
+        );
+        if (!prioritySupport.PriorityForTypeIsSupported)
+            return SLANG_E_NOT_AVAILABLE;
+    }
     SLANG_D3D_RETURN_ON_FAIL_REPORT(
         m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())),
         m_device
@@ -1979,7 +2007,9 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
 
 void CommandQueueImpl::waitAndReleaseCommandBuffers()
 {
-    waitOnHost();
+    // Queue creation can fail, for example when a requested priority is denied.
+    if (m_d3dQueue && m_trackingFence && m_globalWaitHandle)
+        waitOnHost();
     // A failed device wait may leave command buffers in the in-flight list. Destroy them before
     // releasing the heap so their allocation handles cannot outlive its pages.
     m_commandBuffersInFlight.clear();
@@ -1995,7 +2025,11 @@ void CommandQueueImpl::shutdown()
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
-    ::CloseHandle(m_globalWaitHandle);
+    if (m_globalWaitHandle)
+    {
+        ::CloseHandle(m_globalWaitHandle);
+        m_globalWaitHandle = nullptr;
+    }
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)

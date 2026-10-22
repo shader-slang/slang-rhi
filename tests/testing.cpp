@@ -627,6 +627,7 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
         deviceDesc.pipelineCompilationMode = extraOptions->pipelineCompilationMode;
+        deviceDesc.queuePriority = extraOptions->queuePriority;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
         deviceDesc.enableAftermath = extraOptions->enableAftermath;
         deviceDesc.enableRayTracingValidation = extraOptions->enableRayTracingValidation;

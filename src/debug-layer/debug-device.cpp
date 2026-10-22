@@ -1322,6 +1322,11 @@ Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outP
         RHI_VALIDATION_ERROR("Invalid query type.");
         return SLANG_E_INVALID_ARG;
     }
+    if (desc.type == QueryType::Timestamp && !baseObject->hasFeature(Feature::TimestampQuery))
+    {
+        RHI_VALIDATION_ERROR("Timestamp queries are not supported by this device.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
     QueryPoolDesc patchedDesc = desc;
     std::string label;

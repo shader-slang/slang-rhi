@@ -168,6 +168,8 @@ void _writeTimestamp(VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* qu
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
+    if (desc.type == QueryType::Timestamp && !hasFeature(Feature::TimestampQuery))
+        return SLANG_E_NOT_AVAILABLE;
     RefPtr<QueryPoolImpl> result = new QueryPoolImpl(this, desc);
     SLANG_RETURN_ON_FAIL(result->init());
     returnComPtr(outPool, result);

@@ -156,6 +156,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.adapterName = m_adapterName.data();
         m_info.adapterLUID = getAdapterLUID(m_ctx.device);
         m_info.timestampFrequency = 1000000;
+        m_info.timestampInfo = {1000.0, 64};
     }
 
     // Query device limits

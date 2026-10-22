@@ -30,7 +30,7 @@ public:
     static constexpr size_t kMaxSubmitsWithoutEvent = 128;
     static constexpr size_t kTimestampAnchorRingSize = 16;
 
-    CUstream m_stream;
+    CUstream m_stream = nullptr;
     std::array<TimestampAnchor, kTimestampAnchorRingSize> m_timestampAnchors;
     uint64_t m_currentAnchorGeneration = 0;
     uint64_t m_timestampAnchorTimeNs = 0;

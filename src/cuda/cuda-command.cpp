@@ -895,10 +895,29 @@ CommandQueueImpl::~CommandQueueImpl() {}
 
 Result CommandQueueImpl::init()
 {
-    // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
-    // they will be equivalent to secondary, non-default streams in CUDA.
-    if (m_type == QueueType::Graphics)
+    // Preserve the NULL default stream unless a priority is explicitly requested.
+    const QueuePriority priority = getDevice<DeviceImpl>()->m_queuePriority;
+    if (priority != QueuePriority::Default)
+    {
+        if (priority == QueuePriority::Realtime)
+            return SLANG_E_NOT_AVAILABLE;
+        int leastPriority = 0;
+        int greatestPriority = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxGetStreamPriorityRange(&leastPriority, &greatestPriority), this);
+        if (priority != QueuePriority::Normal && leastPriority == greatestPriority)
+            return SLANG_E_NOT_AVAILABLE;
+        int nativePriority = 0;
+        if (priority == QueuePriority::Low)
+            nativePriority = leastPriority;
+        else if (priority == QueuePriority::High)
+            nativePriority = greatestPriority;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamCreateWithPriority(&m_stream, 0, nativePriority), this);
+        int actualPriority = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamGetPriority(m_stream, &actualPriority), this);
+        if (actualPriority != nativePriority)
+            return SLANG_E_NOT_AVAILABLE;
+    }
+    else if (m_type == QueueType::Graphics)
     {
         m_stream = nullptr;
     }

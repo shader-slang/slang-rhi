@@ -28,13 +28,18 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.adapterName = "CPU";
         m_info.adapterLUID = {};
         m_info.timestampFrequency = getCpuTimestampFrequency();
+        if (m_info.timestampFrequency > 0)
+            m_info.timestampInfo = {1e9 / double(m_info.timestampFrequency), 64};
     }
 
     // Initialize features & capabilities
     addFeature(Feature::SoftwareDevice);
     addFeature(Feature::ParameterBlock);
-    addFeature(Feature::TimestampQuery);
-    addFeature(Feature::TimestampCalibration);
+    if (m_info.timestampFrequency > 0)
+    {
+        addFeature(Feature::TimestampQuery);
+        addFeature(Feature::TimestampCalibration);
+    }
     addFeature(Feature::Pointer);
 
     addCapability(Capability::cpp);

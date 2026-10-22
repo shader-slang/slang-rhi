@@ -853,6 +853,8 @@ CUDA_SYM(CUresult (*cuMemsetD2D32Async)(CUdeviceptr, size_t, unsigned int, size_
 CUDA_SYM(CUresult (*cuMemAdvise)(CUdeviceptr, size_t, CUmem_advise, CUmemLocation)); // v2
 CUDA_SYM(CUresult (*cuStreamCreate)(CUstream*, unsigned int));
 CUDA_SYM(CUresult (*cuStreamCreateWithPriority)(CUstream*, unsigned int, int));
+CUDA_SYM(CUresult (*cuCtxGetStreamPriorityRange)(int*, int*));
+CUDA_SYM(CUresult (*cuStreamGetPriority)(CUstream, int*));
 CUDA_SYM(CUresult (*cuStreamWaitEvent)(CUstream, CUevent, unsigned int));
 CUDA_SYM(CUresult (*cuStreamSynchronize)(CUstream));
 CUDA_SYM(CUresult (*cuStreamQuery)(CUstream));

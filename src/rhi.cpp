@@ -305,6 +305,30 @@ Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
 
 Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
 {
+    switch (desc.queuePriority)
+    {
+    case QueuePriority::Default:
+    case QueuePriority::Low:
+    case QueuePriority::Normal:
+    case QueuePriority::High:
+    case QueuePriority::Realtime:
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.deviceType != DeviceType::Default && desc.deviceType != DeviceType::D3D12 &&
+        desc.deviceType != DeviceType::Vulkan && desc.deviceType != DeviceType::CUDA &&
+        desc.queuePriority != QueuePriority::Default && desc.queuePriority != QueuePriority::Normal)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if ((desc.deviceType == DeviceType::D3D12 && desc.queuePriority == QueuePriority::Low) ||
+        (desc.deviceType == DeviceType::CUDA && desc.queuePriority == QueuePriority::Realtime) ||
+        (desc.deviceType == DeviceType::Vulkan && desc.existingDeviceHandles.handles[2] &&
+         desc.queuePriority != QueuePriority::Default))
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
     if (desc.deviceType == DeviceType::Default)
     {
         DeviceDesc newDesc = desc;

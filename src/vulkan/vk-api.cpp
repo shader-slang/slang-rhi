@@ -143,6 +143,11 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
         vkGetPhysicalDeviceProperties2 =
             (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
     }
+    if (!vkGetPhysicalDeviceQueueFamilyProperties2)
+    {
+        vkGetPhysicalDeviceQueueFamilyProperties2 = (PFN_vkGetPhysicalDeviceQueueFamilyProperties2)
+            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceQueueFamilyProperties2KHR");
+    }
     if (!vkGetPhysicalDeviceFormatProperties2)
     {
         vkGetPhysicalDeviceFormatProperties2 = (PFN_vkGetPhysicalDeviceFormatProperties2)

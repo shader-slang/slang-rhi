@@ -414,6 +414,7 @@ Result Device::initialize(const DeviceDesc& desc)
 {
     m_info = {};
     m_info.deviceType = desc.deviceType;
+    m_queuePriority = desc.queuePriority;
 
     m_featureSet.fill(false);
     m_capabilitySet.fill(false);

@@ -184,11 +184,13 @@ DeviceImpl::~DeviceImpl()
         if (!m_existingDeviceHandles.handles[2])
             m_api.vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;
-        if (m_debugReportCallback != VK_NULL_HANDLE)
-            m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
-        if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
-            m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
+    // A priority request can fail before a logical device is created. The instance and callback
+    // still need to be released on that path.
+    if (m_debugReportCallback != VK_NULL_HANDLE)
+        m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
+    if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
+        m_api.vkDestroyInstance(m_api.m_instance, nullptr);
 }
 
 void DeviceImpl::deferDelete(Resource* resource)
@@ -1429,8 +1431,15 @@ Result DeviceImpl::initVulkanDevice(
     }
 
     int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
-    SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
+    if (queueFamilyIndex < 0)
+        return SLANG_E_NOT_AVAILABLE;
     m_queueFamilyIndex = queueFamilyIndex;
+
+    uint32_t queueFamilyCount = 0;
+    m_api.vkGetPhysicalDeviceQueueFamilyProperties(m_api.m_physicalDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    m_api.vkGetPhysicalDeviceQueueFamilyProperties(m_api.m_physicalDevice, &queueFamilyCount, queueFamilies.data());
+    m_info.timestampInfo.validBits = queueFamilies[m_queueFamilyIndex].timestampValidBits;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
@@ -1477,6 +1486,92 @@ Result DeviceImpl::initVulkanDevice(
         queueCreateInfo.queueCount = 1;
         queueCreateInfo.pQueuePriorities = &queuePriority;
 
+        VkDeviceQueueGlobalPriorityCreateInfoKHR globalPriority = {
+            VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO_KHR
+        };
+        VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR priorityQueryFeatures = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR
+        };
+        // MEDIUM is already the global default, so Normal does not require an extension.
+        if (desc.queuePriority != QueuePriority::Default && desc.queuePriority != QueuePriority::Normal)
+        {
+            bool canQueryPriority = false;
+            if (extensionNames.count(VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME))
+            {
+                deviceExtensions.push_back(VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME);
+                canQueryPriority = true;
+            }
+            else if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_4)
+            {
+                canQueryPriority = true;
+            }
+            else if (extensionNames.count(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME))
+            {
+                deviceExtensions.push_back(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME);
+                if (extensionNames.count(VK_EXT_GLOBAL_PRIORITY_QUERY_EXTENSION_NAME))
+                {
+                    deviceExtensions.push_back(VK_EXT_GLOBAL_PRIORITY_QUERY_EXTENSION_NAME);
+                    canQueryPriority = true;
+                }
+            }
+            else
+            {
+                printError("Global queue priority is not supported by this Vulkan device.");
+                return SLANG_E_NOT_AVAILABLE;
+            }
+
+            switch (desc.queuePriority)
+            {
+            case QueuePriority::Low:
+                globalPriority.globalPriority = VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR;
+                break;
+            case QueuePriority::High:
+                globalPriority.globalPriority = VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR;
+                break;
+            case QueuePriority::Realtime:
+                globalPriority.globalPriority = VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR;
+                break;
+            default:
+                return SLANG_E_INVALID_ARG;
+            }
+
+            if (canQueryPriority && m_api.vkGetPhysicalDeviceFeatures2 &&
+                m_api.vkGetPhysicalDeviceQueueFamilyProperties2)
+            {
+                VkPhysicalDeviceFeatures2 features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+                features.pNext = &priorityQueryFeatures;
+                m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &features);
+                if (priorityQueryFeatures.globalPriorityQuery)
+                {
+                    std::vector<VkQueueFamilyProperties2> properties(queueFamilyCount);
+                    std::vector<VkQueueFamilyGlobalPriorityPropertiesKHR> priorities(queueFamilyCount);
+                    for (uint32_t i = 0; i < queueFamilyCount; ++i)
+                    {
+                        properties[i].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_PROPERTIES_2;
+                        properties[i].pNext = &priorities[i];
+                        priorities[i].sType = VK_STRUCTURE_TYPE_QUEUE_FAMILY_GLOBAL_PRIORITY_PROPERTIES_KHR;
+                    }
+                    m_api.vkGetPhysicalDeviceQueueFamilyProperties2(
+                        m_api.m_physicalDevice,
+                        &queueFamilyCount,
+                        properties.data()
+                    );
+                    const auto& supported = priorities[m_queueFamilyIndex];
+                    bool found = false;
+                    for (uint32_t i = 0; i < supported.priorityCount; ++i)
+                        found |= supported.priorities[i] == globalPriority.globalPriority;
+                    if (!found)
+                    {
+                        printError("The selected Vulkan queue family does not support the requested global priority.");
+                        return SLANG_E_NOT_AVAILABLE;
+                    }
+                    priorityQueryFeatures.pNext = const_cast<void*>(deviceCreateInfo.pNext);
+                    deviceCreateInfo.pNext = &priorityQueryFeatures;
+                }
+            }
+            queueCreateInfo.pNext = &globalPriority;
+        }
+
         deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
 
         // Add user-provided device extensions, skipping duplicates.
@@ -1497,8 +1592,10 @@ Result DeviceImpl::initVulkanDevice(
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-        if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
-            return SLANG_FAIL;
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device),
+            this
+        );
     }
     else
     {
@@ -1515,7 +1612,8 @@ Result DeviceImpl::initVulkanDevice(
     m_api.initDerivedDeviceProperties();
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
 
-    if (m_calibratedTimestampSupport.available && m_api.vkGetCalibratedTimestampsKHR)
+    if (m_info.timestampInfo.validBits > 0 && m_calibratedTimestampSupport.available &&
+        m_api.vkGetCalibratedTimestampsKHR)
     {
         availableFeatures.push_back(Feature::TimestampCalibration);
     }
@@ -1668,7 +1766,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.adapterLUID = getAdapterLUID(idProps);
 
         // Query timestamp frequency.
-        m_info.timestampFrequency = uint64_t(1e9 / basicProps.limits.timestampPeriod);
+        if (m_info.timestampInfo.validBits > 0)
+        {
+            m_info.timestampInfo.nanosecondsPerTick = double(basicProps.limits.timestampPeriod);
+            m_info.timestampFrequency = uint64_t(1e9 / m_info.timestampInfo.nanosecondsPerTick);
+        }
 
         // Query device limits.
         DeviceLimits limits = {};
@@ -1727,7 +1829,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
     addFeature(Feature::CombinedTextureSampler);
-    addFeature(Feature::TimestampQuery);
+    if (m_info.timestampInfo.validBits > 0)
+        addFeature(Feature::TimestampQuery);
     for (auto feature : availableFeatures)
     {
         addFeature(feature);

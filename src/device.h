@@ -486,6 +486,7 @@ protected:
 
 public:
     DeviceInfo m_info;
+    QueuePriority m_queuePriority = QueuePriority::Default;
 
     SlangContext m_slangContext;
     ShaderCache m_shaderCache;

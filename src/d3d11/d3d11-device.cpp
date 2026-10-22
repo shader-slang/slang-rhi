@@ -214,6 +214,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         if (SUCCEEDED(hr) && !disjointData.Disjoint)
         {
             m_info.timestampFrequency = disjointData.Frequency;
+            if (disjointData.Frequency > 0)
+                m_info.timestampInfo = {1e9 / double(disjointData.Frequency), 64};
         }
     }
 

@@ -327,6 +327,11 @@ void DebugRenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t quer
         return;
     }
 
+    if (queryPool->getDesc().type != QueryType::Timestamp)
+    {
+        RHI_VALIDATION_ERROR("'queryPool' must have QueryType::Timestamp.");
+        return;
+    }
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
@@ -478,6 +483,11 @@ void DebugComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t que
         return;
     }
 
+    if (queryPool->getDesc().type != QueryType::Timestamp)
+    {
+        RHI_VALIDATION_ERROR("'queryPool' must have QueryType::Timestamp.");
+        return;
+    }
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
@@ -627,6 +637,11 @@ void DebugRayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t 
         return;
     }
 
+    if (queryPool->getDesc().type != QueryType::Timestamp)
+    {
+        RHI_VALIDATION_ERROR("'queryPool' must have QueryType::Timestamp.");
+        return;
+    }
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
@@ -1927,6 +1942,11 @@ void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, uint32_t index)
         return;
     }
 
+    if (pool->getDesc().type != QueryType::Timestamp)
+    {
+        RHI_VALIDATION_ERROR("'queryPool' must have QueryType::Timestamp.");
+        return;
+    }
     baseObject->writeTimestamp(getInnerObj(pool), index);
 }
 

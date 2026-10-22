@@ -8,6 +8,102 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+TEST_CASE("timestamp-duration-conversion")
+{
+    double seconds = -1.0;
+    TimestampInfo info = {2.5, 64};
+    REQUIRE_CALL(info.getElapsedSeconds(100, 500, &seconds));
+    CHECK(seconds == doctest::Approx(1e-6));
+
+    // A short interval must survive even when the absolute counter exceeds double's integer precision.
+    REQUIRE_CALL(info.getElapsedSeconds(UINT64_MAX - 10, UINT64_MAX - 6, &seconds));
+    CHECK(seconds == doctest::Approx(1e-8).epsilon(1e-12));
+    REQUIRE_CALL(info.getElapsedSeconds(123, 123, &seconds));
+    CHECK(seconds == 0.0);
+
+    for (uint32_t bits : {1u, 32u, 36u, 48u, 64u})
+    {
+        CAPTURE(bits);
+        info = {1.0, bits};
+        const uint64_t mask = bits == 64 ? UINT64_MAX : (uint64_t(1) << bits) - 1;
+        REQUIRE_CALL(info.getElapsedSeconds(mask, 0, &seconds));
+        CHECK(seconds == doctest::Approx(1e-9).epsilon(1e-12));
+    }
+    info = {0.125, 32};
+    REQUIRE_CALL(info.getElapsedSeconds(0xfffffffc, 4, &seconds));
+    CHECK(seconds == doctest::Approx(1e-9).epsilon(1e-12));
+    // Ignore bits outside the advertised counter width.
+    REQUIRE_CALL(info.getElapsedSeconds(0x123400000010, 0xabcd00000018, &seconds));
+    CHECK(seconds == doctest::Approx(1e-9).epsilon(1e-12));
+
+    seconds = -1.0;
+    CHECK(info.getElapsedSeconds(0, 1, nullptr) == SLANG_E_INVALID_ARG);
+    info.validBits = 0;
+    CHECK(info.getElapsedSeconds(0, 1, &seconds) == SLANG_E_NOT_AVAILABLE);
+    info.validBits = 65;
+    CHECK(info.getElapsedSeconds(0, 1, &seconds) == SLANG_E_INVALID_ARG);
+    info.validBits = 64;
+    for (double period : {0.0, -1.0, double(INFINITY), double(NAN)})
+    {
+        info.nanosecondsPerTick = period;
+        CHECK(info.getElapsedSeconds(0, 1, &seconds) == SLANG_E_INVALID_ARG);
+    }
+    CHECK(seconds == -1.0);
+}
+
+GPU_TEST_CASE("timestamp-metadata", ALL)
+{
+    const TimestampInfo& info = device->getInfo().timestampInfo;
+    if (!device->hasFeature(Feature::TimestampQuery))
+    {
+        CHECK(info.validBits == 0);
+        CHECK(info.nanosecondsPerTick == 0.0);
+        return;
+    }
+    REQUIRE(info.validBits > 0);
+    CHECK(info.validBits <= 64);
+    REQUIRE(std::isfinite(info.nanosecondsPerTick));
+    CHECK(info.nanosecondsPerTick > 0.0);
+    CHECK(double(device->getInfo().timestampFrequency) == doctest::Approx(1e9 / info.nanosecondsPerTick).epsilon(1e-6));
+}
+
+GPU_TEST_CASE("cmd-query-timestamp-type-validation", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::AccelerationStructure))
+        SKIP("Acceleration structure query pools are unavailable");
+
+    struct Callback : IDebugCallback
+    {
+        uint32_t errorCount = 0;
+        void SLANG_MCALL handleMessage(DebugMessageType type, DebugMessageSource, const char* message) override
+        {
+            if (type == DebugMessageType::Error)
+            {
+                CHECK(std::strstr(message, "must have QueryType::Timestamp") != nullptr);
+                ++errorCount;
+            }
+        }
+    } callback;
+    DeviceExtraOptions options;
+    options.enableValidation = true;
+    options.debugCallback = &callback;
+    auto validatedDevice = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(validatedDevice);
+    QueryPoolDesc desc = {};
+    desc.type = QueryType::AccelerationStructureCompactedSize;
+    desc.count = 1;
+    ComPtr<IQueryPool> pool;
+    REQUIRE_CALL(validatedDevice->createQueryPool(desc, pool.writeRef()));
+    REQUIRE(pool);
+    auto encoder = validatedDevice->getQueue(QueueType::Graphics)->createCommandEncoder();
+    encoder->writeTimestamp(pool, 0);
+    auto pass = encoder->beginComputePass();
+    pass->writeTimestamp(pool, 0);
+    pass->end();
+    CHECK(callback.errorCount == 2);
+    REQUIRE(encoder->finish());
+}
+
 static ComPtr<IQueryPool> createTimestampQueryPool(IDevice* device, uint32_t count)
 {
     QueryPoolDesc queryPoolDesc = {};

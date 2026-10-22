@@ -70,6 +70,7 @@ protected:
 #define VK_API_INSTANCE_PROCS_OPT(x) \
     x(vkGetPhysicalDeviceFeatures2) \
     x(vkGetPhysicalDeviceProperties2) \
+    x(vkGetPhysicalDeviceQueueFamilyProperties2) \
     VK_API_INSTANCE_KHR_PROCS(x) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \

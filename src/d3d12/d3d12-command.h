@@ -15,7 +15,7 @@ public:
     ComPtr<ID3D12Device> m_d3dDevice;
     ComPtr<ID3D12CommandQueue> m_d3dQueue;
     ComPtr<ID3D12Fence> m_trackingFence;
-    HANDLE m_globalWaitHandle;
+    HANDLE m_globalWaitHandle = nullptr;
     uint32_t m_queueIndex = 0;
 
     uint64_t m_lastSubmittedID = 0;

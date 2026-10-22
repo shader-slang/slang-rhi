@@ -1248,7 +1248,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     SLANG_RETURN_ON_FAIL(m_queue->init(0));
 
     // Retrieve timestamp frequency.
-    m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency), this);
+    if (m_info.timestampFrequency == 0)
+        return SLANG_FAIL;
+    m_info.timestampInfo = {1e9 / double(m_info.timestampFrequency), 64};
 
     // Initialize bindless descriptor set if supported.
     if (hasFeature(Feature::Bindless))
