@@ -171,6 +171,12 @@ Result AccelerationStructureBuildDescConverter::convert(
                     checked_cast<BufferImpl*>(triangles.preTransformBuffer.buffer)->m_buffer.get()
                 );
                 triangleDescriptor->setTransformationMatrixBufferOffset(triangles.preTransformBuffer.offset);
+                // preTransformBuffer holds a row-major 3x4 matrix, as on D3D12, Vulkan and OptiX.
+                // Metal reads a column-major 4x3 matrix unless told otherwise.
+                if (__builtin_available(macOS 15.0, iOS 18.0, *))
+                {
+                    triangleDescriptor->setTransformationMatrixLayout(MTL::MatrixLayoutRowMajor);
+                }
             }
 
             triangleDescriptor->setOpaque(is_set(triangles.flags, AccelerationStructureGeometryFlags::Opaque));
