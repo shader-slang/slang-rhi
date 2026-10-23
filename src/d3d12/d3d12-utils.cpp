@@ -389,6 +389,13 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless)
 {
+    // Typeless backing permits compatible typed views; it does not make mutually
+    // exclusive native resource flags compatible. Reject this in the shared path
+    // so requirements queries and both committed/placed creation agree.
+    if (is_set(textureDesc.usage, TextureUsage::DepthStencil) &&
+        is_set(textureDesc.usage, TextureUsage::UnorderedAccess))
+        return SLANG_E_INVALID_ARG;
+
     const DXGI_FORMAT pixelFormat = isTypeless ? getFormatMapping(textureDesc.format).typelessFormat
                                                : getFormatMapping(textureDesc.format).rtvFormat;
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
