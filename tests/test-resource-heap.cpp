@@ -420,6 +420,29 @@ GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
     }
 }
 
+GPU_TEST_CASE("resource-heap-vulkan-disjoint-memory-types", Vulkan)
+{
+    auto requirements = requireBufferMemoryRequirements(device, makeCopyBufferDesc(256));
+    ResourceMemoryRequirements heapRequirements[] = {requirements, requirements};
+    IDevice* innerDevice = device;
+#if SLANG_RHI_DEBUG
+    innerDevice = checked_cast<debug::DebugDevice*>(innerDevice)->baseObject;
+#endif
+    auto backendDevice = checked_cast<Device*>(innerDevice);
+    // Synthetic masks make this independent of the physical device's memory types.
+    setResourceHeapCompatibility(heapRequirements[0], backendDevice, 1);
+    setResourceHeapCompatibility(heapRequirements[1], backendDevice, 2);
+
+    ResourceHeapDesc desc = {};
+    desc.size = requirements.size;
+    desc.memoryType = requirements.memoryType;
+    desc.requirements = heapRequirements;
+    desc.requirementCount = 2;
+    ComPtr<IResourceHeap> heap;
+    CHECK(device->createResourceHeap(desc, heap.writeRef()) == SLANG_E_NOT_AVAILABLE);
+    CHECK(!heap);
+}
+
 GPU_TEST_CASE("resource-heap-compatibility-query", D3D12 | Vulkan | Metal | CUDA)
 {
     BufferDesc desc = makeCopyBufferDesc(4096);
