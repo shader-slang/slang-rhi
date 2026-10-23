@@ -2,6 +2,7 @@
 #include "texture-test.h"
 
 #include "../src/device.h"
+#include "../src/resource-heap.h"
 
 #if SLANG_RHI_DEBUG
 #include "debug-layer/debug-device.h"
@@ -164,22 +165,20 @@ static ComPtr<IBuffer> createPlacedBuffer(
     const void* initData = nullptr
 )
 {
-    ResourcePlacementDesc placement = {};
-    placement.heap = heap;
-    placement.offset = offset;
-    desc.next = &placement;
+    desc.heap = heap;
+    desc.heapOffset = offset;
     ComPtr<IBuffer> buffer;
     REQUIRE_CALL(device->createBuffer(desc, initData, buffer.writeRef()));
     CHECK(buffer->getDesc().next == nullptr);
+    CHECK(buffer->getDesc().heap == nullptr);
+    CHECK(buffer->getDesc().heapOffset == 0);
     return buffer;
 }
 
 static Result tryCreatePlacedBuffer(IDevice* device, BufferDesc desc, IResourceHeap* heap, Offset offset)
 {
-    ResourcePlacementDesc placement = {};
-    placement.heap = heap;
-    placement.offset = offset;
-    desc.next = &placement;
+    desc.heap = heap;
+    desc.heapOffset = offset;
     ComPtr<IBuffer> buffer;
     return device->createBuffer(desc, nullptr, buffer.writeRef());
 }
@@ -192,22 +191,20 @@ static ComPtr<ITexture> createPlacedTexture(
     const SubresourceData* initData = nullptr
 )
 {
-    ResourcePlacementDesc placement = {};
-    placement.heap = heap;
-    placement.offset = offset;
-    desc.next = &placement;
+    desc.heap = heap;
+    desc.heapOffset = offset;
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, initData, texture.writeRef()));
     CHECK(texture->getDesc().next == nullptr);
+    CHECK(texture->getDesc().heap == nullptr);
+    CHECK(texture->getDesc().heapOffset == 0);
     return texture;
 }
 
 static Result tryCreatePlacedTexture(IDevice* device, TextureDesc desc, IResourceHeap* heap, Offset offset)
 {
-    ResourcePlacementDesc placement = {};
-    placement.heap = heap;
-    placement.offset = offset;
-    desc.next = &placement;
+    desc.heap = heap;
+    desc.heapOffset = offset;
     ComPtr<ITexture> texture;
     return device->createTexture(desc, nullptr, texture.writeRef());
 }
@@ -308,6 +305,22 @@ GPU_TEST_CASE("resource-heap-unsupported", D3D11 | CPU | WGPU)
     CHECK(!heap);
     debugDevice->ctx->debugCallback = previousCallback;
 #endif
+}
+
+GPU_TEST_CASE("resource-heap-descriptor-copy", D3D12 | Vulkan | Metal | CUDA)
+{
+    BufferDesc desc = makeCopyBufferDesc(256);
+    auto requirements = requireBufferMemoryRequirements(device, desc);
+    auto heap = createHeapForRequirements(device, requirements);
+    auto placed = createPlacedBuffer(device, desc, heap, 0);
+    BufferDesc copiedDesc = placed->getDesc();
+    // A copied descriptor defaults to an independent committed allocation.
+    // Offsets are ignored when no heap is supplied.
+    copiedDesc.heapOffset = 1;
+    auto committed = device->createBuffer(copiedDesc);
+    REQUIRE(committed);
+    CHECK(!checked_cast<Buffer*>(committed.get())->isPlaced());
+    CHECK(committed->getDesc().heapOffset == 0);
 }
 
 GPU_TEST_CASE("resource-heap-buffer-requirements", D3D12 | Vulkan | Metal | CUDA)
@@ -421,8 +434,8 @@ GPU_TEST_CASE("resource-heap-compatibility-query", D3D12 | Vulkan | Metal | CUDA
     REQUIRE_CALL(device->isResourceHeapCompatible(heap, incompatible, &compatible));
     CHECK(!compatible);
 
-    incompatible = requirements;
-    incompatible.compatibility.data[1] ^= 1;
+    auto otherDevice = createTestingDevice(ctx, ctx->deviceType, false);
+    incompatible = requireBufferMemoryRequirements(otherDevice, desc);
     REQUIRE_CALL(device->isResourceHeapCompatible(heap, incompatible, &compatible));
     CHECK(!compatible);
 }

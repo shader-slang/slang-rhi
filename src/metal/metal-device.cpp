@@ -632,7 +632,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
                                  ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
                                  : ResourceMemoryRequirementFlags::None;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this);
+    setResourceHeapCompatibility(*outRequirements, this);
     return SLANG_OK;
 }
 
@@ -654,7 +654,7 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
     outRequirements->flags = is_set(desc.usage, TextureUsage::Shared)
                                  ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
                                  : ResourceMemoryRequirementFlags::None;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this);
+    setResourceHeapCompatibility(*outRequirements, this);
     return SLANG_OK;
 }
 

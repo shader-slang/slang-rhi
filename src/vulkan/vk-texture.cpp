@@ -333,11 +333,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
-    if (placement)
+    if (desc.heap)
         SLANG_RETURN_ON_FAIL(checkTexturePlacementSupported(desc));
     VkImageCreateInfo imageInfo = {};
-    SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, initData != nullptr || placement != nullptr, &imageInfo));
+    SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, initData != nullptr || desc.heap != nullptr, &imageInfo));
     const VkFormat format = imageInfo.format;
     const uint32_t layerCount = desc.getLayerCount();
 
@@ -364,23 +363,23 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
 
-    if (placement)
+    if (desc.heap)
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
 
-        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
         if ((memRequirements.memoryTypeBits & (1u << heap->m_memoryTypeIndex)) == 0)
             return SLANG_E_INVALID_ARG;
 
         SLANG_VK_RETURN_ON_FAIL_REPORT(
-            m_api.vkBindImageMemory(m_device, texture->m_image, heap->m_memory, placement->offset),
+            m_api.vkBindImageMemory(m_device, texture->m_image, heap->m_memory, desc.heapOffset),
             this
         );
         texture->m_imageMemory = heap->m_memory;
         texture->m_ownsMemory = false;
-        texture->setPlacement(heap, placement->offset, requirements);
+        texture->setPlacement(heap, desc.heapOffset, requirements);
     }
     else
     {
@@ -427,7 +426,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
-    if (!placement || initData)
+    if (!desc.heap || initData)
     {
         auto defaultLayout = getImageLayoutFromState(desc.defaultState);
         if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)

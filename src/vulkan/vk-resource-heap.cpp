@@ -39,7 +39,7 @@ Result ResourceHeapImpl::init()
 
     uint32_t memoryTypeBits = ~0u;
     for (uint32_t i = 0; i < m_desc.requirementCount; ++i)
-        memoryTypeBits &= uint32_t(getResourceHeapCompatibilityMask(m_desc.requirements[i].compatibility));
+        memoryTypeBits &= uint32_t(getResourceHeapCompatibilityMask(m_desc.requirements[i]));
 
     const VkMemoryPropertyFlags properties = getMemoryProperties(m_desc.memoryType);
     int memoryTypeIndex = api.findMemoryTypeIndex(memoryTypeBits, properties);
@@ -85,7 +85,7 @@ bool ResourceHeapImpl::isCompatible(const ResourceMemoryRequirements& requiremen
 {
     if (!ResourceHeap::isCompatible(requirements))
         return false;
-    const uint64_t memoryTypeBits = getResourceHeapCompatibilityMask(requirements.compatibility);
+    const uint64_t memoryTypeBits = getResourceHeapCompatibilityMask(requirements);
     return (memoryTypeBits & (uint64_t(1) << m_memoryTypeIndex)) != 0;
 }
 

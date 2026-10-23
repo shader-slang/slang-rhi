@@ -86,16 +86,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = createTextureDescriptor(desc);
 
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
-    if (placement)
+    if (desc.heap)
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
 
-        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
-        textureImpl->m_texture = NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), placement->offset));
-        textureImpl->setPlacement(heap, placement->offset, requirements);
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+        textureImpl->m_texture = NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), desc.heapOffset));
+        textureImpl->setPlacement(heap, desc.heapOffset, requirements);
     }
     else
     {

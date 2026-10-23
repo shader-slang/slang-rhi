@@ -2288,7 +2288,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
         outRequirements->flags |= ResourceMemoryRequirementFlags::RequiresDedicatedAllocation;
     if (dedicatedReqs.prefersDedicatedAllocation)
         outRequirements->flags |= ResourceMemoryRequirementFlags::PrefersDedicatedAllocation;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this, reqs.memoryTypeBits);
+    setResourceHeapCompatibility(*outRequirements, this, reqs.memoryTypeBits);
     return SLANG_OK;
 }
 
@@ -2352,7 +2352,7 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
         outRequirements->flags |= ResourceMemoryRequirementFlags::RequiresDedicatedAllocation;
     if (dedicatedReqs.prefersDedicatedAllocation)
         outRequirements->flags |= ResourceMemoryRequirementFlags::PrefersDedicatedAllocation;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this, reqs.memoryTypeBits);
+    setResourceHeapCompatibility(*outRequirements, this, reqs.memoryTypeBits);
     return SLANG_OK;
 }
 

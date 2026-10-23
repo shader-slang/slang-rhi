@@ -263,12 +263,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
-    if (placement)
+    if (desc.heap)
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
         return SLANG_E_NOT_AVAILABLE;
     }
 

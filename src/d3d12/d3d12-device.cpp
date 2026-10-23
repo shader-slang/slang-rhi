@@ -1456,7 +1456,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
                                  ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
                                  : ResourceMemoryRequirementFlags::None;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this);
+    setResourceHeapCompatibility(*outRequirements, this);
     return SLANG_OK;
 }
 
@@ -1482,7 +1482,7 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
     outRequirements->flags = is_set(desc.usage, TextureUsage::Shared)
                                  ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
                                  : ResourceMemoryRequirementFlags::None;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this);
+    setResourceHeapCompatibility(*outRequirements, this);
     return SLANG_OK;
 }
 
@@ -1546,23 +1546,22 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             clearValuePtr = nullptr;
         }
 
-        const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
-        if (placement)
+        if (desc.heap)
         {
             ResourceMemoryRequirements requirements = {};
             SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
-            SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+            SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
 
-            ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+            ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
             SLANG_RETURN_ON_FAIL(texture->m_resource.initPlaced(
                 m_device,
                 heap->m_heap,
-                placement->offset,
+                desc.heapOffset,
                 resourceDesc,
                 getPlacedResourceInitialState(desc.memoryType, texture->m_defaultState),
                 clearValuePtr
             ));
-            texture->setPlacement(heap, placement->offset, requirements);
+            texture->setPlacement(heap, desc.heapOffset, requirements);
         }
         else
         {
@@ -1677,23 +1676,22 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     bufferDesc.Flags |= calcResourceFlags(desc.usage);
 
     const D3D12_RESOURCE_STATES initialState = buffer->m_defaultState;
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
-    if (placement)
+    if (desc.heap)
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
 
-        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
         const D3D12_RESOURCE_STATES placedInitialState =
             initData && desc.memoryType == MemoryType::DeviceLocal
                 ? D3D12_RESOURCE_STATE_COPY_DEST
                 : getPlacedResourceInitialState(desc.memoryType, initialState);
         SLANG_RETURN_ON_FAIL(
             buffer->m_resource
-                .initPlaced(m_device, heap->m_heap, placement->offset, bufferDesc, placedInitialState, nullptr)
+                .initPlaced(m_device, heap->m_heap, desc.heapOffset, bufferDesc, placedInitialState, nullptr)
         );
-        buffer->setPlacement(heap, placement->offset, requirements);
+        buffer->setPlacement(heap, desc.heapOffset, requirements);
 
         if (initData)
         {
