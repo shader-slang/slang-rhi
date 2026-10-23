@@ -11,19 +11,6 @@
 
 namespace rhi::vk {
 
-VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc)
-{
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
-        api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-    {
-        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    }
-    return usage;
-}
-
 const char* getVkResultName(VkResult res)
 {
 #define CASE(x)                                                                                                        \
@@ -520,6 +507,19 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
     if (is_set(usage, BufferUsage::ShaderTable))
         flags |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
     return VkBufferUsageFlagBits(flags);
+}
+
+VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc)
+{
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
+        api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    return usage;
 }
 
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
