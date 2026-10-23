@@ -6,6 +6,7 @@
 #include "../src/rhi-shared.h"
 
 #if SLANG_RHI_DEBUG
+#include "core/deferred.h"
 #include "debug-layer/debug-device.h"
 #endif
 
@@ -387,6 +388,206 @@ GPU_TEST_CASE("resource-heap-texture-requirements", D3D12 | Vulkan | Metal)
         sampledRequirements.flags & ResourceMemoryRequirementFlags::RequiresDedicatedAllocation,
         ResourceMemoryRequirementFlags::None
     );
+}
+
+GPU_TEST_CASE("resource-heap-buffer-requirements-validation", D3D12 | Vulkan | Metal | CUDA)
+{
+#if SLANG_RHI_DEBUG
+    BufferDesc validDesc = makeCopyBufferDesc(256);
+    auto requirements = requireBufferMemoryRequirements(device, validDesc);
+    auto heap = createHeapForRequirements(device, requirements);
+    auto debugDevice = checked_cast<debug::DebugDevice*>(device.get());
+    CaptureValidationCallback callback;
+    IDebugCallback* previousCallback = debugDevice->ctx->debugCallback;
+    debugDevice->ctx->debugCallback = &callback;
+    SLANG_RHI_DEFERRED({ debugDevice->ctx->debugCallback = previousCallback; });
+
+    auto checkInvalid = [&](auto invalidate, const char* message)
+    {
+        BufferDesc desc = validDesc;
+        invalidate(desc);
+        callback.clear();
+        CHECK(device->getBufferMemoryRequirements(desc, &requirements) == SLANG_E_INVALID_ARG);
+        CHECK(callback.contains(message));
+        callback.clear();
+        ComPtr<IBuffer> buffer;
+        CHECK(device->createBuffer(desc, nullptr, buffer.writeRef()) == SLANG_E_INVALID_ARG);
+        CHECK(callback.contains(message));
+        CHECK(!buffer);
+    };
+    checkInvalid(
+        [](BufferDesc& desc)
+        {
+            desc.size = 0;
+        },
+        "Buffer size must be greater than 0."
+    );
+    checkInvalid(
+        [](BufferDesc& desc)
+        {
+            desc.usage = BufferUsage::None;
+        },
+        "Buffer usage must be specified."
+    );
+    checkInvalid(
+        [](BufferDesc& desc)
+        {
+            desc.usage = BufferUsage(0x80000000u);
+        },
+        "Buffer usage contains invalid flags."
+    );
+    checkInvalid(
+        [](BufferDesc& desc)
+        {
+            desc.memoryType = MemoryType(-1);
+        },
+        "Invalid memory type."
+    );
+
+    callback.clear();
+    CHECK(device->getBufferMemoryRequirements(validDesc, nullptr) == SLANG_E_INVALID_ARG);
+    CHECK(callback.contains("'outRequirements' must not be null."));
+
+    callback.clear();
+    validDesc.heap = heap;
+    REQUIRE_CALL(device->getBufferMemoryRequirements(validDesc, &requirements));
+    CHECK(callback.output.empty());
+    bool compatible = false;
+    REQUIRE_CALL(device->isResourceHeapCompatible(heap, requirements, &compatible));
+    CHECK(compatible);
+#else
+    SLANG_UNUSED(ctx);
+    SLANG_UNUSED(device);
+    SKIP("Debug-layer validation requires a debug build");
+#endif
+}
+
+GPU_TEST_CASE("resource-heap-texture-requirements-validation", D3D12 | Vulkan | Metal)
+{
+#if SLANG_RHI_DEBUG
+    TextureDesc validDesc = makeSampleTextureDesc();
+    auto requirements = requireTextureMemoryRequirements(device, validDesc);
+    auto heap = createHeapForRequirements(device, requirements);
+    auto debugDevice = checked_cast<debug::DebugDevice*>(device.get());
+    CaptureValidationCallback callback;
+    IDebugCallback* previousCallback = debugDevice->ctx->debugCallback;
+    debugDevice->ctx->debugCallback = &callback;
+    SLANG_RHI_DEFERRED({ debugDevice->ctx->debugCallback = previousCallback; });
+
+    auto checkInvalid = [&](auto invalidate, const char* message)
+    {
+        TextureDesc desc = validDesc;
+        invalidate(desc);
+        callback.clear();
+        CHECK(device->getTextureMemoryRequirements(desc, &requirements) == SLANG_E_INVALID_ARG);
+        CHECK(callback.contains(message));
+        callback.clear();
+        ComPtr<ITexture> texture;
+        CHECK(device->createTexture(desc, nullptr, texture.writeRef()) == SLANG_E_INVALID_ARG);
+        CHECK(callback.contains(message));
+        CHECK(!texture);
+    };
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.type = TextureType(-1);
+        },
+        "Invalid texture type."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.format = Format(-1);
+        },
+        "Invalid texture format."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.format = Format::Undefined;
+        },
+        "Texture format must be specified."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.size.width = 0;
+        },
+        "Texture width must be at least 1."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.size.height = 0;
+        },
+        "Texture height must be at least 1."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.size.depth = 0;
+        },
+        "Texture depth must be at least 1."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.usage = TextureUsage::None;
+        },
+        "Texture usage must be specified."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.usage = TextureUsage(0x80000000u);
+        },
+        "Texture usage contains invalid flags."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.memoryType = MemoryType(-1);
+        },
+        "Invalid memory type."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.mipCount = 10;
+        },
+        "exceeds maximum mip count"
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.size.depth = 2;
+        },
+        "2D textures must have depth set to 1."
+    );
+    checkInvalid(
+        [](TextureDesc& desc)
+        {
+            desc.sampleCount = 4;
+        },
+        "Non-multisample texture types must have sample count of 1."
+    );
+
+    callback.clear();
+    CHECK(device->getTextureMemoryRequirements(validDesc, nullptr) == SLANG_E_INVALID_ARG);
+    CHECK(callback.contains("'outRequirements' must not be null."));
+
+    callback.clear();
+    validDesc.heap = heap;
+    REQUIRE_CALL(device->getTextureMemoryRequirements(validDesc, &requirements));
+    CHECK(callback.output.empty());
+    bool compatible = false;
+    REQUIRE_CALL(device->isResourceHeapCompatible(heap, requirements, &compatible));
+    CHECK(compatible);
+#else
+    SLANG_UNUSED(ctx);
+    SLANG_UNUSED(device);
+    SKIP("Debug-layer validation requires a debug build");
+#endif
 }
 
 GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
