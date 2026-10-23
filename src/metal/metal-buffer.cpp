@@ -56,22 +56,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     const Size bufferSize = desc.size;
 
-    MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
-    switch (desc.memoryType)
+    if (desc.memoryType != MemoryType::DeviceLocal && desc.memoryType != MemoryType::Upload &&
+        desc.memoryType != MemoryType::ReadBack)
     {
-    case MemoryType::DeviceLocal:
-        resourceOptions = makeResourceOptions(MTL::ResourceStorageModePrivate);
-        break;
-    case MemoryType::Upload:
-        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
-        break;
-    case MemoryType::ReadBack:
-        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared);
-        break;
-    default:
         SLANG_RHI_ASSERT_FAILURE("Unhandled MemoryType");
         return SLANG_FAIL;
     }
+    const MTL::ResourceOptions resourceOptions = getMetalResourceOptions(desc.memoryType);
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     if (desc.heap)

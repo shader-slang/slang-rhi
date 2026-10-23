@@ -23,6 +23,9 @@ inline D3D12_HEAP_PROPERTIES makeHeapProperties(D3D12_HEAP_TYPE type)
     return heapProps;
 }
 
+D3D12_HEAP_TYPE translateHeapType(MemoryType memoryType);
+D3D12_HEAP_FLAGS translateHeapFlags(ResourceHeapUsage usage);
+
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);
 
 D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage);
