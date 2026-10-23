@@ -1646,10 +1646,9 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
         m_stateTracking.forgetBufferState(buffer);
     else if (Texture* texture = asTexture(cmd.before))
         m_stateTracking.forgetTextureState(texture);
-    if (Buffer* buffer = asBuffer(cmd.after))
-        m_stateTracking.forgetBufferState(buffer);
-    else if (Texture* texture = asTexture(cmd.after))
-        m_stateTracking.forgetTextureState(texture);
+    // Preserve any tracked state for `after`: multiple predecessors can activate the
+    // same destination, and an earlier activation may have transitioned it for discard.
+    // An untracked destination starts in its default state, restored on deactivation.
 
     // Activating an RT/DS alias also requires initializing its compression metadata, even
     // when the next render pass uses DontCare and overwrites every pixel. Discard after

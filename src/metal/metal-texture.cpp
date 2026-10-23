@@ -58,12 +58,8 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
+Result checkTextureSupported(const TextureDesc& desc)
 {
-    AUTORELEASEPOOL
-
-    TextureDesc desc = fixupTextureDesc(desc_);
-
     // Metal doesn't support mip-mapping for 1D textures
     if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipCount > 1)
     {
@@ -81,6 +77,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RHI_ASSERT_FAILURE("Unsupported texture format");
         return SLANG_FAIL;
     }
+
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
+{
+    AUTORELEASEPOOL
+
+    TextureDesc desc = fixupTextureDesc(desc_);
+    SLANG_RETURN_ON_FAIL(checkTextureSupported(desc));
 
     RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
 
