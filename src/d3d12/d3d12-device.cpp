@@ -1394,6 +1394,11 @@ Result DeviceImpl::createBuffer(
 
 static bool shouldCreateTypelessTexture(const TextureDesc& desc)
 {
+    // Depth formats use different typed formats for shader and depth/stencil views
+    // (e.g. R32_FLOAT SRV/UAV versus D32_FLOAT DSV), so the backing resource must
+    // be typeless when shader access is requested. This also supports a depth-format
+    // descriptor used only as an R32/R16 shader resource, without DepthStencil usage.
+    // Keep allocation queries and creation on the same native format-selection path.
     return is_set(desc.usage, TextureUsage::Typeless) ||
            (isDepthFormat(desc.format) &&
             (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)));

@@ -1127,6 +1127,116 @@ GPU_TEST_CASE("resource-heap-alias-texture-no-host-wait", D3D12 | Vulkan | Metal
     dataB.checkEqual(textureB);
 }
 
+GPU_TEST_CASE("resource-heap-d3d12-depth-shader-views", D3D12)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-texture-bindings", "compareDepth", program.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    auto pipeline = device->createComputePipeline(pipelineDesc);
+    REQUIRE(pipeline);
+    SamplerDesc samplerDesc = {};
+    samplerDesc.reductionOp = TextureReductionOp::Comparison;
+    samplerDesc.comparisonFunc = ComparisonFunc::Less;
+    auto sampler = device->createSampler(samplerDesc);
+    auto results = device->createBuffer(makeComputeBufferDesc(4 * sizeof(float), 4 * sizeof(float)));
+    REQUIRE(sampler);
+    REQUIRE(results);
+
+    for (Format format : {Format::D16Unorm, Format::D32Float, Format::D32FloatS8Uint})
+    {
+        CAPTURE(format);
+        TextureDesc desc = {};
+        desc.size = {4, 4, 1};
+        desc.format = format;
+        desc.usage = TextureUsage::DepthStencil | TextureUsage::ShaderResource;
+        const auto requirements = requireTextureMemoryRequirements(device, desc);
+        Size size = 0, alignment = 0;
+        REQUIRE_CALL(device->getTextureAllocationInfo(desc, &size, &alignment));
+        CHECK(size == requirements.size);
+        CHECK(alignment == requirements.alignment);
+        auto heap = createHeapForRequirements(device, requirements);
+        for (bool placed : {false, true})
+        {
+            CAPTURE(placed);
+            auto texture = placed ? createPlacedTexture(device, desc, heap, 0) : device->createTexture(desc);
+            REQUIRE(texture);
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto encoder = queue->createCommandEncoder();
+            if (placed)
+                encoder->aliasResources(nullptr, texture);
+            RenderPassDepthStencilAttachment attachment = {};
+            attachment.view = texture->getDefaultView();
+            attachment.depthLoadOp = LoadOp::Clear;
+            attachment.depthClearValue = 0.5f;
+            RenderPassDesc renderPass = {};
+            renderPass.depthStencilAttachment = &attachment;
+            encoder->beginRenderPass(renderPass)->end();
+            auto pass = encoder->beginComputePass();
+            ShaderCursor cursor(pass->bindPipeline(pipeline));
+            REQUIRE_CALL(cursor["depthInput"].setBinding(texture));
+            REQUIRE_CALL(cursor["comparisonSampler"].setBinding(sampler));
+            REQUIRE_CALL(cursor["results"].setBinding(results));
+            pass->dispatchCompute(1, 1, 1);
+            pass->end();
+            REQUIRE_CALL(queue->submit(encoder->finish()));
+            REQUIRE_CALL(queue->waitOnHost());
+            compareComputeResult(device, results, makeArray<float>(1.f, 0.f, 0.f, 0.f));
+        }
+    }
+}
+
+GPU_TEST_CASE("resource-heap-d3d12-depth-format-uav", D3D12)
+{
+    // D32Float may back an R32_FLOAT UAV when DepthStencil usage is absent.
+    const char* source = R"(
+        RWTexture2D<float> output;
+        [shader("compute")]
+        [numthreads(1, 1, 1)]
+        void main() { output[uint2(0)] = 0.25; }
+    )";
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadComputeProgramFromSource(device, source, program.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    auto pipeline = device->createComputePipeline(pipelineDesc);
+    REQUIRE(pipeline);
+    TextureDesc desc = {};
+    desc.format = Format::D32Float;
+    desc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
+    auto requirements = requireTextureMemoryRequirements(device, desc);
+    auto heap = createHeapForRequirements(device, requirements);
+    for (bool placed : {false, true})
+    {
+        CAPTURE(placed);
+        auto texture = placed ? createPlacedTexture(device, desc, heap, 0) : device->createTexture(desc);
+        REQUIRE(texture);
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        if (placed)
+            encoder->aliasResources(nullptr, texture);
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(pipeline));
+        REQUIRE_CALL(cursor["output"].setBinding(texture));
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(device, texture, 0, 0, makeArray<float>(0.25f));
+    }
+
+    // Adding DepthStencil would request incompatible native DS/UAV flags.
+    desc.usage |= TextureUsage::DepthStencil;
+    ResourceMemoryRequirements invalidRequirements;
+    CHECK_EQ(device->getTextureMemoryRequirements(desc, &invalidRequirements), SLANG_E_INVALID_ARG);
+    Size size = 0, alignment = 0;
+    CHECK_EQ(device->getTextureAllocationInfo(desc, &size, &alignment), SLANG_E_INVALID_ARG);
+    ComPtr<ITexture> texture;
+    CHECK_EQ(device->createTexture(desc, nullptr, texture.writeRef()), SLANG_E_INVALID_ARG);
+    desc.heap = heap;
+    CHECK_EQ(device->createTexture(desc, nullptr, texture.writeRef()), SLANG_E_INVALID_ARG);
+}
+
 GPU_TEST_CASE("resource-heap-d3d12-alias-render-dont-care", D3D12)
 {
     const char* source = R"(
