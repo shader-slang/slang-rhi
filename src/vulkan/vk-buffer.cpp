@@ -14,19 +14,6 @@
 
 namespace rhi::vk {
 
-VkBufferUsageFlags getBufferUsageFlags(const DeviceImpl* device, const BufferDesc& desc)
-{
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    if (device->m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
-        device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-    {
-        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    }
-    return usage;
-}
-
 // Helper function to create a VkBuffer with optional external memory support
 Result createVkBuffer(
     const VulkanApi& api,
@@ -465,7 +452,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     VkMemoryPropertyFlags reqMemoryProperties = 0;
     VkMemoryPropertyFlags preferredMemoryProperties = 0;
 
-    VkBufferUsageFlags usage = getBufferUsageFlags(this, desc);
+    VkBufferUsageFlags usage = getBufferUsageFlags(m_api, desc);
 
     if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
         desc.memoryType == MemoryType::ReadBack)

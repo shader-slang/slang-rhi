@@ -12,8 +12,6 @@ Result createVkBuffer(
     VkBuffer* outBuffer
 );
 
-VkBufferUsageFlags getBufferUsageFlags(const DeviceImpl* device, const BufferDesc& desc);
-
 // Combined buffer and memory class
 class VKBufferHandleRAII
 {

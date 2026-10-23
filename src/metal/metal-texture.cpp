@@ -172,19 +172,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 NS::SharedPtr<MTL::TextureDescriptor> createTextureDescriptor(const TextureDesc& desc)
 {
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
-    switch (desc.memoryType)
-    {
-    case MemoryType::DeviceLocal:
-        textureDesc->setStorageMode(MTL::StorageModePrivate);
-        break;
-    case MemoryType::Upload:
-        textureDesc->setStorageMode(MTL::StorageModeShared);
-        textureDesc->setCpuCacheMode(MTL::CPUCacheModeWriteCombined);
-        break;
-    case MemoryType::ReadBack:
-        textureDesc->setStorageMode(MTL::StorageModeShared);
-        break;
-    }
+    textureDesc->setStorageMode(translateStorageMode(desc.memoryType));
+    textureDesc->setCpuCacheMode(translateCpuCacheMode(desc.memoryType));
 
     textureDesc->setTextureType(translateTextureType(desc.type));
     textureDesc->setWidth(desc.size.width);

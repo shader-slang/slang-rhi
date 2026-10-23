@@ -602,19 +602,6 @@ Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHea
     return SLANG_OK;
 }
 
-static MTL::ResourceOptions getMetalResourceOptions(MemoryType memoryType)
-{
-    switch (memoryType)
-    {
-    case MemoryType::Upload:
-        return makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
-    case MemoryType::ReadBack:
-        return makeResourceOptions(MTL::ResourceStorageModeShared);
-    default:
-        return makeResourceOptions(MTL::ResourceStorageModePrivate);
-    }
-}
-
 Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
 {
     AUTORELEASEPOOL

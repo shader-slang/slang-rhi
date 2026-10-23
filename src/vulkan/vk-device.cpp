@@ -2258,7 +2258,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
 {
     resetResourceMemoryRequirements(outRequirements);
     BufferDesc desc = fixupBufferDesc(desc_);
-    VkBufferUsageFlags usage = getBufferUsageFlags(this, desc);
+    VkBufferUsageFlags usage = getBufferUsageFlags(m_api, desc);
     VkBuffer buffer = VK_NULL_HANDLE;
     SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, 0, &buffer));
     VkMemoryRequirements reqs = {};

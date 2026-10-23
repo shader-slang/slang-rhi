@@ -5,6 +5,35 @@
 
 namespace rhi::d3d12 {
 
+D3D12_HEAP_TYPE translateHeapType(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return D3D12_HEAP_TYPE_UPLOAD;
+    case MemoryType::ReadBack:
+        return D3D12_HEAP_TYPE_READBACK;
+    default:
+        return D3D12_HEAP_TYPE_DEFAULT;
+    }
+}
+
+D3D12_HEAP_FLAGS translateHeapFlags(ResourceHeapUsage usage)
+{
+    switch (usage)
+    {
+    case ResourceHeapUsage::Buffers:
+        return D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+    case ResourceHeapUsage::NonRtDsTextures:
+        return D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+    case ResourceHeapUsage::RtDsTextures:
+        return D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+    case ResourceHeapUsage::All:
+    default:
+        return D3D12_HEAP_FLAG_NONE;
+    }
+}
+
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
 {
 #if SLANG_RHI_ENABLE_NVAPI

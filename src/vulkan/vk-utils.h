@@ -52,6 +52,8 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
 
 // Utility functions for Vulkan
 
+VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc);
+
 /// Get the equivalent VkFormat from the format
 /// Returns VK_FORMAT_UNDEFINED if a match is not found
 VkFormat getVkFormat(Format format);

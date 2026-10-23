@@ -4,31 +4,6 @@
 
 namespace rhi::metal {
 
-static MTL::StorageMode translateStorageMode(MemoryType memoryType)
-{
-    switch (memoryType)
-    {
-    case MemoryType::Upload:
-    case MemoryType::ReadBack:
-        return MTL::StorageModeShared;
-    default:
-        return MTL::StorageModePrivate;
-    }
-}
-
-// Must match the CPU cache mode used by createBuffer() for the same MemoryType.
-// Metal rejects placed allocations whose cache mode differs from the heap.
-static MTL::CPUCacheMode translateCpuCacheMode(MemoryType memoryType)
-{
-    switch (memoryType)
-    {
-    case MemoryType::Upload:
-        return MTL::CPUCacheModeWriteCombined;
-    default:
-        return MTL::CPUCacheModeDefaultCache;
-    }
-}
-
 ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
     : ResourceHeap(device, desc)
 {
