@@ -1090,6 +1090,114 @@ GPU_TEST_CASE("resource-heap-alias-texture-no-host-wait", D3D12 | Vulkan | Metal
     dataB.checkEqual(textureB);
 }
 
+GPU_TEST_CASE("resource-heap-d3d12-alias-render-dont-care", D3D12)
+{
+    const char* source = R"(
+        uniform float4 color;
+        [shader("vertex")]
+        float4 vertexMain(uint id : SV_VertexID) : SV_Position
+        {
+            float2 uv = float2((id << 1) & 2, id & 2);
+            return float4(uv * float2(2, -2) + float2(-1, 1), 0.5, 1);
+        }
+        [shader("fragment")]
+        float4 fragmentMain() : SV_Target { return color; }
+    )";
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadRenderProgramFromSource(device, source, "vertexMain", "fragmentMain", program.writeRef()));
+
+    TextureDesc colorDesc = makeSampleTextureDesc(TextureUsage::RenderTarget);
+    // Exercise activation from a default state different from the discard state.
+    colorDesc.defaultState = ResourceState::ShaderResource;
+    TextureDesc depthDesc = colorDesc;
+    depthDesc.format = Format::D32Float;
+    depthDesc.usage = TextureUsage::DepthStencil | TextureUsage::CopySource;
+    depthDesc.defaultState = ResourceState::CopySource;
+    auto colorHeap = createHeapForRequirements(device, requireTextureMemoryRequirements(device, colorDesc));
+    auto depthHeap = createHeapForRequirements(device, requireTextureMemoryRequirements(device, depthDesc));
+    ComPtr<ITexture> colors[2];
+    ComPtr<ITexture> depths[2];
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        colors[i] = createPlacedTexture(device, colorDesc, colorHeap, 0);
+        depths[i] = createPlacedTexture(device, depthDesc, depthHeap, 0);
+    }
+
+    ColorTargetDesc target = {};
+    target.format = colorDesc.format;
+    RenderPipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    pipelineDesc.targets = &target;
+    pipelineDesc.targetCount = 1;
+    pipelineDesc.depthStencil.format = depthDesc.format;
+    pipelineDesc.depthStencil.depthTestEnable = true;
+    pipelineDesc.depthStencil.depthWriteEnable = true;
+    pipelineDesc.depthStencil.depthFunc = ComparisonFunc::Always;
+    ComPtr<IRenderPipeline> pipeline;
+    REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    for (uint32_t submission = 0; submission < 2; ++submission)
+    {
+        auto encoder = queue->createCommandEncoder();
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            const bool first = submission == 0 && i == 0;
+            encoder->aliasResources(first ? nullptr : colors[1 - i].get(), colors[i]);
+            encoder->aliasResources(first ? nullptr : depths[1 - i].get(), depths[i]);
+            RenderPassColorAttachment color = {};
+            color.view = colors[i]->getDefaultView();
+            color.loadOp = LoadOp::DontCare;
+            RenderPassDepthStencilAttachment depth = {};
+            depth.view = depths[i]->getDefaultView();
+            depth.depthLoadOp = LoadOp::DontCare;
+            depth.stencilLoadOp = LoadOp::DontCare;
+            RenderPassDesc passDesc = {};
+            passDesc.colorAttachments = &color;
+            passDesc.colorAttachmentCount = 1;
+            passDesc.depthStencilAttachment = &depth;
+            auto pass = encoder->beginRenderPass(passDesc);
+            ShaderCursor cursor(pass->bindPipeline(pipeline));
+            const float value[] = {float(i), float(submission), 0.f, 1.f};
+            REQUIRE_CALL(cursor["color"].setData(value, sizeof(value)));
+            RenderState state = {};
+            state.viewports[0] = Viewport::fromSize(32, 32);
+            state.viewportCount = 1;
+            state.scissorRects[0] = ScissorRect::fromSize(32, 32);
+            state.scissorRectCount = 1;
+            pass->setRenderState(state);
+            DrawArguments args = {};
+            args.vertexCount = 3;
+            pass->draw(args);
+            pass->end();
+        }
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+    }
+    REQUIRE_CALL(queue->waitOnHost());
+    for (bool depth : {false, true})
+    {
+        ComPtr<ISlangBlob> data;
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(depth ? depths[1] : colors[1], 0, 0, data.writeRef(), &layout));
+        for (uint32_t y = 0; y < 32; ++y)
+        {
+            const auto row = static_cast<const uint8_t*>(data->getBufferPointer()) + y * layout.rowPitch;
+            for (uint32_t x = 0; x < 32; ++x)
+            {
+                if (depth)
+                    CHECK(reinterpret_cast<const float*>(row)[x] == 0.5f);
+                else
+                {
+                    CHECK(row[x * 4 + 0] == 255);
+                    CHECK(row[x * 4 + 1] == 255);
+                    CHECK(row[x * 4 + 2] == 0);
+                    CHECK(row[x * 4 + 3] == 255);
+                }
+            }
+        }
+    }
+}
+
 GPU_TEST_CASE("resource-heap-placed-texture-create-preserves-alias", D3D12 | Vulkan | Metal)
 {
     TextureData dataA;
