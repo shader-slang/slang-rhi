@@ -1,6 +1,7 @@
 #include "metal-buffer.h"
 #include "metal-command.h"
 #include "metal-device.h"
+#include "metal-resource-heap.h"
 #include "metal-utils.h"
 
 namespace rhi::metal {
@@ -55,25 +56,29 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     const Size bufferSize = desc.size;
 
-    MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
-    switch (desc.memoryType)
+    if (desc.memoryType != MemoryType::DeviceLocal && desc.memoryType != MemoryType::Upload &&
+        desc.memoryType != MemoryType::ReadBack)
     {
-    case MemoryType::DeviceLocal:
-        resourceOptions = makeResourceOptions(MTL::ResourceStorageModePrivate);
-        break;
-    case MemoryType::Upload:
-        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
-        break;
-    case MemoryType::ReadBack:
-        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared);
-        break;
-    default:
         SLANG_RHI_ASSERT_FAILURE("Unhandled MemoryType");
         return SLANG_FAIL;
     }
+    const MTL::ResourceOptions resourceOptions = getMetalResourceOptions(desc.memoryType);
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
+    if (desc.heap)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+        buffer->m_buffer = NS::TransferPtr(heap->m_heap->newBuffer(bufferSize, resourceOptions, desc.heapOffset));
+        buffer->setPlacement(heap, desc.heapOffset, requirements);
+    }
+    else
+    {
+        buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
+    }
     if (!buffer->m_buffer)
     {
         return SLANG_FAIL;

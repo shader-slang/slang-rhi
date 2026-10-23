@@ -44,6 +44,10 @@
 | `createFence`                      | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `waitForFences`                    | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createHeap`                       | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createResourceHeap`               | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getBufferMemoryRequirements`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getTextureMemoryRequirements`     | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
+| `isResourceHeapCompatible`         | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureAllocationInfo`         | yes     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureRowAlignment`           | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `getCooperativeVectorProperties`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
@@ -219,6 +223,7 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setTextureState`                      | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `globalBarrier`                        | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `aliasResources`                       | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `pushDebugGroup`                       | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `popDebugGroup`                        | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `insertDebugMarker`                    | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
@@ -322,6 +327,13 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 
+## `IResourceHeap` interface
+
+| API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`         | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `getNativeHandle` | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+
 ## OptiX callable stack limits
 
 CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through
@@ -332,3 +344,18 @@ callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls
 intersection/any-hit and defaults to zero. These limits are independent of
 `maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
 The pipeline copies these options, including when compilation is deferred.
+
+## Resource heap placement
+
+Query `getBufferMemoryRequirements` or `getTextureMemoryRequirements`, then pass the
+returned requirements to `createResourceHeap`. Set `BufferDesc::heap` / `TextureDesc::heap`
+and `heapOffset` to place a resource at an aligned offset within that heap. A null heap
+uses the normal committed allocation path. Requirements include opaque device-local
+compatibility data; pass them unchanged rather than constructing or persisting them.
+
+The resource retains its heap allocation through GPU completion. The heap fields are
+creation-only and are cleared in `getDesc()`, so copying that descriptor does not
+implicitly create an overlapping allocation. Initial data writes the heap immediately
+and must not overlap an active resource. Without initial data, activate the resource
+using `aliasResources` before use. Switching aliases makes the destination contents
+undefined; cross-queue synchronization remains the application's responsibility.

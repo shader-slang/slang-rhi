@@ -35,6 +35,9 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
+    if (desc_.heap)
+        return SLANG_E_NOT_AVAILABLE;
+
     TextureDesc desc = fixupTextureDesc(desc_);
 
     // WebGPU only supports 1 MIP level for 1d textures

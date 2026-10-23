@@ -34,6 +34,7 @@ class CommandEncoderImpl;
 class CommandBufferImpl;
 class CommandQueueImpl;
 class QueryPoolImpl;
+class ResourceHeapImpl;
 struct BindingDataImpl;
 struct BindingCache;
 

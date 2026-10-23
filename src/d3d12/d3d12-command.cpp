@@ -11,6 +11,7 @@
 #include "d3d12-query.h"
 #include "d3d12-input-layout.h"
 #include "d3d12-utils.h"
+#include "../rhi-shared.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 #include "../format-conversion.h"
@@ -112,6 +113,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -1609,6 +1611,60 @@ void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
 void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 {
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    // Flush transitions already accumulated for either resource before requesting a final
+    // transition for `before`; otherwise D3D12 may see the same subresource twice in one batch.
+    commitBarriers();
+
+    // Aliased resources retain their D3D12 transition state while inactive. Restore the resource
+    // being deactivated to its default state so it can be safely forgotten until reactivation.
+    if (Buffer* buffer = asBuffer(cmd.before))
+        m_stateTracking.setBufferState(buffer, buffer->m_desc.defaultState);
+    else if (Texture* texture = asTexture(cmd.before))
+        m_stateTracking.setTextureState(texture, kEntireTexture, texture->m_desc.defaultState);
+    commitBarriers();
+
+    auto getResource = [](IResource* resource) -> ID3D12Resource*
+    {
+        if (Buffer* buffer = asBuffer(resource))
+            return checked_cast<BufferImpl*>(buffer)->m_resource.getResource();
+        else if (Texture* texture = asTexture(resource))
+            return checked_cast<TextureImpl*>(texture)->m_resource.getResource();
+        return nullptr;
+    };
+
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+    barrier.Aliasing.pResourceBefore = getResource(cmd.before);
+    barrier.Aliasing.pResourceAfter = getResource(cmd.after);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    if (Buffer* buffer = asBuffer(cmd.before))
+        m_stateTracking.forgetBufferState(buffer);
+    else if (Texture* texture = asTexture(cmd.before))
+        m_stateTracking.forgetTextureState(texture);
+    // Preserve any tracked state for `after`: multiple predecessors can activate the
+    // same destination, and an earlier activation may have transitioned it for discard.
+    // An untracked destination starts in its default state, restored on deactivation.
+
+    // Activating an RT/DS alias also requires initializing its compression metadata, even
+    // when the next render pass uses DontCare and overwrites every pixel. Discard after
+    // the aliasing barrier, in the state required by D3D12, and retain that tracked state.
+    if (Texture* texture = asTexture(cmd.after))
+    {
+        const auto flags = checked_cast<TextureImpl*>(texture)->m_resource.getResource()->GetDesc().Flags;
+        if (flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+        {
+            const ResourceState state = (flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) ? ResourceState::DepthWrite
+                                                                                          : ResourceState::RenderTarget;
+            m_stateTracking.setTextureState(texture, kEntireTexture, state);
+            commitBarriers();
+            m_cmdList->DiscardResource(getResource(cmd.after), nullptr);
+        }
+    }
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

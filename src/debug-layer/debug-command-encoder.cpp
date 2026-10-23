@@ -2,6 +2,8 @@
 #include "debug-command-buffer.h"
 #include "debug-helper-functions.h"
 #include "debug-query.h"
+#include "../resource-heap.h"
+#include "../command-buffer.h"
 
 #include <vector>
 
@@ -1878,6 +1880,99 @@ void DebugCommandEncoder::globalBarrier()
     requireNoPass();
 
     baseObject->globalBarrier();
+}
+
+void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, aliasResources);
+
+    if (m_state != EncoderState::Open)
+    {
+        requireOpen();
+        return;
+    }
+    if (m_passState != PassState::NoPass)
+    {
+        requireNoPass();
+        return;
+    }
+
+    Device* device = checked_cast<CommandEncoder*>(baseObject.get())->getDevice();
+    if (!device->hasFeature(Feature::ResourceAliasing))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource aliasing.");
+        return;
+    }
+
+    if (!after)
+    {
+        RHI_VALIDATION_ERROR("'after' must not be null.");
+        return;
+    }
+
+    auto getResource = [](IResource* resource) -> Resource*
+    {
+        if (Buffer* buffer = asBuffer(resource))
+            return buffer;
+        if (Texture* texture = asTexture(resource))
+            return texture;
+        return nullptr;
+    };
+
+    Resource* afterResource = getResource(after);
+    if (!afterResource || !afterResource->isPlaced())
+    {
+        RHI_VALIDATION_ERROR("'after' must be a placed buffer or texture.");
+        return;
+    }
+    if (afterResource->getDevice() != device)
+    {
+        RHI_VALIDATION_ERROR("'after' must belong to the same device as the command encoder.");
+        return;
+    }
+    ResourceHeap* heap = afterResource->m_placementHeap;
+    if (!heap->isCompatible(afterResource->m_placementRequirements))
+    {
+        RHI_VALIDATION_ERROR("'after' is not compatible with its resource heap.");
+        return;
+    }
+
+    if (before)
+    {
+        Resource* beforeResource = getResource(before);
+        if (!beforeResource || !beforeResource->isPlaced())
+        {
+            RHI_VALIDATION_ERROR("'before' must be a placed buffer or texture.");
+            return;
+        }
+        if (beforeResource->getDevice() != device)
+        {
+            RHI_VALIDATION_ERROR("'before' must belong to the same device as the command encoder.");
+            return;
+        }
+        if (beforeResource->m_placementHeap != afterResource->m_placementHeap)
+        {
+            RHI_VALIDATION_ERROR("'before' and 'after' must refer to the same resource heap.");
+            return;
+        }
+        if (!heap->isCompatible(beforeResource->m_placementRequirements))
+        {
+            RHI_VALIDATION_ERROR("'before' is not compatible with its resource heap.");
+            return;
+        }
+
+        const Offset beforeBegin = beforeResource->m_placementOffset;
+        const Offset beforeEnd = beforeBegin + beforeResource->m_placementRequirements.size;
+        const Offset afterBegin = afterResource->m_placementOffset;
+        const Offset afterEnd = afterBegin + afterResource->m_placementRequirements.size;
+        if (beforeBegin >= afterEnd || afterBegin >= beforeEnd)
+        {
+            RHI_VALIDATION_ERROR("'before' and 'after' placement ranges must overlap.");
+            return;
+        }
+    }
+
+    baseObject->aliasResources(before, after);
 }
 
 void DebugCommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
