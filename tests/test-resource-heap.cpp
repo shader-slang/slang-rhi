@@ -294,6 +294,20 @@ GPU_TEST_CASE("resource-heap-unsupported", D3D11 | CPU | WGPU)
     TextureDesc textureDesc = makeSampleTextureDesc();
     ResourceMemoryRequirements textureRequirements = {};
     CHECK_EQ(device->getTextureMemoryRequirements(textureDesc, &textureRequirements), SLANG_E_NOT_AVAILABLE);
+
+#if SLANG_RHI_DEBUG
+    CaptureValidationCallback callback;
+    auto debugDevice = checked_cast<debug::DebugDevice*>(device.get());
+    IDebugCallback* previousCallback = debugDevice->ctx->debugCallback;
+    debugDevice->ctx->debugCallback = &callback;
+    ResourceHeapDesc heapDesc = {};
+    heapDesc.size = 65536;
+    ComPtr<IResourceHeap> heap;
+    CHECK_EQ(device->createResourceHeap(heapDesc, heap.writeRef()), SLANG_E_NOT_AVAILABLE);
+    CHECK(callback.contains("Device does not support resource heaps"));
+    CHECK(!heap);
+    debugDevice->ctx->debugCallback = previousCallback;
+#endif
 }
 
 GPU_TEST_CASE("resource-heap-buffer-requirements", D3D12 | Vulkan | Metal | CUDA)
@@ -639,6 +653,7 @@ GPU_TEST_CASE("resource-heap-invalid-alias-validation", D3D12 | Vulkan)
     ComPtr<IBuffer> differentHeap = createPlacedBuffer(firstDevice, desc, otherHeap, 0);
     ComPtr<IBuffer> nonOverlapping = createPlacedBuffer(firstDevice, desc, firstHeap, secondOffset);
     ComPtr<IBuffer> differentDevice = createPlacedBuffer(secondDevice, desc, secondDeviceHeap, 0);
+    ComPtr<IBuffer> otherForeign = createPlacedBuffer(secondDevice, desc, secondDeviceHeap, 0);
     ComPtr<IBuffer> committed;
     REQUIRE_CALL(firstDevice->createBuffer(desc, nullptr, committed.writeRef()));
 
@@ -652,6 +667,14 @@ GPU_TEST_CASE("resource-heap-invalid-alias-validation", D3D12 | Vulkan)
     callback.clear();
     encoder->aliasResources(differentDevice, first);
     CHECK(callback.contains("same device"));
+
+    callback.clear();
+    encoder->aliasResources(nullptr, differentDevice);
+    CHECK(callback.contains("same device as the command encoder"));
+
+    callback.clear();
+    encoder->aliasResources(differentDevice, otherForeign);
+    CHECK(callback.contains("same device as the command encoder"));
 
     callback.clear();
     encoder->aliasResources(differentHeap, first);
@@ -672,6 +695,7 @@ GPU_TEST_CASE("resource-heap-invalid-alias-validation", D3D12 | Vulkan)
     encoder = nullptr;
     committed = nullptr;
     differentDevice = nullptr;
+    otherForeign = nullptr;
     nonOverlapping = nullptr;
     differentHeap = nullptr;
     first = nullptr;

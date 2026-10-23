@@ -30,10 +30,15 @@ void unwrapResourcePlacement(const void*& next, ResourcePlacementDesc& storage)
     next = &storage;
 }
 
-Result validateResourcePlacementDesc(DebugContext* ctx, const ResourcePlacementDesc* placement)
+Result validateResourcePlacementDesc(DebugContext* ctx, IDevice* device, const ResourcePlacementDesc* placement)
 {
     if (!placement)
         return SLANG_OK;
+    if (!device->hasFeature(Feature::ResourceHeaps))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource heaps.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
     if (!placement->heap)
     {
         RHI_VALIDATION_ERROR("ResourcePlacementDesc::heap must not be null.");
@@ -362,7 +367,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
     }
 
     ResourcePlacementDesc unwrappedPlacement;
-    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, findResourcePlacementDesc(patchedDesc.next)));
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, baseObject, findResourcePlacementDesc(patchedDesc.next)));
     unwrapResourcePlacement(patchedDesc.next, unwrappedPlacement);
 
     return baseObject->createTexture(patchedDesc, initData, outTexture);
@@ -444,7 +449,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     }
 
     ResourcePlacementDesc unwrappedPlacement;
-    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, findResourcePlacementDesc(patchedDesc.next)));
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, baseObject, findResourcePlacementDesc(patchedDesc.next)));
     unwrapResourcePlacement(patchedDesc.next, unwrappedPlacement);
 
     return baseObject->createBuffer(patchedDesc, initData, outBuffer);
@@ -1686,6 +1691,12 @@ Result DebugDevice::createResourceHeap(const ResourceHeapDesc& desc, IResourceHe
         RHI_VALIDATION_ERROR("'outHeap' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
+    *outHeap = nullptr;
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource heaps.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
     if (desc.size == 0)
     {
         RHI_VALIDATION_ERROR("Resource heap size must be greater than 0.");
@@ -1732,6 +1743,9 @@ Result DebugDevice::getBufferMemoryRequirements(const BufferDesc& desc, Resource
         return SLANG_E_INVALID_ARG;
     }
 
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+        return SLANG_E_NOT_AVAILABLE;
+
     return baseObject->getBufferMemoryRequirements(desc, outRequirements);
 }
 
@@ -1744,6 +1758,9 @@ Result DebugDevice::getTextureMemoryRequirements(const TextureDesc& desc, Resour
         RHI_VALIDATION_ERROR("'outRequirements' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
+
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+        return SLANG_E_NOT_AVAILABLE;
 
     return baseObject->getTextureMemoryRequirements(desc, outRequirements);
 }
@@ -1766,6 +1783,9 @@ Result DebugDevice::isResourceHeapCompatible(
         RHI_VALIDATION_ERROR("'outCompatible' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
+
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+        return SLANG_E_NOT_AVAILABLE;
 
     return baseObject->isResourceHeapCompatible(getInnerObj(heap), requirements, outCompatible);
 }
