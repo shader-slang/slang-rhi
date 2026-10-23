@@ -553,6 +553,46 @@ GPU_TEST_CASE("resource-heap-d3d12-placed-buffer-init-states", D3D12)
     compareComputeResult(device, uavBuffer, makeArray<uint32_t>(11, 22, 33, 44));
 }
 
+GPU_TEST_CASE("resource-heap-d3d12-host-visible-buffer-flags", D3D12)
+{
+    const uint32_t expected[] = {0x10203040u, 0x50607080u, 0x90A0B0C0u, 0xD0E0F000u};
+    for (BufferUsage extraUsage : {BufferUsage::UnorderedAccess, BufferUsage::AccelerationStructure})
+    {
+        CAPTURE(extraUsage);
+        BufferDesc uploadDesc = makeCopyBufferDesc(sizeof(expected), MemoryType::Upload);
+        uploadDesc.usage |= extraUsage;
+        uploadDesc.defaultState = ResourceState::CopySource;
+        auto uploadRequirements = requireBufferMemoryRequirements(device, uploadDesc);
+        auto uploadHeap = createHeapForRequirements(device, uploadRequirements);
+        auto upload = createPlacedBuffer(device, uploadDesc, uploadHeap, 0);
+
+        BufferDesc readbackDesc = makeCopyBufferDesc(sizeof(expected), MemoryType::ReadBack);
+        readbackDesc.usage |= extraUsage;
+        readbackDesc.defaultState = ResourceState::CopyDestination;
+        auto readbackRequirements = requireBufferMemoryRequirements(device, readbackDesc);
+        auto readbackHeap = createHeapForRequirements(device, readbackRequirements);
+        auto readback = createPlacedBuffer(device, readbackDesc, readbackHeap, 0);
+
+        // Host-visible buffers retain their fixed copy states, even with these usage hints.
+        void* mappedData = nullptr;
+        REQUIRE_CALL(device->mapBuffer(upload, CpuAccessMode::Write, &mappedData));
+        REQUIRE(mappedData != nullptr);
+        std::memcpy(mappedData, expected, sizeof(expected));
+        REQUIRE_CALL(device->unmapBuffer(upload));
+
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        encoder->copyBuffer(readback, 0, upload, 0, sizeof(expected));
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        REQUIRE_CALL(device->mapBuffer(readback, CpuAccessMode::Read, &mappedData));
+        REQUIRE(mappedData != nullptr);
+        CHECK(std::memcmp(mappedData, expected, sizeof(expected)) == 0);
+        REQUIRE_CALL(device->unmapBuffer(readback));
+    }
+}
+
 GPU_TEST_CASE("resource-heap-d3d12-msaa-alignment", D3D12)
 {
     TextureDesc sampledDesc = makeSampleTextureDesc();

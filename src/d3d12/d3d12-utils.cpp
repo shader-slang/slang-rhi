@@ -446,6 +446,14 @@ void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
     out.Flags = D3D12_RESOURCE_FLAG_NONE;
 }
 
+void initBufferDesc(const BufferDesc& bufferDesc, D3D12_RESOURCE_DESC& out)
+{
+    initBufferDesc(bufferDesc.size, out);
+    // Upload and readback heaps cannot use UAV resource flags, regardless of usage.
+    if (bufferDesc.memoryType == MemoryType::DeviceLocal)
+        out.Flags = calcResourceFlags(bufferDesc.usage);
+}
+
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
     D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor,
