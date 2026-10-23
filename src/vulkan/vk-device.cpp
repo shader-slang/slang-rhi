@@ -356,6 +356,16 @@ Result DeviceImpl::initVulkanInstance(
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
+        // Query the available instance extensions
+        uint32_t extensionCount = 0;
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+        std::vector<VkExtensionProperties> extensions;
+        extensions.resize(extensionCount);
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions.data());
+        std::set<std::string> extensionNames;
+        for (const auto& e : extensions)
+            extensionNames.emplace(e.extensionName);
+
         std::vector<const char*> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
@@ -374,7 +384,10 @@ Result DeviceImpl::initVulkanInstance(
 #if SLANG_ANDROID
         instanceExtensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #else
-        instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
 #endif
 
@@ -1938,14 +1951,16 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer
+    // create staging buffer (prefer cached memory, the CPU reads from it)
     VKBufferHandleRAII staging;
 
     SLANG_RETURN_ON_FAIL(staging.init(
         m_api,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        0,
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
     ));
 
     // Copy from real buffer to staging buffer

@@ -6,6 +6,11 @@
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cmath>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -15,6 +20,7 @@
 #include <random>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 // ---------------------------------------------------------------------------------------
@@ -257,21 +263,23 @@ inline Result _createProgram(
         LOG_ERROR("Failed to load Slang module from '%s'", pathOrSource);
         return SLANG_FAIL;
     }
-    std::vector<slang::IComponentType*> entryPoints;
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
-        slang::IEntryPoint* entryPoint;
-        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, &entryPoint)))
+        ComPtr<slang::IEntryPoint> entryPoint;
+        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, entryPoint.writeRef())))
         {
             LOG_ERROR("Failed to find entry point '%s' in module '%s'", entryPointName, pathOrSource);
             return SLANG_FAIL;
         }
-        entryPoints.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(std::move(entryPoint));
     }
     ShaderProgramDesc programDesc = {};
     programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    programDesc.slangEntryPoints = entryPoints.data();
-    programDesc.slangEntryPointCount = entryPoints.size();
+    programDesc.slangEntryPoints = entryPointComponents.data();
+    programDesc.slangEntryPointCount = entryPointComponents.size();
     programDesc.slangGlobalScope = module;
     device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
     PRINT_DIAGNOSTICS(diagnostics);
@@ -573,6 +581,84 @@ private:
     IDevice* m_device;
     ComPtr<IComputePipeline> m_blitComputePipeline;
     ComPtr<IRenderPipeline> m_blitRenderPipeline;
+};
+
+// ---------------------------------------------------------------------------------------
+// FrameStats
+// ---------------------------------------------------------------------------------------
+
+// Application-loop timing, shared in meaning across the side-by-side windows.
+// A rolling window of 120 intervals smooths the display; publish at most 4 Hz.
+class FrameStats
+{
+public:
+    bool update(double time)
+    {
+        if (m_previousTime < 0 || time <= m_previousTime)
+        {
+            reset();
+            m_previousTime = m_lastReport = time;
+            return false;
+        }
+        double elapsed = time - m_previousTime;
+        m_previousTime = time;
+        m_total += elapsed - m_intervals[m_next];
+        m_intervals[m_next] = elapsed;
+        m_next = (m_next + 1) % m_intervals.size();
+        if (m_count < m_intervals.size())
+            ++m_count;
+        if (time - m_lastReport < 0.25)
+            return false;
+        m_lastReport = time;
+        m_frameTime = m_total / double(m_count);
+        return true;
+    }
+
+    void reset() { *this = FrameStats(); }
+    double fps() const { return m_frameTime > 0 ? 1.0 / m_frameTime : 0; }
+    double milliseconds() const { return m_frameTime * 1000.0; }
+
+private:
+    std::array<double, 120> m_intervals = {};
+    size_t m_next = 0, m_count = 0;
+    double m_previousTime = -1, m_lastReport = 0, m_total = 0, m_frameTime = 0;
+};
+
+// ---------------------------------------------------------------------------------------
+// FixedStepClock
+// ---------------------------------------------------------------------------------------
+
+// Every backend receives the same absolute application time. Never use draw
+// duration as simulation time; clamp catch-up after a stall to keep input usable.
+class FixedStepClock
+{
+public:
+    explicit FixedStepClock(double step = 1.0 / 120.0, uint32_t maxCatchUpSteps = 8)
+        : m_step(std::isfinite(step) && step > 0 ? step : 1.0 / 120.0)
+        , m_maxCatchUpSteps(maxCatchUpSteps)
+    {
+    }
+    double step() const { return m_step; }
+    uint32_t update(double time, bool running)
+    {
+        double elapsed = m_lastTime < 0 ? 0 : std::clamp(time - m_lastTime, 0.0, m_maxCatchUpSteps * m_step);
+        m_lastTime = time;
+        if (!running)
+        {
+            m_accumulator = 0;
+            return 0;
+        }
+        m_accumulator += elapsed;
+        uint32_t steps = uint32_t(std::floor((m_accumulator + 1e-10) / m_step));
+        m_accumulator = std::max(0.0, m_accumulator - steps * m_step);
+        return steps;
+    }
+    void reset() { m_accumulator = 0; }
+
+private:
+    double m_step;
+    uint32_t m_maxCatchUpSteps;
+    double m_lastTime = -1, m_accumulator = 0;
 };
 
 } // namespace rhi

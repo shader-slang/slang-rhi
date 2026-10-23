@@ -1,4 +1,5 @@
 #include "vk-query.h"
+#include "vk-command.h"
 #include "vk-device.h"
 #include "vk-utils.h"
 
@@ -81,23 +82,20 @@ Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryR
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
-    std::vector<uint64_t> data(count);
-    VkResult result = device->m_api.vkGetQueryPoolResults(
-        device->m_api.m_device,
-        m_pool,
-        queryIndex,
-        count,
-        sizeof(uint64_t) * count,
-        data.data(),
-        sizeof(uint64_t),
-        VK_QUERY_RESULT_64_BIT
+    // A reused query remains available until its GPU-side reset executes.
+    // Availability alone can therefore describe the previous submission.
+    CommandQueueImpl* queue = device->m_queue.get();
+    uint64_t completedSubmissionID = 0;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api
+            .vkGetSemaphoreCounterValue(device->m_api.m_device, queue->m_trackingSemaphore, &completedSubmissionID),
+        device
     );
-    if (result == VK_NOT_READY)
+    if (completedSubmissionID < queryInfo.submissionID)
     {
         *outState = QueryResultState::Pending;
         return SLANG_OK;
     }
-    SLANG_VK_RETURN_ON_FAIL_REPORT(result, device);
 
     markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
     *outState = QueryResultState::Resolved;
@@ -128,6 +126,20 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    if (queryInfo.state == QueryResultState::Pending)
+    {
+        // WAIT_BIT also accepts results from a previous use until the reset
+        // executes, so first wait for the submission that wrote this range.
+        CommandQueueImpl* queue = device->m_queue.get();
+        VkSemaphoreWaitInfo waitInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
+        waitInfo.semaphoreCount = 1;
+        waitInfo.pSemaphores = &queue->m_trackingSemaphore;
+        waitInfo.pValues = &queryInfo.submissionID;
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            device->m_api.vkWaitSemaphores(device->m_api.m_device, &waitInfo, UINT64_MAX),
+            device
+        );
+    }
     SLANG_VK_RETURN_ON_FAIL_REPORT(
         device->m_api.vkGetQueryPoolResults(
             device->m_api.m_device,
@@ -137,7 +149,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
             sizeof(uint64_t) * count,
             outData,
             sizeof(uint64_t),
-            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+            VK_QUERY_RESULT_64_BIT
         ),
         device
     );

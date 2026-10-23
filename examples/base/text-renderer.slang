@@ -1,6 +1,7 @@
 Texture2D<float> fontAtlas;
 StructuredBuffer<uint> characters;
 uint2 gridSize;
+uint2 glyphSize;
 float2 panelOrigin;
 float2 panelEnd;
 float2 textOrigin;
@@ -8,6 +9,17 @@ float fontScale;
 float4 textColor;
 float4 panelColor;
 uint encodeSrgb;
+
+// Linear RGB, matching ^1-^7: red, green, yellow, blue, cyan, magenta, white.
+static const float3 textPalette[7] = {
+    float3(1.00, 0.15, 0.12),
+    float3(0.20, 0.90, 0.25),
+    float3(1.00, 0.75, 0.15),
+    float3(0.20, 0.40, 1.00),
+    float3(0.15, 0.85, 0.95),
+    float3(0.90, 0.20, 0.85),
+    float3(1.00, 1.00, 1.00),
+};
 
 float3 linearToSrgb(float3 color)
 {
@@ -26,20 +38,24 @@ float4 overlayColor(float2 pixel)
     if (any(pixel < panelOrigin) || any(pixel >= panelEnd))
         return float4(0);
     float coverage = 0;
+    float3 foreground = textColor.rgb;
     float2 position = (pixel - textOrigin) / fontScale;
     if (all(position >= 0))
     {
         uint2 local = uint2(floor(position));
-        uint2 cell = local / uint2(6, 9);
-        uint2 glyphPixel = local % uint2(6, 9);
-        if (all(cell < gridSize) && glyphPixel.x < 5 && glyphPixel.y < 7)
+        uint2 cell = local / glyphSize;
+        uint2 glyphPixel = local % glyphSize;
+        if (all(cell < gridSize))
         {
-            uint glyph = characters[cell.y * gridSize.x + cell.x];
-            uint2 atlasPixel = uint2(glyph % 16, glyph / 16) * 8 + glyphPixel;
+            uint character = characters[cell.y * gridSize.x + cell.x];
+            uint glyph = character & 255;
+            uint color = (character >> 8) & 7;
+            if (color != 0)
+                foreground = textPalette[color - 1];
+            uint2 atlasPixel = uint2(glyph % 16, glyph / 16) * glyphSize + glyphPixel;
             coverage = fontAtlas.Load(int3(atlasPixel, 0));
         }
     }
-    float3 foreground = textColor.rgb;
     float3 background = panelColor.rgb;
     if (encodeSrgb != 0)
     {

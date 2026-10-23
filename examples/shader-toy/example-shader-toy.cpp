@@ -1,6 +1,13 @@
+// Shader toy example: compute shaders render procedural images to a texture
+// using time, resolution, and mouse input, then blit it to the window surface.
+// Includes circle and ocean shaders that can be switched at runtime.
+// The overlay lists controls; F1 toggles it.
+
 #include "../base/example.h"
 
 #include <memory>
+
+namespace {
 
 using namespace rhi;
 
@@ -17,7 +24,7 @@ public:
     Result init(DeviceType deviceType) override
     {
         SLANG_RETURN_ON_FAIL(createDevice(deviceType, {Feature::Surface}, {}, m_device.writeRef()));
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "ShaderToy"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
         SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
@@ -25,6 +32,7 @@ public:
 
         m_blitter = std::make_unique<Blitter>(m_device);
 
+        SLANG_RETURN_ON_FAIL(initProfiler(m_device));
         m_pipelines.resize(kShaders.size());
         return loadShader();
     }
@@ -101,10 +109,14 @@ public:
         }
 
         // Start command encoding
-        ComPtr<ICommandEncoder> commandEncoder = m_queue->createCommandEncoder();
+        auto profile = getProfiler().frame();
+        SLANG_RETURN_ON_FAIL(profile.begin());
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
 
         // Start compute pass
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
+        Profiler::pushRegion(passEncoder, kShaders[m_shaderIndex]);
         ShaderCursor cursor(passEncoder->bindPipeline(m_pipelines[m_shaderIndex]));
         float resolution[3] = {float(width), float(height), 1.0f};
         cursor["iResolution"].setData(resolution);
@@ -121,41 +133,45 @@ public:
         cursor["iMouse"].setData(mouse);
         cursor["texture"].setBinding(m_texture);
         passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+        Profiler::popRegion(passEncoder);
         passEncoder->end();
 
         // Blit result to the surface image
         SLANG_RETURN_ON_FAIL(m_blitter->blit(image, m_texture, commandEncoder));
 
         clearOverlay();
-        printOverlay("Left / Right: Change shader | Mouse buttons: Interact\n");
-        printOverlay("F1: Show/hide overlay | F2: Fit windows | Esc: Close\n\n");
-        printOverlay("Shader: %s", kShaders[m_shaderIndex]);
+        printOverlayHeader();
+        printOverlay("^3Left/Right arrows^0: Shader | ^3Mouse buttons^0: Interact\n\n");
+        printOverlay("Shader: %s\n", kShaders[m_shaderIndex]);
         SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
 
         // Submit command buffer
-        SLANG_RETURN_ON_FAIL(m_queue->submit(commandEncoder->finish()));
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
+        SLANG_RETURN_ON_FAIL(profile.end());
 
         m_frame += 1;
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
     {
         // Wait for GPU to be idle before resizing
-        m_device->getQueue(QueueType::Graphics)->waitOnHost();
+        SLANG_RETURN_ON_FAIL(m_queue->waitOnHost());
         // Configure or unconfigure the surface based on the new framebuffer size
         if (framebufferWidth > 0 && framebufferHeight > 0)
         {
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surface->configure(surfaceConfig);
+            return configureSurface(m_surface, surfaceConfig);
         }
         else
         {
-            m_surface->unconfigure();
+            return m_surface->unconfigure();
         }
     }
 
@@ -203,4 +219,6 @@ public:
     int m_shaderIndex = 0;
 };
 
-EXAMPLE_MAIN(ExampleShaderToy)
+} // namespace
+
+EXAMPLE_MAIN(ExampleShaderToy, "shader-toy", "ShaderToy")
