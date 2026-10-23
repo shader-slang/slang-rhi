@@ -706,6 +706,41 @@ GPU_TEST_CASE("resource-heap-cuda-texture-unsupported", CUDA)
     CHECK_EQ(tryCreatePlacedTexture(device, textureDesc, bufferHeap, 0), SLANG_E_NOT_AVAILABLE);
 }
 
+GPU_TEST_CASE("resource-heap-metal-texture-unsupported", Metal)
+{
+    auto heap = createHeapForRequirements(device, requireTextureMemoryRequirements(device, makeSampleTextureDesc()));
+    auto checkUnsupported = [&](const TextureDesc& desc)
+    {
+        ResourceMemoryRequirements requirements = {};
+        CHECK_EQ(device->getTextureMemoryRequirements(desc, &requirements), SLANG_E_NOT_AVAILABLE);
+        ComPtr<ITexture> texture;
+        CHECK_EQ(device->createTexture(desc, nullptr, texture.writeRef()), SLANG_E_NOT_AVAILABLE);
+        CHECK_EQ(tryCreatePlacedTexture(device, desc, heap, 0), SLANG_E_NOT_AVAILABLE);
+    };
+
+    for (TextureType type : {TextureType::Texture1D, TextureType::Texture1DArray})
+    {
+        CAPTURE(type);
+        TextureDesc desc = makeSampleTextureDesc();
+        desc.type = type;
+        desc.size = {32, 1, 1};
+        for (uint32_t mipCount : {2u, kAllMips})
+        {
+            CAPTURE(mipCount);
+            desc.mipCount = mipCount;
+            checkUnsupported(desc);
+        }
+    }
+    for (TextureType type : {TextureType::Texture2DMS, TextureType::Texture2DMSArray})
+    {
+        CAPTURE(type);
+        TextureDesc desc = makeSampleTextureDesc(TextureUsage::RenderTarget);
+        desc.type = type;
+        desc.sampleCount = 1;
+        checkUnsupported(desc);
+    }
+}
+
 GPU_TEST_CASE("resource-heap-host-visible-texture-unsupported", D3D12 | Vulkan)
 {
     ComPtr<IResourceHeap> heap = createHeap(device, 64 * 1024, ResourceHeapUsage::NonRtDsTextures);
@@ -1500,6 +1535,48 @@ GPU_TEST_CASE("resource-heap-d3d12-depth-format-uav", D3D12)
     CHECK_EQ(device->createTexture(desc, nullptr, texture.writeRef()), SLANG_E_INVALID_ARG);
     desc.heap = heap;
     CHECK_EQ(device->createTexture(desc, nullptr, texture.writeRef()), SLANG_E_INVALID_ARG);
+}
+
+GPU_TEST_CASE("resource-heap-d3d12-alias-multiple-predecessors", D3D12)
+{
+    for (bool depth : {false, true})
+    {
+        CAPTURE(depth);
+        TextureDesc desc = {};
+        desc.size = {256, 256, 1};
+        desc.format = depth ? Format::D32Float : Format::RGBA8Unorm;
+        desc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource |
+                     (depth ? TextureUsage::DepthStencil : TextureUsage::RenderTarget);
+        desc.defaultState = ResourceState::ShaderResource;
+        auto smallRequirements = requireTextureMemoryRequirements(device, desc);
+        const Offset secondOffset = alignUp(smallRequirements.size, smallRequirements.alignment);
+        TextureDesc largeDesc = desc;
+        largeDesc.size.height *= 2;
+        auto largeRequirements = requireTextureMemoryRequirements(device, largeDesc);
+        REQUIRE_GT(largeRequirements.size, secondOffset);
+
+        ResourceMemoryRequirements requirements[] = {smallRequirements, largeRequirements};
+        ResourceHeapDesc heapDesc = {};
+        heapDesc.size = std::max(secondOffset + smallRequirements.size, largeRequirements.size);
+        heapDesc.requirements = requirements;
+        heapDesc.requirementCount = SLANG_COUNT_OF(requirements);
+        auto heap = device->createResourceHeap(heapDesc);
+        REQUIRE(heap);
+        auto first = createPlacedTexture(device, desc, heap, 0);
+        auto second = createPlacedTexture(device, desc, heap, secondOffset);
+        auto destination = createPlacedTexture(device, largeDesc, heap, 0);
+
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        encoder->aliasResources(nullptr, first);
+        encoder->aliasResources(nullptr, second);
+        encoder->aliasResources(first, destination);
+        // The first activation leaves the destination in the RT/DS discard state.
+        // The second activation must retain that state instead of assuming its default.
+        encoder->aliasResources(second, destination);
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
 }
 
 GPU_TEST_CASE("resource-heap-d3d12-alias-render-dont-care", D3D12)

@@ -630,6 +630,7 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
     resetResourceMemoryRequirements(outRequirements);
 
     TextureDesc desc = fixupTextureDesc(desc_);
+    SLANG_RETURN_ON_FAIL(checkTextureSupported(desc));
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = createTextureDescriptor(desc);
 
     MTL::SizeAndAlign sizeAndAlign = m_device->heapTextureSizeAndAlign(textureDesc.get());
