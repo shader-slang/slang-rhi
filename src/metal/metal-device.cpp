@@ -248,6 +248,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::AccelerationStructure);
         addFeature(Feature::RayQuery);
+        if (__builtin_available(macOS 15.0, iOS 18.0, *))
+        {
+            m_hasRowMajorPreTransform = m_device->supportsFamily(MTL::GPUFamilyApple9);
+        }
     }
 
     m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
@@ -422,7 +426,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AUTORELEASEPOOL
 
     AccelerationStructureBuildDescConverter converter;
-    SLANG_RETURN_ON_FAIL(converter.convert(desc, nullptr, m_debugCallback));
+    SLANG_RETURN_ON_FAIL(converter.convert(desc, nullptr, m_hasRowMajorPreTransform, m_debugCallback));
     MTL::AccelerationStructureSizes sizes = m_device->accelerationStructureSizes(converter.descriptor.get());
     outSizes->accelerationStructureSize = sizes.accelerationStructureSize;
     outSizes->scratchSize = sizes.buildScratchBufferSize;
