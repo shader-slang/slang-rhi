@@ -19,30 +19,12 @@
 
 namespace rhi::debug {
 
-void unwrapResourcePlacement(const void*& next, ResourcePlacementDesc& storage)
+Result validateResourcePlacementHeap(DebugContext* ctx, IDevice* device, IResourceHeap* heap)
 {
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(next);
-    if (!placement)
-        return;
-    storage = *placement;
-    storage.heap = getInnerObj(placement->heap);
-    storage.next = next;
-    next = &storage;
-}
-
-Result validateResourcePlacementDesc(DebugContext* ctx, IDevice* device, const ResourcePlacementDesc* placement)
-{
-    if (!placement)
-        return SLANG_OK;
-    if (!device->hasFeature(Feature::ResourceHeaps))
+    if (heap && !device->hasFeature(Feature::ResourceHeaps))
     {
         RHI_VALIDATION_ERROR("Device does not support resource heaps.");
         return SLANG_E_NOT_AVAILABLE;
-    }
-    if (!placement->heap)
-    {
-        RHI_VALIDATION_ERROR("ResourcePlacementDesc::heap must not be null.");
-        return SLANG_E_INVALID_ARG;
     }
     return SLANG_OK;
 }
@@ -366,9 +348,8 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         patchedDesc.label = label.c_str();
     }
 
-    ResourcePlacementDesc unwrappedPlacement;
-    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, baseObject, findResourcePlacementDesc(patchedDesc.next)));
-    unwrapResourcePlacement(patchedDesc.next, unwrappedPlacement);
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementHeap(ctx, baseObject, patchedDesc.heap));
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
 
     return baseObject->createTexture(patchedDesc, initData, outTexture);
 }
@@ -448,9 +429,8 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         patchedDesc.label = label.c_str();
     }
 
-    ResourcePlacementDesc unwrappedPlacement;
-    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, baseObject, findResourcePlacementDesc(patchedDesc.next)));
-    unwrapResourcePlacement(patchedDesc.next, unwrappedPlacement);
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementHeap(ctx, baseObject, patchedDesc.heap));
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
 
     return baseObject->createBuffer(patchedDesc, initData, outBuffer);
 }

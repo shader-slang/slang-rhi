@@ -10,6 +10,23 @@
 
 namespace rhi {
 
+inline ResourceHeapUsage getResourceHeapUsage(const BufferDesc&)
+{
+    return ResourceHeapUsage::Buffers;
+}
+
+inline ResourceHeapUsage getResourceHeapUsage(const TextureDesc& desc)
+{
+    if (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil))
+        return ResourceHeapUsage::RtDsTextures;
+    return ResourceHeapUsage::NonRtDsTextures;
+}
+
+inline bool isResourceHeapUsageCompatible(ResourceHeapUsage heapUsage, ResourceHeapUsage resourceUsage)
+{
+    return (heapUsage & resourceUsage) == resourceUsage;
+}
+
 class ResourceHeap : public IResourceHeap, public DeviceChild
 {
 public:
@@ -37,18 +54,21 @@ public:
     std::vector<ResourceMemoryRequirements> m_requirements;
 };
 
-ResourceHeapCompatibility makeResourceHeapCompatibility(Device* device, uint64_t backendMask = ~uint64_t(0));
-bool isResourceHeapCompatibilityFromDevice(const ResourceHeapCompatibility& compatibility, const Device* device);
-uint64_t getResourceHeapCompatibilityMask(const ResourceHeapCompatibility& compatibility);
+void setResourceHeapCompatibility(
+    ResourceMemoryRequirements& requirements,
+    Device* device,
+    uint64_t backendMask = ~uint64_t(0)
+);
+bool isResourceHeapCompatibilityFromDevice(const ResourceMemoryRequirements& requirements, const Device* device);
+uint64_t getResourceHeapCompatibilityMask(const ResourceMemoryRequirements& requirements);
 void resetResourceMemoryRequirements(ResourceMemoryRequirements* outRequirements);
 
 Result validateResourceHeapDesc(Device* device, const ResourceHeapDesc& desc);
 
-const ResourcePlacementDesc* findResourcePlacementDesc(const void* next);
-
 Result validateResourcePlacement(
     Device* device,
-    const ResourcePlacementDesc& placement,
+    IResourceHeap* resourceHeap,
+    Offset offset,
     const ResourceMemoryRequirements& requirements
 );
 

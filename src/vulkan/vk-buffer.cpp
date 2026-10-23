@@ -484,19 +484,18 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
-    if (placement)
+    if (desc.heap)
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
 
-        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
         SLANG_RETURN_ON_FAIL(
             buffer->m_buffer
-                .initPlaced(m_api, desc.size, usage, heap->m_memoryTypeIndex, heap->m_memory, placement->offset)
+                .initPlaced(m_api, desc.size, usage, heap->m_memoryTypeIndex, heap->m_memory, desc.heapOffset)
         );
-        buffer->setPlacement(heap, placement->offset, requirements);
+        buffer->setPlacement(heap, desc.heapOffset, requirements);
     }
     else if (is_set(desc.usage, BufferUsage::Shared))
     {
@@ -533,12 +532,12 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         else
         {
             void* mappedData = nullptr;
-            if (placement)
+            if (desc.heap)
             {
-                ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+                ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
                 if (!heap->m_mapped)
                     return SLANG_FAIL;
-                mappedData = static_cast<uint8_t*>(heap->m_mapped) + placement->offset;
+                mappedData = static_cast<uint8_t*>(heap->m_mapped) + desc.heapOffset;
                 ::memcpy(mappedData, initData, bufferSize);
             }
             else

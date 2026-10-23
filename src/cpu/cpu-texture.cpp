@@ -420,6 +420,9 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
+    if (desc_.heap)
+        return SLANG_E_NOT_AVAILABLE;
+
     TextureDesc desc = fixupTextureDesc(desc_);
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
     SLANG_RETURN_ON_FAIL(texture->init(initData));

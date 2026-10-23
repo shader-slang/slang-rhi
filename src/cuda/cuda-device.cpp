@@ -748,7 +748,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
                                  ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
                                  : ResourceMemoryRequirementFlags::None;
-    outRequirements->compatibility = makeResourceHeapCompatibility(this);
+    setResourceHeapCompatibility(*outRequirements, this);
     return SLANG_OK;
 }
 

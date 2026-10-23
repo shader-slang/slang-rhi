@@ -41,7 +41,7 @@ bool ResourceHeap::isCompatible(const ResourceMemoryRequirements& requirements) 
 {
     if (requirements.structType != ResourceMemoryRequirements::kStructType)
         return false;
-    if (!isResourceHeapCompatibilityFromDevice(requirements.compatibility, getDevice()))
+    if (!isResourceHeapCompatibilityFromDevice(requirements, getDevice()))
         return false;
     if (is_set(requirements.flags, ResourceMemoryRequirementFlags::RequiresDedicatedAllocation))
         return false;
@@ -58,22 +58,20 @@ bool ResourceHeap::isCompatible(const ResourceMemoryRequirements& requirements) 
     return true;
 }
 
-ResourceHeapCompatibility makeResourceHeapCompatibility(Device* device, uint64_t backendMask)
+void setResourceHeapCompatibility(ResourceMemoryRequirements& requirements, Device* device, uint64_t backendMask)
 {
-    ResourceHeapCompatibility result = {};
-    result.data[0] = backendMask;
-    result.data[1] = uint64_t(reinterpret_cast<uintptr_t>(device));
-    return result;
+    requirements._compatibility[0] = backendMask;
+    requirements._compatibility[1] = uint64_t(reinterpret_cast<uintptr_t>(device));
 }
 
-bool isResourceHeapCompatibilityFromDevice(const ResourceHeapCompatibility& compatibility, const Device* device)
+bool isResourceHeapCompatibilityFromDevice(const ResourceMemoryRequirements& requirements, const Device* device)
 {
-    return compatibility.data[1] == uint64_t(reinterpret_cast<uintptr_t>(device));
+    return requirements._compatibility[1] == uint64_t(reinterpret_cast<uintptr_t>(device));
 }
 
-uint64_t getResourceHeapCompatibilityMask(const ResourceHeapCompatibility& compatibility)
+uint64_t getResourceHeapCompatibilityMask(const ResourceMemoryRequirements& requirements)
 {
-    return compatibility.data[0];
+    return requirements._compatibility[0];
 }
 
 void resetResourceMemoryRequirements(ResourceMemoryRequirements* outRequirements)
@@ -112,7 +110,7 @@ Result validateResourceHeapDesc(Device* device, const ResourceHeapDesc& desc)
                                                           ResourceMemoryRequirementFlags::PrefersDedicatedAllocation;
         if ((requirements.flags & ~validFlags) != ResourceMemoryRequirementFlags::None)
             return SLANG_E_INVALID_ARG;
-        if (!isResourceHeapCompatibilityFromDevice(requirements.compatibility, device))
+        if (!isResourceHeapCompatibilityFromDevice(requirements, device))
             return SLANG_E_INVALID_ARG;
         if (is_set(requirements.flags, ResourceMemoryRequirementFlags::RequiresDedicatedAllocation))
             return SLANG_E_NOT_AVAILABLE;
@@ -135,37 +133,27 @@ Result validateResourceHeapDesc(Device* device, const ResourceHeapDesc& desc)
     return SLANG_OK;
 }
 
-const ResourcePlacementDesc* findResourcePlacementDesc(const void* next)
-{
-    for (const ChainedStructHeader* header = static_cast<const ChainedStructHeader*>(next); header;
-         header = static_cast<const ChainedStructHeader*>(header->next))
-    {
-        if (header->type == StructType::ResourcePlacementDesc)
-            return reinterpret_cast<const ResourcePlacementDesc*>(header);
-    }
-    return nullptr;
-}
-
 Result validateResourcePlacement(
     Device* device,
-    const ResourcePlacementDesc& placement,
+    IResourceHeap* resourceHeap,
+    Offset offset,
     const ResourceMemoryRequirements& requirements
 )
 {
-    if (!placement.heap)
+    if (!resourceHeap)
         return SLANG_E_INVALID_ARG;
-    ResourceHeap* heap = checked_cast<ResourceHeap*>(placement.heap);
+    ResourceHeap* heap = checked_cast<ResourceHeap*>(resourceHeap);
     if (heap->getDevice() != device)
         return SLANG_E_INVALID_ARG;
     if (requirements.size == 0 || requirements.alignment == 0)
         return SLANG_E_INVALID_ARG;
-    if ((placement.offset % requirements.alignment) != 0)
+    if ((offset % requirements.alignment) != 0)
         return SLANG_E_INVALID_ARG;
 
     const ResourceHeapDesc& heapDesc = heap->getDesc();
     if (!heap->isCompatible(requirements))
         return SLANG_E_INVALID_ARG;
-    if (placement.offset > heapDesc.size || requirements.size > heapDesc.size - placement.offset)
+    if (offset > heapDesc.size || requirements.size > heapDesc.size - offset)
         return SLANG_E_INVALID_ARG;
 
     return SLANG_OK;
