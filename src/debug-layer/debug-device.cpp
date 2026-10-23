@@ -147,17 +147,8 @@ Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
     return baseObject->getSlangSession(outSlangSession);
 }
 
-Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+static Result validateTextureDesc(DebugContext* ctx, const TextureDesc& desc)
 {
-    SLANG_RHI_DEBUG_API(IDevice, createTexture);
-
-    validateCudaContext();
-
-    if (!outTexture)
-    {
-        RHI_VALIDATION_ERROR("'outTexture' must not be null.");
-        return SLANG_E_INVALID_ARG;
-    }
     if (!isValidTextureType(desc.type))
     {
         RHI_VALIDATION_ERROR("Invalid texture type.");
@@ -271,11 +262,6 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture sample count must be a power of 2.");
             return SLANG_E_INVALID_ARG;
         }
-        if (initData)
-        {
-            RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data.");
-            return SLANG_E_INVALID_ARG;
-        }
         if (desc.mipCount != 1 && desc.mipCount != kAllMips)
         {
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have multiple mip levels.");
@@ -340,6 +326,28 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         break;
     }
 
+    return SLANG_OK;
+}
+
+Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createTexture);
+
+    validateCudaContext();
+
+    if (!outTexture)
+    {
+        RHI_VALIDATION_ERROR("'outTexture' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    SLANG_RETURN_ON_FAIL(validateTextureDesc(ctx, desc));
+
+    if (initData && (desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray))
+    {
+        RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     TextureDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -385,17 +393,8 @@ Result DebugDevice::createTextureFromSharedHandle(
     return baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
 }
 
-Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
+static Result validateBufferDesc(DebugContext* ctx, const BufferDesc& desc)
 {
-    SLANG_RHI_DEBUG_API(IDevice, createBuffer);
-
-    validateCudaContext();
-
-    if (!outBuffer)
-    {
-        RHI_VALIDATION_ERROR("'outBuffer' must not be null.");
-        return SLANG_E_INVALID_ARG;
-    }
     if (desc.size == 0)
     {
         RHI_VALIDATION_ERROR("Buffer size must be greater than 0.");
@@ -420,6 +419,22 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     {
         RHI_VALIDATION_WARNING("Buffer size is not a multiple of element size.");
     }
+
+    return SLANG_OK;
+}
+
+Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createBuffer);
+
+    validateCudaContext();
+
+    if (!outBuffer)
+    {
+        RHI_VALIDATION_ERROR("'outBuffer' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    SLANG_RETURN_ON_FAIL(validateBufferDesc(ctx, desc));
 
     BufferDesc patchedDesc = desc;
     std::string label;
@@ -1726,7 +1741,11 @@ Result DebugDevice::getBufferMemoryRequirements(const BufferDesc& desc, Resource
     if (!baseObject->hasFeature(Feature::ResourceHeaps))
         return SLANG_E_NOT_AVAILABLE;
 
-    return baseObject->getBufferMemoryRequirements(desc, outRequirements);
+    SLANG_RETURN_ON_FAIL(validateBufferDesc(ctx, desc));
+
+    BufferDesc patchedDesc = desc;
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
+    return baseObject->getBufferMemoryRequirements(patchedDesc, outRequirements);
 }
 
 Result DebugDevice::getTextureMemoryRequirements(const TextureDesc& desc, ResourceMemoryRequirements* outRequirements)
@@ -1742,7 +1761,11 @@ Result DebugDevice::getTextureMemoryRequirements(const TextureDesc& desc, Resour
     if (!baseObject->hasFeature(Feature::ResourceHeaps))
         return SLANG_E_NOT_AVAILABLE;
 
-    return baseObject->getTextureMemoryRequirements(desc, outRequirements);
+    SLANG_RETURN_ON_FAIL(validateTextureDesc(ctx, desc));
+
+    TextureDesc patchedDesc = desc;
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
+    return baseObject->getTextureMemoryRequirements(patchedDesc, outRequirements);
 }
 
 Result DebugDevice::isResourceHeapCompatible(
