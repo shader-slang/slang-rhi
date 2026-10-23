@@ -3,6 +3,7 @@
 #include "debug-helper-functions.h"
 #include "debug-query.h"
 #include "../resource-heap.h"
+#include "../command-buffer.h"
 
 #include <vector>
 
@@ -1896,6 +1897,13 @@ void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
         return;
     }
 
+    Device* device = checked_cast<CommandEncoder*>(baseObject.get())->getDevice();
+    if (!device->hasFeature(Feature::ResourceAliasing))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource aliasing.");
+        return;
+    }
+
     if (!after)
     {
         RHI_VALIDATION_ERROR("'after' must not be null.");
@@ -1917,6 +1925,11 @@ void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
         RHI_VALIDATION_ERROR("'after' must be a placed buffer or texture.");
         return;
     }
+    if (afterResource->getDevice() != device)
+    {
+        RHI_VALIDATION_ERROR("'after' must belong to the same device as the command encoder.");
+        return;
+    }
     ResourceHeap* heap = afterResource->m_placementHeap;
     if (!heap->isCompatible(afterResource->m_placementRequirements))
     {
@@ -1932,9 +1945,9 @@ void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
             RHI_VALIDATION_ERROR("'before' must be a placed buffer or texture.");
             return;
         }
-        if (beforeResource->getDevice() != afterResource->getDevice())
+        if (beforeResource->getDevice() != device)
         {
-            RHI_VALIDATION_ERROR("'before' and 'after' must belong to the same device.");
+            RHI_VALIDATION_ERROR("'before' must belong to the same device as the command encoder.");
             return;
         }
         if (beforeResource->m_placementHeap != afterResource->m_placementHeap)
