@@ -41,6 +41,9 @@ Result ResourceHeapImpl::init()
     for (uint32_t i = 0; i < m_desc.requirementCount; ++i)
         memoryTypeBits &= uint32_t(getResourceHeapCompatibilityMask(m_desc.requirements[i]));
 
+    if (memoryTypeBits == 0)
+        return SLANG_E_NOT_AVAILABLE;
+
     const VkMemoryPropertyFlags properties = getMemoryProperties(m_desc.memoryType);
     int memoryTypeIndex = api.findMemoryTypeIndex(memoryTypeBits, properties);
     if (memoryTypeIndex < 0)
