@@ -1447,8 +1447,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     resetResourceMemoryRequirements(outRequirements);
     BufferDesc desc = fixupBufferDesc(desc_);
     D3D12_RESOURCE_DESC resourceDesc;
-    initBufferDesc(desc.size, resourceDesc);
-    resourceDesc.Flags |= calcResourceFlags(desc.usage);
+    initBufferDesc(desc, resourceDesc);
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
     if (allocInfo.SizeInBytes == UINT64_MAX)
         return SLANG_FAIL;
@@ -1676,9 +1675,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
 
     D3D12_RESOURCE_DESC bufferDesc;
-    initBufferDesc(desc.size, bufferDesc);
-
-    bufferDesc.Flags |= calcResourceFlags(desc.usage);
+    initBufferDesc(desc, bufferDesc);
 
     const D3D12_RESOURCE_STATES initialState = buffer->m_defaultState;
     if (desc.heap)

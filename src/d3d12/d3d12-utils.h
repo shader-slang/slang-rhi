@@ -58,6 +58,7 @@ D3D12_HEAP_FLAGS translateHeapFlags(ResourceHeapUsage usage);
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
+void initBufferDesc(const BufferDesc& bufferDesc, D3D12_RESOURCE_DESC& out);
 
 Result createNullDescriptor(
     ID3D12Device* d3dDevice,
