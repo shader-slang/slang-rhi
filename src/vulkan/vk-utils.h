@@ -52,8 +52,6 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
 
 // Utility functions for Vulkan
 
-VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc);
-
 /// Get the equivalent VkFormat from the format
 /// Returns VK_FORMAT_UNDEFINED if a match is not found
 VkFormat getVkFormat(Format format);
@@ -74,6 +72,8 @@ VkPipelineStageFlags calcPipelineStageFlags(
 VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
+VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc);
+
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state);
 VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage);
 VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType, const void* initData);
