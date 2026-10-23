@@ -3,6 +3,7 @@
 
 #include "../src/device.h"
 #include "../src/resource-heap.h"
+#include "../src/rhi-shared.h"
 
 #if SLANG_RHI_DEBUG
 #include "debug-layer/debug-device.h"
