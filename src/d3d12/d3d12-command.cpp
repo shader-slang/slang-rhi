@@ -1650,6 +1650,22 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
         m_stateTracking.forgetBufferState(buffer);
     else if (Texture* texture = asTexture(cmd.after))
         m_stateTracking.forgetTextureState(texture);
+
+    // Activating an RT/DS alias also requires initializing its compression metadata, even
+    // when the next render pass uses DontCare and overwrites every pixel. Discard after
+    // the aliasing barrier, in the state required by D3D12, and retain that tracked state.
+    if (Texture* texture = asTexture(cmd.after))
+    {
+        const auto flags = checked_cast<TextureImpl*>(texture)->m_resource.getResource()->GetDesc().Flags;
+        if (flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+        {
+            const ResourceState state = (flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) ? ResourceState::DepthWrite
+                                                                                          : ResourceState::RenderTarget;
+            m_stateTracking.setTextureState(texture, kEntireTexture, state);
+            commitBarriers();
+            m_cmdList->DiscardResource(getResource(cmd.after), nullptr);
+        }
+    }
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
