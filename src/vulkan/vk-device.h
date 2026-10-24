@@ -297,6 +297,21 @@ public:
 
     VkSampler m_defaultSampler;
 
+    // Shared across resources to bound lock storage; each domain serializes across resources.
+    // Descriptor cache locks may enter view cache locks,
+    // or BindlessDescriptorSet::m_mutex after view resolution has returned. The bindless
+    // lock must never enter resource cache locks. Shared-handle initialization is independent.
+    // Destruction has exclusive resource ownership but still locks shared allocators.
+    std::mutex m_bufferHandleMutex;                // Buffer shared-handle and device-address publication.
+    std::mutex m_bufferViewMutex;                  // Buffer view maps.
+    std::mutex m_bufferDescriptorMutex;            // Buffer descriptor-handle maps.
+    std::mutex m_textureSharedHandleMutex;         // Texture shared-handle publication.
+    std::mutex m_textureViewMutex;                 // Texture view maps.
+    std::mutex m_textureDescriptorMutex;           // Texture-view descriptor publication.
+    std::mutex m_samplerDescriptorMutex;           // Sampler descriptor publication.
+    std::mutex m_accelerationStructureHandleMutex; // AS descriptor and device-address publication.
+    std::mutex m_fenceSharedHandleMutex;           // Fence shared-handle publication.
+
 #if SLANG_RHI_ENABLE_AFTERMATH
     /// Aftermath crash dumper (null if Aftermath is not enabled).
     AftermathCrashDumper* m_aftermathCrashDumper = nullptr;
