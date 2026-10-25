@@ -7,8 +7,10 @@ using namespace rhi::testing;
 // function constants, and a function that declares any cannot build a pipeline until it is
 // specialized.
 
-// Not CPU: Slang's CPU target gives every specialization constant 0, not its default.
-GPU_TEST_CASE("specialization-constant-compute", ALL & ~CPU)
+// Only the backends with native specialization constants. On D3D11, D3D12, CUDA and CPU Slang lays a
+// specialization constant out as an ordinary uniform, which reads 0 unless the host writes the
+// default from reflection.
+GPU_TEST_CASE("specialization-constant-compute", Vulkan | Metal | WGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-specialization-constant", "computeMain", shaderProgram.writeRef()));
@@ -43,7 +45,7 @@ GPU_TEST_CASE("specialization-constant-compute", ALL & ~CPU)
     compareComputeResult(device, buffer, makeArray<float>(1.0f, -7.0f, 9.0f, 2.5f));
 }
 
-GPU_TEST_CASE("specialization-constant-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("specialization-constant-render", Vulkan | Metal | WGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(
