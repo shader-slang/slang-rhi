@@ -35,10 +35,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     for (const ShaderProgramImpl::Module& module : program->m_modules)
     {
-        auto functionName = createString(module.entryPointName.data());
-        NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
-        if (!function)
-            return SLANG_FAIL;
+        NS::SharedPtr<MTL::Function> function;
+        SLANG_RETURN_ON_FAIL(module.createFunction(this, function));
 
         switch (module.stage)
         {
@@ -208,10 +206,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
     const ShaderProgramImpl::Module& module = program->m_modules[0];
-    auto functionName = createString(module.entryPointName.data());
-    NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
-    if (!function)
-        return SLANG_FAIL;
+    NS::SharedPtr<MTL::Function> function;
+    SLANG_RETURN_ON_FAIL(module.createFunction(this, function));
 
     NS::SharedPtr<MTL::ComputePipelineDescriptor> pd = NS::TransferPtr(MTL::ComputePipelineDescriptor::alloc()->init());
 

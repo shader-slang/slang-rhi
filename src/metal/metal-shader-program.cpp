@@ -40,6 +40,41 @@ Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPt
     return SLANG_OK;
 }
 
+Result ShaderProgramImpl::Module::createFunction(DeviceImpl* device, NS::SharedPtr<MTL::Function>& outFunction) const
+{
+    auto functionName = createString(entryPointName.data());
+    NS::SharedPtr<MTL::Function> function = NS::TransferPtr(library->newFunction(functionName.get()));
+    if (!function)
+        return SLANG_FAIL;
+
+    // Metal refuses to build a pipeline from a function that declares function constants until it
+    // is specialized ("Use newFunctionWithName:constantValues:"), even when every constant has a
+    // default.
+    NS::Dictionary* constants = function->functionConstantsDictionary();
+    if (constants && constants->count() > 0)
+    {
+        NS::SharedPtr<MTL::FunctionConstantValues> values =
+            NS::TransferPtr(MTL::FunctionConstantValues::alloc()->init());
+        NS::Error* error = nullptr;
+        function = NS::TransferPtr(library->newFunction(functionName.get(), values.get(), &error));
+        if (!function)
+        {
+            if (error)
+            {
+                device->handleMessage(
+                    DebugMessageType::Error,
+                    DebugMessageSource::Driver,
+                    error->localizedDescription()->utf8String()
+                );
+            }
+            return SLANG_FAIL;
+        }
+    }
+
+    outFunction = function;
+    return SLANG_OK;
+}
+
 ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
 {
     return m_rootObjectLayout;
