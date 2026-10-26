@@ -536,6 +536,8 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
+        if (result != VK_ERROR_OUT_OF_DATE_KHR && result != VK_TIMEOUT && result != VK_NOT_READY)
+            reportVulkanError(result, "vkAcquireNextImageKHR", SLANG_RHI_SOURCE_LOCATION(), m_device);
         return SLANG_FAIL;
     }
 
