@@ -904,7 +904,7 @@ Result CommandQueueImpl::init()
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamCreate(&m_stream, 0), this);
     }
 
     SLANG_RETURN_ON_FAIL(recordTimestampAnchor(this, 0));
