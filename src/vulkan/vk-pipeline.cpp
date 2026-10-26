@@ -225,6 +225,11 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
     );
 
     short_vector<VkPipelineBinaryKHR> pipelineBinaries(binaryHandlesInfo.pipelineBinaryCount, VK_NULL_HANDLE);
+    SLANG_RHI_DEFERRED({
+        for (auto binary : pipelineBinaries)
+            if (binary)
+                api.vkDestroyPipelineBinaryKHR(device->m_device, binary, nullptr);
+    });
     binaryHandlesInfo.pPipelineBinaries = pipelineBinaries.data();
     SLANG_VK_RETURN_ON_FAIL_REPORT(
         api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo),
@@ -293,8 +298,6 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
         dataPtr += sizeof(PipelineCacheBinaryHeader);
 
         binaryDataOffset += binaryDataSize;
-
-        api.vkDestroyPipelineBinaryKHR(device->m_device, pipelineBinaries[i], nullptr);
     }
 
     returnComPtr(outBlob, blob);
@@ -401,10 +404,15 @@ Result deserializePipelineBinaries(DeviceImpl* device, ISlangBlob* blob, short_v
     handlesInfo.pipelineBinaryCount = binaries.size();
     handlesInfo.pPipelineBinaries = binaries.data();
 
-    SLANG_VK_RETURN_ON_FAIL_REPORT(
-        api.vkCreatePipelineBinariesKHR(device->m_device, &createInfo, nullptr, &handlesInfo),
-        device
-    );
+    VkResult result = api.vkCreatePipelineBinariesKHR(device->m_device, &createInfo, nullptr, &handlesInfo);
+    if (result != VK_SUCCESS)
+    {
+        for (auto binary : binaries)
+            if (binary)
+                api.vkDestroyPipelineBinaryKHR(device->m_device, binary, nullptr);
+        reportVulkanError(result, "vkCreatePipelineBinariesKHR", SLANG_RHI_SOURCE_LOCATION(), device);
+        return SLANG_FAIL;
+    }
 
     outBinaries = binaries;
     return SLANG_OK;
@@ -457,6 +465,10 @@ Result createPipelineWithCache(
     ComPtr<ISlangBlob> pipelineCacheKey;
     ComPtr<ISlangBlob> pipelineCacheData;
     VkPipeline pipeline = VK_NULL_HANDLE;
+    SLANG_RHI_DEFERRED({
+        if (pipeline)
+            api.vkDestroyPipeline(device->m_device, pipeline, nullptr);
+    });
 
     // Cache failures are recoverable; retain their native status without a fatal diagnostic.
     auto getCacheKey = [&]()
@@ -499,6 +511,8 @@ Result createPipelineWithCache(
             else
             {
                 createInfo->pNext = binaryInfo.pNext;
+                if (pipeline)
+                    api.vkDestroyPipeline(device->m_device, pipeline, nullptr);
                 pipeline = VK_NULL_HANDLE;
                 device->printWarning("Failed to create pipeline from cache, creating new pipeline.");
             }
@@ -520,6 +534,12 @@ Result createPipelineWithCache(
         // in VkPipelineCreateFlags2CreateInfoKHR. In some cases, the passed in createInfo already has a
         // VkPipelineCreateFlags2CreateInfoKHR in the chain, so we use that, otherwise create a new one on the stack.
         VkPipelineCreateFlags2CreateInfoKHR createFlags = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
+        VkPipelineCreateFlags2CreateInfoKHR* existingFlags = nullptr;
+        VkPipelineCreateFlags2 originalFlags = 0;
+        SLANG_RHI_DEFERRED({
+            if (existingFlags)
+                existingFlags->flags = originalFlags;
+        });
         if (writeCache)
         {
             // Check createInfo chain for existing VkPipelineCreateFlags2CreateInfoKHR
@@ -529,8 +549,9 @@ Result createPipelineWithCache(
             {
                 if (inStruct->sType == VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR)
                 {
-                    ((VkPipelineCreateFlags2CreateInfoKHR*)inStruct)->flags |=
-                        VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR;
+                    existingFlags = (VkPipelineCreateFlags2CreateInfoKHR*)inStruct;
+                    originalFlags = existingFlags->flags;
+                    existingFlags->flags |= VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR;
                     foundExistingCreateFlags = true;
                     break;
                 }
@@ -575,6 +596,7 @@ Result createPipelineWithCache(
     }
 
     *outPipeline = pipeline;
+    pipeline = VK_NULL_HANDLE;
     return SLANG_OK;
 }
 
