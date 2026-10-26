@@ -72,6 +72,14 @@ protected:
     NativeHandle m_sharedHandle = {};
 };
 
+struct ResourcePlacement
+{
+    InternalRefPtr<ResourceHeap> heap;
+    Offset offset;
+    // Native allocation size, including any padding required by the backend.
+    Size size;
+};
+
 class Resource : public DeviceChild
 {
 public:
@@ -83,21 +91,16 @@ public:
 
     virtual ~Resource() { --testing::gResourceCount; }
 
-    void setPlacement(ResourceHeap* heap, Offset offset, const ResourceMemoryRequirements& requirements)
+    void setPlacement(ResourceHeap* heap, Offset offset, Size size)
     {
-        SLANG_RHI_ASSERT(heap && !m_placementHeap);
-        m_placementHeap = heap;
-        m_placementOffset = offset;
-        m_placementRequirements = requirements;
-        m_placementRequirements.next = nullptr;
+        SLANG_RHI_ASSERT(heap && size > 0 && !m_placement);
+        m_placement = std::make_unique<ResourcePlacement>(ResourcePlacement{heap, offset, size});
     }
 
-    bool isPlaced() const { return m_placementHeap != nullptr; }
+    bool isPlaced() const { return m_placement != nullptr; }
 
     // Not reset in deleteThis(): a resource awaiting deferred deletion still uses the heap memory.
-    InternalRefPtr<ResourceHeap> m_placementHeap;
-    Offset m_placementOffset = 0;
-    ResourceMemoryRequirements m_placementRequirements = {};
+    std::unique_ptr<ResourcePlacement> m_placement;
 };
 
 class Buffer : public IBuffer, public Resource

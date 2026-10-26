@@ -100,7 +100,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
         textureImpl->m_texture = NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), desc.heapOffset));
-        textureImpl->setPlacement(heap, desc.heapOffset, requirements);
+        textureImpl->setPlacement(heap, desc.heapOffset, requirements.size);
     }
     else
     {

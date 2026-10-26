@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 using namespace rhi;
@@ -223,6 +224,46 @@ static void dispatchIncrement(IDevice* device, IComputePipeline* pipeline, IBuff
     REQUIRE_CALL(queue->waitOnHost());
 }
 
+TEST_CASE("resource-heap-placement-lifetime")
+{
+    struct TrackedHeap : ResourceHeap
+    {
+        TrackedHeap(bool& destroyed)
+            : ResourceHeap(nullptr, {})
+            , m_destroyed(destroyed)
+        {
+        }
+        ~TrackedHeap() override { m_destroyed = true; }
+        bool& m_destroyed;
+    };
+    struct DeferredResource : Resource
+    {
+        using Resource::Resource;
+        void deleteThis() override { queuedForDeletion = true; }
+        bool queuedForDeletion = false;
+    };
+
+    bool heapDestroyed = false;
+    ComPtr<ResourceHeap> heap(new TrackedHeap(heapDestroyed));
+    auto resource = std::make_unique<DeferredResource>(nullptr);
+    RefPtr<Resource> reference(resource.get());
+    CHECK(!resource->isPlaced());
+
+    resource->setPlacement(heap, 256, 512);
+    heap = nullptr;
+    reference = nullptr;
+    CHECK(resource->queuedForDeletion);
+    CHECK(!heapDestroyed);
+    REQUIRE(resource->isPlaced());
+    CHECK(resource->m_placement->offset == 256);
+    CHECK(resource->m_placement->size == 512);
+
+    // Releasing the last consumer only queues deletion. The placement record
+    // must retain its heap until the resource itself is actually destroyed.
+    resource.reset();
+    CHECK(heapDestroyed);
+}
+
 TEST_CASE("resource-heap-alias-state-retirement")
 {
     // Synthetic placements make the transition ordering independent of GPU compression behavior.
@@ -245,15 +286,12 @@ TEST_CASE("resource-heap-alias-state-retirement")
     auto bufferDesc = makeCopyBufferDesc(256);
     bufferDesc.defaultState = ResourceState::CopySource;
     ComPtr<TestBuffer> buffer(new TestBuffer(nullptr, bufferDesc));
-    ResourceMemoryRequirements requirements = {};
-    requirements.size = 256;
-    first->setPlacement(heap, 0, requirements);
-    second->setPlacement(heap, 256, requirements);
-    buffer->setPlacement(heap, 512, requirements);
-    adjacent->setPlacement(heap, 768, requirements);
-    unrelated->setPlacement(otherHeap, 0, requirements);
-    requirements.size = 768;
-    destination->setPlacement(heap, 0, requirements);
+    first->setPlacement(heap, 0, 256);
+    second->setPlacement(heap, 256, 256);
+    buffer->setPlacement(heap, 512, 256);
+    adjacent->setPlacement(heap, 768, 256);
+    unrelated->setPlacement(otherHeap, 0, 256);
+    destination->setPlacement(heap, 0, 768);
     IResource* destinations[] = {destination};
 
     for (bool restoreDefaultStates : {false, true})
@@ -314,7 +352,7 @@ TEST_CASE("resource-heap-alias-state-retirement")
         // Unsorted destinations on two heaps. The large predecessor overlaps two
         // destinations, while the allocation in their gap and the adjacent one survive.
         ComPtr<Texture> otherPredecessor(new Texture(nullptr, desc));
-        otherPredecessor->setPlacement(otherHeap, 0, unrelated->m_placementRequirements);
+        otherPredecessor->setPlacement(otherHeap, 0, unrelated->m_placement->size);
         tracking.clear();
         for (auto texture : {destination.get(), otherPredecessor.get(), first.get(), unrelated.get()})
             tracking.setTextureState(texture, kEntireTexture, ResourceState::RenderTarget);

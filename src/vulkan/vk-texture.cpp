@@ -379,7 +379,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         );
         texture->m_imageMemory = heap->m_memory;
         texture->m_ownsMemory = false;
-        texture->setPlacement(heap, desc.heapOffset, requirements);
+        texture->setPlacement(heap, desc.heapOffset, requirements.size);
     }
     else
     {

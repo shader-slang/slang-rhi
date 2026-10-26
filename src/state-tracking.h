@@ -163,9 +163,9 @@ public:
             if (!resource)
                 resource = asTexture(entry);
             SLANG_RHI_ASSERT(resource && resource->isPlaced());
-            const Offset begin = resource->m_placementOffset;
+            const auto& placement = *resource->m_placement;
             destinations.push_back(
-                {resource, resource->m_placementHeap.get(), begin, begin + resource->m_placementRequirements.size}
+                {resource, placement.heap.get(), placement.offset, placement.offset + placement.size}
             );
         }
         std::sort(
@@ -181,22 +181,22 @@ public:
         // same heap ending after a resource begins is sufficient to determine overlap.
         auto overlaps = [&destinations](Resource* resource)
         {
-            if (!resource->isPlaced())
+            const auto* placement = resource->m_placement.get();
+            if (!placement)
                 return false;
             auto it = std::upper_bound(
                 destinations.begin(),
                 destinations.end(),
-                resource,
-                [](Resource* candidate, const PlacementRange& range)
+                placement,
+                [](const ResourcePlacement* candidate, const PlacementRange& range)
                 {
-                    ResourceHeap* heap = candidate->m_placementHeap.get();
+                    ResourceHeap* heap = candidate->heap.get();
                     return heap != range.heap ? std::less<ResourceHeap*>()(heap, range.heap)
-                                              : candidate->m_placementOffset < range.end;
+                                              : candidate->offset < range.end;
                 }
             );
-            return it != destinations.end() && it->heap == resource->m_placementHeap.get() &&
-                   it->resource != resource &&
-                   it->begin < resource->m_placementOffset + resource->m_placementRequirements.size;
+            return it != destinations.end() && it->heap == placement->heap.get() && it->resource != resource &&
+                   it->begin < placement->offset + placement->size;
         };
         for (auto it = m_bufferStates.begin(); it != m_bufferStates.end();)
         {

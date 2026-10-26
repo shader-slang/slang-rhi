@@ -1935,18 +1935,15 @@ void DebugCommandEncoder::aliasResources(
             RHI_VALIDATION_ERROR_FORMAT("Each '%s' entry must belong to the same device as the command encoder.", list);
             return nullptr;
         }
-        if (!impl->m_placementHeap->isCompatible(impl->m_placementRequirements))
-        {
-            RHI_VALIDATION_ERROR_FORMAT("Each '%s' entry must be compatible with its resource heap.", list);
-            return nullptr;
-        }
+        // Heap compatibility was validated when this immutable placement was created.
         return impl;
     };
     auto overlaps = [](Resource* a, Resource* b)
     {
-        return a->m_placementHeap == b->m_placementHeap &&
-               a->m_placementOffset < b->m_placementOffset + b->m_placementRequirements.size &&
-               b->m_placementOffset < a->m_placementOffset + a->m_placementRequirements.size;
+        const auto& aPlacement = *a->m_placement;
+        const auto& bPlacement = *b->m_placement;
+        return aPlacement.heap == bPlacement.heap && aPlacement.offset < bPlacement.offset + bPlacement.size &&
+               bPlacement.offset < aPlacement.offset + aPlacement.size;
     };
 
     short_vector<Resource*, 16> destinations;
@@ -1975,7 +1972,7 @@ void DebugCommandEncoder::aliasResources(
         bool overlapsDestination = false;
         for (Resource* destination : destinations)
         {
-            sharesHeap |= resource->m_placementHeap == destination->m_placementHeap;
+            sharesHeap |= resource->m_placement->heap == destination->m_placement->heap;
             overlapsDestination |= overlaps(resource, destination);
         }
         if (!sharesHeap)

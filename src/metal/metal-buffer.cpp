@@ -73,7 +73,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
         buffer->m_buffer = NS::TransferPtr(heap->m_heap->newBuffer(bufferSize, resourceOptions, desc.heapOffset));
-        buffer->setPlacement(heap, desc.heapOffset, requirements);
+        buffer->setPlacement(heap, desc.heapOffset, requirements.size);
     }
     else
     {
