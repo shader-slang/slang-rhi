@@ -32,7 +32,7 @@ void formatNativeCallError(
 );
 
 /// Reports a native API call error either through the device's debug message callback
-/// or by printing to stderr if no device or user callback is available.
+/// or by printing to stderr if no device is available.
 void reportNativeCallError(
     Device* device,
     const char* call,

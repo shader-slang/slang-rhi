@@ -91,7 +91,7 @@ void reportNativeCallError(
     formatNativeCallError(message, sizeof(message), call, result, resultName, location, detail);
 
     DebugMessageType type = tls_nativeCallErrorWarning > 0 ? DebugMessageType::Warning : DebugMessageType::Error;
-    if (device && device->m_debugCallback && device->m_debugCallback != NullDebugCallback::getInstance())
+    if (device)
     {
         device->handleMessage(type, DebugMessageSource::Driver, message);
     }
