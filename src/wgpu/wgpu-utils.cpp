@@ -8,6 +8,90 @@
 
 namespace rhi::wgpu {
 
+const char* getWGPUStatusName(WGPUCreatePipelineAsyncStatus status)
+{
+    switch (status)
+    {
+    case WGPUCreatePipelineAsyncStatus_Success:
+        return "WGPUCreatePipelineAsyncStatus_Success";
+    case WGPUCreatePipelineAsyncStatus_CallbackCancelled:
+        return "WGPUCreatePipelineAsyncStatus_CallbackCancelled";
+    case WGPUCreatePipelineAsyncStatus_ValidationError:
+        return "WGPUCreatePipelineAsyncStatus_ValidationError";
+    case WGPUCreatePipelineAsyncStatus_InternalError:
+        return "WGPUCreatePipelineAsyncStatus_InternalError";
+    default:
+        return "<unknown>";
+    }
+}
+
+const char* getWGPUStatusName(WGPUWaitStatus status)
+{
+    switch (status)
+    {
+    case WGPUWaitStatus_Success:
+        return "WGPUWaitStatus_Success";
+    case WGPUWaitStatus_TimedOut:
+        return "WGPUWaitStatus_TimedOut";
+    case WGPUWaitStatus_Error:
+        return "WGPUWaitStatus_Error";
+    default:
+        return "<unknown>";
+    }
+}
+
+const char* getWGPUStatusName(WGPURequestDeviceStatus status)
+{
+    switch (status)
+    {
+    case WGPURequestDeviceStatus_Success:
+        return "WGPURequestDeviceStatus_Success";
+    case WGPURequestDeviceStatus_CallbackCancelled:
+        return "WGPURequestDeviceStatus_CallbackCancelled";
+    case WGPURequestDeviceStatus_Error:
+        return "WGPURequestDeviceStatus_Error";
+    default:
+        return "<unknown>";
+    }
+}
+
+const char* getWGPUStatusName(WGPUErrorType status)
+{
+    switch (status)
+    {
+    case WGPUErrorType_NoError:
+        return "WGPUErrorType_NoError";
+    case WGPUErrorType_Validation:
+        return "WGPUErrorType_Validation";
+    case WGPUErrorType_OutOfMemory:
+        return "WGPUErrorType_OutOfMemory";
+    case WGPUErrorType_Internal:
+        return "WGPUErrorType_Internal";
+    case WGPUErrorType_Unknown:
+        return "WGPUErrorType_Unknown";
+    default:
+        return "<unknown>";
+    }
+}
+
+const char* getWGPUStatusName(WGPUDeviceLostReason status)
+{
+    switch (status)
+    {
+    case WGPUDeviceLostReason_Unknown:
+        return "WGPUDeviceLostReason_Unknown";
+    case WGPUDeviceLostReason_Destroyed:
+        return "WGPUDeviceLostReason_Destroyed";
+    case WGPUDeviceLostReason_CallbackCancelled:
+        return "WGPUDeviceLostReason_CallbackCancelled";
+    case WGPUDeviceLostReason_FailedCreation:
+        return "WGPUDeviceLostReason_FailedCreation";
+    default:
+        return "<unknown>";
+    }
+}
+
+
 #if !SLANG_WASM
 WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {

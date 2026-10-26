@@ -53,15 +53,12 @@ void DeviceImpl::reportError(const char* func, WGPUStringView message)
 
 void DeviceImpl::reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message)
 {
-    std::string msg = "WGPU device lost: " + translateString(message);
-    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
+    reportWGPUError(this, "WebGPU device lost callback", reason, message, SLANG_RHI_SOURCE_LOCATION());
 }
 
 void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView message)
 {
-    std::string msg = "WGPU uncaptured error: " + translateString(message);
-    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
-    SLANG_UNUSED(type);
+    reportWGPUError(this, "WebGPU uncaptured error callback", type, message, SLANG_RHI_SOURCE_LOCATION());
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
@@ -168,8 +165,26 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestDeviceStatus_Success)
+        if (waitStatus != WGPUWaitStatus_Success)
         {
+            reportWGPUError(
+                this,
+                "wgpuInstanceWaitAny",
+                waitStatus,
+                translateString("wgpuAdapterRequestDevice"),
+                SLANG_RHI_SOURCE_LOCATION()
+            );
+            return SLANG_FAIL;
+        }
+        if (state.status != WGPURequestDeviceStatus_Success)
+        {
+            reportWGPUError(
+                this,
+                "wgpuAdapterRequestDevice",
+                state.status,
+                translateString(state.message.c_str()),
+                SLANG_RHI_SOURCE_LOCATION()
+            );
             return SLANG_FAIL;
         }
         m_ctx.device = state.device;

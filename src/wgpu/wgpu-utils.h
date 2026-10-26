@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wgpu-api.h"
+#include "core/diagnostics.h"
 
 #include <slang-rhi.h>
 
@@ -17,6 +18,19 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
 
 WGPUStringView translateString(const char* str);
 std::string translateString(WGPUStringView str);
+const char* getWGPUStatusName(WGPUCreatePipelineAsyncStatus status);
+const char* getWGPUStatusName(WGPUWaitStatus status);
+const char* getWGPUStatusName(WGPURequestDeviceStatus status);
+const char* getWGPUStatusName(WGPUErrorType status);
+const char* getWGPUStatusName(WGPUDeviceLostReason status);
+
+template<typename Status>
+void reportWGPUError(Device* device, const char* call, Status status, WGPUStringView message, SourceLocation location)
+{
+    std::string detail = translateString(message);
+    reportNativeCallError(device, call, status, getWGPUStatusName(status), location, detail.c_str());
+}
+
 
 WGPUTextureFormat translateTextureFormat(Format format);
 WGPUVertexFormat translateVertexFormat(Format format);

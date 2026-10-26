@@ -39,12 +39,22 @@ static Pipeline createPipeline(
         if (status == WGPUCreatePipelineAsyncStatus_Success)
             request->pipeline = pipeline;
         else
-            request->device->reportError(request->funcName, message);
+            reportWGPUError(request->device, request->funcName, status, message, SLANG_RHI_SOURCE_LOCATION());
     };
     callbackInfo.userdata1 = &request;
     WGPUFuture future = createAsync(device->m_ctx.device, &desc, callbackInfo);
-    if (wait(device->m_ctx, future) != WGPUWaitStatus_Success)
+    WGPUWaitStatus waitStatus = wait(device->m_ctx, future);
+    if (waitStatus != WGPUWaitStatus_Success)
+    {
+        reportWGPUError(
+            device,
+            "wgpuInstanceWaitAny",
+            waitStatus,
+            translateString(funcName),
+            SLANG_RHI_SOURCE_LOCATION()
+        );
         return nullptr;
+    }
     return request.pipeline;
 }
 
