@@ -40,7 +40,8 @@ static constexpr VkSubgroupFeatureFlags kWaveOpsSubgroupFeatureMask =
 static Result queryCalibratedTimestampSupport(
     VulkanApi& api,
     const std::set<std::string>& extensionNames,
-    CalibratedTimestampSupport& outSupport
+    CalibratedTimestampSupport& outSupport,
+    Device* diagnosticDevice
 )
 {
     outSupport = {};
@@ -61,8 +62,9 @@ static Result queryCalibratedTimestampSupport(
     }
 
     uint32_t timeDomainCount = 0;
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(api.m_physicalDevice, &timeDomainCount, nullptr)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(api.m_physicalDevice, &timeDomainCount, nullptr),
+        diagnosticDevice
     );
     if (timeDomainCount == 0)
     {
@@ -70,8 +72,9 @@ static Result queryCalibratedTimestampSupport(
     }
 
     std::vector<VkTimeDomainKHR> timeDomains(timeDomainCount);
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(api.m_physicalDevice, &timeDomainCount, timeDomains.data())
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(api.m_physicalDevice, &timeDomainCount, timeDomains.data()),
+        diagnosticDevice
     );
 
     const auto hasTimeDomain = [&](VkTimeDomainKHR domain)
@@ -482,6 +485,7 @@ Result DeviceImpl::initVulkanInstance(
             VK_API_VERSION_1_1,
             VK_API_VERSION_1_0,
         };
+        VkResult instanceResult = VK_ERROR_INCOMPATIBLE_DRIVER;
         for (auto apiVersion : apiVersionsToTry)
         {
             applicationInfo.apiVersion = apiVersion;
@@ -490,11 +494,16 @@ Result DeviceImpl::initVulkanInstance(
             // the layer is known earlier). It might, for example, be absent
             // from the system library search path, and not referenced with an
             // absolute path in VkLayer_khronos_validation.json.
-            const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
-            if (r == VK_SUCCESS)
+            instanceResult = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
+            if (instanceResult == VK_SUCCESS)
             {
                 break;
             }
+        }
+        if (instanceResult != VK_SUCCESS)
+        {
+            reportVulkanError(instanceResult, "vkCreateInstance", SLANG_RHI_SOURCE_LOCATION(), this);
+            return SLANG_FAIL;
         }
     }
     else
@@ -1276,7 +1285,9 @@ Result DeviceImpl::initVulkanDevice(
 
 #undef SIMPLE_EXTENSION_FEATURE
 
-        SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport));
+        SLANG_RETURN_ON_FAIL(
+            queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport, this)
+        );
         if (m_calibratedTimestampSupport.available && !desc.existingDeviceHandles.handles[2])
         {
             deviceExtensions.push_back(m_calibratedTimestampSupport.deviceExtensionName);
@@ -1615,7 +1626,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize Vulkan instance.
     DebugLayerOptions debugLayerOptions = getRHI()->getDebugLayerOptions();
-    Result instanceResult = initVulkanInstance(desc, extendedDesc, debugLayerOptions);
+    Result instanceResult;
+    if (debugLayerOptions.isDebugLayersEnabled() && !debugLayerOptions.required)
+    {
+        ScopedNativeCallErrorWarning warning;
+        instanceResult = initVulkanInstance(desc, extendedDesc, debugLayerOptions);
+    }
+    else
+        instanceResult = initVulkanInstance(desc, extendedDesc, debugLayerOptions);
     // If instance creation failed due to missing debug layers,
     // disable debug layers and try again (if they were optional).
     if (SLANG_FAILED(instanceResult) && debugLayerOptions.isDebugLayersEnabled())

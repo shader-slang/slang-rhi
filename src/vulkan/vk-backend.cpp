@@ -66,9 +66,15 @@ Result BackendImpl::enumerateAdapters()
 #if SLANG_APPLE_FAMILY
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
-    SLANG_VK_RETURN_ON_FAIL(
-        m_adapterEnumerationApi.vkCreateInstance(&instanceCreateInfo, nullptr, &m_adapterEnumerationInstance)
-    );
+    VkResult instanceResult =
+        m_adapterEnumerationApi.vkCreateInstance(&instanceCreateInfo, nullptr, &m_adapterEnumerationInstance);
+    if (instanceResult != VK_SUCCESS)
+    {
+        // An unavailable Vulkan implementation is normal during optional backend discovery.
+        if (instanceResult != VK_ERROR_INCOMPATIBLE_DRIVER)
+            reportVulkanError(instanceResult, "vkCreateInstance", SLANG_RHI_SOURCE_LOCATION());
+        return SLANG_FAIL;
+    }
 
     SLANG_RETURN_ON_FAIL(m_adapterEnumerationApi.initInstanceProcs(m_adapterEnumerationInstance));
     if (!(m_adapterEnumerationApi.vkEnumeratePhysicalDevices && m_adapterEnumerationApi.vkGetPhysicalDeviceProperties2))
@@ -77,15 +83,16 @@ Result BackendImpl::enumerateAdapters()
     }
 
     uint32_t physicalDeviceCount = 0;
-    SLANG_VK_RETURN_ON_FAIL(
-        m_adapterEnumerationApi.vkEnumeratePhysicalDevices(m_adapterEnumerationInstance, &physicalDeviceCount, nullptr)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_adapterEnumerationApi.vkEnumeratePhysicalDevices(m_adapterEnumerationInstance, &physicalDeviceCount, nullptr),
+        nullptr
     );
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-    SLANG_VK_RETURN_ON_FAIL(m_adapterEnumerationApi.vkEnumeratePhysicalDevices(
-        m_adapterEnumerationInstance,
-        &physicalDeviceCount,
-        physicalDevices.data()
-    ));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_adapterEnumerationApi
+            .vkEnumeratePhysicalDevices(m_adapterEnumerationInstance, &physicalDeviceCount, physicalDevices.data()),
+        nullptr
+    );
 
     for (const auto& physicalDevice : physicalDevices)
     {
