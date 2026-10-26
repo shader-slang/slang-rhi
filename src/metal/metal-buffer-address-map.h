@@ -27,12 +27,14 @@ public:
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         Entry& entry = m_baseAddrMap[baseAddr];
-        if (!entry.head)
-            entry.size = size;
-        else
-            SLANG_RHI_ASSERT(entry.size == size);
-        buffer->m_nextAtSameAddr = entry.head;
-        entry.head = buffer;
+        // Placed aliases can share a base address but have different lengths. Keep
+        // the largest buffer first so every lookup returns a buffer covering the address.
+        buffer->m_addressMapSize = size;
+        BufferImpl** link = &entry.head;
+        while (*link && (*link)->m_addressMapSize > size)
+            link = &(*link)->m_nextAtSameAddr;
+        buffer->m_nextAtSameAddr = *link;
+        *link = buffer;
         m_sortedDirty = true;
     }
 
@@ -75,9 +77,8 @@ private:
     struct Entry
     {
         /// Buffers sharing this base address, linked through BufferImpl::m_nextAtSameAddr.
-        /// Imported buffers can alias an existing address; chaining avoids allocating here.
+        /// Sorted by decreasing size; imported and placed buffers can alias an existing address.
         BufferImpl* head = nullptr;
-        DeviceAddress size = 0;
     };
 
     BufferImpl* findByRange(DeviceAddress addr)
@@ -88,22 +89,19 @@ private:
         if (m_sorted.empty())
             return nullptr;
 
-        // upper_bound finds first entry with base > addr; step back one.
+        // The range index has strictly increasing ends, even when buffers overlap.
+        // Find the first range ending after addr, then check that it starts before addr.
         auto it = std::upper_bound(
             m_sorted.begin(),
             m_sorted.end(),
             addr,
             [](DeviceAddress a, const std::pair<DeviceAddress, Entry>& e)
             {
-                return a < e.first;
+                return a < e.first + e.second.head->m_addressMapSize;
             }
         );
 
-        if (it == m_sorted.begin())
-            return nullptr;
-
-        --it;
-        if (addr < it->first + it->second.size)
+        if (it != m_sorted.end() && it->first <= addr)
             return it->second.head;
 
         return nullptr;
@@ -123,6 +121,20 @@ private:
                 return a.first < b.first;
             }
         );
+        // A range contained in an earlier range adds no coverage. Dropping it
+        // keeps both starts and ends sorted and preserves logarithmic lookup.
+        size_t count = 0;
+        DeviceAddress maxEnd = 0;
+        for (const auto& entry : m_sorted)
+        {
+            DeviceAddress end = entry.first + entry.second.head->m_addressMapSize;
+            if (end > maxEnd)
+            {
+                m_sorted[count++] = entry;
+                maxEnd = end;
+            }
+        }
+        m_sorted.resize(count);
         m_sortedDirty = false;
     }
 

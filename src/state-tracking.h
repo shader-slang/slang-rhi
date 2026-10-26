@@ -187,11 +187,11 @@ public:
                 destinations.begin(),
                 destinations.end(),
                 resource,
-                [](Resource* resource, const PlacementRange& range)
+                [](Resource* candidate, const PlacementRange& range)
                 {
-                    ResourceHeap* heap = resource->m_placementHeap.get();
+                    ResourceHeap* heap = candidate->m_placementHeap.get();
                     return heap != range.heap ? std::less<ResourceHeap*>()(heap, range.heap)
-                                              : resource->m_placementOffset < range.end;
+                                              : candidate->m_placementOffset < range.end;
                 }
             );
             return it != destinations.end() && it->heap == resource->m_placementHeap.get() &&
