@@ -61,17 +61,26 @@ static Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
     int deviceCount = 0;
 
     uint64_t maxComputePerf = 0;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGetCount(&deviceCount), nullptr);
 
     // Find the best CUDA capable GPU device
     for (int currentDevice = 0; currentDevice < deviceCount; ++currentDevice)
     {
         CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, currentDevice));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&device, currentDevice), nullptr);
         int computeMode = -1, major = 0, minor = 0;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device));
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device));
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device),
+            nullptr
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device),
+            nullptr
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device),
+            nullptr
+        );
 
         // If this GPU is not running on Compute Mode prohibited,
         // then we can add it to the list
@@ -87,10 +96,14 @@ static Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
             }
 
             int multiProcessorCount = 0, clockRate = 0;
-            SLANG_CUDA_RETURN_ON_FAIL(
-                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device)
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device),
+                nullptr
             );
-            SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device));
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+                cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device),
+                nullptr
+            );
             uint64_t compute_perf = uint64_t(multiProcessorCount) * smPerMultiproc * clockRate;
 
             if (compute_perf > maxComputePerf)
@@ -137,20 +150,27 @@ Result BackendImpl::enumerateAdapters()
         return SLANG_FAIL;
     }
 
-    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
+    // CUDA is optional during adapter discovery; an absent CUDA device is expected.
+    CUresult initResult = cuInit(0);
+    if (initResult != CUDA_SUCCESS)
+    {
+        if (initResult != CUDA_ERROR_NO_DEVICE)
+            reportCUDAError(initResult, "cuInit", SLANG_RHI_SOURCE_LOCATION());
+        return SLANG_FAIL;
+    }
 
     int deviceCount;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGetCount(&deviceCount), nullptr);
 
     for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
     {
         CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&device, deviceIndex), nullptr);
 
         AdapterInfo info = {};
         info.deviceType = DeviceType::CUDA;
         info.adapterType = AdapterType::Discrete;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGetName(info.name, sizeof(info.name), device), nullptr);
         info.luid = getAdapterLUID(deviceIndex);
 
         AdapterImpl adapter;
