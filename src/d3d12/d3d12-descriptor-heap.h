@@ -15,7 +15,8 @@ public:
         ID3D12Device* device,
         D3D12_DESCRIPTOR_HEAP_TYPE type,
         D3D12_DESCRIPTOR_HEAP_FLAGS flags,
-        uint32_t size
+        uint32_t size,
+        Device* diagnosticDevice = nullptr
     );
 
     /// Return the underlying D3D12 descriptor heap.
@@ -109,10 +110,16 @@ public:
         ID3D12Device* device,
         D3D12_DESCRIPTOR_HEAP_TYPE type,
         uint32_t pageSize,
-        CPUDescriptorHeap** outHeap
+        CPUDescriptorHeap** outHeap,
+        Device* diagnosticDevice = nullptr
     );
 
-    CPUDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t pageSize);
+    CPUDescriptorHeap(
+        ID3D12Device* device,
+        D3D12_DESCRIPTOR_HEAP_TYPE type,
+        uint32_t pageSize,
+        Device* diagnosticDevice = nullptr
+    );
     ~CPUDescriptorHeap();
 
     /// Allocate a single descriptor.
@@ -149,6 +156,7 @@ private:
     };
 
     ID3D12Device* m_device;
+    Device* m_diagnosticDevice;
     D3D12_DESCRIPTOR_HEAP_TYPE m_type;
     uint32_t m_pageSize;
     uint32_t m_descriptorSize;
@@ -214,7 +222,8 @@ public:
         D3D12_DESCRIPTOR_HEAP_TYPE type,
         uint32_t size,
         uint32_t maxAllocations,
-        GPUDescriptorHeap** outHeap
+        GPUDescriptorHeap** outHeap,
+        Device* diagnosticDevice = nullptr
     );
 
     GPUDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t size, uint32_t maxAllocations);

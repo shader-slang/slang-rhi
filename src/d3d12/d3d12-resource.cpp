@@ -92,7 +92,8 @@ Result D3D12Resource::initCommitted(
     const D3D12_RESOURCE_DESC& resourceDesc,
     D3D12_RESOURCE_STATES initState,
     const D3D12_CLEAR_VALUE* clearValue,
-    D3D12MA::Allocator* allocator
+    D3D12MA::Allocator* allocator,
+    Device* diagnosticDevice
 )
 {
     setResourceNull();
@@ -122,9 +123,10 @@ Result D3D12Resource::initCommitted(
         if (desc.Alignment == 0 && (isPlanarFormat(desc.Format) || desc.SampleDesc.Count > 1))
             desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
-        SLANG_D3D_RETURN_ON_FAIL(
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
             allocator
-                ->CreateResource(&allocDesc, &desc, initState, clearValue, m_allocation.writeRef(), IID_NULL, nullptr)
+                ->CreateResource(&allocDesc, &desc, initState, clearValue, m_allocation.writeRef(), IID_NULL, nullptr),
+            diagnosticDevice
         );
 
         m_resource = m_allocation->GetResource();
@@ -132,14 +134,17 @@ Result D3D12Resource::initCommitted(
     }
 
     ComPtr<ID3D12Resource> resource;
-    SLANG_D3D_RETURN_ON_FAIL(device->CreateCommittedResource(
-        &heapProps,
-        heapFlags,
-        &resourceDesc,
-        initState,
-        clearValue,
-        IID_PPV_ARGS(resource.writeRef())
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->CreateCommittedResource(
+            &heapProps,
+            heapFlags,
+            &resourceDesc,
+            initState,
+            clearValue,
+            IID_PPV_ARGS(resource.writeRef())
+        ),
+        diagnosticDevice
+    );
     setResource(resource);
     return SLANG_OK;
 }

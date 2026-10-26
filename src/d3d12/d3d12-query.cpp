@@ -62,7 +62,8 @@ Result QueryPoolImpl::init()
         resourceDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
         nullptr,
-        device->m_allocator
+        device->m_allocator,
+        device
     ));
 
     D3D12_RANGE readRange = {0, sizeof(uint64_t) * m_desc.count};
@@ -196,7 +197,8 @@ Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
         resourceDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
         nullptr,
-        device->m_allocator
+        device->m_allocator,
+        device
     ));
 
     D3D12_RANGE readRange = {0, size};

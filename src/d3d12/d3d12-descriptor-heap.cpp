@@ -8,7 +8,8 @@ Result DescriptorHeap::init(
     ID3D12Device* device,
     D3D12_DESCRIPTOR_HEAP_TYPE type,
     D3D12_DESCRIPTOR_HEAP_FLAGS flags,
-    uint32_t size
+    uint32_t size,
+    Device* diagnosticDevice
 )
 {
     m_device = device;
@@ -19,7 +20,10 @@ Result DescriptorHeap::init(
     heapDesc.NumDescriptors = size;
     heapDesc.Flags = flags;
     heapDesc.Type = type;
-    SLANG_D3D_RETURN_ON_FAIL(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_heap.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_heap.writeRef())),
+        diagnosticDevice
+    );
 
     m_cpuStart = m_heap->GetCPUDescriptorHandleForHeapStart();
     if (flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
@@ -36,16 +40,23 @@ Result CPUDescriptorHeap::create(
     ID3D12Device* device,
     D3D12_DESCRIPTOR_HEAP_TYPE type,
     uint32_t pageSize,
-    CPUDescriptorHeap** outHeap
+    CPUDescriptorHeap** outHeap,
+    Device* diagnosticDevice
 )
 {
-    RefPtr<CPUDescriptorHeap> heap = new CPUDescriptorHeap(device, type, pageSize);
+    RefPtr<CPUDescriptorHeap> heap = new CPUDescriptorHeap(device, type, pageSize, diagnosticDevice);
     returnRefPtr(outHeap, heap);
     return SLANG_OK;
 }
 
-CPUDescriptorHeap::CPUDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t pageSize)
+CPUDescriptorHeap::CPUDescriptorHeap(
+    ID3D12Device* device,
+    D3D12_DESCRIPTOR_HEAP_TYPE type,
+    uint32_t pageSize,
+    Device* diagnosticDevice
+)
     : m_device(device)
+    , m_diagnosticDevice(diagnosticDevice)
     , m_type(type)
     , m_pageSize(pageSize)
 {
@@ -150,7 +161,7 @@ Result CPUDescriptorHeap::newPage(uint32_t size)
 {
     uint32_t heapIndex = uint32_t(m_pages.size());
     Page* page = new Page(heapIndex, size);
-    SLANG_RETURN_ON_FAIL(page->heap.init(m_device, m_type, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, size));
+    SLANG_RETURN_ON_FAIL(page->heap.init(m_device, m_type, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, size, m_diagnosticDevice));
     m_pages.push_back(page);
     m_freePages.insert(page);
     return SLANG_OK;
@@ -163,11 +174,14 @@ Result GPUDescriptorHeap::create(
     D3D12_DESCRIPTOR_HEAP_TYPE type,
     uint32_t size,
     uint32_t maxAllocations,
-    GPUDescriptorHeap** outHeap
+    GPUDescriptorHeap** outHeap,
+    Device* diagnosticDevice
 )
 {
     RefPtr<GPUDescriptorHeap> heap = new GPUDescriptorHeap(device, type, size, maxAllocations);
-    SLANG_RETURN_ON_FAIL(heap->m_heap.init(device, type, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, size));
+    SLANG_RETURN_ON_FAIL(
+        heap->m_heap.init(device, type, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, size, diagnosticDevice)
+    );
     returnRefPtr(outHeap, heap);
     return SLANG_OK;
 }

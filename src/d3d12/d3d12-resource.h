@@ -26,7 +26,8 @@ struct D3D12Resource
         const D3D12_RESOURCE_DESC& resourceDesc,
         D3D12_RESOURCE_STATES initState,
         const D3D12_CLEAR_VALUE* clearValue,
-        D3D12MA::Allocator* allocator = nullptr
+        D3D12MA::Allocator* allocator = nullptr,
+        Device* diagnosticDevice = nullptr
     );
 
     /// Set a resource.

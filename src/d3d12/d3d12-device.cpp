@@ -674,21 +674,23 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
                 m_device,
                 D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                 16 * 1024,
-                m_cpuCbvSrvUavHeap.writeRef()
+                m_cpuCbvSrvUavHeap.writeRef(),
+                this
             )
         );
         SLANG_RETURN_ON_FAIL(
-            CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 4 * 1024, m_cpuRtvHeap.writeRef())
+            CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 4 * 1024, m_cpuRtvHeap.writeRef(), this)
         );
         SLANG_RETURN_ON_FAIL(
-            CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4 * 1024, m_cpuDsvHeap.writeRef())
+            CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4 * 1024, m_cpuDsvHeap.writeRef(), this)
         );
         SLANG_RETURN_ON_FAIL(
             CPUDescriptorHeap::create(
                 m_device,
                 D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
                 4 * 1024,
-                m_cpuSamplerHeap.writeRef()
+                m_cpuSamplerHeap.writeRef(),
+                this
             )
         );
 
@@ -698,7 +700,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
                 D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                 1000000,
                 16 * 1024,
-                m_gpuCbvSrvUavHeap.writeRef()
+                m_gpuCbvSrvUavHeap.writeRef(),
+                this
             )
         );
         SLANG_RETURN_ON_FAIL(
@@ -707,7 +710,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
                 D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
                 2048,
                 2048,
-                m_gpuSamplerHeap.writeRef()
+                m_gpuSamplerHeap.writeRef(),
+                this
             )
         );
     }
@@ -1340,7 +1344,7 @@ Result DeviceImpl::createBuffer(
 
     // Create the resource.
     SLANG_RETURN_ON_FAIL(
-        resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr, m_allocator)
+        resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr, m_allocator, this)
     );
 
     if (srcData)
@@ -1361,7 +1365,8 @@ Result DeviceImpl::createBuffer(
                 uploadDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr,
-                m_allocator
+                m_allocator,
+                this
             ));
         }
 
@@ -1472,7 +1477,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             resourceDesc,
             texture->m_defaultState,
             clearValuePtr,
-            m_allocator
+            m_allocator,
+            this
         ));
 
         if (desc.label)
@@ -1759,7 +1765,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
             stagingDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
-            m_allocator
+            m_allocator,
+            this
         ));
 
         // Do the copy
