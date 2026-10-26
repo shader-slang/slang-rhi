@@ -1593,14 +1593,14 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
         nullptr
     );
 
-    if (Buffer* buffer = asBuffer(cmd.before))
-        m_stateTracking.forgetBufferState(buffer);
-    if (Texture* texture = asTexture(cmd.before))
-        m_stateTracking.forgetTextureState(texture);
-    if (Buffer* buffer = asBuffer(cmd.after))
-        m_stateTracking.resetBufferState(buffer);
-    if (Texture* texture = asTexture(cmd.after))
-        m_stateTracking.resetTextureState(texture);
+    m_stateTracking.deactivateAliases({cmd.after, cmd.afterCount}, false);
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
+    {
+        if (Buffer* buffer = asBuffer(cmd.after[i]))
+            m_stateTracking.resetBufferState(buffer);
+        if (Texture* texture = asTexture(cmd.after[i]))
+            m_stateTracking.resetTextureState(texture);
+    }
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

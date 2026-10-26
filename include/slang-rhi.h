@@ -2993,14 +2993,30 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() = 0;
 
-    /// Activate `after` in heap memory previously used by `before`.
-    /// On this queue, prior accesses to `before` happen before later accesses to `after`.
-    /// `before` becomes inactive and loses its tracked state; `after` becomes active with undefined
-    /// contents. Cross-queue synchronization is the caller's responsibility.
-    /// `before` may be null for first activation. `after` must be a non-null placed resource; when
-    /// both are non-null, they must belong to the encoder's device and the same heap and have
-    /// overlapping ranges.
-    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(IResource* before, IResource* after) = 0;
+    /// Activate all destinations in `after` as one batch.
+    /// On this queue, prior accesses to overlapping aliases happen before later accesses to the destinations.
+    /// All other resources overlapping any destination become inactive and lose their tracked state before
+    /// any destination is activated. Destination contents are undefined after activation.
+    /// Cross-queue synchronization is the caller's responsibility.
+    ///
+    /// `before` is an optional predecessor list for validation; it may be empty for first activation.
+    /// Each predecessor must overlap at least one destination in the same heap. The list does not limit
+    /// which overlapping aliases are deactivated.
+    /// `after` must be non-empty, and its resources must not overlap each other.
+    /// Both lists contain placed buffers or textures on the encoder's device. They describe sets, not
+    /// corresponding pairs, and may span multiple heaps.
+    /// Both arrays are consumed during this call; the command buffer retains all referenced resources.
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(
+        uint32_t beforeCount,
+        IResource* const* before,
+        uint32_t afterCount,
+        IResource* const* after
+    ) = 0;
+
+    inline void aliasResources(IResource* before, IResource* after)
+    {
+        aliasResources(before ? 1 : 0, before ? &before : nullptr, 1, &after);
+    }
 
     inline void setTextureState(ITexture* texture, ResourceState state)
     {

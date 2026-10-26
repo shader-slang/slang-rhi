@@ -316,8 +316,10 @@ struct GlobalBarrier
 
 struct AliasResources
 {
-    IResource* before;
-    IResource* after;
+    uint32_t beforeCount;
+    IResource* const* before;
+    uint32_t afterCount;
+    IResource* const* after;
 };
 
 struct PushDebugGroup

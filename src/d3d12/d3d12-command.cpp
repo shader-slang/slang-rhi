@@ -1615,16 +1615,14 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 
 void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
 {
-    // Flush transitions already accumulated for either resource before requesting a final
-    // transition for `before`; otherwise D3D12 may see the same subresource twice in one batch.
+    // Flush pending transitions before requesting final transitions for the old aliases;
+    // otherwise D3D12 may see the same subresource twice in one batch.
     commitBarriers();
 
-    // Aliased resources retain their D3D12 transition state while inactive. Restore the resource
-    // being deactivated to its default state so it can be safely forgotten until reactivation.
-    if (Buffer* buffer = asBuffer(cmd.before))
-        m_stateTracking.setBufferState(buffer, buffer->m_desc.defaultState);
-    else if (Texture* texture = asTexture(cmd.before))
-        m_stateTracking.setTextureState(texture, kEntireTexture, texture->m_desc.defaultState);
+    // Restore ALL overlapping resources before activation/discard overwrites their metadata.
+    // A later aliasResources call naming another predecessor must not transition it after
+    // that overwrite. Untracked resources already have their default transition states.
+    m_stateTracking.deactivateAliases({cmd.after, cmd.afterCount}, true);
     commitBarriers();
 
     auto getResource = [](IResource* resource) -> ID3D12Resource*
@@ -1636,16 +1634,17 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
         return nullptr;
     };
 
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
-    barrier.Aliasing.pResourceBefore = getResource(cmd.before);
-    barrier.Aliasing.pResourceAfter = getResource(cmd.after);
-    m_cmdList->ResourceBarrier(1, &barrier);
+    short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
+    {
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+        barrier.Aliasing.pResourceBefore = nullptr; // Synchronize all overlapping predecessors.
+        barrier.Aliasing.pResourceAfter = getResource(cmd.after[i]);
+        barriers.push_back(barrier);
+    }
+    m_cmdList->ResourceBarrier(UINT(barriers.size()), barriers.data());
 
-    if (Buffer* buffer = asBuffer(cmd.before))
-        m_stateTracking.forgetBufferState(buffer);
-    else if (Texture* texture = asTexture(cmd.before))
-        m_stateTracking.forgetTextureState(texture);
     // Preserve any tracked state for `after`: multiple predecessors can activate the
     // same destination, and an earlier activation may have transitioned it for discard.
     // An untracked destination starts in its default state, restored on deactivation.
@@ -1653,8 +1652,11 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     // Activating an RT/DS alias also requires initializing its compression metadata, even
     // when the next render pass uses DontCare and overwrites every pixel. Discard after
     // the aliasing barrier, in the state required by D3D12, and retain that tracked state.
-    if (Texture* texture = asTexture(cmd.after))
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
     {
+        Texture* texture = asTexture(cmd.after[i]);
+        if (!texture)
+            continue;
         const auto flags = checked_cast<TextureImpl*>(texture)->m_resource.getResource()->GetDesc().Flags;
         if (flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
         {
@@ -1662,7 +1664,7 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
                                                                                           : ResourceState::RenderTarget;
             m_stateTracking.setTextureState(texture, kEntireTexture, state);
             commitBarriers();
-            m_cmdList->DiscardResource(getResource(cmd.after), nullptr);
+            m_cmdList->DiscardResource(getResource(cmd.after[i]), nullptr);
         }
     }
 }
