@@ -1546,7 +1546,10 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     clusterOpParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
     clusterOpParams.pDesc = &nvapiDesc;
 
-    SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(m_cmdList4, &clusterOpParams));
+    SLANG_RHI_NVAPI_CHECK_REPORT(
+        NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(m_cmdList4, &clusterOpParams),
+        m_device
+    );
 
 #else  // SLANG_RHI_ENABLE_NVAPI
     SLANG_UNUSED(cmd);
@@ -1587,12 +1590,15 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
         nvDesc.dstStride = dstDesc.rowColumnStride;
         nvDescs.push_back(nvDesc);
     }
-    SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(
-        m_device->m_device,
-        m_cmdList,
-        nvDescs.data(),
-        (NvU32)nvDescs.size()
-    ));
+    SLANG_RHI_NVAPI_CHECK_REPORT(
+        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(
+            m_device->m_device,
+            m_cmdList,
+            nvDescs.data(),
+            (NvU32)nvDescs.size()
+        ),
+        m_device
+    );
 
     requireBufferState(dstBuffer, ResourceState::ShaderResource);
     commitBarriers();

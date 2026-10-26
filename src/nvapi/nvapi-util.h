@@ -5,6 +5,7 @@
 #include <slang-rhi.h>
 
 #include "nvapi-include.h"
+#include "core/assert.h"
 
 namespace rhi {
 
@@ -60,6 +61,7 @@ struct NVAPIUtil
         if (_res != NVAPI_OK)                                                                                          \
         {                                                                                                              \
             ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x, device);                                        \
+            SLANG_RHI_ASSERT_FAILURE("NVAPI returned an error");                                                       \
         }                                                                                                              \
     }
 
