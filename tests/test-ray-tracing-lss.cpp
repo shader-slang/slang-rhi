@@ -140,6 +140,7 @@ GPU_TEST_CASE("ray-tracing-lss-intersection", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
         SKIP("acceleration structure linear swept spheres not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingLssTest test;
     test.init(device);
@@ -230,6 +231,7 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
         SKIP("acceleration structure linear swept spheres not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingLssIntrinsicsTest test;
     test.init(device);
@@ -238,14 +240,14 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
 
 GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
 {
-    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
-
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
         SKIP("acceleration structure linear swept spheres not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("Shader execution reordering not supported");
+    SKIP_IF_ARM64_WARP(device);
+    SKIP_IF_D3D12_NVAPI_WITH_SM_6_9(device);
 
     RayTracingLssIntrinsicsTest test;
     test.init(device);
@@ -263,6 +265,7 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics-inline-ray-query", ALL)
         SKIP("ray query not supported");
     if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
         SKIP("acceleration structure linear swept spheres not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingLssIntrinsicsTest test;
     test.init(device);

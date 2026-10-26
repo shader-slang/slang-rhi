@@ -80,7 +80,7 @@ public:
 
     private:
         int m_id;
-        RefPtr<Buffer> m_buffer;
+        InternalRefPtr<Buffer> m_buffer;
         std::list<Node> m_nodes;
         size_t m_totalCapacity = 0;
         size_t m_totalUsed = 0;
@@ -213,6 +213,9 @@ public:
 
     // Unmap memory for allocation if necessary (for heap that keeps pages mapped, this is noop)
     Result unmap(const Allocation& allocation);
+
+    // Write data to an allocation (through the device if pages are not kept mapped)
+    Result write(const Allocation& allocation, const void* data, size_t size);
 
 private:
     Device* m_device = nullptr;

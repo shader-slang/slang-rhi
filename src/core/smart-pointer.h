@@ -54,12 +54,15 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
-    // Total number of references to this object.
-    std::atomic<uint32_t> referenceCount;
-    // Number references that are internal (i.e., not externally visible).
-    // This can be used to detect whether the object is currently externally referenced or not.
-    // For more details, see the comments in `setInternalReferenceCount()`.
-    std::atomic<uint32_t> internalReferenceCount;
+    // Low 32 bits: external references. High 32 bits: internal references.
+    // A single atomic makes ownership changes linearizable. Internal references retain
+    // the object; each nonempty external lifetime additionally retains getLifetimeOwner().
+    std::atomic<uint64_t> m_referenceCounts{0};
+
+    static constexpr uint64_t kInternalReference = uint64_t(1) << 32;
+    static uint32_t externalCount(uint64_t counts) { return uint32_t(counts); }
+    static uint32_t internalCount(uint64_t counts) { return uint32_t(counts >> 32); }
+    static uint64_t totalCount(uint64_t counts) { return uint64_t(externalCount(counts)) + internalCount(counts); }
 
 #if SLANG_RHI_DEBUG
     // Track the number of RefObject instances.
@@ -68,8 +71,6 @@ private:
 
 public:
     RefObject()
-        : referenceCount(0)
-        , internalReferenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
 #if SLANG_RHI_DEBUG
@@ -78,8 +79,6 @@ public:
     }
 
     RefObject(const RefObject&)
-        : referenceCount(0)
-        , internalReferenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
 #if SLANG_RHI_DEBUG
@@ -97,72 +96,101 @@ public:
 
     RefObject& operator=(const RefObject&) { return *this; }
 
-    uint32_t addReference()
+    virtual uint32_t addReference()
     {
-        uint32_t count = referenceCount.fetch_add(1);
-        uint32_t internalCount = internalReferenceCount.load();
-        if (internalCount > 0 && count == internalCount) [[unlikely]]
+        uint64_t counts = m_referenceCounts.load();
+        RefObject* owner = nullptr;
+        bool resolvedOwner = false;
+        for (;;)
         {
-            // Object is now externally referenced
-            makeExternal();
+            SLANG_RHI_ASSERT(externalCount(counts) < UINT32_MAX);
+            if (externalCount(counts) == 0 && !resolvedOwner)
+            {
+                // Retain before publishing an external reference. Concurrent promotions
+                // may acquire provisional owner references; only the winner keeps one.
+                owner = getLifetimeOwner();
+                if (owner)
+                    owner->addReference();
+                resolvedOwner = true;
+            }
+            if (m_referenceCounts.compare_exchange_weak(counts, counts + 1))
+            {
+                if (owner && externalCount(counts) != 0)
+                    owner->releaseReference();
+                return uint32_t(totalCount(counts) + 1);
+            }
         }
-        return count + 1;
     }
 
-    uint32_t releaseReference()
+    virtual uint32_t releaseReference()
     {
-        uint32_t count = referenceCount.fetch_sub(1);
-        SLANG_RHI_ASSERT(count > 0);
-        uint32_t internalCount = internalReferenceCount.load();
-        if (internalCount > 0 && count == internalCount + 1) [[unlikely]]
+        uint64_t counts = m_referenceCounts.load();
+        for (;;)
         {
-            // Object is now internally referenced only
-            makeInternal();
+            SLANG_RHI_ASSERT(externalCount(counts) > 0);
+            if (externalCount(counts) > 1)
+            {
+                if (m_referenceCounts.compare_exchange_weak(counts, counts - 1))
+                    return uint32_t(totalCount(counts) - 1);
+            }
+            else
+            {
+                SLANG_RHI_ASSERT(internalCount(counts) < UINT32_MAX);
+                // Convert our last external reference into a temporary internal reference.
+                // This keeps this object alive while we finish the old external lifetime.
+                if (m_referenceCounts.compare_exchange_weak(counts, counts - 1 + kInternalReference))
+                {
+                    // Look up and save the owner while our temporary reference still
+                    // protects this object. Ordinary releases need no virtual lookup.
+                    RefObject* owner = getLifetimeOwner();
+                    // This guard is local bookkeeping, not a new internal ownership edge.
+                    // Bypass overrides that forward consumer references to another object.
+                    uint32_t remaining = RefObject::releaseInternalReference(); // May delete this.
+                    // A new external lifetime may already have acquired its own owner pin.
+                    // Release only ours, after destruction/deferred enqueue has completed.
+                    if (owner)
+                        owner->releaseReference(); // May initiate device shutdown.
+                    return remaining;
+                }
+            }
         }
-        if (count == 1) [[unlikely]]
-        {
-            // Last reference, delete the object
-            // Default behavior immediately calls 'delete this'
+    }
+
+    // Internal references require a containing owner/operation that guarantees the lifetime
+    // owner remains valid through use and destruction. They are not safe weak references.
+    virtual uint32_t addInternalReference()
+    {
+        uint64_t counts = m_referenceCounts.fetch_add(kInternalReference);
+        SLANG_RHI_ASSERT(internalCount(counts) < UINT32_MAX);
+        return uint32_t(totalCount(counts) + 1);
+    }
+
+    virtual uint32_t releaseInternalReference()
+    {
+        uint64_t counts = m_referenceCounts.fetch_sub(kInternalReference);
+        SLANG_RHI_ASSERT(internalCount(counts) > 0);
+        uint64_t remaining = totalCount(counts) - 1;
+        if (remaining == 0)
             deleteThis();
-        }
-        return count - 1;
+        return uint32_t(remaining);
     }
 
-    // Set the number of references that are internal.
-    // When the reference count becomes equal or smaller to this value,
-    // the object is considered to be internally referenced and `makeInternal()` is called.
-    // When the reference count is greater than this value, the object is considered to be externally referenced
-    // and `makeExternal()` is called.
-    // Note: Calling this function is not thread-safe and should be used with care (i.e. only be called when the object
-    // is initially created).
-    void setInternalReferenceCount(uint32_t count)
-    {
-        uint32_t currentCount = referenceCount.load();
-        SLANG_RHI_ASSERT(count <= currentCount);
-        internalReferenceCount.store(count);
-        if (count == 0 && currentCount > 0)
-        {
-            // Object is now externally referenced
-            makeExternal();
-        }
-        else if (count > 0 && currentCount == count)
-        {
-            // Object is now internally referenced
-            makeInternal();
-        }
-    }
+    uint64_t getReferenceCount() const { return totalCount(m_referenceCounts.load()); }
+    uint64_t getInternalReferenceCount() const { return internalCount(m_referenceCounts.load()); }
+    uint64_t getExternalReferenceCount() const { return externalCount(m_referenceCounts.load()); }
 
-    uint64_t getReferenceCount() const { return referenceCount; }
-    uint64_t getInternalReferenceCount() const { return internalReferenceCount; }
-
-    virtual void makeExternal() {}
-    virtual void makeInternal() {}
     virtual void deleteThis() { delete this; }
 
 #if SLANG_RHI_DEBUG
     // Get the number of RefObject instances currently alive.
     static uint64_t getObjectCount() { return s_objectCount.load(); }
 #endif
+
+protected:
+    // Return an immutable association without changing reference counts. The owner must
+    // remain valid through internal reference use/destruction and promotion to external
+    // ownership. Called only at external-lifetime boundaries while this object is alive.
+    virtual RefObject* getLifetimeOwner() const noexcept { return nullptr; }
 };
 
 SLANG_FORCE_INLINE void addReference(RefObject* obj)
@@ -202,89 +230,124 @@ SLANG_FORCE_INLINE const T* as(const RefObject* obj)
     return dynamicCast<T>(obj);
 }
 
-// "Smart" pointer to a reference-counted object
-template<typename T>
-struct SLANG_RHI_API RefPtr
+// Ownership policies for `RefPtrBase`.
+//
+// `ExternalOwnership` is the ordinary reference an application (or any code that wants the
+// object to behave as if the application held it) takes. `InternalOwnership` retains an
+// object without retaining its lifetime owner. Use it only where the containing owner or
+// operation guarantees the lifetime owner's validity through use and destruction, such as
+// a device-owned queue's in-flight list or a resource's same-device dependencies. Temporary
+// RHI code can still need external references. Internal ownership is not weak ownership.
+struct ExternalOwnership
 {
-    RefPtr()
+    template<typename T>
+    static void add(T* obj)
+    {
+        if (obj)
+            obj->addReference();
+    }
+    template<typename T>
+    static void release(T* obj)
+    {
+        if (obj)
+            obj->releaseReference();
+    }
+};
+
+struct InternalOwnership
+{
+    template<typename T>
+    static void add(T* obj)
+    {
+        if (obj)
+            obj->addInternalReference();
+    }
+    template<typename T>
+    static void release(T* obj)
+    {
+        if (obj)
+            obj->releaseInternalReference();
+    }
+};
+
+// "Smart" pointer to a reference-counted object
+template<typename T, typename Ownership>
+struct RefPtrBase
+{
+    RefPtrBase()
         : pointer(nullptr)
     {
     }
 
-    RefPtr(T* p)
+    RefPtrBase(T* p)
         : pointer(p)
     {
-        addReference(p);
+        Ownership::add(p);
     }
 
-    RefPtr(const RefPtr<T>& p)
+    RefPtrBase(const RefPtrBase& p)
         : pointer(p.pointer)
     {
-        addReference(p.pointer);
+        Ownership::add(p.pointer);
     }
 
-    RefPtr(RefPtr<T>&& p)
+    RefPtrBase(RefPtrBase&& p) noexcept
         : pointer(p.pointer)
     {
         p.pointer = nullptr;
     }
 
-    template<typename U>
-    RefPtr(const RefPtr<U>& p, typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0)
+    template<typename U, typename UOwnership>
+    RefPtrBase(
+        const RefPtrBase<U, UOwnership>& p,
+        typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type* = 0
+    )
         : pointer(static_cast<U*>(p))
     {
-        addReference(static_cast<U*>(p));
+        Ownership::add(static_cast<U*>(p));
     }
 
-#if 0
-        void operator=(T* p)
-        {
-            T* old = pointer;
-            addReference(p);
-            pointer = p;
-            releaseReference(old);
-        }
-#endif
-
-    void operator=(const RefPtr<T>& p)
+    void operator=(const RefPtrBase& p)
     {
         T* old = pointer;
-        addReference(p.pointer);
+        Ownership::add(p.pointer);
         pointer = p.pointer;
-        releaseReference(old);
+        Ownership::release(old);
     }
 
-    void operator=(RefPtr<T>&& p)
+    void operator=(RefPtrBase&& p) noexcept
     {
         T* old = pointer;
         pointer = p.pointer;
         p.pointer = old;
     }
 
-    template<typename U>
-    typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(const RefPtr<U>& p)
+    template<typename U, typename UOwnership>
+    typename std::enable_if<std::is_convertible<U*, T*>::value, void>::type operator=(
+        const RefPtrBase<U, UOwnership>& p
+    )
     {
         T* old = pointer;
-        addReference(p.pointer);
+        Ownership::add(p.pointer);
         pointer = p.pointer;
-        releaseReference(old);
+        Ownership::release(old);
     }
 
     bool operator==(const T* ptr) const { return pointer == ptr; }
 
     bool operator!=(const T* ptr) const { return pointer != ptr; }
 
-    bool operator==(const RefPtr<T>& ptr) const { return pointer == ptr.pointer; }
+    bool operator==(const RefPtrBase& ptr) const { return pointer == ptr.pointer; }
 
-    bool operator!=(const RefPtr<T>& ptr) const { return pointer != ptr.pointer; }
+    bool operator!=(const RefPtrBase& ptr) const { return pointer != ptr.pointer; }
 
     template<typename U>
-    RefPtr<U> dynamicCast() const
+    RefPtrBase<U, Ownership> dynamicCast() const
     {
-        return RefPtr<U>(dynamic_cast<U>(pointer));
+        return RefPtrBase<U, Ownership>(dynamic_cast<U*>(pointer));
     }
 
-    ~RefPtr() { releaseReference(static_cast<RefObject*>(pointer)); }
+    ~RefPtrBase() { Ownership::release(pointer); }
 
     T& operator*() const { return *pointer; }
 
@@ -296,19 +359,24 @@ struct SLANG_RHI_API RefPtr
 
     void attach(T* p)
     {
+        static_assert(std::is_same_v<Ownership, ExternalOwnership>, "attach requires an external owned reference");
         T* old = pointer;
         pointer = p;
-        releaseReference(old);
+        Ownership::release(old);
     }
 
     T* detach()
     {
+        static_assert(
+            std::is_same_v<Ownership, ExternalOwnership>,
+            "Internal ownership must not escape as an untyped reference"
+        );
         auto rs = pointer;
         pointer = nullptr;
         return rs;
     }
 
-    void swapWith(RefPtr<T>& rhs)
+    void swapWith(RefPtrBase& rhs)
     {
         auto rhsPtr = rhs.pointer;
         rhs.pointer = pointer;
@@ -317,14 +385,19 @@ struct SLANG_RHI_API RefPtr
 
     SLANG_FORCE_INLINE void setNull()
     {
-        releaseReference(pointer);
+        T* old = pointer;
         pointer = nullptr;
+        Ownership::release(old);
     }
 
     /// Get ready for writing (nulls contents)
     SLANG_FORCE_INLINE T** writeRef()
     {
-        *this = nullptr;
+        static_assert(
+            std::is_same_v<Ownership, ExternalOwnership>,
+            "Receive factory results into RefPtr, then convert ownership"
+        );
+        *this = RefPtrBase();
         return &pointer;
     }
 
@@ -334,8 +407,14 @@ struct SLANG_RHI_API RefPtr
 private:
     T* pointer;
 
-    template<typename T2>
-    friend struct RefPtr;
+    template<typename T2, typename TOwnership2>
+    friend struct RefPtrBase;
 };
+
+template<typename T>
+using RefPtr = RefPtrBase<T, ExternalOwnership>;
+
+template<typename T>
+using InternalRefPtr = RefPtrBase<T, InternalOwnership>;
 
 } // namespace rhi

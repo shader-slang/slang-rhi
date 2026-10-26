@@ -195,7 +195,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2026.12.2" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.17.1" CACHE STRING "Slang version to fetch")
 option(SLANG_RHI_FETCH_DXC "Fetch DirectXShaderCompiler for the D3D12 backend" ON)
 
 # slang-rhi depends on a few external libraries.
@@ -354,18 +354,18 @@ if(SLANG_RHI_FETCH_SLANG)
     set(SLANG_VERSION ${SLANG_RHI_FETCH_SLANG_VERSION})
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
     # Version string for which bundled hashes are provided; update together with the hashes below.
-    set(SLANG_HASH_VERSION "2026.12.2")
+    set(SLANG_HASH_VERSION "2026.17.1")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-windows-x86_64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=e44a29e4ba766e892db19e7f491b0c1fc21f548a0380a1b2931039569bf747e7")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=a41896cba523ecfecaf67d18bdb7767349112a45540ac0b88e8ce48e10ce239f")
             endif()
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-windows-aarch64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=65bb80430181d7a78de10506cef8ea52dba757c0e7fbdaa6333b9af926f53377")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=49bfb24ac0569f1f34c15adc1fd40e937d42ae2f0756842869855827186db62a")
             endif()
         else()
             message(FATAL_ERROR "Unsupported processor architecture (${SLANG_RHI_ARCHITECTURE}) for fetched Slang binaries")
@@ -374,12 +374,12 @@ if(SLANG_RHI_FETCH_SLANG)
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-linux-x86_64.tar.gz")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=5533415953112ddeb0a935755bdd2da5de530e6528a560a32ad809c9d9faf29c")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=31d7e53377dd9a80a1b7b9ec86f800562db91ca4ed2fb4c77573cba4d3e5095d")
             endif()
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-linux-aarch64.tar.gz")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=42e2c649e5b7d1e05e466210ee3314232538604053323d1e3e2f32af81faef08")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=9fde649a04957d854292f315a77fea44365943af6fc0854ab6a01a72cbc24cd7")
             endif()
         else()
             message(FATAL_ERROR "Unsupported processor architecture (${SLANG_RHI_ARCHITECTURE}) for fetched Slang binaries")
@@ -388,12 +388,12 @@ if(SLANG_RHI_FETCH_SLANG)
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
             set(SLANG_URL "${SLANG_URL}-macos-x86_64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=6e5ac21da34ba4a8848d31714130605103456f634223f1cc752f194d16a00a3a")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=0ea622ed274fdc847d566873a63d724393100742c0b47d437a0a99550858f937")
             endif()
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-macos-aarch64.zip")
             if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-                set(SLANG_RHI_SLANG_URL_HASH "SHA256=d1b6aac3f10b0031ef3ba7b0432ab678180aee745ff49d6d77b74271ced7bbbc")
+                set(SLANG_RHI_SLANG_URL_HASH "SHA256=20577fd1e09b82dfe23e6b1765825fac5d13a41c4e98066963a102932cde4efc")
             endif()
         else()
             message(FATAL_ERROR "Unsupported processor architecture (${SLANG_RHI_ARCHITECTURE}) for fetched Slang binaries")
@@ -401,7 +401,7 @@ if(SLANG_RHI_FETCH_SLANG)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         set(SLANG_URL "${SLANG_URL}-wasm-libs.zip")
         if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
-            set(SLANG_RHI_SLANG_URL_HASH "SHA256=877d751427cc62cde262d7691ebdac48aa3bfffcce796676188c39ee2cf8d2f6")
+            set(SLANG_RHI_SLANG_URL_HASH "SHA256=2d485d7a469f3f21ccad45082fc5327648942bde0824970dbb1b8032452627a2")
         endif()
     endif()
 
@@ -809,6 +809,7 @@ target_sources(slang-rhi PRIVATE
     src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
+    src/synthetic-resource-bindings.cpp
     src/transient-buffer-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
@@ -914,6 +915,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
+        src/vulkan/vk-descriptor-set-composition.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -922,6 +924,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
+        src/vulkan/vk-synthetic-bindings.cpp
         src/vulkan/vk-shader-object-layout.cpp
         src/vulkan/vk-shader-object.cpp
         src/vulkan/vk-shader-program.cpp
@@ -1029,7 +1032,7 @@ target_compile_definitions(slang-rhi
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Tests currently require linking statically due to reaching into internal details of the RHI implementation.
+# Native tests require linking statically due to reaching into internal details of the RHI implementation.
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
@@ -1050,6 +1053,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
         tests/test-acceleration-structure-creation-with-validation.cpp
+        tests/test-acceleration-structure-lifetime.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-device-features.cpp
@@ -1088,6 +1092,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
+        tests/test-ref-object.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp
@@ -1135,8 +1140,11 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-staging-heap.cpp
         tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
+        tests/test-storage-texture.cpp
         tests/test-surface.cpp
+        tests/test-synthetic-resource-bindings.cpp
         tests/test-texture-allocation-info.cpp
+        tests/test-texture-bindings.cpp
         tests/test-texture-create.cpp
         tests/test-texture-from-handle.cpp
         tests/test-texture-layout.cpp
@@ -1146,11 +1154,13 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/test-wgpu-pipeline-creation.cpp
         tests/memory-report.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/texture-test.cpp
         tests/test-task-pool.cpp
+        tests/test-upload-buffer.cpp
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
@@ -1170,6 +1180,9 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
     endif()
+    if(SLANG_RHI_ENABLE_WGPU)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-dawn)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         target_link_libraries(slang-rhi-tests PRIVATE psapi)
     endif()
@@ -1184,36 +1197,86 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/$<CONFIG>/nsystests.bat INPUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/nsystests.bat.ln)
     endif()
+endif()
 
+if(SLANG_RHI_BUILD_TESTS AND EMSCRIPTEN)
+    add_executable(wasm-test tests/wasm/wasm-test.cpp)
+    target_compile_features(wasm-test PRIVATE cxx_std_17)
+    target_link_libraries(wasm-test PRIVATE slang-rhi slang)
+    set_target_properties(wasm-test PROPERTIES
+        SUFFIX ".html"
+        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html"
+    )
+    target_link_options(wasm-test PRIVATE
+        "--use-port=emdawnwebgpu"
+        "SHELL:--shell-file \"${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html\""
+    )
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
-    if(NOT EMSCRIPTEN)
-        function(add_example name source)
-            add_executable(${name} ${source})
-            target_compile_features(${name} PRIVATE cxx_std_20)
-            get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
-            target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
-            target_include_directories(${name} PRIVATE examples/base)
-            target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
-        endfunction()
-
-        add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
-        add_example(example-surface examples/surface/example-surface.cpp)
-        add_example(example-triangle examples/triangle/example-triangle.cpp)
+    set(example_root "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(EMSCRIPTEN)
+        set(example_root "") # Examples are preloaded at /examples in the browser filesystem.
+        include(ExampleWasm)
     else()
-        add_executable(wasm-test examples/wasm/wasm-test.cpp)
-        target_compile_features(wasm-test PRIVATE cxx_std_17)
-        target_link_libraries(wasm-test PRIVATE slang-rhi slang)
-        set_target_properties(wasm-test PROPERTIES
-            OUTPUT_NAME "wasm-test"
-            SUFFIX ".html"
-        )
-        target_link_options(wasm-test PRIVATE
-            "--use-port=emdawnwebgpu"
-            "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
-        )
+        find_package(Threads REQUIRED)
     endif()
+
+    add_library(example-base STATIC
+        examples/base/example.cpp
+        examples/base/example-app.cpp
+        examples/base/example-runner.cpp
+    )
+    target_compile_features(example-base PUBLIC cxx_std_20)
+    target_compile_definitions(example-base
+        PUBLIC
+        SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+        SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+        SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
+        $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
+        $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
+    )
+    target_link_libraries(example-base PUBLIC slang-rhi slang PRIVATE slang-rhi-warnings)
+    if(EMSCRIPTEN)
+        target_sources(example-base PRIVATE examples/base/example-browser.cpp)
+    else()
+        target_link_libraries(example-base PUBLIC glfw Threads::Threads)
+    endif()
+
+    function(add_example_executable name)
+        add_executable(${name} ${ARGN})
+        target_link_libraries(${name} PRIVATE example-base slang-rhi-warnings)
+        if(EMSCRIPTEN)
+            configure_wasm_example(${name})
+        endif()
+    endfunction()
+
+    set(example_sources "")
+    function(add_example name source)
+        get_filename_component(EXAMPLE_DIR "${example_root}/${source}" PATH)
+        set_property(SOURCE ${source} APPEND PROPERTY COMPILE_DEFINITIONS EXAMPLE_DIR="${EXAMPLE_DIR}")
+        if(NOT EMSCRIPTEN)
+            add_example_executable(${name} ${source})
+        endif()
+        list(APPEND example_sources ${source})
+        set(example_sources "${example_sources}" PARENT_SCOPE)
+    endfunction()
+
+    add_example(example-autodiff examples/autodiff/example-autodiff.cpp)
+    add_example(example-particles examples/particles/example-particles.cpp)
+    add_example(example-raster examples/raster/example-raster.cpp)
+    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
+    add_example(example-surface examples/surface/example-surface.cpp)
+    add_example(example-triangle examples/triangle/example-triangle.cpp)
+
+    if(NOT EMSCRIPTEN)
+        add_example(example-cluster-displacement examples/cluster-displacement/example-cluster-displacement.cpp)
+        add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+    endif()
+
+    add_example_executable(example-runner examples/example-runner.cpp ${example_sources})
+    target_compile_definitions(example-runner PRIVATE EXAMPLE_COMBINED=1)
 endif()
 
 
@@ -1262,6 +1325,10 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_custom_target(coverage
             COMMAND ${LLVM_PROFDATA} merge -sparse ${SLANG_RHI_COVERAGE_DIR}/*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
             COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
+            COMMAND ${CMAKE_COMMAND}
+                "-DLCOV_FILE=${CMAKE_BINARY_DIR}/coverage.lcov"
+                "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/NormalizeCoverage.cmake"
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating coverage report..."

@@ -635,7 +635,8 @@ ComPtr<IDevice> createTestingDevice(
     }
 
 #ifdef SLANG_RHI_DEBUG
-    deviceDesc.debugCallback = &sDebugCallback;
+    deviceDesc.debugCallback =
+        extraOptions && extraOptions->debugCallback ? extraOptions->debugCallback : &sDebugCallback;
 #endif
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
@@ -706,14 +707,10 @@ ComPtr<IDevice> createTestingDevice(
 
 #if SLANG_RHI_ENABLE_OPTIX
     // Setup OptiX headers
-    std::string optixIncludeStr;
+    std::string optixHeaderRoot;
     if (deviceType == DeviceType::CUDA)
     {
         deviceDesc.requiredOptixVersion = options().optixVersion;
-        slang::CompilerOptionEntry optixSearchPath;
-        optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
-        optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
-        optixSearchPath.value.stringValue0 = "nvrtc";
 
         // Try to locate OptiX headers from the following locations:
         // - SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR (set at cmake configure time)
@@ -727,7 +724,7 @@ ComPtr<IDevice> createTestingDevice(
                 std::filesystem::current_path() / "optix",
             };
             for (const auto& path : candidatePaths)
-                if (std::filesystem::exists(path / "9_0" / "optix.h"))
+                if (std::filesystem::is_directory(path))
                     return path;
             return {};
         };
@@ -738,24 +735,8 @@ ComPtr<IDevice> createTestingDevice(
             FAIL("OptiX headers not found");
         }
 
-        if (deviceDesc.requiredOptixVersion == 0 || deviceDesc.requiredOptixVersion == 90000)
-        {
-            optixIncludeStr = "-I" + (optixDir / "9_0").string();
-        }
-        else if (deviceDesc.requiredOptixVersion == 80100)
-        {
-            optixIncludeStr = "-I" + (optixDir / "8_1").string();
-        }
-        else if (deviceDesc.requiredOptixVersion == 80000)
-        {
-            optixIncludeStr = "-I" + (optixDir / "8_0").string();
-        }
-        else
-        {
-            FAIL("Unsupported OptiX version");
-        }
-        optixSearchPath.value.stringValue1 = optixIncludeStr.c_str();
-        compilerOptions.push_back(optixSearchPath);
+        optixHeaderRoot = optixDir.string();
+        deviceDesc.optixDeviceHeaderRoot = optixHeaderRoot.c_str();
     }
 #endif
 

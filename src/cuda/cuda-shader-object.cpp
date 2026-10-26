@@ -33,7 +33,11 @@ void shaderObjectSetBinding(
                 dataSize /= buffer->m_desc.elementSize;
         }
         memcpy(dst + offset.uniformOffset, &dataPtr, sizeof(dataPtr));
-        memcpy(dst + offset.uniformOffset + 8, &dataSize, sizeof(dataSize));
+        // Slang reflects Buffer/RWBuffer as an eight-byte CUDA texture/surface slot.
+        // Typed-buffer access is not implemented here; unused bindings must still leave
+        // the next reflected field intact. Only raw/structured views carry a count.
+        if (bindingType == slang::BindingType::RawBuffer || bindingType == slang::BindingType::MutableRawBuffer)
+            memcpy(dst + offset.uniformOffset + 8, &dataSize, sizeof(dataSize));
         break;
     }
     case slang::BindingType::Texture:
@@ -137,7 +141,7 @@ Result BindingDataBuilder::writeObjectData(
     ObjectData& outData
 )
 {
-    size_t size = specializedLayout->getElementTypeLayout()->getSize();
+    size_t size = specializedLayout->getUniformBufferSize();
 
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, allocation));

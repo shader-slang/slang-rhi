@@ -193,6 +193,17 @@ inline bool shouldSkipFormat(Format format)
     }
 }
 
+inline bool shouldSkipReadOnlyFormat(IDevice* device, Format format)
+{
+    // WebGPU currently uses filterable float bindings. Float32Filterable is optional
+    // and is not exposed by the RHI, so keep shader reads to portable formats.
+    // Host read/write tests still cover these formats.
+    if (device->getDeviceType() == DeviceType::WGPU &&
+        (format == Format::R32Float || format == Format::RG32Float || format == Format::RGBA32Float))
+        return true;
+    return shouldSkipFormat(format);
+}
+
 inline bool needsFormatConversion(Format format)
 {
     const FormatInfo& info = getFormatInfo(format);
@@ -889,7 +900,7 @@ static std::vector<TexelData> generateTexelData(ITextureView* textureView)
 }
 
 // Test host write and read-back infrastructure.
-GPU_TEST_CASE("texture-view-host-write-read", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-host-write-read", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -936,7 +947,7 @@ GPU_TEST_CASE("texture-view-host-write-read", D3D12 | Vulkan | CUDA | Metal)
 }
 
 // Test shader side .Load() on read-only textures with views including all layers and mips.
-GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -961,7 +972,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA 
         [&](TextureTestContext* c)
         {
             const TextureDesc& desc = c->getTexture()->getDesc();
-            if (shouldSkipFormat(desc.format))
+            if (shouldSkipReadOnlyFormat(device, desc.format))
                 return;
 
             // CUDA does not support loads from 1D textures (limitation in PTX ISA).
@@ -989,7 +1000,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA 
 
 // Test shader side .Load() and subscript load operator on read-only textures with views including all layers and a
 // single mip.
-GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -1014,7 +1025,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUD
         [&](TextureTestContext* c)
         {
             const TextureDesc& desc = c->getTexture()->getDesc();
-            if (shouldSkipFormat(desc.format))
+            if (shouldSkipReadOnlyFormat(device, desc.format))
                 return;
 
             // CUDA does not support loads from 1D textures (limitation in PTX ISA).
@@ -1058,6 +1069,7 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUD
 
 // Test shader side .Load() and subscript load operator on read-write textures with views including all layers and a
 // single mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1127,7 +1139,7 @@ GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUD
 
 // Test shader side .Load() and subscript load operator on read-only textures with views including a single layer and
 // mip.
-GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
+GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal | WGPU)
 {
     TextureViewTest test(device);
 
@@ -1152,7 +1164,7 @@ GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
         [&](TextureTestContext* c)
         {
             const TextureDesc& desc = c->getTexture()->getDesc();
-            if (shouldSkipFormat(desc.format))
+            if (shouldSkipReadOnlyFormat(device, desc.format))
                 return;
 
             // CUDA does not support loads from 1D textures (limitation in PTX ISA).
@@ -1206,6 +1218,7 @@ GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
 
 // Test shader side .Load() and subscript load operator on read-write textures with views including a single layer and
 // mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1286,6 +1299,7 @@ GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
 
 // Test shader side .Store() and subscript store operator on read-write textures with views including all layers and a
 // single mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1362,6 +1376,7 @@ GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA 
 
 // Test shader side .Store() and subscript store operator on read-write textures with views including a single layer and
 // mip.
+// WebGPU: RWTexture requires read-write storage formats; this test also uses read-only/write-only formats.
 GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
 {
     TextureViewTest test(device);
@@ -1445,4 +1460,156 @@ GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
     );
 
     device->getQueue(QueueType::Graphics)->waitOnHost();
+}
+
+// Test that a view covering the whole texture in a different (sRGB) format reads through the view's format.
+GPU_TEST_CASE("texture-view-srgb-whole-texture", D3D12 | Vulkan | Metal)
+{
+    const char* shaderSource = R"(
+        [shader("compute")]
+        [numthreads(1, 1, 1)]
+        void computeMain(Texture2D<float4> texture, RWStructuredBuffer<float4> result)
+        {
+            result[0] = texture.Load(int3(0, 0, 0));
+        }
+    )";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadComputeProgramFromSource(device, shaderSource, shaderProgram.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2D;
+    textureDesc.size = {1, 1, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::Typeless;
+    const uint8_t texel[4] = {128, 128, 128, 255};
+    SubresourceData subresourceData = {texel, 4, 4};
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, &subresourceData, texture.writeRef()));
+
+    TextureViewDesc viewDesc = {};
+    viewDesc.format = Format::RGBA8UnormSrgb;
+    ComPtr<ITextureView> view;
+    REQUIRE_CALL(device->createTextureView(texture, viewDesc, view.writeRef()));
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = 4 * sizeof(float);
+    bufferDesc.elementSize = 4 * sizeof(float);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    auto pass = encoder->beginComputePass();
+    ShaderCursor cursor(pass->bindPipeline(pipeline));
+    cursor["texture"].setBinding(view);
+    cursor["result"].setBinding(buffer);
+    pass->dispatchCompute(1, 1, 1);
+    pass->end();
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    // sRGB 128/255 decodes to ~0.2158 linear; the unorm value would be ~0.502.
+    ComPtr<ISlangBlob> resultBlob;
+    REQUIRE_CALL(device->readBuffer(buffer, 0, bufferDesc.size, resultBlob.writeRef()));
+    const float* result = static_cast<const float*>(resultBlob->getBufferPointer());
+    CHECK(result[0] == doctest::Approx(0.2158f).epsilon(0.01));
+    CHECK(result[1] == doctest::Approx(0.2158f).epsilon(0.01));
+    CHECK(result[2] == doctest::Approx(0.2158f).epsilon(0.01));
+    CHECK(result[3] == doctest::Approx(1.0f));
+}
+
+// Test that a typeless texture can be written through a view with a different format of the same texel size and
+// read back through its own format, i.e. that both views alias the texture memory.
+GPU_TEST_CASE("texture-view-typeless-reinterpret", D3D12 | Vulkan | Metal)
+{
+    const char* writeSource = R"(
+        [shader("compute")]
+        [numthreads(8, 8, 1)]
+        void computeMain(uint3 tid: SV_DispatchThreadID, RWTexture2D<uint> texture)
+        {
+            texture[tid.xy] = 0x44332211;
+        }
+    )";
+    const char* readSource = R"(
+        [shader("compute")]
+        [numthreads(8, 8, 1)]
+        void computeMain(uint3 tid: SV_DispatchThreadID, Texture2D<float4> texture, RWStructuredBuffer<float4> result)
+        {
+            result[tid.y * 64 + tid.x] = texture.Load(int3(tid.xy, 0));
+        }
+    )";
+
+    auto createPipeline = [&](const char* source)
+    {
+        ComPtr<IShaderProgram> shaderProgram;
+        REQUIRE_CALL(loadComputeProgramFromSource(device, source, shaderProgram.writeRef()));
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = shaderProgram.get();
+        ComPtr<IComputePipeline> pipeline;
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+        return pipeline;
+    };
+    ComPtr<IComputePipeline> writePipeline = createPipeline(writeSource);
+    ComPtr<IComputePipeline> readPipeline = createPipeline(readSource);
+
+    const uint32_t kSize = 64;
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2D;
+    textureDesc.size = {kSize, kSize, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::Typeless;
+    textureDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, nullptr, texture.writeRef()));
+
+    TextureViewDesc uintViewDesc = {};
+    uintViewDesc.format = Format::R32Uint;
+    ComPtr<ITextureView> uintView;
+    REQUIRE_CALL(device->createTextureView(texture, uintViewDesc, uintView.writeRef()));
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = kSize * kSize * 4 * sizeof(float);
+    bufferDesc.elementSize = 4 * sizeof(float);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    {
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(writePipeline));
+        cursor["texture"].setBinding(uintView);
+        pass->dispatchCompute(kSize / 8, kSize / 8, 1);
+        pass->end();
+    }
+    {
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(readPipeline));
+        cursor["texture"].setBinding(texture->getDefaultView());
+        cursor["result"].setBinding(buffer);
+        pass->dispatchCompute(kSize / 8, kSize / 8, 1);
+        pass->end();
+    }
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    ComPtr<ISlangBlob> resultBlob;
+    REQUIRE_CALL(device->readBuffer(buffer, 0, bufferDesc.size, resultBlob.writeRef()));
+    const float* result = static_cast<const float*>(resultBlob->getBufferPointer());
+    const float expected[4] = {0x11 / 255.f, 0x22 / 255.f, 0x33 / 255.f, 0x44 / 255.f};
+    uint32_t mismatches = 0;
+    for (uint32_t i = 0; i < kSize * kSize; ++i)
+        for (uint32_t c = 0; c < 4; ++c)
+            if (std::abs(result[i * 4 + c] - expected[c]) > 1e-3f)
+                mismatches++;
+    CHECK_EQ(mismatches, 0);
 }

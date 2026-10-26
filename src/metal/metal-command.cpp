@@ -457,7 +457,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
     // Setup color attachments.
-    renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
+    // Note: renderTargetArrayLength is the number of layers for layered rendering, not the number of
+    // attachments. Leave it at its default (0, not layered).
     for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
@@ -738,16 +739,58 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
     );
 }
 
+// IndirectDrawArguments and IndirectDrawIndexedArguments match the layout of
+// MTLDrawPrimitivesIndirectArguments and MTLDrawIndexedPrimitivesIndirectArguments.
+static_assert(sizeof(IndirectDrawArguments) == sizeof(MTL::DrawPrimitivesIndirectArguments));
+static_assert(sizeof(IndirectDrawIndexedArguments) == sizeof(MTL::DrawIndexedPrimitivesIndirectArguments));
+
 void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(IRenderPassEncoder, drawIndirect);
+    if (!m_renderStateValid)
+        return;
+
+    // Metal has no native draw count buffer (this would require indirect command buffers).
+    if (cmd.countBuffer)
+    {
+        NOT_SUPPORTED(IRenderPassEncoder, drawIndirect with count buffer);
+        return;
+    }
+
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    for (uint32_t i = 0; i < cmd.maxDrawCount; ++i)
+    {
+        m_renderCommandEncoder->drawPrimitives(
+            m_renderPipeline->m_primitiveType,
+            argBuffer->m_buffer.get(),
+            cmd.argBuffer.offset + i * sizeof(IndirectDrawArguments)
+        );
+    }
 }
 
 void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect);
+    if (!m_renderStateValid)
+        return;
+
+    // Metal has no native draw count buffer (this would require indirect command buffers).
+    if (cmd.countBuffer)
+    {
+        NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect with count buffer);
+        return;
+    }
+
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    for (uint32_t i = 0; i < cmd.maxDrawCount; ++i)
+    {
+        m_renderCommandEncoder->drawIndexedPrimitives(
+            m_renderPipeline->m_primitiveType,
+            m_indexType,
+            m_indexBuffer->m_buffer.get(),
+            m_indexBufferOffset,
+            argBuffer->m_buffer.get(),
+            cmd.argBuffer.offset + i * sizeof(IndirectDrawIndexedArguments)
+        );
+    }
 }
 
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
@@ -1147,16 +1190,16 @@ void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
     m_trackingEventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
 }
 
-void CommandQueueImpl::shutdown()
+void CommandQueueImpl::waitAndReleaseCommandBuffers()
 {
     waitOnHost();
-    // TODO: This will be needed if we use command buffer pooling as we do in the other backends.
-#if 0
-    // Release all command buffers in order to release all resources they may hold.
-    m_commandBuffersPool.clear();
-    // Execute remaining deferred deletes.
+    m_commandBuffersInFlight.clear();
+}
+
+void CommandQueueImpl::shutdown()
+{
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
     executeDeferredDeletes();
-#endif
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
     m_commandQueue.reset();
     m_queueFence.reset();
@@ -1166,11 +1209,13 @@ void CommandQueueImpl::shutdown()
 
 void CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
-    for (const auto& commandBuffer : commandBuffers)
+    for (auto it = commandBuffers.begin(); it != commandBuffers.end();)
     {
+        auto current = it++;
+        CommandBufferImpl* commandBuffer = current->get();
         auto status = commandBuffer->m_commandBuffer->status();
         if (status == MTL::CommandBufferStatusCompleted || status == MTL::CommandBufferStatusError)
         {
@@ -1178,7 +1223,7 @@ void CommandQueueImpl::retireCommandBuffers()
         }
         else
         {
-            m_commandBuffersInFlight.push_back(commandBuffer);
+            m_commandBuffersInFlight.splice(m_commandBuffersInFlight.end(), commandBuffers, current);
         }
     }
 
@@ -1202,6 +1247,7 @@ void CommandQueueImpl::executeDeferredDeletes()
     std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
     while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
     {
+        // Destructors must not enqueue deferred deletes; release child resources in deleteThis().
         delete m_deferredDeleteQueue.front().resource;
         m_deferredDeleteQueue.pop();
     }
@@ -1405,7 +1451,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     CommandRecorder recorder(device);
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

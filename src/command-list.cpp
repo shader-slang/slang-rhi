@@ -5,7 +5,7 @@ namespace rhi {
 
 CommandList::CommandList(
     ArenaAllocator& allocator,
-    std::set<RefPtr<RefObject>>& trackedObjects,
+    std::set<InternalRefPtr<RefObject>>& trackedObjects,
     std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
 )
     : m_allocator(allocator)

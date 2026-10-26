@@ -21,17 +21,23 @@ enum class PipelineType
 class Pipeline : public DeviceChild
 {
 public:
-    RefPtr<ShaderProgram> m_program;
+    InternalRefPtr<ShaderProgram> m_program;
 
-    Pipeline(Device* device)
-        : DeviceChild(device)
-    {
-    }
+    Pipeline(Device* device);
+    Pipeline(const Pipeline&) = delete;
+    Pipeline& operator=(const Pipeline&) = delete;
+
+    /// Identifies this pipeline lifetime in specialization caches, even after
+    /// destruction allows another pipeline to reuse its memory address.
+    uint64_t getSpecializationCacheId() const { return m_specializationCacheId; }
 
     virtual PipelineType getType() const = 0;
     virtual bool isVirtual() const { return false; }
     virtual Pipeline* getConcretePipeline() const { return nullptr; }
     virtual void setConcretePipeline(Pipeline* pipeline) {}
+
+private:
+    const uint64_t m_specializationCacheId;
 };
 
 class RenderPipeline : public IRenderPipeline, public Pipeline
@@ -57,7 +63,7 @@ public:
 class VirtualRenderPipeline : public RenderPipeline
 {
 public:
-    RefPtr<Pipeline> m_concretePipeline;
+    InternalRefPtr<Pipeline> m_concretePipeline;
 
     VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc);
 
@@ -91,7 +97,7 @@ public:
 class VirtualComputePipeline : public ComputePipeline
 {
 public:
-    RefPtr<Pipeline> m_concretePipeline;
+    InternalRefPtr<Pipeline> m_concretePipeline;
 
     VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc);
 
@@ -125,7 +131,7 @@ public:
 class VirtualRayTracingPipeline : public RayTracingPipeline
 {
 public:
-    RefPtr<Pipeline> m_concretePipeline;
+    InternalRefPtr<Pipeline> m_concretePipeline;
 
     VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc);
 

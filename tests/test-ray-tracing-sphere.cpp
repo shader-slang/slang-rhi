@@ -147,6 +147,7 @@ GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureSpheres))
         SKIP("acceleration structure spheres not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSphereIntersectionTest test;
     test.init(device);
@@ -230,6 +231,7 @@ GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureSpheres))
         SKIP("acceleration structure spheres not supported");
+    SKIP_IF_ARM64_WARP(device);
 
     RayTracingSphereIntrinsicsTest test;
     test.init(device);
@@ -238,14 +240,14 @@ GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
 
 GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL)
 {
-    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
-
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureSpheres))
         SKIP("acceleration structure spheres not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("Shader execution reordering not supported");
+    SKIP_IF_ARM64_WARP(device);
+    SKIP_IF_D3D12_NVAPI_WITH_SM_6_9(device);
 
     RayTracingSphereIntrinsicsTest test;
     test.init(device);

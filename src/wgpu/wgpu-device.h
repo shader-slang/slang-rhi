@@ -27,7 +27,7 @@ public:
     std::string m_adapterName;
 
     Context m_ctx;
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     ~DeviceImpl();
     Result initialize(const DeviceDesc& desc, BackendImpl* backend);
@@ -35,7 +35,6 @@ public:
     void reportError(const char* func, WGPUStringView message);
     void reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message);
     void reportUncapturedError(WGPUErrorType type, WGPUStringView message);
-    WGPUErrorType getAndClearLastUncapturedError();
 
     // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
@@ -64,6 +63,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
+
+    virtual Result writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data) override;
+
+    /// Write data to a buffer with wgpuQueueWriteBuffer, which takes effect before any
+    /// later submission. The offset must be a multiple of 4 bytes. The size is padded to a
+    /// multiple of 4 bytes, as buffer sizes are.
+    void writeBuffer(BufferImpl* buffer, Offset offset, Size size, const void* data);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureView(
         ITexture* texture,
@@ -140,8 +146,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
 private:
-    WGPUErrorType m_lastUncapturedError = WGPUErrorType_NoError;
-
     void initializeFormatSupport();
 };
 

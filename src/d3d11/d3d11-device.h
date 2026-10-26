@@ -106,7 +106,7 @@ public:
 public:
     std::string m_adapterName;
 
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<IDXGIAdapter> m_dxgiAdapter;

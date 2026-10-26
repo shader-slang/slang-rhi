@@ -141,20 +141,81 @@ GPU_TEST_CASE("deferred-delete", ALL)
         queue->submit(encoder->finish());
     }
 
-    // CUDA backend doesn't always trigger deferred deletes on submit for now.
-    // Force by waiting on host to ensure all GPU work is done.
-    if (device->getDeviceType() == DeviceType::CUDA)
-    {
-        queue->waitOnHost();
-    }
+    // CUDA retires deferred resources lazily; wait to drain them on every backend.
+    REQUIRE_CALL(queue->waitOnHost());
 
     // All deferred resources should now be deleted.
     CHECK_LE(gResourceCount.load(), countBegin);
-
-    // Wait for GPU work to complete.
-    queue->waitOnHost();
 }
 
+
+// Dependencies released with a resource must not wait for unrelated later work.
+GPU_TEST_CASE("deferred-delete-dependencies", D3D12 | Vulkan | Metal)
+{
+    auto queue = device->getQueue(QueueType::Graphics);
+    REQUIRE_CALL(queue->waitOnHost());
+    ComPtr<IFence> gate;
+    REQUIRE_CALL(device->createFence({}, gate.writeRef()));
+    const uint64_t countBegin = gResourceCount.load();
+
+    SUBCASE("texture-sampler")
+    {
+        ComPtr<ISampler> sampler;
+        REQUIRE_CALL(device->createSampler({}, sampler.writeRef()));
+        TextureDesc desc = {};
+        desc.format = Format::RGBA8Unorm;
+        desc.usage = TextureUsage::ShaderResource;
+        desc.sampler = sampler;
+        ComPtr<ITexture> texture;
+        REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
+        // Exercise the cached view without retaining a consumer reference.
+        REQUIRE(texture->getDefaultView());
+        sampler.setNull();
+        texture.setNull();
+    }
+    SUBCASE("acceleration-structure-buffer")
+    {
+        if ((device->getDeviceType() != DeviceType::D3D12 && device->getDeviceType() != DeviceType::Vulkan) ||
+            !device->hasFeature(Feature::AccelerationStructure))
+            return;
+        AccelerationStructureDesc desc = {};
+        desc.size = 1024;
+        ComPtr<IAccelerationStructure> accel;
+        REQUIRE_CALL(device->createAccelerationStructure(desc, accel.writeRef()));
+        accel.setNull();
+    }
+    SUBCASE("micromap-buffer")
+    {
+        if ((device->getDeviceType() != DeviceType::D3D12 && device->getDeviceType() != DeviceType::Vulkan) ||
+            !device->hasFeature(Feature::OpacityMicromap))
+            return;
+        MicromapDesc desc = {};
+        desc.size = 1024;
+        ComPtr<IMicromap> micromap;
+        REQUIRE_CALL(device->createMicromap(desc, micromap.writeRef()));
+        micromap.setNull();
+    }
+
+    CHECK_GT(gResourceCount.load(), countBegin);
+
+    // Submission retires old resources while this new submission remains blocked.
+    // A dependency first released during retirement would acquire the new ID.
+    IFence* waitFences[] = {gate};
+    uint64_t waitValues[] = {1};
+    SubmitDesc submitDesc = {};
+    submitDesc.waitFenceCount = 1;
+    submitDesc.waitFences = waitFences;
+    submitDesc.waitFenceValues = waitValues;
+    Result submitResult = queue->submit(submitDesc);
+    const uint64_t countAfterSubmit = gResourceCount.load();
+
+    // Unblock the queue before any assertion can abort the test.
+    REQUIRE_CALL(gate->setCurrentValue(1));
+    REQUIRE_CALL(queue->waitOnHost());
+    REQUIRE_CALL(submitResult);
+    CHECK_EQ(countAfterSubmit, countBegin);
+    CHECK_EQ(gResourceCount.load(), countBegin);
+}
 
 // Stress test that verifies deferred delete works correctly with actual GPU work.
 // This creates temporary buffers, uses them in compute shaders, and releases them.

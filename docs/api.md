@@ -123,6 +123,33 @@
 | `finalize`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `isFinalized`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 
+## `ISyntheticShaderProgram` interface
+
+Optional API declared in
+[`synthetic-bindings.md`](synthetic-bindings.md) and
+`<slang-rhi/synthetic-bindings.h>`.
+
+| API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getSyntheticBindingCount`         | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `getSyntheticBindingLocation`      | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `findSyntheticBindingLocationByID` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Shader program synthetic resource descriptors
+
+CUDA and Vulkan currently support only `SyntheticResourceScope::Global`.
+Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creation.
+
+| Descriptor path                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `ShaderProgramSyntheticResourcesDesc` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Synthetic binding helper
+
+| Helper API                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------------------|-----|------|-------|-------|--------|-------|------|
+| `bindSyntheticResource(...)`  | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
 ## `IShaderTable` interface
 
 ## `IPipeline` interface
@@ -217,9 +244,19 @@
 | `setRenderState`      | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `draw`                | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawIndexed`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
-| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
+| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawMeshTasks`       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+
+WebGPU single indirect draws without a count buffer use the core WebGPU API.
+Other indirect-draw forms currently use Dawn's native multi-draw extension and
+require that optional feature to be enabled; they are unavailable in the Wasm path.
+
+Metal indirect draws issue one native indirect draw per argument record and do not
+support a count buffer.
+
+See [error handling and diagnostics](error-handling.md#webgpu-recording-and-validation)
+for WebGPU recording errors and asynchronous validation.
 
 ## `IComputePassEncoder` interface
 
@@ -284,3 +321,14 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `report`           | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+
+## OptiX callable stack limits
+
+CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through
+`RayTracingPipelineDesc::next`. The default permits one direct-callable frame from
+ray generation, miss or closest-hit. Set `maxDirectCallableDepthFromState` to the
+maximum simultaneous `CallShader` nesting depth (two for a callable invoking another
+callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls from
+intersection/any-hit and defaults to zero. These limits are independent of
+`maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
+The pipeline copies these options, including when compilation is deferred.

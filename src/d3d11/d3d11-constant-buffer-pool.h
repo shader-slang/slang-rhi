@@ -28,7 +28,7 @@ private:
 
     struct Page
     {
-        RefPtr<BufferImpl> buffer;
+        InternalRefPtr<BufferImpl> buffer;
         size_t size = 0;
         uint8_t* mappedData = nullptr;
     };

@@ -1,4 +1,11 @@
-#include "example-base.h"
+// Surface example: acquire a window surface image, clear it to an animated
+// grayscale value, and present it. Demonstrates the minimal frame lifecycle
+// with a render pass and command submission.
+// The overlay lists controls; F1 toggles it.
+
+#include "../base/example.h"
+
+namespace {
 
 using namespace rhi;
 
@@ -10,8 +17,9 @@ public:
         SLANG_RETURN_ON_FAIL(
             createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Surface"));
+        SLANG_RETURN_ON_FAIL(createWindow(m_device));
         SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
+        SLANG_RETURN_ON_FAIL(initOverlay(m_device, m_surface->getConfig()->format));
 
         SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
 
@@ -20,7 +28,8 @@ public:
 
     virtual void shutdown() override
     {
-        m_queue->waitOnHost();
+        if (m_queue)
+            m_queue->waitOnHost();
         m_queue.setNull();
         m_surface.setNull();
         m_device.setNull();
@@ -49,7 +58,8 @@ public:
         }
 
         // Start command encoding
-        ComPtr<ICommandEncoder> commandEncoder = m_queue->createCommandEncoder();
+        ComPtr<ICommandEncoder> commandEncoder;
+        SLANG_RETURN_ON_FAIL(m_queue->createCommandEncoder(commandEncoder.writeRef()));
 
         // Setup render pass
         RenderPassColorAttachment colorAttachment;
@@ -65,28 +75,34 @@ public:
         IRenderPassEncoder* passEncoder = commandEncoder->beginRenderPass(renderPass);
         passEncoder->end();
 
+        clearOverlay();
+        printOverlayHeader();
+        SLANG_RETURN_ON_FAIL(drawOverlay(commandEncoder, image));
+
         // Submit command buffer
-        m_queue->submit(commandEncoder->finish());
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_ON_FAIL(commandEncoder->finish(commandBuffer.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_queue->submit(commandBuffer));
 
         // Present the surface
-        return m_surface->present();
+        return presentSurface();
     }
 
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
     {
         // Wait for GPU to be idle before resizing
-        m_device->getQueue(QueueType::Graphics)->waitOnHost();
+        SLANG_RETURN_ON_FAIL(m_queue->waitOnHost());
         // Configure or unconfigure the surface based on the new framebuffer size
         if (framebufferWidth > 0 && framebufferHeight > 0)
         {
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            m_surface->configure(surfaceConfig);
+            return configureSurface(m_surface, surfaceConfig);
         }
         else
         {
-            m_surface->unconfigure();
+            return m_surface->unconfigure();
         }
     }
 
@@ -98,4 +114,6 @@ public:
     float m_grey = 0.5f;
 };
 
-EXAMPLE_MAIN(ExampleSurface)
+} // namespace
+
+EXAMPLE_MAIN(ExampleSurface, "surface", "Surface")

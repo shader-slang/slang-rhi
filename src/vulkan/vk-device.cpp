@@ -17,6 +17,7 @@
 
 #include "aftermath.h"
 #include "cooperative-vector-utils.h"
+#include "synthetic-resource-bindings.h"
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -146,10 +147,10 @@ DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
-    // Wait for all commands to finish and retire any active command buffers.
+    // Wait and release command buffers before releasing their device-owned heaps.
     if (m_queue)
     {
-        m_queue->waitOnHost();
+        m_queue->waitAndReleaseCommandBuffers();
     }
 
     // Check the device queue is valid else, we can't wait on it..
@@ -163,8 +164,6 @@ DeviceImpl::~DeviceImpl()
     m_uploadHeap.release();
     m_readbackHeap.release();
 
-    m_bindlessDescriptorSet.setNull();
-
     if (m_api.vkDestroySampler)
     {
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
@@ -176,6 +175,7 @@ DeviceImpl::~DeviceImpl()
         m_queue.setNull();
     }
     m_deviceQueue.destroy();
+    m_bindlessDescriptorSet.setNull();
 
     descriptorSetAllocator.close();
 
@@ -195,7 +195,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 VkBool32 DeviceImpl::handleDebugMessage(
@@ -357,6 +356,16 @@ Result DeviceImpl::initVulkanInstance(
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
+        // Query the available instance extensions
+        uint32_t extensionCount = 0;
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+        std::vector<VkExtensionProperties> extensions;
+        extensions.resize(extensionCount);
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions.data());
+        std::set<std::string> extensionNames;
+        for (const auto& e : extensions)
+            extensionNames.emplace(e.extensionName);
+
         std::vector<const char*> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
@@ -375,7 +384,10 @@ Result DeviceImpl::initVulkanInstance(
 #if SLANG_ANDROID
         instanceExtensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #else
-        instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
 #endif
 
@@ -1143,16 +1155,65 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.cooperativeMatrix2Features,
-            cooperativeMatrixWorkgroupScope,
-            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+        // VK_NV_cooperative_matrix2 has independent feature bits - one does not imply another - so
+        // each is reported on its own bit and the extension is enabled whenever any exposed bit is
+        // supported. The gate lists exactly the bits mapped to a Feature/Capability below (flexible
+        // dimensions has no SPIR-V capability and is not exposed, so it is not part of the gate). It
+        // also depends on VK_KHR_cooperative_matrix (its capabilities require SPV_KHR_cooperative_matrix),
+        // so it is enabled only when that dependency is also enabled - keeping the enabled-extension
+        // list valid. The queried struct is inserted into the device pNext chain exactly once; a
+        // second insertion would self-link its pNext.
+        {
+            const auto& coopMat2 = extendedFeatures.cooperativeMatrix2Features;
+            const bool anyCoopMat2Feature =
+                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixReductions ||
+                coopMat2.cooperativeMatrixConversions || coopMat2.cooperativeMatrixPerElementOperations ||
+                coopMat2.cooperativeMatrixTensorAddressing || coopMat2.cooperativeMatrixBlockLoads;
+            // The KHR block above enables VK_KHR_cooperative_matrix under exactly this condition.
+            const bool khrCoopMatrixEnabled = extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix &&
+                                              extensionNames.count(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME) > 0;
+            if (khrCoopMatrixEnabled && addFeatureExtension(
+                                            anyCoopMat2Feature,
+                                            extendedFeatures.cooperativeMatrix2Features,
+                                            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME
+                                        ))
             {
-                availableFeatures.push_back(Feature::CooperativeMatrix2);
-                availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
-                availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+                if (coopMat2.cooperativeMatrixWorkgroupScope)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrix2);
+                    availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+                }
+                if (coopMat2.cooperativeMatrixReductions)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixReductions);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixReductionsNV);
+                }
+                if (coopMat2.cooperativeMatrixConversions)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixConversions);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixConversionsNV);
+                }
+                if (coopMat2.cooperativeMatrixPerElementOperations)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixPerElementOperations);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixPerElementOperationsNV);
+                }
+                if (coopMat2.cooperativeMatrixTensorAddressing)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixTensorAddressing);
+                    // This bit enables both the CooperativeMatrixTensorAddressingNV and the standalone
+                    // TensorAddressingNV SPIR-V capability (TensorView/TensorLayout), so advertise both.
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixTensorAddressingNV);
+                    availableCapabilities.push_back(Capability::spvTensorAddressingNV);
+                }
+                if (coopMat2.cooperativeMatrixBlockLoads)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixBlockLoads);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixBlockLoadsNV);
+                }
             }
-        );
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.mutableDescriptorTypeFeatures,
@@ -1861,7 +1922,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
-    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
@@ -1879,7 +1939,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -1891,14 +1951,16 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer
+    // create staging buffer (prefer cached memory, the CPU reads from it)
     VKBufferHandleRAII staging;
 
     SLANG_RETURN_ON_FAIL(staging.init(
         m_api,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        0,
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
     ));
 
     // Copy from real buffer to staging buffer
@@ -2042,7 +2104,9 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
@@ -2086,7 +2150,9 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::MicromapStorage;
     bufferDesc.defaultState = ResourceState::MicromapRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     VkMicromapCreateInfoEXT createInfo = {VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.size = desc.size;
@@ -2586,6 +2652,7 @@ Result DeviceImpl::createShaderProgram(
             this,
             shaderProgram->linkedProgram,
             shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->getSyntheticResourceBindingState(),
             shaderProgram->m_rootShaderObjectLayout.writeRef()
         )
     );
@@ -2601,7 +2668,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
