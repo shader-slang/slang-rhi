@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <limits>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
@@ -16,7 +17,8 @@ namespace rhi::metal {
 ///
 /// Provides O(1) average lookup for exact base-address matches (the common case)
 /// and O(log N) fallback for pointers that land inside a buffer's address range.
-/// A lazy-sorted vector is only built when a range lookup is actually needed.
+/// The first range lookup after a representative changes rebuilds an O(N log N)
+/// sorted index, where N is the number of distinct base addresses.
 ///
 /// Used by the residency fallback path (!m_hasResidencySet) to resolve device
 /// pointers found in shader uniform data for useResources calls.
@@ -25,17 +27,24 @@ class BufferAddressMap
 public:
     void insert(DeviceAddress baseAddr, DeviceAddress size, BufferImpl* buffer)
     {
+        // Native buffer ranges are nonempty and cannot wrap the address space.
+        SLANG_RHI_ASSERT(size > 0 && size - 1 <= std::numeric_limits<DeviceAddress>::max() - baseAddr);
         std::lock_guard<std::mutex> lock(m_mutex);
+        // A buffer has only one intrusive link, so registering it twice would create a cycle.
+        SLANG_RHI_ASSERT(buffer->m_addressMapSize == 0);
         Entry& entry = m_baseAddrMap[baseAddr];
         // Placed aliases can share a base address but have different lengths. Keep
         // the largest buffer first so every lookup returns a buffer covering the address.
         buffer->m_addressMapSize = size;
+        // Only the head must be largest. Inserting smaller aliases immediately
+        // after it avoids scanning the chain and leaves the range index valid.
         BufferImpl** link = &entry.head;
-        while (*link && (*link)->m_addressMapSize > size)
-            link = &(*link)->m_nextAtSameAddr;
+        if (entry.head && size <= entry.head->m_addressMapSize)
+            link = &entry.head->m_nextAtSameAddr;
+        else
+            m_sortedDirty = true;
         buffer->m_nextAtSameAddr = *link;
         *link = buffer;
-        m_sortedDirty = true;
     }
 
     void erase(DeviceAddress baseAddr, BufferImpl* buffer)
@@ -44,22 +53,43 @@ public:
         auto entry = m_baseAddrMap.find(baseAddr);
         if (entry == m_baseAddrMap.end())
             return;
-        for (BufferImpl** link = &entry->second.head; *link; link = &(*link)->m_nextAtSameAddr)
+        BufferImpl*& head = entry->second.head;
+        for (BufferImpl** link = &head; *link; link = &(*link)->m_nextAtSameAddr)
         {
             if (*link == buffer)
             {
                 *link = buffer->m_nextAtSameAddr;
                 buffer->m_nextAtSameAddr = nullptr;
-                break;
+                buffer->m_addressMapSize = 0;
+                if (link == &head)
+                {
+                    // The remaining aliases are unordered. Promote the largest
+                    // in one scan; only removing the representative needs this.
+                    BufferImpl** largest = &head;
+                    for (BufferImpl** candidate = &head; *candidate; candidate = &(*candidate)->m_nextAtSameAddr)
+                    {
+                        if ((*candidate)->m_addressMapSize > (*largest)->m_addressMapSize)
+                            largest = candidate;
+                    }
+                    if (largest != &head)
+                    {
+                        BufferImpl* replacement = *largest;
+                        *largest = replacement->m_nextAtSameAddr;
+                        replacement->m_nextAtSameAddr = head;
+                        head = replacement;
+                    }
+                    if (!head)
+                        m_baseAddrMap.erase(entry);
+                    m_sortedDirty = true;
+                }
+                return;
             }
         }
-        if (!entry->second.head)
-            m_baseAddrMap.erase(entry);
-        m_sortedDirty = true;
     }
 
     /// Look up the buffer owning a given GPU address.
-    /// Returns nullptr if no buffer contains the address.
+    /// Returns nullptr if no buffer contains the address. This is a borrowed pointer;
+    /// the map lock does not protect its lifetime after this function returns.
     BufferImpl* find(DeviceAddress addr)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -77,7 +107,7 @@ private:
     struct Entry
     {
         /// Buffers sharing this base address, linked through BufferImpl::m_nextAtSameAddr.
-        /// Sorted by decreasing size; imported and placed buffers can alias an existing address.
+        /// The head has the largest size; the remaining aliases are unordered.
         BufferImpl* head = nullptr;
     };
 
@@ -89,15 +119,15 @@ private:
         if (m_sorted.empty())
             return nullptr;
 
-        // The range index has strictly increasing ends, even when buffers overlap.
-        // Find the first range ending after addr, then check that it starts before addr.
-        auto it = std::upper_bound(
+        // The range index has strictly increasing last addresses, even when buffers
+        // overlap. Inclusive ends allow a range to include the maximum device address.
+        auto it = std::lower_bound(
             m_sorted.begin(),
             m_sorted.end(),
             addr,
-            [](DeviceAddress a, const std::pair<DeviceAddress, Entry>& e)
+            [](const std::pair<DeviceAddress, Entry>& e, DeviceAddress a)
             {
-                return a < e.first + e.second.head->m_addressMapSize;
+                return e.first + (e.second.head->m_addressMapSize - 1) < a;
             }
         );
 
@@ -127,8 +157,8 @@ private:
         DeviceAddress maxEnd = 0;
         for (const auto& entry : m_sorted)
         {
-            DeviceAddress end = entry.first + entry.second.head->m_addressMapSize;
-            if (end > maxEnd)
+            DeviceAddress end = entry.first + (entry.second.head->m_addressMapSize - 1);
+            if (count == 0 || end > maxEnd)
             {
                 m_sorted[count++] = entry;
                 maxEnd = end;

@@ -22,7 +22,7 @@ public:
 public:
     NS::SharedPtr<MTL::Buffer> m_buffer;
     DeviceAddress m_deviceAddress = 0;
-    DeviceAddress m_addressMapSize = 0;
+    DeviceAddress m_addressMapSize = 0; // Native range size while registered; zero otherwise.
     BufferImpl* m_nextAtSameAddr = nullptr;
 };
 
