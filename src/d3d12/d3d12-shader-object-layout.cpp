@@ -925,22 +925,23 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     }
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
-    if (SLANG_FAILED(
-            device->m_D3D12SerializeVersionedRootSignature(&versionedDesc, signature.writeRef(), error.writeRef())
-        ))
+    HRESULT result =
+        device->m_D3D12SerializeVersionedRootSignature(&versionedDesc, signature.writeRef(), error.writeRef());
+    if (FAILED(result))
     {
-        device->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "error: D3D12SerializeRootSignature failed"
+        std::string detail;
+        if (error)
+            detail.assign((const char*)error->GetBufferPointer(), error->GetBufferSize());
+        reportNativeCallError(
+            device,
+            "D3D12SerializeVersionedRootSignature",
+            result,
+            getHRESULTName(result),
+            SLANG_RHI_SOURCE_LOCATION(),
+            detail.c_str()
         );
         if (error)
         {
-            device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                (const char*)error->GetBufferPointer()
-            );
             if (outError)
                 returnComPtr(outError, error);
         }

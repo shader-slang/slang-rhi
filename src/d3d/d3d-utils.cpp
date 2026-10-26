@@ -532,7 +532,17 @@ const char* getHRESULTName(HRESULT res)
 
 void reportD3DError(HRESULT result, const char* call, const SourceLocation location, Device* device)
 {
-    reportNativeCallError(device, call, result, getHRESULTName(result), location);
+    char detail[1024] = {};
+    FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        DWORD(result),
+        0,
+        detail,
+        DWORD(sizeof(detail)),
+        nullptr
+    );
+    reportNativeCallError(device, call, result, getHRESULTName(result), location, detail);
 }
 
 uint32_t getPlaneSliceCount(DXGI_FORMAT format)

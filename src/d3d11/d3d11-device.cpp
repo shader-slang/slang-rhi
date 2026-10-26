@@ -121,7 +121,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
     if (FAILED(result))
     {
-        printError("D3D11CreateDevice failed: %08x\n", result);
+        reportD3DError(result, "D3D11CreateDevice", SLANG_RHI_SOURCE_LOCATION(), this);
         return SLANG_FAIL;
     }
     if (getRHI()->isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
