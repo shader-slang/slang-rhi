@@ -2,6 +2,7 @@
 #include "nvapi-include.h"
 
 #include "core/common.h"
+#include "core/diagnostics.h"
 
 namespace rhi {
 
@@ -44,17 +45,15 @@ NVAPIShaderExtension NVAPIUtil::findShaderExtension(slang::ProgramLayout* layout
     return {};
 }
 
-Result NVAPIUtil::handleFail(int res, const char* file, int line, const char* call)
+Result NVAPIUtil::handleFail(int res, const char* file, int line, const char* call, Device* device)
 {
+    const char* detail = nullptr;
 #if SLANG_RHI_ENABLE_NVAPI
-#if SLANG_RHI_DEBUG
-    NvAPI_ShortString msg;
-    NvAPI_GetErrorMessage(NvAPI_Status(res), msg);
-    printf("%s returned error %s (%d)\n", call, msg, res);
-    printf("at %s:%d\n", file, line);
+    NvAPI_ShortString message = {};
+    if (NvAPI_GetErrorMessage(NvAPI_Status(res), message) == NVAPI_OK)
+        detail = message;
 #endif
-    SLANG_RHI_ASSERT_FAILURE("NVAPI returned an error");
-#endif
+    reportNativeCallError(device, call, res, "NVAPI status", {file, line}, detail);
     return SLANG_FAIL;
 }
 

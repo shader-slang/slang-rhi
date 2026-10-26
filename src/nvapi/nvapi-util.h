@@ -8,6 +8,8 @@
 
 namespace rhi {
 
+class Device;
+
 struct NVAPIShaderExtension
 {
     uint32_t uavSlot = uint32_t(-1);
@@ -26,15 +28,17 @@ struct NVAPIUtil
 
     static NVAPIShaderExtension findShaderExtension(slang::ProgramLayout* layout);
 
-    static Result handleFail(int res, const char* file, int line, const char* call);
+    static Result handleFail(int res, const char* file, int line, const char* call, Device* device = nullptr);
 };
 
-#define SLANG_RHI_NVAPI_RETURN_ON_FAIL(x)                                                                              \
+#define SLANG_RHI_NVAPI_RETURN_ON_FAIL(x) SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(x, nullptr)
+
+#define SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(x, device)                                                               \
     {                                                                                                                  \
         NvAPI_Status _res = x;                                                                                         \
         if (_res != NVAPI_OK)                                                                                          \
         {                                                                                                              \
-            return ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                         \
+            return ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x, device);                                 \
         }                                                                                                              \
     }
 
@@ -48,12 +52,14 @@ struct NVAPIUtil
         }                                                                                                              \
     }
 
-#define SLANG_RHI_NVAPI_CHECK(x)                                                                                       \
+#define SLANG_RHI_NVAPI_CHECK(x) SLANG_RHI_NVAPI_CHECK_REPORT(x, nullptr)
+
+#define SLANG_RHI_NVAPI_CHECK_REPORT(x, device)                                                                        \
     {                                                                                                                  \
         NvAPI_Status _res = x;                                                                                         \
         if (_res != NVAPI_OK)                                                                                          \
         {                                                                                                              \
-            ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x);                                                \
+            ::rhi::NVAPIUtil::handleFail(_res, __FILE__, __LINE__, #x, device);                                        \
         }                                                                                                              \
     }
 

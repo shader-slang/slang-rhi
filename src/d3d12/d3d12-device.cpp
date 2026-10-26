@@ -1114,12 +1114,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
                 NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
                     NVAPI_OK)
             {
-                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
-                    m_device5,
-                    &raytracingValidationMessageCallback,
-                    this,
-                    &m_raytracingValidationHandle
-                ));
+                SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+                    NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
+                        m_device5,
+                        &raytracingValidationMessageCallback,
+                        this,
+                        &m_raytracingValidationHandle
+                    ),
+                    this
+                );
             }
             else
             {
@@ -1892,7 +1895,7 @@ void DeviceImpl::flushValidationMessages()
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_raytracingValidationHandle)
     {
-        SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5));
+        SLANG_RHI_NVAPI_CHECK_REPORT(NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5), this);
     }
 #endif
 }
@@ -2055,8 +2058,9 @@ Result DeviceImpl::getAccelerationStructureSizes(
         params.version = NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER;
         params.pDesc = &converter.desc;
         params.pInfo = &prebuildInfo;
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-            NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params)
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+            NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params),
+            this
         );
     }
     else
@@ -2103,8 +2107,9 @@ Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params
     infoParams.pInput = &inputs;
     infoParams.pInfo = &info;
 
-    SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-        NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(m_device5, &infoParams)
+    SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+        NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(m_device5, &infoParams),
+        this
     );
 
     outSizes->resultSize = info.resultDataMaxSizeInBytes;
@@ -2168,12 +2173,14 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     if (m_cooperativeVectorProperties.empty())
     {
         NvU32 nvPropertyCount = 0;
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-            NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &nvPropertyCount, nullptr)
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+            NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &nvPropertyCount, nullptr),
+            this
         );
         std::vector<NVAPI_COOPERATIVE_VECTOR_PROPERTIES> nvProperties(nvPropertyCount);
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-            NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &nvPropertyCount, nvProperties.data())
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+            NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &nvPropertyCount, nvProperties.data()),
+            this
         );
         for (const auto& nvProps : nvProperties)
         {
@@ -2223,7 +2230,7 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     nvDesc.srcStride = rowColumnStride;
     nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     nvDesc.dstStride = rowColumnStride;
-    SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
+    SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc), this);
     return SLANG_OK;
 #else
     return SLANG_E_NOT_AVAILABLE;
@@ -2262,8 +2269,9 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
         nvDesc.dstStride = dstDesc.rowColumnStride;
         nvDescs.push_back(nvDesc);
     }
-    SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device, nullptr, nvDescs.data(), (NvU32)nvDescs.size())
+    SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device, nullptr, nvDescs.data(), (NvU32)nvDescs.size()),
+        this
     );
     return SLANG_OK;
 #else
@@ -2287,8 +2295,9 @@ DeviceImpl::~DeviceImpl()
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_raytracingValidationHandle)
     {
-        SLANG_RHI_NVAPI_CHECK(
-            NvAPI_D3D12_UnregisterRaytracingValidationMessageCallback(m_device5, m_raytracingValidationHandle)
+        SLANG_RHI_NVAPI_CHECK_REPORT(
+            NvAPI_D3D12_UnregisterRaytracingValidationMessageCallback(m_device5, m_raytracingValidationHandle),
+            this
         );
     }
 #endif

@@ -29,11 +29,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapiShaderExtension)
     {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-            NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, m_nvapiShaderExtension.uavSlot)
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+            NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, m_nvapiShaderExtension.uavSlot),
+            this
         );
         SLANG_RHI_DEFERRED({
-            SLANG_RHI_NVAPI_CHECK(NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, 0xffffffff));
+            SLANG_RHI_NVAPI_CHECK_REPORT(NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, 0xffffffff), this);
         });
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
@@ -225,11 +226,12 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapiShaderExtension)
     {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-            NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, m_nvapiShaderExtension.uavSlot)
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+            NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, m_nvapiShaderExtension.uavSlot),
+            this
         );
         SLANG_RHI_DEFERRED({
-            SLANG_RHI_NVAPI_CHECK(NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, 0xffffffff));
+            SLANG_RHI_NVAPI_CHECK_REPORT(NvAPI_D3D11_SetNvShaderExtnSlotLocalThread(m_device, 0xffffffff), this);
         });
     }
 #endif // SLANG_RHI_ENABLE_NVAPI

@@ -111,11 +111,7 @@ inline void hashPipelineDesc(SHA1& sha1, const D3D12_COMPUTE_PIPELINE_STATE_DESC
     hashValue(sha1, desc->Flags);
 }
 
-inline void getPipelineCacheKey(
-    DeviceImpl* device,
-    const D3D12_GRAPHICS_PIPELINE_STATE_DESC* desc,
-    ISlangBlob** outBlob
-)
+void getPipelineCacheKey(DeviceImpl* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* desc, ISlangBlob** outBlob)
 {
     SHA1 sha1;
     hashDevice(sha1, device);
@@ -125,7 +121,7 @@ inline void getPipelineCacheKey(
     returnComPtr(outBlob, blob);
 }
 
-inline void getPipelineCacheKey(DeviceImpl* device, const D3D12_COMPUTE_PIPELINE_STATE_DESC* desc, ISlangBlob** outBlob)
+void getPipelineCacheKey(DeviceImpl* device, const D3D12_COMPUTE_PIPELINE_STATE_DESC* desc, ISlangBlob** outBlob)
 {
     SHA1 sha1;
     hashDevice(sha1, device);
@@ -175,7 +171,12 @@ Result createPipelineWithCache(
     {
         desc->CachedPSO.pCachedBlob = pipelineCacheData->getBufferPointer();
         desc->CachedPSO.CachedBlobSizeInBytes = pipelineCacheData->getBufferSize();
-        if (createPipelineFunc(device, desc, &pipeline) == SLANG_OK)
+        Result cachedResult;
+        {
+            ScopedNativeCallErrorWarning warning;
+            cachedResult = createPipelineFunc(device, desc, &pipeline);
+        }
+        if (cachedResult == SLANG_OK)
         {
             writeCache = false;
             outCached = true;
@@ -184,6 +185,7 @@ Result createPipelineWithCache(
         }
         else
         {
+            device->printWarning("Failed to create pipeline from cache, creating new pipeline.");
             desc->CachedPSO.pCachedBlob = nullptr;
             desc->CachedPSO.CachedBlobSizeInBytes = 0;
             pipeline = nullptr;
@@ -212,7 +214,6 @@ Result createPipelineWithCache(
     *outPipeline = pipeline;
     return SLANG_OK;
 }
-
 
 RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
     : RenderPipeline(device, desc)
@@ -435,12 +436,27 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                         extensions,
                         outPipeline
                     );
-                    return status == NVAPI_OK ? SLANG_OK : SLANG_FAIL;
+                    if (status != NVAPI_OK)
+                        return NVAPIUtil::handleFail(
+                            status,
+                            __FILE__,
+                            __LINE__,
+                            "NvAPI_D3D12_CreateGraphicsPipelineState",
+                            device
+                        );
+                    return SLANG_OK;
                 }
                 else
 #endif // SLANG_RHI_ENABLE_NVAPI
                 {
                     HRESULT hr = device->m_device->CreateGraphicsPipelineState(desc, IID_PPV_ARGS(outPipeline));
+                    if (hr != S_OK)
+                        reportD3DError(
+                            hr,
+                            "ID3D12Device::CreateGraphicsPipelineState",
+                            SLANG_RHI_SOURCE_LOCATION(),
+                            device
+                        );
                     return hr == S_OK ? SLANG_OK : SLANG_FAIL;
                 }
             },
@@ -535,12 +551,22 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
                     extensions,
                     outPipeline
                 );
-                return status == NVAPI_OK ? SLANG_OK : SLANG_FAIL;
+                if (status != NVAPI_OK)
+                    return NVAPIUtil::handleFail(
+                        status,
+                        __FILE__,
+                        __LINE__,
+                        "NvAPI_D3D12_CreateComputePipelineState",
+                        device
+                    );
+                return SLANG_OK;
             }
             else
 #endif // SLANG_RHI_ENABLE_NVAPI
             {
                 HRESULT hr = device->m_device->CreateComputePipelineState(desc, IID_PPV_ARGS(outPipeline));
+                if (hr != S_OK)
+                    reportD3DError(hr, "ID3D12Device::CreateComputePipelineState", SLANG_RHI_SOURCE_LOCATION(), device);
                 return hr == S_OK ? SLANG_OK : SLANG_FAIL;
             }
         },
@@ -720,22 +746,28 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             {
                 NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
                 params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
-                SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
+                SLANG_RHI_NVAPI_CHECK_REPORT(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params), this);
             }
             if (resetShaderExtensionSlot)
             {
-                SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(m_device, 0xffffffff, 0));
+                SLANG_RHI_NVAPI_CHECK_REPORT(
+                    NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(m_device, 0xffffffff, 0),
+                    this
+                );
             }
         });
 
         if (m_nvapiShaderExtension)
         {
             resetShaderExtensionSlot = true;
-            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(
-                m_device,
-                m_nvapiShaderExtension.uavSlot,
-                m_nvapiShaderExtension.registerSpace
-            ));
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+                NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(
+                    m_device,
+                    m_nvapiShaderExtension.uavSlot,
+                    m_nvapiShaderExtension.registerSpace
+                ),
+                this
+            );
 
             if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres) ||
                 is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres) ||
@@ -752,7 +784,10 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
                     params.flags |= NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
 
                 resetPipelineStateOptions = true;
-                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
+                SLANG_RHI_NVAPI_RETURN_ON_FAIL_REPORT(
+                    NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params),
+                    this
+                );
             }
         }
 

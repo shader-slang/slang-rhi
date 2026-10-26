@@ -1110,6 +1110,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-offset-allocator.cpp
         tests/test-parallel-pipeline-creation.cpp
         tests/test-pipeline-cache.cpp
+        tests/test-pipeline-diagnostics.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-push-constant.cpp
@@ -1175,6 +1176,12 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
+    if(SLANG_RHI_ENABLE_NVAPI)
+        target_include_directories(slang-rhi-tests PRIVATE ${nvapi_SOURCE_DIR})
+    endif()
+    if(SLANG_RHI_ENABLE_D3D12)
+        target_include_directories(slang-rhi-tests PRIVATE external/d3d12ma)
+    endif()
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_VULKAN)
