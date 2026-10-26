@@ -254,6 +254,9 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
+    if (desc_.heap)
+        return SLANG_E_NOT_AVAILABLE;
+
     TextureDesc desc = fixupTextureDesc(desc_);
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, desc));

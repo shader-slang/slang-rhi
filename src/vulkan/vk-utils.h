@@ -72,6 +72,8 @@ VkPipelineStageFlags calcPipelineStageFlags(
 VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
+VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc);
+
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state);
 VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage);
 VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType, const void* initData);
