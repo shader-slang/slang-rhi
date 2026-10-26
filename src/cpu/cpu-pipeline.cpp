@@ -39,11 +39,22 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             (char*)diagnostics->getBufferPointer()
         );
     }
+    else if (SLANG_FAILED(compileResult))
+    {
+        printMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Slang,
+            "getEntryPointHostCallable failed for '%s' with result %d and no compiler diagnostics.",
+            entryPointName,
+            compileResult
+        );
+    }
     SLANG_RETURN_ON_FAIL(compileResult);
 
     auto func = (slang_prelude::ComputeFunc)sharedLibrary->findSymbolAddressByName(entryPointName);
     if (!func)
     {
+        printError("ISlangSharedLibrary::findSymbolAddressByName could not find entry point '%s'.", entryPointName);
         return SLANG_FAIL;
     }
 
