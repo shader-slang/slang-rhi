@@ -27,12 +27,11 @@ Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPt
         dispatch_get_main_queue(),
         NULL
     );
-    NS::Error* error;
+    NS::Error* error = nullptr;
     module.library = NS::TransferPtr(device->m_device->newLibrary(data, &error));
     if (!module.library)
     {
-        const char* msg = error->localizedDescription()->utf8String();
-        device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg);
+        reportMetalError(device, "MTL::Device::newLibrary", error, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_E_INVALID_ARG;
     }
 

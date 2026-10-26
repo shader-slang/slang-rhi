@@ -4,10 +4,19 @@
 
 #include "metal-api.h"
 #include "core/common.h"
+#include "core/diagnostics.h"
 
 namespace rhi::metal {
 
 // Utility functions for Metal
+
+inline void reportMetalError(Device* device, const char* call, NS::Error* error, SourceLocation location)
+{
+    const char* domain = error && error->domain() ? error->domain()->utf8String() : "nil";
+    const char* detail = error && error->localizedDescription() ? error->localizedDescription()->utf8String()
+                                                                : "Metal returned nil without an NSError.";
+    reportNativeCallError(device, call, error ? int64_t(error->code()) : 0, domain, location, detail);
+}
 
 struct ScopedAutoreleasePool
 {

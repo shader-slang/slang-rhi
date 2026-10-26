@@ -147,6 +147,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
     if (!textureImpl->m_texture)
     {
+        reportMetalError(this, "MTL::Device::newTexture", nullptr, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_FAIL;
     }
     textureImpl->m_textureType = textureDesc->textureType();
@@ -166,15 +167,23 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);
         textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
         NS::SharedPtr<MTL::Texture> stagingTexture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
-
         if (!stagingTexture)
+        {
+            reportMetalError(this, "MTL::Device::newTexture", nullptr, SLANG_RHI_SOURCE_LOCATION());
             return SLANG_FAIL;
+        }
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
         if (!commandBuffer)
+        {
+            reportMetalError(this, "MTL::CommandQueue::commandBuffer", nullptr, SLANG_RHI_SOURCE_LOCATION());
             return SLANG_FAIL;
+        }
         MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
         if (!encoder)
+        {
+            reportMetalError(this, "MTL::CommandBuffer::blitCommandEncoder", nullptr, SLANG_RHI_SOURCE_LOCATION());
             return SLANG_FAIL;
+        }
 
         uint32_t sliceCount = desc.getLayerCount();
 
@@ -287,6 +296,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     );
     if (!viewImpl->m_textureView)
     {
+        reportMetalError(this, "MTL::Texture::newTextureView", nullptr, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_FAIL;
     }
 

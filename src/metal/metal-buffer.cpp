@@ -76,6 +76,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     buffer->m_buffer = NS::TransferPtr(m_device->newBuffer(bufferSize, resourceOptions));
     if (!buffer->m_buffer)
     {
+        reportMetalError(this, "MTL::Device::newBuffer", nullptr, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_FAIL;
     }
 
@@ -99,13 +100,22 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             NS::SharedPtr<MTL::Buffer> stagingBuffer =
                 NS::TransferPtr(m_device->newBuffer(initData, bufferSize, stagingOpts));
             if (!stagingBuffer)
+            {
+                reportMetalError(this, "MTL::Device::newBuffer", nullptr, SLANG_RHI_SOURCE_LOCATION());
                 return SLANG_FAIL;
+            }
             MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
             if (!commandBuffer)
+            {
+                reportMetalError(this, "MTL::CommandQueue::commandBuffer", nullptr, SLANG_RHI_SOURCE_LOCATION());
                 return SLANG_FAIL;
+            }
             MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
             if (!encoder)
+            {
+                reportMetalError(this, "MTL::CommandBuffer::blitCommandEncoder", nullptr, SLANG_RHI_SOURCE_LOCATION());
                 return SLANG_FAIL;
+            }
             encoder->waitForFence(m_queue->m_queueFence.get());
             encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
             encoder->updateFence(m_queue->m_queueFence.get());

@@ -14,17 +14,13 @@
 
 namespace rhi::metal {
 
+// Completion handlers can outlive the queue's event notification; use stderr without capturing a device.
 static void addErrorHandler(MTL::CommandBuffer* commandBuffer)
 {
     commandBuffer->addCompletedHandler(^(MTL::CommandBuffer* cb) {
       if (cb->status() == MTL::CommandBufferStatusError)
       {
-          NS::Error* error = cb->error();
-          std::fprintf(
-              stderr,
-              "Metal command buffer error: %s\n",
-              error ? error->localizedDescription()->utf8String() : "unknown"
-          );
+          reportMetalError(nullptr, "MTL::CommandBuffer completion", cb->error(), SLANG_RHI_SOURCE_LOCATION());
           SLANG_RHI_ASSERT_FAILURE("Metal command buffer error");
       }
     });

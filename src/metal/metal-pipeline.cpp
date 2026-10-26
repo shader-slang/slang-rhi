@@ -38,7 +38,10 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         auto functionName = createString(module.entryPointName.data());
         NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
         if (!function)
+        {
+            printError("MTL::Library::newFunction failed for entry point '%s'.", module.entryPointName.c_str());
             return SLANG_FAIL;
+        }
 
         switch (module.stage)
         {
@@ -105,19 +108,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         pd->setLabel(createString(desc.label).get());
     }
 
-    NS::Error* error;
+    NS::Error* error = nullptr;
     NS::SharedPtr<MTL::RenderPipelineState> pipelineState =
         NS::TransferPtr(m_device->newRenderPipelineState(pd.get(), &error));
     if (!pipelineState)
     {
-        if (error)
-        {
-            handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                error->localizedDescription()->utf8String()
-            );
-        }
+        reportMetalError(this, "MTL::Device::newRenderPipelineState", error, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_FAIL;
     }
 
@@ -157,6 +153,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         NS::TransferPtr(m_device->newDepthStencilState(depthStencilDesc.get()));
     if (!depthStencilState)
     {
+        reportMetalError(this, "MTL::Device::newDepthStencilState", nullptr, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_FAIL;
     }
 
@@ -211,7 +208,10 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     auto functionName = createString(module.entryPointName.data());
     NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
     if (!function)
+    {
+        printError("MTL::Library::newFunction failed for entry point '%s'.", module.entryPointName.c_str());
         return SLANG_FAIL;
+    }
 
     NS::SharedPtr<MTL::ComputePipelineDescriptor> pd = NS::TransferPtr(MTL::ComputePipelineDescriptor::alloc()->init());
 
@@ -222,19 +222,12 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         pd->setLabel(createString(desc.label).get());
     }
 
-    NS::Error* error;
+    NS::Error* error = nullptr;
     NS::SharedPtr<MTL::ComputePipelineState> pipelineState =
         NS::TransferPtr(m_device->newComputePipelineState(pd.get(), MTL::PipelineOptionNone, nullptr, &error));
     if (!pipelineState)
     {
-        if (error)
-        {
-            handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                error->localizedDescription()->utf8String()
-            );
-        }
+        reportMetalError(this, "MTL::Device::newComputePipelineState", error, SLANG_RHI_SOURCE_LOCATION());
         return SLANG_FAIL;
     }
 
