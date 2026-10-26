@@ -158,8 +158,9 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
         surfaceCreateInfo.hwnd = (HWND)windowHandle.handleValues[0];
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateWin32SurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateWin32SurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_deviceImpl
         );
         break;
     }
@@ -172,8 +173,9 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateXlibSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateXlibSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_deviceImpl
         );
         break;
     }
@@ -185,8 +187,9 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.display = (wl_display*)windowHandle.handleValues[0];
         surfaceCreateInfo.surface = (wl_surface*)windowHandle.handleValues[1];
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateWaylandSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateWaylandSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_deviceImpl
         );
         break;
     }
@@ -198,7 +201,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     SLANG_RETURN_ON_FAIL(createVulkanDevice());
 
     VkSurfaceCapabilitiesKHR surfaceCaps = {};
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps),
+        m_deviceImpl
+    );
     if (!(surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
     {
         m_deviceImpl->printError("CUDA surface requires transfer-destination swapchain images.");
@@ -302,7 +308,7 @@ Result SurfaceImpl::createVulkanInstance()
         }
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance), m_deviceImpl);
 
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(m_instance));
 
@@ -312,11 +318,17 @@ Result SurfaceImpl::createVulkanInstance()
 Result SurfaceImpl::createVulkanDevice()
 {
     uint32_t physicalDeviceCount = 0;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, nullptr));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, nullptr),
+        m_deviceImpl
+    );
 
     std::vector<VkPhysicalDevice> physicalDevices;
     physicalDevices.resize(physicalDeviceCount);
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, physicalDevices.data()));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, physicalDevices.data()),
+        m_deviceImpl
+    );
 
     // On Windows we match device by LUID. On Linux with UUID.
 #if SLANG_WINDOWS_FAMILY
@@ -423,7 +435,10 @@ Result SurfaceImpl::createVulkanDevice()
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
     deviceCreateInfo.pNext = &deviceFeatures2;
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device),
+        m_deviceImpl
+    );
 
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
 
@@ -437,7 +452,10 @@ Result SurfaceImpl::createSwapchain()
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
     // issue an error
     VkSurfaceCapabilitiesKHR surfaceCaps = {};
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps),
+        m_deviceImpl
+    );
     if (!(surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
     {
         m_deviceImpl->printError("CUDA surface requires transfer-destination swapchain images.");
@@ -549,7 +567,10 @@ Result SurfaceImpl::createSwapchain()
     swapchainDesc.clipped = VK_TRUE;
     swapchainDesc.oldSwapchain = oldSwapchain;
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSwapchainKHR(m_device, &swapchainDesc, nullptr, &m_swapchain));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateSwapchainKHR(m_device, &swapchainDesc, nullptr, &m_swapchain),
+        m_deviceImpl
+    );
 
     uint32_t swapchainImageCount = 0;
     m_api.vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, nullptr);
@@ -602,7 +623,10 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
         VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         createInfo.queueFamilyIndex = m_queueFamilyIndex;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateCommandPool(m_device, &createInfo, 0, &frameData.commandPool));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateCommandPool(m_device, &createInfo, 0, &frameData.commandPool),
+            m_deviceImpl
+        );
     }
 
     // Allocate command buffer.
@@ -611,24 +635,32 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
         allocateInfo.commandPool = frameData.commandPool;
         allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocateInfo.commandBufferCount = 1;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkAllocateCommandBuffers(m_device, &allocateInfo, &frameData.commandBuffer));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkAllocateCommandBuffers(m_device, &allocateInfo, &frameData.commandBuffer),
+            m_deviceImpl
+        );
     }
 
     // Create fence.
     {
         VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
         createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateFence(m_device, &createInfo, nullptr, &frameData.fence));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateFence(m_device, &createInfo, nullptr, &frameData.fence),
+            m_deviceImpl
+        );
     }
 
     // Create semaphores.
     {
         VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.imageAvailableSemaphore)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.imageAvailableSemaphore),
+            m_deviceImpl
         );
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.renderFinishedSemaphore)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.renderFinishedSemaphore),
+            m_deviceImpl
         );
     }
 
@@ -648,23 +680,29 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
 
         VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         createInfo.pNext = &typeCreateInfo;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.sharedSemaphore));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateSemaphore(m_device, &createInfo, nullptr, &frameData.sharedSemaphore),
+            m_deviceImpl
+        );
 
 #if SLANG_WINDOWS_FAMILY
         VkSemaphoreGetWin32HandleInfoKHR handleInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR};
         handleInfo.semaphore = frameData.sharedSemaphore;
         handleInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
         frameData.sharedSemaphoreHandle.type = NativeHandleType::Win32;
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkGetSemaphoreWin32HandleKHR(m_device, &handleInfo, (HANDLE*)(&frameData.sharedSemaphoreHandle.value))
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api
+                .vkGetSemaphoreWin32HandleKHR(m_device, &handleInfo, (HANDLE*)(&frameData.sharedSemaphoreHandle.value)),
+            m_deviceImpl
         );
 #else
         VkSemaphoreGetFdInfoKHR fdInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
         fdInfo.semaphore = frameData.sharedSemaphore;
         fdInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
         frameData.sharedSemaphoreHandle.type = NativeHandleType::FileDescriptor;
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkGetSemaphoreFdKHR(m_device, &fdInfo, (int*)(&frameData.sharedSemaphoreHandle.value))
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkGetSemaphoreFdKHR(m_device, &fdInfo, (int*)(&frameData.sharedSemaphoreHandle.value)),
+            m_deviceImpl
         );
 #endif
 
@@ -759,7 +797,10 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     externalMemoryImageCreateInfo.handleTypes = extMemoryHandleType;
     imageInfo.pNext = &externalMemoryImageCreateInfo;
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &sharedTexture.vulkanImage));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateImage(m_device, &imageInfo, nullptr, &sharedTexture.vulkanImage),
+        m_deviceImpl
+    );
 
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, sharedTexture.vulkanImage, &memRequirements);
@@ -794,7 +835,10 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     dedicatedAllocateInfo.pNext = &exportMemoryAllocateInfo;
     allocInfo.pNext = &dedicatedAllocateInfo;
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &sharedTexture.vulkanMemory));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &sharedTexture.vulkanMemory),
+        m_deviceImpl
+    );
 
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, sharedTexture.vulkanImage, sharedTexture.vulkanMemory, 0);
@@ -809,8 +853,9 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
         return SLANG_FAIL;
     }
     sharedTexture.sharedHandle.type = NativeHandleType::Win32;
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkGetMemoryWin32HandleKHR(m_device, &getHandleInfo, (HANDLE*)&sharedTexture.sharedHandle.value)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkGetMemoryWin32HandleKHR(m_device, &getHandleInfo, (HANDLE*)&sharedTexture.sharedHandle.value),
+        m_deviceImpl
     );
 #else
     VkMemoryGetFdInfoKHR getHandleInfo = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR};
@@ -822,7 +867,10 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
         return SLANG_FAIL;
     }
     sharedTexture.sharedHandle.type = NativeHandleType::FileDescriptor;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkGetMemoryFdKHR(m_device, &getHandleInfo, (int*)&sharedTexture.sharedHandle.value));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkGetMemoryFdKHR(m_device, &getHandleInfo, (int*)&sharedTexture.sharedHandle.value),
+        m_deviceImpl
+    );
 #endif
 
     // Create CUDA texture.
@@ -874,7 +922,7 @@ Result SurfaceImpl::prepareSharedTextureForCuda(FrameData& frameData)
 {
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(frameData.commandBuffer, &beginInfo));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkBeginCommandBuffer(frameData.commandBuffer, &beginInfo), m_deviceImpl);
 
     VkImageSubresourceRange subresourceRange;
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -905,14 +953,14 @@ Result SurfaceImpl::prepareSharedTextureForCuda(FrameData& frameData)
         &barrier
     );
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(frameData.commandBuffer));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkEndCommandBuffer(frameData.commandBuffer), m_deviceImpl);
 
     VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &frameData.commandBuffer;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueWaitIdle(m_queue));
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE), m_deviceImpl);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueWaitIdle(m_queue), m_deviceImpl);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0), m_deviceImpl);
 
     return SLANG_OK;
 }
@@ -964,8 +1012,11 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkWaitForFences(m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkWaitForFences(m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX),
+        m_deviceImpl
+    );
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0), m_deviceImpl);
 
     m_currentSwapchainImageIndex = -1;
     VkResult result = m_api.vkAcquireNextImageKHR(
@@ -979,11 +1030,13 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
+        if (result != VK_ERROR_OUT_OF_DATE_KHR && result != VK_TIMEOUT && result != VK_NOT_READY)
+            vk::reportVulkanError(result, "vkAcquireNextImageKHR", SLANG_RHI_SOURCE_LOCATION(), m_deviceImpl);
         return SLANG_FAIL;
     }
 
     // Failed acquisition submits no work, so leave the fence signaled until an image is acquired.
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &frameData.fence));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkResetFences(m_device, 1, &frameData.fence), m_deviceImpl);
 
     returnComPtrCopy(outTexture, frameData.sharedTexture.cudaTexture);
     return SLANG_OK;
@@ -1034,13 +1087,13 @@ Result SurfaceImpl::present()
         VkSemaphoreSignalInfo signalInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO};
         signalInfo.semaphore = frameData.sharedSemaphore;
         signalInfo.value = ++frameData.signalValue;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkSignalSemaphore(m_device, &signalInfo));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkSignalSemaphore(m_device, &signalInfo), m_deviceImpl);
     }
 #endif
 
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(frameData.commandBuffer, &beginInfo));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkBeginCommandBuffer(frameData.commandBuffer, &beginInfo), m_deviceImpl);
 
     VkImageSubresourceRange subresourceRange;
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1187,7 +1240,7 @@ Result SurfaceImpl::present()
         );
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(frameData.commandBuffer));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkEndCommandBuffer(frameData.commandBuffer), m_deviceImpl);
 
     VkSemaphore waitSemaphores[] = {frameData.imageAvailableSemaphore, frameData.sharedSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT};
@@ -1206,7 +1259,7 @@ Result SurfaceImpl::present()
     submitInfo.pCommandBuffers = &frameData.commandBuffer;
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, frameData.fence));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, frameData.fence), m_deviceImpl);
 
     // Present the image.
     VkPresentInfoKHR presentInfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
@@ -1221,6 +1274,7 @@ Result SurfaceImpl::present()
         return SLANG_OK;
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
+        vk::reportVulkanError(result, "vkQueuePresentKHR", SLANG_RHI_SOURCE_LOCATION(), m_deviceImpl);
         return SLANG_FAIL;
     }
     m_swapchainImageLayouts[m_currentSwapchainImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
