@@ -329,6 +329,8 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 
 ## `IResourceHeap` interface
 
+See [Resource heaps](resource-heaps.md) for placement, aliasing, lifetime, and synchronization guidance.
+
 | API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`         | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
@@ -344,18 +346,3 @@ callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls
 intersection/any-hit and defaults to zero. These limits are independent of
 `maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
 The pipeline copies these options, including when compilation is deferred.
-
-## Resource heap placement
-
-Query `getBufferMemoryRequirements` or `getTextureMemoryRequirements`, then pass the
-returned requirements to `createResourceHeap`. Set `BufferDesc::heap` / `TextureDesc::heap`
-and `heapOffset` to place a resource at an aligned offset within that heap. A null heap
-uses the normal committed allocation path. Requirements include opaque device-local
-compatibility data; pass them unchanged rather than constructing or persisting them.
-
-The resource retains its heap allocation through GPU completion. The heap fields are
-creation-only and are cleared in `getDesc()`, so copying that descriptor does not
-implicitly create an overlapping allocation. Initial data writes the heap immediately
-and must not overlap an active resource. Without initial data, activate the resource
-using `aliasResources` before use. Switching aliases makes the destination contents
-undefined; cross-queue synchronization remains the application's responsibility.
