@@ -59,6 +59,8 @@ void checkCudaSyncErrorReport(bool pre, const char* call, const SourceLocation l
 
 void reportCUDAError(CUresult result, const char* call, const SourceLocation location, Device* device = nullptr);
 
+Result loadModuleWithDiagnostics(CUmodule* module, const void* code, Device* device);
+
 #define SLANG_CUDA_RETURN_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \

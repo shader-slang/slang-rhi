@@ -114,6 +114,31 @@ void reportCUDAError(CUresult result, const char* call, const SourceLocation loc
     reportNativeCallError(device, call, result, errorName, location, errorString);
 }
 
+Result loadModuleWithDiagnostics(CUmodule* module, const void* code, Device* device)
+{
+    // Request only the error log; successful module loads remain quiet.
+    char errorLog[16 * 1024] = {};
+    CUjit_option options[] = {CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES};
+    void* values[] = {errorLog, reinterpret_cast<void*>(sizeof(errorLog))};
+    CUresult result = cuModuleLoadDataEx(module, code, SLANG_COUNT_OF(options), options, values);
+    if (result == CUDA_SUCCESS)
+        return SLANG_OK;
+
+    errorLog[sizeof(errorLog) - 1] = 0;
+    const char* errorName = nullptr;
+    const char* errorString = nullptr;
+    cuGetErrorName(result, &errorName);
+    cuGetErrorString(result, &errorString);
+    std::string detail = errorString ? errorString : "";
+    if (errorLog[0])
+    {
+        detail += "\n  JIT log: ";
+        detail += errorLog;
+    }
+    reportNativeCallError(device, "cuModuleLoadDataEx", result, errorName, SLANG_RHI_SOURCE_LOCATION(), detail.c_str());
+    return SLANG_FAIL;
+}
+
 AdapterLUID getAdapterLUID(int deviceIndex)
 {
     CUdevice device;
