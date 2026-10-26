@@ -7,6 +7,7 @@
 
 #include "core/static_vector.h"
 #include "core/sha1.h"
+#include "core/deferred.h"
 
 #include <map>
 #include <string>
@@ -419,6 +420,7 @@ Result createPipelineWithCache(
     DeviceImpl* device,
     VkPipelineCreateInfo* createInfo,
     VkResult (*createPipelineFunc)(DeviceImpl* device, VkPipelineCreateInfo* createInfo, VkPipeline* outPipeline),
+    const char* operation,
     VkPipeline* outPipeline,
     bool& outCached,
     size_t& outCacheSize,
@@ -427,6 +429,19 @@ Result createPipelineWithCache(
 )
 {
     auto& api = device->m_api;
+    auto createPipeline = [&](VkPipeline* pipeline) -> Result
+    {
+        VkResult result = createPipelineFunc(device, createInfo, pipeline);
+        if (result != VK_SUCCESS)
+        {
+            reportVulkanError(result, operation, SLANG_RHI_SOURCE_LOCATION(), device);
+            return SLANG_FAIL;
+        }
+        return SLANG_OK;
+    };
+
+    const void* originalNext = createInfo->pNext;
+    SLANG_RHI_DEFERRED({ createInfo->pNext = originalNext; });
 
     outCached = false;
     outCacheSize = 0;
@@ -435,7 +450,7 @@ Result createPipelineWithCache(
     // Early out if cache is not enabled or the feature is not supported.
     if (!device->m_persistentPipelineCache || !api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
     {
-        return createPipelineFunc(device, createInfo, outPipeline);
+        return createPipeline(outPipeline);
     }
 
     bool writeCache = true;
@@ -443,11 +458,17 @@ Result createPipelineWithCache(
     ComPtr<ISlangBlob> pipelineCacheData;
     VkPipeline pipeline = VK_NULL_HANDLE;
 
+    // Cache failures are recoverable; retain their native status without a fatal diagnostic.
+    auto getCacheKey = [&]()
+    {
+        ScopedNativeCallErrorWarning warning;
+        return getPipelineCacheKey(device, createInfo, getFallbackPipelineKey, pipelineCacheKey.writeRef());
+    };
     // Create pipeline cache key.
-    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, getFallbackPipelineKey, pipelineCacheKey.writeRef())))
+    if (SLANG_FAILED(getCacheKey()))
     {
         device->printWarning("Failed to get pipeline cache key, disabling pipeline cache.");
-        return createPipelineFunc(device, createInfo, outPipeline);
+        return createPipeline(outPipeline);
     }
 
     // Query pipeline cache.
@@ -459,6 +480,7 @@ Result createPipelineWithCache(
     // Try create pipeline from cache.
     if (pipelineCacheData)
     {
+        ScopedNativeCallErrorWarning warning;
         short_vector<VkPipelineBinaryKHR> pipelineBinaries;
         if (SLANG_SUCCEEDED(deserializePipelineBinaries(device, pipelineCacheData, pipelineBinaries)))
         {
@@ -467,7 +489,7 @@ Result createPipelineWithCache(
             binaryInfo.pPipelineBinaries = pipelineBinaries.data();
             binaryInfo.pNext = createInfo->pNext;
             createInfo->pNext = &binaryInfo;
-            if (createPipelineFunc(device, createInfo, &pipeline) == VK_SUCCESS)
+            if (SLANG_SUCCEEDED(createPipeline(&pipeline)))
             {
                 writeCache = false;
                 outCached = true;
@@ -522,12 +544,13 @@ Result createPipelineWithCache(
                 createInfo->pNext = &createFlags;
             }
         }
-        SLANG_VK_RETURN_ON_FAIL_REPORT(createPipelineFunc(device, createInfo, &pipeline), device);
+        SLANG_RETURN_ON_FAIL(createPipeline(&pipeline));
     }
 
     // Write to the cache.
     if (writeCache)
     {
+        ScopedNativeCallErrorWarning warning;
         if (SLANG_SUCCEEDED(serializePipelineBinaries(device, pipeline, pipelineCacheData.writeRef())))
         {
             device->m_persistentPipelineCache->writeCache(pipelineCacheKey, pipelineCacheData);
@@ -782,6 +805,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 return device->m_api
                     .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
             },
+            "vkCreateGraphicsPipelines",
             &vkPipeline,
             cached,
             cacheSize,
@@ -859,6 +883,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
                 return device->m_api
                     .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
             },
+            "vkCreateComputePipelines",
             &vkPipeline,
             cached,
             cacheSize,
@@ -1056,6 +1081,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
                     pipeline
                 );
             },
+            "vkCreateRayTracingPipelinesKHR",
             &vkPipeline,
             cached,
             cacheSize,
