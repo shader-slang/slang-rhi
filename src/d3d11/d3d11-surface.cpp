@@ -9,15 +9,15 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_device = device;
     m_d3dDevice = device->m_device;
     m_dxgiFactory = device->m_dxgiFactory;
-    return D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, true);
+    return D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL, true, device);
 }
 
-void SurfaceImpl::createSwapchainTextures(uint32_t count)
+Result SurfaceImpl::createSwapchainTextures(uint32_t count)
 {
     // D3D11 implements automatic back buffer rotation, so the application
     // always render to buffer 0.
     ComPtr<ID3D11Resource> d3dResource;
-    m_swapChain->GetBuffer(0, IID_PPV_ARGS(d3dResource.writeRef()));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_swapChain->GetBuffer(0, IID_PPV_ARGS(d3dResource.writeRef())), m_device);
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
     textureDesc.size.width = m_config.width;
@@ -36,6 +36,7 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
     {
         m_textures.push_back(texture);
     }
+    return SLANG_OK;
 }
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)

@@ -14,12 +14,18 @@ namespace rhi {
 class D3DSurface : public Surface
 {
 public:
-    Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect, bool allowUnorderedAccess)
+    Result init(
+        WindowHandle windowHandle,
+        DXGI_SWAP_EFFECT swapEffect,
+        bool allowUnorderedAccess,
+        Device* diagnosticDevice
+    )
     {
         if (windowHandle.type != WindowHandleType::HWND)
         {
             return SLANG_E_INVALID_HANDLE;
         }
+        m_diagnosticDevice = diagnosticDevice;
         m_windowHandle = (HWND)windowHandle.handleValues[0];
         m_swapEffect = swapEffect;
 
@@ -69,11 +75,15 @@ public:
         if (!dxgiFactory2)
         {
             ComPtr<IDXGISwapChain> swapChain;
-            SLANG_D3D_RETURN_ON_FAIL(
-                getDXGIFactory()->CreateSwapChain(getOwningDevice(), &swapChainDesc, swapChain.writeRef())
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(
+                getDXGIFactory()->CreateSwapChain(getOwningDevice(), &swapChainDesc, swapChain.writeRef()),
+                m_diagnosticDevice
             );
-            SLANG_D3D_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER));
-            SLANG_D3D_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(
+                getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER),
+                m_diagnosticDevice
+            );
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(swapChain->QueryInterface(m_swapChain.writeRef()), m_diagnosticDevice);
         }
         else
         {
@@ -87,18 +97,21 @@ public:
             desc1.SampleDesc = swapChainDesc.SampleDesc;
             desc1.SwapEffect = swapChainDesc.SwapEffect;
             ComPtr<IDXGISwapChain1> swapChain1;
-            SLANG_D3D_RETURN_ON_FAIL(dxgiFactory2->CreateSwapChainForHwnd(
-                getOwningDevice(),
-                m_windowHandle,
-                &desc1,
-                nullptr,
-                nullptr,
-                swapChain1.writeRef()
-            ));
-            SLANG_D3D_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(
+                dxgiFactory2->CreateSwapChainForHwnd(
+                    getOwningDevice(),
+                    m_windowHandle,
+                    &desc1,
+                    nullptr,
+                    nullptr,
+                    swapChain1.writeRef()
+                ),
+                m_diagnosticDevice
+            );
+            SLANG_D3D_RETURN_ON_FAIL_REPORT(swapChain1->QueryInterface(m_swapChain.writeRef()), m_diagnosticDevice);
         }
 
-        createSwapchainTextures(m_config.desiredImageCount);
+        SLANG_RETURN_ON_FAIL(createSwapchainTextures(m_config.desiredImageCount));
         return SLANG_OK;
     }
 
@@ -175,13 +188,16 @@ public:
         }
 #endif
 
+        if (FAILED(res))
+            reportD3DError(res, "IDXGISwapChain::Present", SLANG_RHI_SOURCE_LOCATION(), m_diagnosticDevice);
         return SLANG_FAILED(res) ? SLANG_FAIL : SLANG_OK;
     }
 
 public:
-    virtual void createSwapchainTextures(uint32_t count) = 0;
+    virtual Result createSwapchainTextures(uint32_t count) = 0;
     virtual IDXGIFactory* getDXGIFactory() = 0;
     virtual IUnknown* getOwningDevice() = 0;
+    Device* m_diagnosticDevice = nullptr;
     HWND m_windowHandle;
     DXGI_SWAP_EFFECT m_swapEffect;
     ComPtr<IDXGISwapChain2> m_swapChain;

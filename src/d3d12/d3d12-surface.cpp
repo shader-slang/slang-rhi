@@ -9,7 +9,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_device = device;
     m_queue = m_device->m_queue->m_d3dQueue;
     m_dxgiFactory = device->m_dxgiFactory;
-    SLANG_RETURN_ON_FAIL(D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_DISCARD, false));
+    SLANG_RETURN_ON_FAIL(D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_DISCARD, false, device));
     SLANG_D3D_RETURN_ON_FAIL_REPORT(
         m_device->m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())),
         m_device
@@ -17,7 +17,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     return SLANG_OK;
 }
 
-void SurfaceImpl::createSwapchainTextures(uint32_t count)
+Result SurfaceImpl::createSwapchainTextures(uint32_t count)
 {
     while (m_frameEvents.size() < count)
     {
@@ -29,7 +29,7 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
     for (uint32_t i = 0; i < count; i++)
     {
         ComPtr<ID3D12Resource> d3dResource;
-        m_swapChain->GetBuffer(i, IID_PPV_ARGS(d3dResource.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_swapChain->GetBuffer(i, IID_PPV_ARGS(d3dResource.writeRef())), m_device);
         TextureDesc textureDesc = {};
         textureDesc.type = TextureType::Texture2D;
         textureDesc.size.width = m_config.width;
@@ -51,7 +51,8 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
         SetEvent(m_frameEvents[i]);
     }
 
-    m_swapChain->QueryInterface(m_swapChain3.writeRef());
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_swapChain->QueryInterface(m_swapChain3.writeRef()), m_device);
+    return SLANG_OK;
 }
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)
@@ -93,7 +94,7 @@ Result SurfaceImpl::present()
     );
     SLANG_RETURN_ON_FAIL(D3DSurface::present());
     fenceValue++;
-    m_queue->Signal(m_fence, fenceValue);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_queue->Signal(m_fence, fenceValue), m_device);
     return SLANG_OK;
 }
 

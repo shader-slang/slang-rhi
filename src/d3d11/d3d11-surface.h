@@ -15,7 +15,7 @@ public:
 
     Result init(DeviceImpl* device, WindowHandle windowHandle);
 
-    virtual void createSwapchainTextures(uint32_t count) override;
+    virtual Result createSwapchainTextures(uint32_t count) override;
     virtual IDXGIFactory* getDXGIFactory() override { return m_dxgiFactory; }
     virtual IUnknown* getOwningDevice() override { return m_d3dDevice; }
 
