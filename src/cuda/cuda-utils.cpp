@@ -140,6 +140,23 @@ Result loadModuleWithDiagnostics(CUmodule* module, const void* code, Device* dev
     return SLANG_FAIL;
 }
 
+Result getOptionalModuleGlobal(CUdeviceptr* address, size_t* size, CUmodule module, const char* name, Device* device)
+{
+    CUresult result = cuModuleGetGlobal(address, size, module, name);
+    if (result == CUDA_ERROR_NOT_FOUND)
+    {
+        *address = 0;
+        *size = 0;
+        return SLANG_OK;
+    }
+    if (result != CUDA_SUCCESS)
+    {
+        reportCUDAError(result, "cuModuleGetGlobal", SLANG_RHI_SOURCE_LOCATION(), device);
+        return SLANG_FAIL;
+    }
+    return SLANG_OK;
+}
+
 AdapterLUID getAdapterLUID(int deviceIndex)
 {
     CUdevice device;

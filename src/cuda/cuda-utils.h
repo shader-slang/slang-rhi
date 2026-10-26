@@ -61,6 +61,7 @@ void checkCudaSyncErrorReport(bool pre, const char* call, const SourceLocation l
 void reportCUDAError(CUresult result, const char* call, const SourceLocation location, Device* device = nullptr);
 
 Result loadModuleWithDiagnostics(CUmodule* module, const void* code, Device* device);
+Result getOptionalModuleGlobal(CUdeviceptr* address, size_t* size, CUmodule module, const char* name, Device* device);
 
 #define SLANG_CUDA_RETURN_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \

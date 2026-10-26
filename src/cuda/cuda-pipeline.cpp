@@ -50,16 +50,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_rootObjectLayout->getEntryPointThreadGroupSize(entryPointIndex, pipeline->m_threadGroupSize);
 
     // Get the global `SLANG_globalParams` address and size.
-    if (cuModuleGetGlobal(
-            &pipeline->m_globalParams,
-            &pipeline->m_globalParamsSize,
-            pipeline->m_module,
-            "SLANG_globalParams"
-        ) != CUDA_SUCCESS)
-    {
-        pipeline->m_globalParams = 0;
-        pipeline->m_globalParamsSize = 0;
-    }
+    SLANG_RETURN_ON_FAIL(getOptionalModuleGlobal(
+        &pipeline->m_globalParams,
+        &pipeline->m_globalParamsSize,
+        pipeline->m_module,
+        "SLANG_globalParams",
+        this
+    ));
 
     // Query the shared memory size.
     int sharedSizeBytes = 0;
