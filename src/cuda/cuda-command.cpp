@@ -41,12 +41,12 @@ static uint64_t getTimestampAnchorTimeNs()
     );
 }
 
-static void destroyTimestampAnchor(TimestampAnchor& anchor)
+static void destroyTimestampAnchor(TimestampAnchor& anchor, Device* device)
 {
     if (anchor.event)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(anchor.event));
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(anchor.event));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventSynchronize(anchor.event), device);
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(anchor.event), device);
     }
     anchor = {};
 }
@@ -104,7 +104,7 @@ static Result prepareTimestampAnchorSlotForReuse(CommandQueueImpl* queue, Timest
         return SLANG_FAIL;
     }
 
-    destroyTimestampAnchor(anchor);
+    destroyTimestampAnchor(anchor, queue->getDevice());
     return SLANG_OK;
 }
 
@@ -118,7 +118,7 @@ static Result recordTimestampAnchor(CommandQueueImpl* queue, uint64_t generation
     SLANG_RETURN_ON_FAIL(prepareTimestampAnchorSlotForReuse(queue, slot));
 
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&anchor.event, 0), queue);
-    SLANG_RHI_DEFERRED({ destroyTimestampAnchor(anchor); });
+    SLANG_RHI_DEFERRED({ destroyTimestampAnchor(anchor, queue->getDevice()); });
 
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(anchor.event, queue->m_stream), queue);
 
@@ -321,11 +321,14 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy(
-        (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.dstOffset),
-        (CUdeviceptr)((uint8_t*)src->m_cudaMemory + cmd.srcOffset),
-        cmd.size
-    ));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+        cuMemcpy(
+            (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.dstOffset),
+            (CUdeviceptr)((uint8_t*)src->m_cudaMemory + cmd.srcOffset),
+            cmd.size
+        ),
+        m_device
+    );
 }
 
 void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
@@ -390,11 +393,17 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
             // Get the appropriate mip level if using mipmapped arrays
             if (src->m_cudaMipMappedArray)
             {
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMip));
+                SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+                    cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMip),
+                    m_device
+                );
             }
             if (dst->m_cudaMipMappedArray)
             {
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, dstMip));
+                SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+                    cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, dstMip),
+                    m_device
+                );
             }
 
             CUDA_MEMCPY3D copyParam = {};
@@ -414,7 +423,7 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
             copyParam.Height = heightInBlocks(formatInfo, adjustedExtent.height);
             copyParam.Depth = adjustedExtent.depth;
 
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemcpy3D(&copyParam), m_device);
         }
     }
 }
@@ -469,7 +478,10 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     // Get the appropriate mip level if using mipmapped arrays
     if (src->m_cudaMipMappedArray)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMip));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+            cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMip),
+            m_device
+        );
     }
 
     CUDA_MEMCPY3D copyParam = {};
@@ -487,13 +499,16 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     copyParam.Height = heightInBlocks(formatInfo, adjustedExtent.height);
     copyParam.Depth = adjustedExtent.depth;
 
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemcpy3D(&copyParam), m_device);
 }
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemsetD32((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size / 4));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+        cuMemsetD32((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size / 4),
+        m_device
+    );
 }
 
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
@@ -535,7 +550,10 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             CUarray dstArray = dst->m_cudaArray;
             if (dst->m_cudaMipMappedArray)
             {
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, mip));
+                SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+                    cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, mip),
+                    m_device
+                );
             }
 
             CUDA_MEMCPY3D copyParam = {};
@@ -550,7 +568,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             copyParam.WidthInBytes = widthInBlocks(formatInfo, srLayout->size.width) * formatInfo.blockSizeInBytes;
             copyParam.Height = heightInBlocks(formatInfo, srLayout->size.height);
             copyParam.Depth = srLayout->size.depth;
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemcpy3D(&copyParam), m_device);
 
             bufferOffset += srLayout->sizeInBytes;
             srLayout++;
@@ -658,12 +676,15 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
             );
             computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
-            computePipeline->m_globalParams,
-            bindingData->globalParams,
-            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
-            m_stream
-        ));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+            cuMemcpyAsync(
+                computePipeline->m_globalParams,
+                bindingData->globalParams,
+                min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
+                m_stream
+            ),
+            m_device
+        );
     }
 
     // The argument data for the entry-point parameters are already
@@ -677,19 +698,22 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     };
 
     // Once we have all the necessary data extracted and/or set up, we can launch the kernel.
-    SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
-        computePipeline->m_function,
-        cmd.x,
-        cmd.y,
-        cmd.z,
-        computePipeline->m_threadGroupSize[0],
-        computePipeline->m_threadGroupSize[1],
-        computePipeline->m_threadGroupSize[2],
-        0,
-        m_stream,
-        nullptr,
-        extraOptions
-    ));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+        cuLaunchKernel(
+            computePipeline->m_function,
+            cmd.x,
+            cmd.y,
+            cmd.z,
+            computePipeline->m_threadGroupSize[0],
+            computePipeline->m_threadGroupSize[1],
+            computePipeline->m_threadGroupSize[2],
+            0,
+            m_stream,
+            nullptr,
+            extraOptions
+        ),
+        m_device
+    );
 }
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
@@ -706,7 +730,7 @@ void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchCompute
     CUdeviceptr srcPtr = (CUdeviceptr)argBuffer->m_cudaMemory + cmd.argBuffer.offset;
 
     IndirectDispatchArguments args;
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyDtoH(&args, srcPtr, sizeof(IndirectDispatchArguments)));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemcpyDtoH(&args, srcPtr, sizeof(IndirectDispatchArguments)), m_device);
 
     // Skip dispatch if any dimension is zero (CUDA doesn't allow zero-sized dispatches).
     if (args.threadGroupCountX == 0 || args.threadGroupCountY == 0 || args.threadGroupCountZ == 0)
@@ -868,7 +892,7 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     QueryPoolImpl::Query& query = queryPool->m_queries[cmd.queryIndex];
     query.anchorGeneration = m_timestampAnchorGeneration;
     query.resultData = 0;
-    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(query.event, m_stream));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventRecord(query.event, m_stream), m_device);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -928,8 +952,8 @@ void CommandQueueImpl::waitAndReleaseCommandBuffers()
     // when the context is destroyed, and leaking handles can exhaust per-process limits.
     for (const auto& ev : m_submitEvents)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(ev.event));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventSynchronize(ev.event), this);
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(ev.event), this);
     }
     m_submitEvents.clear();
 
@@ -937,7 +961,7 @@ void CommandQueueImpl::waitAndReleaseCommandBuffers()
     // This is critical for single-stream workloads using the default stream (m_stream == nullptr)
     // where lazy events optimization means m_submitEvents is empty.
     // Without this, heap destruction could call cuMemFree while GPU is still using memory!
-    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuCtxSynchronize(), this);
     m_lastFinishedID = m_lastSubmittedID;
 
     // Retire finished command buffers, which should be all of them now
@@ -956,7 +980,7 @@ void CommandQueueImpl::shutdown()
 
     for (TimestampAnchor& anchor : m_timestampAnchors)
     {
-        destroyTimestampAnchor(anchor);
+        destroyTimestampAnchor(anchor, getDevice());
     }
 
     // Execute remaining deferred deletes.
@@ -966,7 +990,7 @@ void CommandQueueImpl::shutdown()
     // Destroy non-default streams (default stream uses nullptr, nothing to destroy)
     if (m_stream)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuStreamDestroy(m_stream), this);
     }
 }
 
@@ -1048,6 +1072,7 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
         {
             // Unexpected error - assert in debug builds to catch bugs
             // Don't fail in release to avoid deadlocks during cleanup
+            reportCUDAError(result, "cuStreamQuery", SLANG_RHI_SOURCE_LOCATION(), getDevice());
             SLANG_RHI_ASSERT_FAILURE("Unexpected cuStreamQuery error");
         }
         // CUDA_ERROR_NOT_READY means work is still pending - that's fine, we're async
@@ -1145,7 +1170,7 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
 
     CUevent event = nullptr;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&event, 0), this);
-    SLANG_RHI_DEFERRED({ SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(event)); });
+    SLANG_RHI_DEFERRED({ SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(event), this); });
 
     uint64_t before = 0;
     uint64_t after = 0;
@@ -1199,7 +1224,7 @@ Result CommandQueueImpl::updateFence()
         {
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(submitIt->event), this);
 
             // If called after a context sync, m_lastFinishedID may already have been
             // skipped to the end, so only overwrite it if this event's ID is greater.
@@ -1218,7 +1243,8 @@ Result CommandQueueImpl::updateFence()
         }
         else
         {
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
+            reportCUDAError(result, "cuEventQuery", SLANG_RHI_SOURCE_LOCATION(), getDevice());
+            return SLANG_FAIL;
         }
     }
     return SLANG_OK;

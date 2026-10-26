@@ -18,7 +18,7 @@ QueryPoolImpl::~QueryPoolImpl()
     {
         if (query.event)
         {
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(query.event));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(query.event), getDevice());
         }
     }
 }
@@ -137,7 +137,7 @@ PlainBufferProxyQueryPoolImpl::~PlainBufferProxyQueryPoolImpl()
 
     if (m_buffer)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemFree(m_buffer), getDevice());
     }
 }
 

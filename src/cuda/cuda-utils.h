@@ -87,17 +87,19 @@ Result loadModuleWithDiagnostics(CUmodule* module, const void* code, Device* dev
         SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(false, #x, device);                                                         \
     }
 
-#define SLANG_CUDA_ASSERT_ON_FAIL(x)                                                                                   \
+#define SLANG_CUDA_ASSERT_ON_FAIL(x) SLANG_CUDA_ASSERT_ON_FAIL_REPORT(x, nullptr)
+
+#define SLANG_CUDA_ASSERT_ON_FAIL_REPORT(x, device)                                                                    \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
-        SLANG_CUDA_CHECK_SYNC_ERROR(true, #x);                                                                         \
+        SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(true, #x, device);                                                          \
         CUresult _res = x;                                                                                             \
         if (_res != CUDA_SUCCESS)                                                                                      \
         {                                                                                                              \
-            ::rhi::cuda::reportCUDAError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                       \
+            ::rhi::cuda::reportCUDAError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), getDiagnosticDevice(device));          \
             SLANG_RHI_ASSERT_FAILURE("CUDA call failed");                                                              \
         }                                                                                                              \
-        SLANG_CUDA_CHECK_SYNC_ERROR(false, #x);                                                                        \
+        SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(false, #x, device);                                                         \
     }
 
 AdapterLUID getAdapterLUID(int deviceIndex);

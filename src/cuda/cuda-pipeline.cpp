@@ -16,7 +16,7 @@ ComputePipelineImpl::~ComputePipelineImpl()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     if (m_module)
-        SLANG_CUDA_ASSERT_ON_FAIL(cuModuleUnload(m_module));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuModuleUnload(m_module), getDevice());
 }
 
 Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)

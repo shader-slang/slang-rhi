@@ -138,23 +138,23 @@ TextureImpl::~TextureImpl()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     for (auto& pair : m_texObjects)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuTexObjectDestroy(pair.second));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuTexObjectDestroy(pair.second), getDevice());
     }
     for (auto& pair : m_surfObjects)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuSurfObjectDestroy(pair.second));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuSurfObjectDestroy(pair.second), getDevice());
     }
     if (m_cudaArray)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuArrayDestroy(m_cudaArray));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuArrayDestroy(m_cudaArray), getDevice());
     }
     if (m_cudaMipMappedArray)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayDestroy(m_cudaMipMappedArray));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMipmappedArrayDestroy(m_cudaMipMappedArray), getDevice());
     }
     if (m_cudaExternalMemory)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuDestroyExternalMemory((CUexternalMemory)m_cudaExternalMemory));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuDestroyExternalMemory((CUexternalMemory)m_cudaExternalMemory), getDevice());
     }
 }
 
@@ -232,8 +232,9 @@ CUtexObject TextureImpl::getTexObject(
     viewDesc.firstLayer = range.layer;
     viewDesc.lastLayer = range.layer + range.layerCount - 1;
 
-    SLANG_CUDA_ASSERT_ON_FAIL(
-        cuTexObjectCreate(&texObject, &resDesc, &texDesc, isEntireTexture(range) ? nullptr : &viewDesc)
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+        cuTexObjectCreate(&texObject, &resDesc, &texDesc, isEntireTexture(range) ? nullptr : &viewDesc),
+        getDevice()
     );
     return texObject;
 }
@@ -247,14 +248,17 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
     CUarray array = m_cudaArray;
     if (!array)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mip));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+            cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mip),
+            getDevice()
+        );
     }
 
     CUDA_RESOURCE_DESC resDesc = {};
     resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
     resDesc.res.array.hArray = array;
 
-    SLANG_CUDA_ASSERT_ON_FAIL(cuSurfObjectCreate(&surfObject, &resDesc));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuSurfObjectCreate(&surfObject, &resDesc), getDevice());
     return surfObject;
 }
 

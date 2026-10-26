@@ -25,7 +25,7 @@ BufferImpl::~BufferImpl()
     if (m_cudaExternalMemory)
     {
         SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-        SLANG_CUDA_ASSERT_ON_FAIL(cuDestroyExternalMemory((CUexternalMemory)m_cudaExternalMemory));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuDestroyExternalMemory((CUexternalMemory)m_cudaExternalMemory), getDevice());
     }
 }
 

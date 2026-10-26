@@ -36,8 +36,9 @@ void ConstantBufferPool::upload(CUstream stream)
                 static_cast<HeapImpl::PageImpl*>(page.hostMem.pageId)->notifyUse(stream);
             }
 
-            SLANG_CUDA_ASSERT_ON_FAIL(
-                cuMemcpyHtoDAsync(page.deviceMem.getDeviceAddress(), page.hostMem.getHostPtr(), page.usedSize, stream)
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+                cuMemcpyHtoDAsync(page.deviceMem.getDeviceAddress(), page.hostMem.getHostPtr(), page.usedSize, stream),
+                m_device
             );
         }
     };
