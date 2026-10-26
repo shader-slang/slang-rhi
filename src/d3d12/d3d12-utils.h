@@ -3,6 +3,7 @@
 #include <slang-rhi.h>
 
 #include "d3d12-api.h"
+#include <d3d12sdklayers.h>
 
 #include "../d3d/d3d-utils.h"
 #include "../nvapi/nvapi-include.h"
@@ -10,6 +11,23 @@
 #include "core/common.h"
 
 namespace rhi::d3d12 {
+
+inline bool isRecoverablePipelineCacheMessage(D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id)
+{
+    if (severity != D3D12_MESSAGE_SEVERITY_ERROR || !ScopedNativeCallErrorWarning::isActive())
+        return false;
+    switch (id)
+    {
+    case D3D12_MESSAGE_ID_CREATEPIPELINESTATE_INVALIDCACHEDBLOB:
+    case D3D12_MESSAGE_ID_CREATEPIPELINESTATE_CACHEDBLOBADAPTERMISMATCH:
+    case D3D12_MESSAGE_ID_CREATEPIPELINESTATE_CACHEDBLOBDRIVERVERSIONMISMATCH:
+    case D3D12_MESSAGE_ID_CREATEPIPELINESTATE_CACHEDBLOBDESCMISMATCH:
+    case D3D12_MESSAGE_ID_CREATEPIPELINESTATE_CACHEDBLOBIGNORED:
+        return true;
+    default:
+        return false;
+    }
+}
 
 /// Create standard D3D12 heap properties for a given heap type.
 inline D3D12_HEAP_PROPERTIES makeHeapProperties(D3D12_HEAP_TYPE type)

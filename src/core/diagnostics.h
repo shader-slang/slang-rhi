@@ -58,6 +58,7 @@ public:
 class ScopedNativeCallErrorWarning
 {
 public:
+    static bool isActive();
     ScopedNativeCallErrorWarning();
     ~ScopedNativeCallErrorWarning();
     ScopedNativeCallErrorWarning(const ScopedNativeCallErrorWarning&) = delete;

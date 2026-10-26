@@ -7,6 +7,28 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+TEST_CASE("native-diagnostics-d3d12-cache-validation-severity")
+{
+    using namespace rhi::d3d12;
+    CHECK_FALSE(isRecoverablePipelineCacheMessage(
+        D3D12_MESSAGE_SEVERITY_ERROR,
+        D3D12_MESSAGE_ID_CREATEPIPELINESTATE_INVALIDCACHEDBLOB
+    ));
+    {
+        ScopedNativeCallErrorWarning warning;
+        CHECK(isRecoverablePipelineCacheMessage(
+            D3D12_MESSAGE_SEVERITY_ERROR,
+            D3D12_MESSAGE_ID_CREATEPIPELINESTATE_INVALIDCACHEDBLOB
+        ));
+        CHECK_FALSE(isRecoverablePipelineCacheMessage(
+            D3D12_MESSAGE_SEVERITY_CORRUPTION,
+            D3D12_MESSAGE_ID_CREATEPIPELINESTATE_INVALIDCACHEDBLOB
+        ));
+        CHECK_FALSE(isRecoverablePipelineCacheMessage(D3D12_MESSAGE_SEVERITY_ERROR, D3D12_MESSAGE_ID_UNKNOWN));
+    }
+    CHECK_FALSE(ScopedNativeCallErrorWarning::isActive());
+}
+
 #if SLANG_RHI_ENABLE_NVAPI
 TEST_CASE("native-diagnostics-nvapi-status")
 {

@@ -266,6 +266,10 @@ static void validationMessageCallback(
         break;
     }
 
+    // Only cached-blob rejection is recoverable here. Keep unrelated validation errors
+    // and corruption reports fatal even during a cached creation attempt.
+    if (isRecoverablePipelineCacheMessage(Severity, ID))
+        type = DebugMessageType::Warning;
     device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, pDescription);
 }
 

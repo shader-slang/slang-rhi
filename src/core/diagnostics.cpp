@@ -116,6 +116,11 @@ ScopedNativeCallErrorWarning::ScopedNativeCallErrorWarning()
     tls_nativeCallErrorWarning++;
 }
 
+bool ScopedNativeCallErrorWarning::isActive()
+{
+    return tls_nativeCallErrorWarning > 0;
+}
+
 ScopedNativeCallErrorWarning::~ScopedNativeCallErrorWarning()
 {
     tls_nativeCallErrorWarning--;
