@@ -607,9 +607,6 @@ Result DeviceImpl::initVulkanDevice(
     std::vector<const char*> deviceExtensions;
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
-#if SLANG_APPLE_FAMILY
-    deviceExtensions.push_back("VK_KHR_portability_subset");
-#endif
 
     VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount = 1;
@@ -623,15 +620,28 @@ Result DeviceImpl::initVulkanDevice(
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
     }
 
-    if (m_api.vkGetPhysicalDeviceFeatures2 && extensionNames.count(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
+    // Keep the enabled feature structure alive until vkCreateDevice consumes its pNext chain.
+    VkPhysicalDevicePortabilitySubsetFeaturesKHR portabilitySubsetFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
+    };
+    if (extensionNames.count(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
     {
-        VkPhysicalDevicePortabilitySubsetFeaturesKHR portabilitySubsetFeatures = {
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
-        };
-        VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-        deviceFeatures2.pNext = &portabilitySubsetFeatures;
-        m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
-        m_supportsImageView2DOn3DImage = portabilitySubsetFeatures.imageView2DOn3DImage;
+        deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+        // Physical support does not establish which features an imported device enabled.
+        m_supportsImageView2DOn3DImage = false;
+        if (!desc.existingDeviceHandles.handles[2] && m_api.vkGetPhysicalDeviceFeatures2)
+        {
+            VkPhysicalDevicePortabilitySubsetFeaturesKHR supported = {
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
+            };
+            VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+            deviceFeatures2.pNext = &supported;
+            m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
+            portabilitySubsetFeatures.imageView2DOn3DImage = supported.imageView2DOn3DImage;
+            portabilitySubsetFeatures.pNext = const_cast<void*>(deviceCreateInfo.pNext);
+            deviceCreateInfo.pNext = &portabilitySubsetFeatures;
+            m_supportsImageView2DOn3DImage = portabilitySubsetFeatures.imageView2DOn3DImage;
+        }
     }
 
     VkPhysicalDeviceProperties basicProps = {};
