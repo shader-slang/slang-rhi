@@ -11,13 +11,14 @@ static thread_local std::atomic<uint32_t> tls_contextStackDepth = 0;
 #endif
 
 ContextScope::ContextScope(const DeviceImpl* device)
+    : m_diagnosticDevice(const_cast<DeviceImpl*>(device))
 {
     CUcontext currentContext = nullptr;
-    cuCtxGetCurrent(&currentContext);
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuCtxGetCurrent(&currentContext), m_diagnosticDevice);
     if (currentContext != device->m_ctx.context)
     {
         m_didPush = true;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPushCurrent(device->m_ctx.context));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuCtxPushCurrent(device->m_ctx.context), m_diagnosticDevice);
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
         tls_currentContext = device->m_ctx.context;
         tls_contextStackDepth++;
@@ -30,7 +31,7 @@ ContextScope::~ContextScope()
     if (m_didPush)
     {
         CUcontext ctx;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPopCurrent(&ctx));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuCtxPopCurrent(&ctx), m_diagnosticDevice);
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
         tls_currentContext = ctx;
         tls_contextStackDepth--;

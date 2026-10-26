@@ -334,10 +334,13 @@ Result SurfaceImpl::createVulkanDevice()
 #if SLANG_WINDOWS_FAMILY
     char cudaLUID[8] = {};
     unsigned int deviceNodeMask;
-    SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetLuid(cudaLUID, &deviceNodeMask, m_deviceImpl->m_ctx.device));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(
+        cuDeviceGetLuid(cudaLUID, &deviceNodeMask, m_deviceImpl->m_ctx.device),
+        m_deviceImpl
+    );
 #elif SLANG_LINUX_FAMILY
     CUuuid cudaUUID = {};
-    SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetUuid(&cudaUUID, m_deviceImpl->m_ctx.device));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuDeviceGetUuid(&cudaUUID, m_deviceImpl->m_ctx.device), m_deviceImpl);
 #else
 #error "Unsupported platform"
 #endif
@@ -752,7 +755,7 @@ void SurfaceImpl::destroyFrameData(FrameData& frameData)
     }
     if (frameData.cudaSemaphore)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuDestroyExternalSemaphore(frameData.cudaSemaphore));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuDestroyExternalSemaphore(frameData.cudaSemaphore), m_deviceImpl);
     }
     if (frameData.sharedSemaphore)
     {

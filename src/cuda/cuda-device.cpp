@@ -75,7 +75,7 @@ DeviceImpl::~DeviceImpl()
 
     if (m_ownsContext && m_ctx.context)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuDevicePrimaryCtxRelease(m_ctx.device));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuDevicePrimaryCtxRelease(m_ctx.device), this);
     }
 }
 
@@ -136,7 +136,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // setCudaContextCurrent() to explicitly manage the active context.
     {
         CUcontext currentContext = nullptr;
-        cuCtxGetCurrent(&currentContext);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxGetCurrent(&currentContext), this);
         if (currentContext == nullptr)
         {
             SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSetCurrent(m_ctx.context), this);
@@ -151,7 +151,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.deviceType = DeviceType::CUDA;
         m_info.apiName = "CUDA";
         char deviceName[256];
-        SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device), this);
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
         m_info.adapterLUID = getAdapterLUID(m_ctx.device);

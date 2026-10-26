@@ -30,6 +30,7 @@ public:
     ~ContextScope();
 
     bool m_didPush = false;
+    Device* m_diagnosticDevice = nullptr;
 };
 
 #define SLANG_CUDA_CTX_SCOPE(device) ::rhi::cuda::ContextScope _context_scope(device)

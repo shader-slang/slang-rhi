@@ -11,8 +11,8 @@ AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const Accel
 
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemFree(m_buffer), getDevice());
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemFree(m_propertyBuffer), getDevice());
 }
 
 void AccelerationStructureImpl::deleteThis()
@@ -51,7 +51,7 @@ MicromapImpl::MicromapImpl(Device* device, const MicromapDesc& desc)
 MicromapImpl::~MicromapImpl()
 {
     if (m_buffer)
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemFree(m_buffer), getDevice());
 }
 
 void MicromapImpl::deleteThis()

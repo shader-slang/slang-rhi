@@ -59,8 +59,8 @@ HeapImpl::PageImpl::~PageImpl()
     {
         if (se.event)
         {
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(se.event));
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(se.event));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventSynchronize(se.event), m_heap->getDevice());
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(se.event), m_heap->getDevice());
         }
     }
     m_pendingEvents.clear();
@@ -84,17 +84,17 @@ void HeapImpl::PageImpl::recordStreamUse(void* stream)
         {
             // Already tracking this stream - update the event by re-recording
             // This ensures we track the latest work on this stream
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(se.event, cudaStream));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventRecord(se.event, cudaStream), m_heap->getDevice());
             return;
         }
     }
 
     // Create new event for this stream
     CUevent event;
-    SLANG_CUDA_ASSERT_ON_FAIL(cuEventCreate(&event, CU_EVENT_DISABLE_TIMING));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventCreate(&event, CU_EVENT_DISABLE_TIMING), m_heap->getDevice());
 
     // Record the event on the stream
-    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(event, cudaStream));
+    SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventRecord(event, cudaStream), m_heap->getDevice());
 
     m_pendingEvents.push_back({cudaStream, event});
 }
@@ -119,6 +119,8 @@ bool HeapImpl::PageImpl::canReuse() const
         // CUDA_SUCCESS means event completed.
         // Assert on unexpected errors (e.g., CUDA_ERROR_INVALID_VALUE if context destroyed).
         // This catches issues in debug builds while preventing deadlocks in release.
+        if (result != CUDA_SUCCESS)
+            reportCUDAError(result, "cuEventQuery", SLANG_RHI_SOURCE_LOCATION(), m_heap->getDevice());
         SLANG_RHI_ASSERT(result == CUDA_SUCCESS);
     }
 
@@ -141,9 +143,11 @@ void HeapImpl::PageImpl::processEvents()
         {
             // CUDA_SUCCESS means event completed.
             // Assert on unexpected errors to catch issues in debug builds.
+            if (result != CUDA_SUCCESS)
+                reportCUDAError(result, "cuEventQuery", SLANG_RHI_SOURCE_LOCATION(), m_heap->getDevice());
             SLANG_RHI_ASSERT(result == CUDA_SUCCESS);
             // Clean up the event (defensive: proceed even if assert disabled in release)
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(it->event));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(it->event), m_heap->getDevice());
             it = m_pendingEvents.erase(it);
         }
     }
@@ -165,9 +169,11 @@ bool HeapImpl::PageImpl::processEventsAndCheckReuse()
         }
         // CUDA_SUCCESS means event completed.
         // Assert on unexpected errors to catch issues in debug builds.
+        if (result != CUDA_SUCCESS)
+            reportCUDAError(result, "cuEventQuery", SLANG_RHI_SOURCE_LOCATION(), m_heap->getDevice());
         SLANG_RHI_ASSERT(result == CUDA_SUCCESS);
         // Clean up the completed event
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(it->event));
+        SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuEventDestroy(it->event), m_heap->getDevice());
         it = m_pendingEvents.erase(it);
     }
     // All events processed and completed - page is safe to reuse
@@ -272,11 +278,11 @@ void HeapImpl::PageCache::releaseAll(DeviceImpl* device, MemoryType memType)
         // PageImpl destructor will clean up pending events
         if (memType == MemoryType::DeviceLocal)
         {
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(page->m_cudaMemory));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemFree(page->m_cudaMemory), device);
         }
         else
         {
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFreeHost((void*)page->m_cudaMemory));
+            SLANG_CUDA_ASSERT_ON_FAIL_REPORT(cuMemFreeHost((void*)page->m_cudaMemory), device);
         }
         delete page;
     }
