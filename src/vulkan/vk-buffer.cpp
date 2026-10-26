@@ -52,7 +52,8 @@ Result allocateVkMemory(
     VkMemoryPropertyFlags preferredMemoryProperties,
     bool needsDeviceAddress,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory
+    VkDeviceMemory* outMemory,
+    uint32_t* outMemoryTypeIndex
 )
 {
     int requiredMemoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
@@ -64,7 +65,8 @@ Result allocateVkMemory(
         if (preferredMemoryTypeIndex >= 0)
             memoryTypeIndex = preferredMemoryTypeIndex;
     }
-    SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
+    if (memoryTypeIndex < 0)
+        return SLANG_E_NOT_AVAILABLE;
 
     VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocateInfo.allocationSize = memoryReqs.size;
@@ -112,6 +114,8 @@ Result allocateVkMemory(
         result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
     }
     SLANG_VK_RETURN_ON_FAIL(result);
+    if (outMemoryTypeIndex)
+        *outMemoryTypeIndex = allocateInfo.memoryTypeIndex;
     return SLANG_OK;
 }
 

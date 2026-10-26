@@ -4,6 +4,19 @@
 
 namespace rhi::vk {
 
+// Prefer the requested properties when available, falling back to a required-only memory
+// type if the preferred heap is exhausted. Optionally return the type actually allocated.
+Result allocateVkMemory(
+    const VulkanApi& api,
+    const VkMemoryRequirements& memoryReqs,
+    VkMemoryPropertyFlags reqMemoryProperties,
+    VkMemoryPropertyFlags preferredMemoryProperties,
+    bool needsDeviceAddress,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkDeviceMemory* outMemory,
+    uint32_t* outMemoryTypeIndex = nullptr
+);
+
 Result createVkBuffer(
     const VulkanApi& api,
     Size bufferSize,

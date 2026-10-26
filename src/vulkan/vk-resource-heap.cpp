@@ -45,26 +45,25 @@ Result ResourceHeapImpl::init()
         return SLANG_E_NOT_AVAILABLE;
 
     const VkMemoryPropertyFlags properties = getMemoryProperties(m_desc.memoryType);
-    int memoryTypeIndex = api.findMemoryTypeIndex(memoryTypeBits, properties);
-    if (memoryTypeIndex < 0)
-        return SLANG_E_NOT_AVAILABLE;
-    m_memoryTypeIndex = (uint32_t)memoryTypeIndex;
     if (m_desc.alignment > 1)
         return SLANG_E_INVALID_ARG;
     m_desc.alignment = max<Size>(m_desc.alignment, 1);
 
-    VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocInfo.allocationSize = m_desc.size;
-    allocInfo.memoryTypeIndex = m_memoryTypeIndex;
-
-    VkMemoryAllocateFlagsInfo flagsInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
-    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-    {
-        flagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-        allocInfo.pNext = &flagsInfo;
-    }
-
-    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkAllocateMemory(api.m_device, &allocInfo, nullptr, &m_memory), device);
+    VkMemoryRequirements memoryRequirements = {};
+    memoryRequirements.size = m_desc.size;
+    memoryRequirements.memoryTypeBits = memoryTypeBits;
+    const VkMemoryPropertyFlags preferredProperties =
+        m_desc.memoryType == MemoryType::ReadBack ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 0;
+    SLANG_RETURN_ON_FAIL(allocateVkMemory(
+        api,
+        memoryRequirements,
+        properties,
+        preferredProperties,
+        api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress,
+        0,
+        &m_memory,
+        &m_memoryTypeIndex
+    ));
 
     if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
     {

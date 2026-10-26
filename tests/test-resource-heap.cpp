@@ -5,6 +5,11 @@
 #include "../src/resource-heap.h"
 #include "../src/rhi-shared.h"
 
+#if SLANG_RHI_ENABLE_VULKAN
+#include "vulkan/vk-buffer.h"
+#include "vulkan/vk-device.h"
+#endif
+
 #if SLANG_RHI_DEBUG
 #include "core/deferred.h"
 #include "debug-layer/debug-device.h"
@@ -589,6 +594,118 @@ GPU_TEST_CASE("resource-heap-texture-requirements-validation", D3D12 | Vulkan | 
     SKIP("Debug-layer validation requires a debug build");
 #endif
 }
+
+#if SLANG_RHI_ENABLE_VULKAN
+namespace {
+struct MockMemoryAllocator
+{
+    std::vector<uint32_t> attempts;
+    VkResult cachedResult = VK_SUCCESS;
+
+    static VKAPI_ATTR VkResult VKAPI_CALL
+    allocate(VkDevice device, const VkMemoryAllocateInfo* info, const VkAllocationCallbacks*, VkDeviceMemory* memory)
+    {
+        auto& self = *reinterpret_cast<MockMemoryAllocator*>(device);
+        self.attempts.push_back(info->memoryTypeIndex);
+        if (info->memoryTypeIndex == 2 && self.cachedResult != VK_SUCCESS)
+            return self.cachedResult;
+        *memory = (VkDeviceMemory)1;
+        return VK_SUCCESS;
+    }
+};
+} // namespace
+
+TEST_CASE("resource-heap-vulkan-memory-preference")
+{
+    MockMemoryAllocator allocator;
+    vk::VulkanApi api = {};
+    api.m_device = reinterpret_cast<VkDevice>(&allocator);
+    api.vkAllocateMemory = MockMemoryAllocator::allocate;
+    const VkMemoryPropertyFlags required = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    api.m_deviceMemoryProperties.memoryTypeCount = 3;
+    api.m_deviceMemoryProperties.memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    api.m_deviceMemoryProperties.memoryTypes[1].propertyFlags = required;
+    api.m_deviceMemoryProperties.memoryTypes[2].propertyFlags = required | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    VkMemoryRequirements requirements = {};
+    requirements.size = 4096;
+    requirements.memoryTypeBits = 7;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+    uint32_t chosenType = ~0u;
+    auto allocate = [&](VkMemoryPropertyFlags preferred)
+    {
+        allocator.attempts.clear();
+        chosenType = ~0u;
+        return vk::allocateVkMemory(api, requirements, required, preferred, false, 0, &memory, &chosenType);
+    };
+
+    REQUIRE_CALL(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT));
+    CHECK_EQ(chosenType, 2);
+    CHECK(allocator.attempts == std::vector<uint32_t>{2});
+
+    allocator.cachedResult = VK_ERROR_OUT_OF_DEVICE_MEMORY;
+    REQUIRE_CALL(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT));
+    CHECK_EQ(chosenType, 1);
+    CHECK(allocator.attempts == std::vector<uint32_t>{2, 1});
+
+    allocator.cachedResult = VK_ERROR_OUT_OF_HOST_MEMORY;
+    CHECK(SLANG_FAILED(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT)));
+    CHECK(allocator.attempts == std::vector<uint32_t>{2});
+
+    // The allocation's compatibility mask always takes precedence over preferences.
+    requirements.memoryTypeBits = 3;
+    REQUIRE_CALL(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT));
+    CHECK_EQ(chosenType, 1);
+    CHECK(allocator.attempts == std::vector<uint32_t>{1});
+
+    requirements.memoryTypeBits = 1;
+    CHECK_EQ(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT), SLANG_E_NOT_AVAILABLE);
+    CHECK(allocator.attempts.empty());
+
+    requirements.memoryTypeBits = 7;
+    REQUIRE_CALL(allocate(0)); // Upload allocations retain their required-only policy.
+    CHECK_EQ(chosenType, 1);
+}
+
+GPU_TEST_CASE("resource-heap-vulkan-cached-readback", Vulkan)
+{
+    const uint32_t expected[] = {0x10203040, 0x50607080, 0x90A0B0C0, 0xD0E0F000};
+    auto desc = makeCopyBufferDesc(sizeof(expected), MemoryType::ReadBack);
+    auto requirements = requireBufferMemoryRequirements(device, desc);
+    auto heap = createHeapForRequirements(device, requirements);
+    auto buffer = createPlacedBuffer(device, desc, heap, 0);
+
+    auto backendDevice = checked_cast<vk::DeviceImpl*>(getUnderlyingDevice(device));
+    const auto& api = backendDevice->m_api;
+    const auto properties =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    uint32_t cachedMask = 0;
+    for (uint32_t i = 0; i < api.m_deviceMemoryProperties.memoryTypeCount; ++i)
+        if ((api.m_deviceMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            cachedMask |= 1u << i;
+    cachedMask &= uint32_t(getResourceHeapCompatibilityMask(requirements));
+    if (cachedMask)
+    {
+        auto cachedRequirements = requirements;
+        setResourceHeapCompatibility(cachedRequirements, backendDevice, cachedMask);
+        bool compatible = false;
+        REQUIRE_CALL(device->isResourceHeapCompatible(heap, cachedRequirements, &compatible));
+        CHECK(compatible);
+    }
+
+    auto source = device->createBuffer(makeCopyBufferDesc(sizeof(expected), MemoryType::Upload), expected);
+    REQUIRE(source);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    encoder->aliasResources(nullptr, buffer);
+    encoder->copyBuffer(buffer, 0, source, 0, sizeof(expected));
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+    void* mapped = nullptr;
+    REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &mapped));
+    CHECK_EQ(std::memcmp(mapped, expected, sizeof(expected)), 0);
+    REQUIRE_CALL(device->unmapBuffer(buffer));
+}
+#endif
 
 GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
 {
