@@ -19,7 +19,8 @@ Result createVkBuffer(
     Size bufferSize,
     VkBufferUsageFlags usage,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkBuffer* outBuffer
+    VkBuffer* outBuffer,
+    Device* diagnosticDevice
 )
 {
     VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -36,7 +37,10 @@ Result createVkBuffer(
         bufferCreateInfo.pNext = &externalMemoryBufferCreateInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, outBuffer));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, outBuffer),
+        diagnosticDevice
+    );
     return SLANG_OK;
 }
 
@@ -51,7 +55,8 @@ Result allocateVkMemory(
     VkMemoryPropertyFlags preferredMemoryProperties,
     bool needsDeviceAddress,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory
+    VkDeviceMemory* outMemory,
+    Device* diagnosticDevice
 )
 {
     int requiredMemoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
@@ -110,7 +115,11 @@ Result allocateVkMemory(
         allocateInfo.memoryTypeIndex = requiredMemoryTypeIndex;
         result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
     }
-    SLANG_VK_RETURN_ON_FAIL(result);
+    if (result != VK_SUCCESS)
+    {
+        reportVulkanError(result, "vkAllocateMemory", SLANG_RHI_SOURCE_LOCATION(), diagnosticDevice);
+        return SLANG_FAIL;
+    }
     return SLANG_OK;
 }
 
@@ -122,7 +131,8 @@ Result allocateVkMemoryForBuffer(
     VkMemoryPropertyFlags reqMemoryProperties,
     VkMemoryPropertyFlags preferredMemoryProperties,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory
+    VkDeviceMemory* outMemory,
+    Device* diagnosticDevice
 )
 {
     VkMemoryRequirements memoryReqs = {};
@@ -137,7 +147,8 @@ Result allocateVkMemoryForBuffer(
         preferredMemoryProperties,
         needsDeviceAddress,
         externalMemoryHandleTypeFlags,
-        outMemory
+        outMemory,
+        diagnosticDevice
     );
 }
 
@@ -147,7 +158,8 @@ Result VKBufferHandleRAII::init(
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags reqMemoryProperties,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkMemoryPropertyFlags preferredMemoryProperties
+    VkMemoryPropertyFlags preferredMemoryProperties,
+    Device* diagnosticDevice
 )
 {
     SLANG_RHI_ASSERT(!isInitialized());
@@ -157,7 +169,9 @@ Result VKBufferHandleRAII::init(
     m_buffer = VK_NULL_HANDLE;
 
     // Create buffer
-    SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
+    SLANG_RETURN_ON_FAIL(
+        createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer, diagnosticDevice)
+    );
 
     // Allocate memory
     SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
@@ -167,11 +181,12 @@ Result VKBufferHandleRAII::init(
         reqMemoryProperties,
         preferredMemoryProperties,
         externalMemoryHandleTypeFlags,
-        &m_memory
+        &m_memory,
+        diagnosticDevice
     ));
 
     // Bind buffer to memory
-    SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0), diagnosticDevice);
 
     return SLANG_OK;
 }
@@ -471,13 +486,14 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             usage,
             reqMemoryProperties,
             externalMemoryHandleTypeFlags,
-            preferredMemoryProperties
+            preferredMemoryProperties,
+            this
         ));
     }
     else
     {
         SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, 0, preferredMemoryProperties)
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, 0, preferredMemoryProperties, this)
         );
     }
 

@@ -17,7 +17,8 @@ public:
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags reqMemoryProperties,
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0,
-        VkMemoryPropertyFlags preferredMemoryProperties = 0
+        VkMemoryPropertyFlags preferredMemoryProperties = 0,
+        Device* diagnosticDevice = nullptr
     );
 
     /// Returns true if has been initialized

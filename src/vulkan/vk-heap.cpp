@@ -56,7 +56,7 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
     }
 
     // Initialize the buffer using the existing logic
-    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags);
+    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags, 0, device);
     SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
 }
 

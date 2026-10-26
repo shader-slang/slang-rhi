@@ -1497,8 +1497,10 @@ Result DeviceImpl::initVulkanDevice(
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-        if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
-            return SLANG_FAIL;
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device),
+            this
+        );
     }
     else
     {
@@ -1960,7 +1962,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         0,
-        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        this
     ));
 
     // Copy from real buffer to staging buffer
@@ -2157,7 +2160,10 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.size = desc.size;
     createInfo.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateMicromapEXT(m_device, &createInfo, nullptr, &result->m_vkHandle));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateMicromapEXT(m_device, &createInfo, nullptr, &result->m_vkHandle),
+        this
+    );
     returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
