@@ -2017,7 +2017,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Write out the data from the buffer
     void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData), this);
 
     std::memcpy(outData, mappedData, size);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
