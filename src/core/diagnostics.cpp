@@ -9,6 +9,7 @@
 namespace rhi {
 
 thread_local int tls_disableNativeCallError = 0;
+static thread_local int tls_nativeCallErrorWarning = 0;
 
 void formatNativeCallError(
     char* buffer,
@@ -30,10 +31,14 @@ void formatNativeCallError(
 
     buffer[0] = 0;
     size_t length = 0;
+    bool truncated = false;
     auto append = [&](const char* format, ...)
     {
         if (length >= bufferSize - 1)
+        {
+            truncated = true;
             return;
+        }
 
         va_list args;
         va_start(args, format);
@@ -45,10 +50,16 @@ void formatNativeCallError(
 
         size_t remaining = bufferSize - length;
         size_t count = static_cast<size_t>(written);
+        truncated |= count >= remaining;
         length += count < remaining ? count : remaining - 1;
     };
 
     append("%s call failed\n  result: %lld (%s)\n", call, static_cast<long long>(result), resultName);
+
+    if (location.file)
+    {
+        append("  location: %s:%d\n", location.file, location.line);
+    }
 
     if (detail && detail[0])
     {
@@ -56,9 +67,11 @@ void formatNativeCallError(
         append("  detail: %s%s", detail, detail[detailLength - 1] == '\n' ? "" : "\n");
     }
 
-    if (location.file)
+    if (truncated)
     {
-        append("  location: %s:%d\n", location.file, location.line);
+        static constexpr char marker[] = "...[truncated]\n";
+        if (bufferSize >= sizeof(marker))
+            std::memcpy(buffer + bufferSize - sizeof(marker), marker, sizeof(marker));
     }
 }
 
@@ -77,14 +90,14 @@ void reportNativeCallError(
     char message[4096];
     formatNativeCallError(message, sizeof(message), call, result, resultName, location, detail);
 
-    if (device)
+    DebugMessageType type = tls_nativeCallErrorWarning > 0 ? DebugMessageType::Warning : DebugMessageType::Error;
+    if (device && device->m_debugCallback && device->m_debugCallback != NullDebugCallback::getInstance())
     {
-        device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message);
+        device->handleMessage(type, DebugMessageSource::Driver, message);
     }
     else
     {
-        // If we don't have a device, just print to stderr.
-        std::fprintf(stderr, "%s\n", message);
+        std::fprintf(stderr, "%s: %s\n", type == DebugMessageType::Warning ? "warning" : "error", message);
     }
 }
 
@@ -98,5 +111,14 @@ ScopedDisableNativeCallError::~ScopedDisableNativeCallError()
     tls_disableNativeCallError--;
 }
 
+ScopedNativeCallErrorWarning::ScopedNativeCallErrorWarning()
+{
+    tls_nativeCallErrorWarning++;
+}
+
+ScopedNativeCallErrorWarning::~ScopedNativeCallErrorWarning()
+{
+    tls_nativeCallErrorWarning--;
+}
 
 } // namespace rhi

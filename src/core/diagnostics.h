@@ -32,7 +32,7 @@ void formatNativeCallError(
 );
 
 /// Reports a native API call error either through the device's debug message callback
-/// or by printing to stderr if no device is available.
+/// or by printing to stderr if no device or user callback is available.
 void reportNativeCallError(
     Device* device,
     const char* call,
@@ -47,9 +47,21 @@ class ScopedDisableNativeCallError
 public:
     ScopedDisableNativeCallError();
     ~ScopedDisableNativeCallError();
+    ScopedDisableNativeCallError(const ScopedDisableNativeCallError&) = delete;
+    ScopedDisableNativeCallError& operator=(const ScopedDisableNativeCallError&) = delete;
 };
 
 #define SLANG_RHI_DISABLE_NATIVE_CALL_ERROR_SCOPE() ::rhi::ScopedDisableNativeCallError disable_native_call_error__;
 
+/// Native failures in this thread's scope are recoverable and are reported as warnings.
+/// Keep the scope restricted to the attempted fallback/optional operation.
+class ScopedNativeCallErrorWarning
+{
+public:
+    ScopedNativeCallErrorWarning();
+    ~ScopedNativeCallErrorWarning();
+    ScopedNativeCallErrorWarning(const ScopedNativeCallErrorWarning&) = delete;
+    ScopedNativeCallErrorWarning& operator=(const ScopedNativeCallErrorWarning&) = delete;
+};
 
 } // namespace rhi
