@@ -5,11 +5,11 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-// A read-only depth attachment keeps the caller's load/store ops in the shared desc. The pass must
-// still be valid (WebGPU requires undefined ops on read-only aspects), so its color clear lands.
-// D3D12 is excluded: it binds a writable DSV while the depth texture is in the DepthRead state.
-GPU_TEST_CASE("render-pass-read-only-depth", Vulkan | Metal | WGPU)
+/// Checks that read-only depth/stencil attachments produce a valid pass despite shared load/store defaults.
+/// A color readback verifies execution; native validation also checks the attachment layouts.
+static void testReadOnlyDepth(IDevice* device, Format depthFormat)
 {
+    CAPTURE(depthFormat);
     const uint32_t size = 4;
 
     TextureDesc colorDesc = {};
@@ -25,7 +25,7 @@ GPU_TEST_CASE("render-pass-read-only-depth", Vulkan | Metal | WGPU)
 
     TextureDesc depthDesc = {};
     depthDesc.type = TextureType::Texture2D;
-    depthDesc.format = Format::D32Float;
+    depthDesc.format = depthFormat;
     depthDesc.size = {size, size, 1};
     depthDesc.usage = TextureUsage::DepthStencil | TextureUsage::ShaderResource;
     depthDesc.defaultState = ResourceState::DepthWrite;
@@ -59,14 +59,17 @@ GPU_TEST_CASE("render-pass-read-only-depth", Vulkan | Metal | WGPU)
         depthAttachment.depthLoadOp = LoadOp::Load;
         depthAttachment.depthStoreOp = StoreOp::Store;
         depthAttachment.depthReadOnly = true;
+        depthAttachment.stencilLoadOp = LoadOp::Load;
+        depthAttachment.stencilStoreOp = StoreOp::Store;
+        depthAttachment.stencilReadOnly = true;
         RenderPassDesc pass = {};
         pass.colorAttachments = &colorAttachment;
         pass.colorAttachmentCount = 1;
         pass.depthStencilAttachment = &depthAttachment;
         encoder->beginRenderPass(pass)->end();
     }
-    queue->submit(encoder->finish());
-    queue->waitOnHost();
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
 
     ComPtr<ISlangBlob> blob;
     SubresourceLayout layout;
@@ -81,4 +84,11 @@ GPU_TEST_CASE("render-pass-read-only-depth", Vulkan | Metal | WGPU)
             equal &= row[x] == expected[x % 4];
     }
     CHECK(equal);
+}
+
+// D3D12 is excluded: it binds a writable DSV while the depth texture is in the DepthRead state.
+GPU_TEST_CASE("render-pass-read-only-depth", Vulkan | Metal | WGPU)
+{
+    testReadOnlyDepth(device, Format::D32Float);
+    testReadOnlyDepth(device, Format::D32FloatS8Uint);
 }

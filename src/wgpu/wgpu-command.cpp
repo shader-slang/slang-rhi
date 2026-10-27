@@ -348,14 +348,14 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, buffer->m_buffer, cmd.range.offset, cmd.range.size);
 }
 
-// WebGPU has no command to clear textures. Textures that can be attachments are cleared with an
-// empty render pass, other textures by copying from a buffer filled with the clear value.
+/// Returns whether the texture can be cleared as a render attachment. WebGPU has no texture-clear command.
 static bool canClearWithRenderPass(const TextureDesc& desc)
 {
     return desc.type != TextureType::Texture1D &&
            (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil));
 }
 
+/// Clears float/normalized textures, clamping normalized copy-clear values before packing texels.
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
@@ -385,6 +385,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     clearTextureWithCopy(texture, cmd.subresourceRange, texel);
 }
 
+/// Clears integer textures, interpreting the recorded bits according to the format's signedness.
 void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
@@ -416,6 +417,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     clearTextureWithCopy(texture, cmd.subresourceRange, texel);
 }
 
+/// Clears selected depth/stencil aspects of textures created with attachment usage.
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
@@ -436,6 +438,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
     );
 }
 
+/// Clears each selected mip/layer and 3D slice with an empty render pass, preserving uncleared aspects.
 void CommandRecorder::clearTextureWithRenderPass(
     TextureImpl* texture,
     const SubresourceRange& range,
@@ -506,6 +509,8 @@ void CommandRecorder::clearTextureWithRenderPass(
     }
 }
 
+/// Copies a repeated packed texel into the selected subresources using a staging buffer capped at about 4 MiB.
+/// Requires CopyDestination usage; each 3D slice is copied in row chunks from the same staging buffer.
 void CommandRecorder::clearTextureWithCopy(TextureImpl* texture, const SubresourceRange& range, const uint8_t* texel)
 {
     const TextureDesc& desc = texture->m_desc;
@@ -533,12 +538,19 @@ void CommandRecorder::clearTextureWithCopy(TextureImpl* texture, const Subresour
     WGPUBuffer buffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &bufferDesc);
     if (!buffer)
     {
+        m_device->printError("Failed to create staging buffer for texture clear\n");
         return;
     }
     // Releasing the buffer after recording the copies is fine, as the command buffer references it.
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferRelease(buffer); });
 
     uint8_t* data = static_cast<uint8_t*>(m_ctx.api.wgpuBufferGetMappedRange(buffer, 0, bufferDesc.size));
+    if (!data)
+    {
+        m_device->printError("Failed to get mapped staging buffer for texture clear\n");
+        m_ctx.api.wgpuBufferUnmap(buffer);
+        return;
+    }
     for (uint32_t row = 0; row < chunkRows; ++row)
     {
         for (uint32_t x = 0; x < size.width; ++x)
@@ -656,7 +668,9 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     {
         const RenderPassDepthStencilAttachment& attachmentIn = *desc.depthStencilAttachment;
         WGPURenderPassDepthStencilAttachment& attachment = depthStencilAttachment;
-        attachment.view = checked_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
+        TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachmentIn.view);
+        attachment.view = view->m_textureView;
+        Format format = view->m_desc.format == Format::Undefined ? view->m_texture->m_desc.format : view->m_desc.format;
         // WebGPU requires undefined load/store ops on read-only aspects.
         if (!attachmentIn.depthReadOnly)
         {
@@ -665,7 +679,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         }
         attachment.depthClearValue = attachmentIn.depthClearValue;
         attachment.depthReadOnly = attachmentIn.depthReadOnly;
-        if (getFormatInfo(attachmentIn.view->getDesc().format).hasStencil)
+        if (getFormatInfo(format).hasStencil)
         {
             if (!attachmentIn.stencilReadOnly)
             {
