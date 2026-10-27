@@ -107,8 +107,8 @@ GPU_TEST_CASE("specialization-constant-render", Vulkan | Metal | WGPU)
     ComPtr<ISlangBlob> blob;
     SubresourceLayout layout;
     REQUIRE_CALL(device->readTexture(texture, 0, 0, blob.writeRef(), &layout));
-    const float* pixel = (const float*)((const uint8_t*)blob->getBufferPointer() + layout.rowPitch * (size / 2)) +
-                         4 * (size / 2);
+    const float* pixel =
+        (const float*)((const uint8_t*)blob->getBufferPointer() + layout.rowPitch * (size / 2)) + 4 * (size / 2);
     float expected[] = {1.0f, -7.0f, 9.0f, 2.5f};
     compareResultFuzzy(pixel, expected, 4);
 }
