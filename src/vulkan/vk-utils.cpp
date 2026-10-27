@@ -509,6 +509,19 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
     return VkBufferUsageFlagBits(flags);
 }
 
+VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc)
+{
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
+        api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    return usage;
+}
+
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
 {
     switch (state)

@@ -5,7 +5,7 @@ namespace rhi {
 
 CommandList::CommandList(
     ArenaAllocator& allocator,
-    std::set<RefPtr<RefObject>>& trackedObjects,
+    std::set<InternalRefPtr<RefObject>>& trackedObjects,
     std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
 )
     : m_allocator(allocator)
@@ -378,6 +378,25 @@ void CommandList::write(commands::SetTextureState&& cmd)
 
 void CommandList::write(commands::GlobalBarrier&& cmd)
 {
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::AliasResources&& cmd)
+{
+    auto copyResources = [&](IResource* const* resources, uint32_t count) -> IResource* const*
+    {
+        if (!count)
+            return nullptr;
+        auto copy = static_cast<IResource* const*>(writeData(resources, size_t(count) * sizeof(IResource*)));
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            retainResource(asBuffer(copy[i]));
+            retainResource(asTexture(copy[i]));
+        }
+        return copy;
+    };
+    cmd.before = copyResources(cmd.before, cmd.beforeCount);
+    cmd.after = copyResources(cmd.after, cmd.afterCount);
     writeCommand(std::move(cmd));
 }
 

@@ -145,6 +145,19 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+
     DeviceImpl();
     ~DeviceImpl();
 
@@ -159,7 +172,7 @@ public:
     /// The single command queue. Device-level operations (readBuffer,
     /// createBuffer, createTexture) use m_queue->m_queueFence to participate
     /// in the fence chain. See synchronization model in metal-command.h.
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
     ClearEngine m_clearEngine;
 
@@ -170,6 +183,7 @@ public:
     {
         std::vector<MTL::AccelerationStructure*> list;
         std::vector<uint32_t> freeList;
+        NS::SharedPtr<MTL::AccelerationStructure> dummy;
         NS::SharedPtr<NS::Array> array;
         bool arrayDirty = true;
         std::vector<MTL::Resource*> resources;
@@ -178,10 +192,12 @@ public:
 
     uint32_t registerAccelerationStructure(MTL::AccelerationStructure* accelerationStructure);
     void unregisterAccelerationStructure(uint32_t index, MTL::AccelerationStructure* accelerationStructure);
+    Result initializeDummyAccelerationStructure();
     NS::Array* getAccelerationStructureArray();
     std::span<MTL::Resource* const> getAccelerationStructureResources();
 
     bool m_hasArgumentBufferTier2 = false;
+    bool m_supportsPlacementHeaps = false;
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_hasResidencySet = false;

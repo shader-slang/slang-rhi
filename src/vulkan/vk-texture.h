@@ -4,6 +4,8 @@
 
 namespace rhi::vk {
 
+Result getVkImageCreateInfo(const TextureDesc& desc, bool addCopyDestination, VkImageCreateInfo* outImageInfo);
+
 class TextureImpl : public Texture
 {
 public:
@@ -17,7 +19,6 @@ public:
 
     // ITexture implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
 public:
     struct View
@@ -33,6 +34,7 @@ public:
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
     // False for swap chain or externally-owned native images.
     bool m_shouldDestroyImage = true;
+    bool m_ownsMemory = true;
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
     bool m_isSwapchainTexture = false;
@@ -66,19 +68,14 @@ public:
         }
     };
 
-    RefPtr<TextureViewImpl> m_defaultView;
     std::unordered_map<ViewKey, View, ViewKeyHasher> m_views;
 };
 
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc);
+    TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc);
     ~TextureViewImpl();
-
-    // RefObject implementation
-    virtual void makeExternal() override { m_texture.establishStrongReference(); }
-    virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
     // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -97,7 +94,8 @@ public:
     TextureImpl::View getView();
     TextureImpl::View getRenderTargetView();
 
-    BreakableReference<TextureImpl> m_texture;
+    // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
+    TextureImpl* m_texture;
     /// Descriptor handles (texture read, texture write, combined texture/sampler).
     DescriptorHandle m_descriptorHandle[3];
 };

@@ -61,6 +61,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -308,6 +309,11 @@ void CommandExecutor::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
     SLANG_UNUSED(cmd);
 }
 
+void CommandExecutor::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
 void CommandExecutor::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -449,7 +455,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

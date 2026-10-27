@@ -30,7 +30,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
 public:
-    RefPtr<BufferImpl> m_buffer;
+    InternalRefPtr<BufferImpl> m_buffer;
     CPUDescriptorAllocation m_descriptor;
     DescriptorHandle m_descriptorHandle;
 };
@@ -49,7 +49,7 @@ public:
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 
 public:
-    RefPtr<BufferImpl> m_buffer;
+    InternalRefPtr<BufferImpl> m_buffer;
 };
 
 struct AccelerationStructureBuildDescConverter
