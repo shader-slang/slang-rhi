@@ -854,13 +854,17 @@ Result DeviceImpl::initVulkanDevice(
             {/* "16-bit-storage" */}
         );
 
+        // Keep extension enablement on the base atomics bits to preserve load/store/exchange support.
+        // Gate add/min-max capabilities on the operation-specific buffer bits; other storage classes
+        // and widths still need finer-grained capability checks.
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloatFeatures,
             shaderBufferFloat32Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
             {
                 availableFeatures.push_back(Feature::AtomicFloat);
-                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_add);
+                if (extendedFeatures.atomicFloatFeatures.shaderBufferFloat32AtomicAdd)
+                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_add);
             }
         );
 
@@ -870,8 +874,10 @@ Result DeviceImpl::initVulkanDevice(
             VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
             {
                 availableFeatures.push_back(Feature::AtomicFloat);
-                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float16_add);
-                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_min_max);
+                if (extendedFeatures.atomicFloat2Features.shaderBufferFloat16AtomicAdd)
+                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float16_add);
+                if (extendedFeatures.atomicFloat2Features.shaderBufferFloat32AtomicMinMax)
+                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_min_max);
             }
         );
 
