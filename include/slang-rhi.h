@@ -64,6 +64,8 @@ enum class StructType
 {
     ShaderProgramDesc,
     InputLayoutDesc,
+    ResourceHeapDesc,
+    ResourceMemoryRequirements,
     BufferDesc,
     TextureDesc,
     TextureViewDesc,
@@ -115,6 +117,8 @@ enum class DeviceType
     x(Bindless,                                 "bindless"                                      ) \
     x(Surface,                                  "surface"                                       ) \
     x(PipelineCache,                            "pipeline-cache"                                ) \
+    x(ResourceHeaps,                            "resource-heaps"                                ) \
+    x(ResourceAliasing,                         "resource-aliasing"                             ) \
     /* Rasterization features */                                                                  \
     x(Rasterization,                            "rasterization"                                 ) \
     x(Barycentrics,                             "barycentrics"                                  ) \
@@ -599,6 +603,7 @@ enum class NativeHandleType
     D3D12CpuDescriptorHandle = 0x00020007,
     D3D12Fence = 0x00020008,
     D3D12DeviceAddress = 0x00020009,
+    D3D12Heap = 0x0002000a,
 
     VkDevice = 0x00030001,
     VkPhysicalDevice = 0x00030002,
@@ -613,6 +618,7 @@ enum class NativeHandleType
     VkPipeline = 0x0003000b,
     VkSemaphore = 0x0003000c,
     VkMicromapEXT = 0x0003000d,
+    VkDeviceMemory = 0x0003000e,
 
     MTLDevice = 0x00040001,
     MTLCommandQueue = 0x00040002,
@@ -624,6 +630,7 @@ enum class NativeHandleType
     MTLSharedEvent = 0x00040008,
     MTLSamplerState = 0x00040009,
     MTLAccelerationStructure = 0x0004000a,
+    MTLHeap = 0x0004000b,
 
     CUdevice = 0x00050001,
     CUdeviceptr = 0x00050002,
@@ -776,6 +783,8 @@ enum class BufferUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
+class IResourceHeap;
+
 struct BufferDesc
 {
     static constexpr StructType kStructType = StructType::BufferDesc;
@@ -793,6 +802,14 @@ struct BufferDesc
 
     BufferUsage usage = BufferUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
+
+    /// Optional heap for explicit placement. Null requests a committed allocation.
+    /// The resource retains the heap allocation. Initial data writes the heap immediately and
+    /// must not overlap an active resource; without initial data, call aliasResources before use.
+    /// Creation-only: getDesc() returns null for heap and zero for heapOffset.
+    IResourceHeap* heap = nullptr;
+    /// Byte offset in heap, aligned to the resource's memory requirements. Ignored if heap is null.
+    Offset heapOffset = 0;
 
     /// The name of the buffer for debugging purposes.
     const char* label = nullptr;
@@ -1083,6 +1100,14 @@ struct TextureDesc
     /// so this sampler is used for all texture access.
     /// If not specified, tri-linear filtering and wrap addressing mode will be used.
     ISampler* sampler = nullptr;
+
+    /// Optional heap for explicit placement. Null requests a committed allocation.
+    /// The resource retains the heap allocation. Initial data writes the heap immediately and
+    /// must not overlap an active resource; without initial data, call aliasResources before use.
+    /// Creation-only: getDesc() returns null for heap and zero for heapOffset.
+    IResourceHeap* heap = nullptr;
+    /// Byte offset in heap, aligned to the resource's memory requirements. Ignored if heap is null.
+    Offset heapOffset = 0;
 
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
@@ -2968,6 +2993,31 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() = 0;
 
+    /// Activate all destinations in `after` as one batch.
+    /// On this queue, prior accesses to overlapping aliases happen before later accesses to the destinations.
+    /// All other resources overlapping any destination become inactive and lose their tracked state before
+    /// any destination is activated. Destination contents are undefined after activation.
+    /// Cross-queue synchronization is the caller's responsibility.
+    ///
+    /// `before` is an optional predecessor list for validation; it may be empty for first activation.
+    /// Each predecessor must overlap at least one destination in the same heap. The list does not limit
+    /// which overlapping aliases are deactivated.
+    /// `after` must be non-empty, and its resources must not overlap each other.
+    /// Both lists contain placed buffers or textures on the encoder's device. They describe sets, not
+    /// corresponding pairs, and may span multiple heaps.
+    /// Both arrays are consumed during this call; the command buffer retains all referenced resources.
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(
+        uint32_t beforeCount,
+        IResource* const* before,
+        uint32_t afterCount,
+        IResource* const* after
+    ) = 0;
+
+    inline void aliasResources(IResource* before, IResource* after)
+    {
+        aliasResources(before ? 1 : 0, before ? &before : nullptr, 1, &after);
+    }
+
     inline void setTextureState(ITexture* texture, ResourceState state)
     {
         setTextureState(texture, kEntireTexture, state);
@@ -3265,6 +3315,77 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
+};
+
+/// Resource categories permitted by a heap. Compatibility also depends on `ResourceMemoryRequirements`.
+enum class ResourceHeapUsage : uint32_t
+{
+    None = 0,
+    Buffers = (1 << 0),
+    NonRtDsTextures = (1 << 1),
+    RtDsTextures = (1 << 2),
+    All = (1 << 0) | (1 << 1) | (1 << 2),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ResourceHeapUsage);
+
+enum class ResourceMemoryRequirementFlags : uint32_t
+{
+    None = 0,
+    /// The resource cannot be placed in a resource heap.
+    RequiresDedicatedAllocation = (1 << 0),
+    /// A dedicated allocation is preferred but not required.
+    PrefersDedicatedAllocation = (1 << 1),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ResourceMemoryRequirementFlags);
+
+/// Memory requirements for placing a resource, valid only with the originating device.
+struct ResourceMemoryRequirements
+{
+    static constexpr StructType kStructType = StructType::ResourceMemoryRequirements;
+    StructType structType = kStructType;
+    /// Output extension chain for future allocation constraints.
+    void* next = nullptr;
+
+    Size size = 0;
+    /// Required alignment of the resource offset within the heap.
+    Size alignment = 0;
+    /// Required alignment of the native heap allocation itself.
+    Size heapAlignment = 0;
+    MemoryType memoryType = MemoryType::DeviceLocal;
+    ResourceHeapUsage usage = ResourceHeapUsage::None;
+    ResourceMemoryRequirementFlags flags = ResourceMemoryRequirementFlags::None;
+    /// Internal device identity and allocation compatibility constraints (e.g. Vulkan memory types).
+    /// Pass the queried requirements unchanged to heap creation/compatibility queries. Applications
+    /// must not interpret, modify, or persist this opaque data.
+    uint64_t _compatibility[2] = {};
+};
+
+/// Describes a heap compatible with every supplied resource requirement.
+struct ResourceHeapDesc
+{
+    static constexpr StructType kStructType = StructType::ResourceHeapDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+
+    MemoryType memoryType = MemoryType::DeviceLocal;
+    /// Allowed resource categories. When None, the value is derived from `requirements`.
+    ResourceHeapUsage usage = ResourceHeapUsage::None;
+    Size size = 0;
+    /// Requested heap alignment. Zero lets the backend derive it from `requirements`.
+    Size alignment = 0;
+    /// Non-empty array of requirements the heap must support, copied during creation.
+    const ResourceMemoryRequirements* requirements = nullptr;
+    uint32_t requirementCount = 0;
+    const char* label = nullptr;
+};
+
+class IResourceHeap : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xcd98d956, 0x6c48, 0x4e75, {0xb4, 0xeb, 0xe2, 0x72, 0x14, 0x93, 0x6b, 0xa0});
+
+public:
+    virtual SLANG_NO_THROW const ResourceHeapDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
 struct AdapterLUID
@@ -3631,6 +3752,42 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(getSlangSession(result.writeRef()));
         return result;
     }
+
+    /// Create a heap compatible with `desc.requirements`.
+    /// Returns `SLANG_E_NOT_AVAILABLE` when the requested resource set is unsupported.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) = 0;
+
+    inline ComPtr<IResourceHeap> createResourceHeap(const ResourceHeapDesc& desc)
+    {
+        ComPtr<IResourceHeap> heap;
+        SLANG_RETURN_NULL_ON_FAIL(createResourceHeap(desc, heap.writeRef()));
+        return heap;
+    }
+
+    /// Query the exact allocation requirements used when placing a buffer with `desc`.
+    /// Returns `SLANG_E_NOT_AVAILABLE` when that buffer cannot be placed.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) = 0;
+
+    /// Query the exact allocation requirements used when placing a texture with `desc`.
+    /// Returns `SLANG_E_NOT_AVAILABLE` when that texture cannot be placed.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) = 0;
+
+    /// Test whether `heap` can hold a resource with `requirements`, for use by persistent heap pools.
+    /// Requirements from another device are incompatible; a heap from another device is invalid.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResourceHeapCompatible(
+        IResourceHeap* heap,
+        const ResourceMemoryRequirements& requirements,
+        bool* outCompatible
+    ) = 0;
 
     /// Create a texture resource.
     ///
