@@ -31,6 +31,20 @@ RaytracingAccelerationStructure as2;
 RaytracingAccelerationStructure as3;
 #endif
 
+// Root descriptors must also allow unused resources to remain unbound.
+// Keep valid root buffers after absent slots to check root-parameter indices.
+[__AttributeUsage(_AttributeTargets.Var)]
+struct rootAttribute {};
+#if defined(__D3D12__)
+[root] RaytracingAccelerationStructure unusedRootAS;
+#endif
+[root] StructuredBuffer<float> rootBuffer1;
+[root] StructuredBuffer<float> rootBuffer2;
+[root] StructuredBuffer<float> rootBuffer3;
+[root] RWStructuredBuffer<float> rootRWBuffer1;
+[root] RWStructuredBuffer<float> rootRWBuffer2;
+[root] RWStructuredBuffer<float> rootRWBuffer3;
+
 RWStructuredBuffer<float> result;
 
 [shader("compute")]
@@ -52,4 +66,6 @@ void computeMain()
     result[6] = textureArray2.Load(int4(0));
     result[7] = rwTextureArray2.Load(int3(0));
     result[8] = texture2.SampleLevel(samplerState2, float2(0), 0.f);
+    result[9] = rootBuffer2[0];
+    result[10] = rootRWBuffer2[0];
 }

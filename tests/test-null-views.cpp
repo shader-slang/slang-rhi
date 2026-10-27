@@ -6,7 +6,11 @@ using namespace rhi::testing;
 // skip D3D11: too many UAVs
 // skip CPU: invalid results
 // skip WGPU: null views don't exist, would need to create dummy resources
-GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
+GPU_TEST_CASE_EX(
+    "null-views",
+    ALL & ~(D3D11 | CPU | WGPU),
+    DebugLayerOptionsBuilder().enableCoreValidation().enableGPUAssistedValidation()
+)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-null-views", "computeMain", shaderProgram.writeRef()));
@@ -151,6 +155,12 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         REQUIRE_CALL(cursor["samplerState1"].setBinding(static_cast<ISampler*>(nullptr)));
         REQUIRE_CALL(cursor["samplerState2"].setBinding(sampler));
         // "samplerState3" not set explicitly
+        REQUIRE_CALL(cursor["rootBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["rootBuffer2"].setBinding(structuredBuffer));
+        // "rootBuffer3" not set explicitly
+        REQUIRE_CALL(cursor["rootRWBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["rootRWBuffer2"].setBinding(rwStructuredBuffer));
+        // "rootRWBuffer3" not set explicitly
         REQUIRE_CALL(cursor["result"].setBinding(result));
 
         passEncoder->dispatchCompute(1, 1, 1);
@@ -160,7 +170,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, result, std::array{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 5.f});
+    compareComputeResult(device, result, std::array{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 5.f, 3.f, 4.f});
 }
 
 GPU_TEST_CASE("typed-buffer-binding-neighbors", CUDA)

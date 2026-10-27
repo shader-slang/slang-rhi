@@ -418,12 +418,12 @@ Result BindingDataBuilder::bindAsValue(
                 if (bindingRangeInfo.isRootParameter)
                 {
                     SLANG_RHI_ASSERT(rootParamIndex < m_bindingData->rootParameterCount);
-                    if (buffer)
-                    {
-                        m_bindingData->rootParameters[rootParamIndex] =
-                            isSrv ? createRootSRV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset)
-                                  : createRootUAV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset);
-                    }
+                    // Unused root buffers may be unbound. Explicitly clear the address to avoid
+                    // retaining an earlier binding; unlike heap null descriptors, dereferencing
+                    // a zero root buffer address is undefined.
+                    DeviceAddress address = buffer ? buffer->getDeviceAddress() + slot.bufferRange.offset : 0;
+                    m_bindingData->rootParameters[rootParamIndex] =
+                        isSrv ? createRootSRV(rootParamIndex, address) : createRootUAV(rootParamIndex, address);
                     rootParamIndex++;
                 }
                 else
@@ -481,11 +481,8 @@ Result BindingDataBuilder::bindAsValue(
                 if (bindingRangeInfo.isRootParameter)
                 {
                     SLANG_RHI_ASSERT(rootParamIndex < m_bindingData->rootParameterCount);
-                    if (as)
-                    {
-                        m_bindingData->rootParameters[rootParamIndex] =
-                            createRootSRV(rootParamIndex, as->getDeviceAddress());
-                    }
+                    m_bindingData->rootParameters[rootParamIndex] =
+                        createRootSRV(rootParamIndex, as ? as->getDeviceAddress() : 0);
                     rootParamIndex++;
                 }
                 else
