@@ -1,16 +1,16 @@
 #include "testing.h"
 
+#if SLANG_RHI_ENABLE_D3D12
+#include "d3d12/d3d12-shader-object.h"
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
 
 // skip D3D11: too many UAVs
 // skip CPU: invalid results
 // skip WGPU: null views don't exist, would need to create dummy resources
-GPU_TEST_CASE_EX(
-    "null-views",
-    ALL & ~(D3D11 | CPU | WGPU),
-    DebugLayerOptionsBuilder().enableCoreValidation().enableGPUAssistedValidation()
-)
+GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-null-views", "computeMain", shaderProgram.writeRef()));
@@ -57,6 +57,54 @@ GPU_TEST_CASE_EX(
         float data = 4.f;
         REQUIRE_CALL(device->createBuffer(desc, &data, rwStructuredBuffer.writeRef()));
     }
+
+#if SLANG_RHI_ENABLE_D3D12
+    if (device->getDeviceType() == DeviceType::D3D12)
+    {
+        // Check the recorded values without relying on an installed driver debug layer.
+        auto innerDevice = getUnderlyingDevice(device);
+        auto queue = innerDevice->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        ComPtr<IShaderObject> root;
+        REQUIRE_CALL(innerDevice->createRootShaderObject(shaderProgram, root.writeRef()));
+        REQUIRE(root);
+        ShaderCursor cursor(root);
+        REQUIRE_CALL(cursor["rootBuffer2"].setBinding(structuredBuffer));
+        REQUIRE_CALL(cursor["rootRWBuffer2"].setBinding(rwStructuredBuffer));
+        for (bool bound : {true, false})
+        {
+            CAPTURE(bound);
+            REQUIRE_CALL(cursor["rootBuffer1"].setBinding(bound ? structuredBuffer.get() : nullptr));
+            REQUIRE_CALL(cursor["rootRWBuffer1"].setBinding(bound ? rwStructuredBuffer.get() : nullptr));
+            BindingData* bindingData = nullptr;
+            REQUIRE_CALL(
+                checked_cast<CommandEncoder*>(encoder.get())
+                    ->getBindingData(checked_cast<RootShaderObject*>(root.get()), bindingData)
+            );
+            auto data = static_cast<d3d12::BindingDataImpl*>(bindingData);
+            // Root descriptor order follows test-null-views.slang; table parameters follow.
+            DeviceAddress expected[] = {
+                0,
+                bound ? structuredBuffer->getDeviceAddress() : 0,
+                structuredBuffer->getDeviceAddress(),
+                0,
+                bound ? rwStructuredBuffer->getDeviceAddress() : 0,
+                rwStructuredBuffer->getDeviceAddress(),
+                0,
+            };
+            REQUIRE(data->rootParameterCount >= SLANG_COUNT_OF(expected));
+            for (uint32_t i = 0; i < SLANG_COUNT_OF(expected); ++i)
+            {
+                CAPTURE(i);
+                const auto& parameter = data->rootParameters[i];
+                using RootParameter = d3d12::BindingDataImpl::RootParameter;
+                REQUIRE(parameter.type == (i < 4 ? RootParameter::SRV : RootParameter::UAV));
+                REQUIRE(parameter.index == i);
+                REQUIRE(parameter.bufferLocation == expected[i]);
+            }
+        }
+    }
+#endif
 
     ComPtr<ITexture> texture;
     {
