@@ -1549,14 +1549,9 @@ Result DeviceImpl::initVulkanDevice(
         m_calibratedTimestampSupport = {};
     }
 
-    // Disable pipeline caching if any required device entry point is unavailable.
-    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries &&
-        !(m_api.vkGetPipelineKeyKHR && m_api.vkCreatePipelineBinariesKHR && m_api.vkGetPipelineBinaryDataKHR &&
-          m_api.vkDestroyPipelineBinaryKHR && m_api.vkReleaseCapturedPipelineDataKHR))
-    {
-        m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries = VK_FALSE;
-    }
-    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
+    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries && m_api.vkGetPipelineKeyKHR &&
+        m_api.vkCreatePipelineBinariesKHR && m_api.vkGetPipelineBinaryDataKHR && m_api.vkDestroyPipelineBinaryKHR &&
+        m_api.vkReleaseCapturedPipelineDataKHR)
     {
         availableFeatures.push_back(Feature::PipelineCache);
     }

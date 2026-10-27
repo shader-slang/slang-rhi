@@ -433,7 +433,7 @@ Result createPipelineWithCache(
     outCacheKey = nullptr;
 
     // Early out if cache is not enabled or the feature is not supported.
-    if (!device->m_persistentPipelineCache || !api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
+    if (!device->m_persistentPipelineCache || !device->hasFeature(Feature::PipelineCache))
     {
         return createPipelineFunc(device, createInfo, outPipeline);
     }
