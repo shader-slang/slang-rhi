@@ -18,10 +18,11 @@ static void dispatchIncrement(IDevice* device, IComputePipeline* pipeline, IBuff
     queue->waitOnHost();
 }
 
-GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal | CUDA | WGPU)
+static void testBufferFromHandle(IDevice* device, bool typed)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-compute-trivial", "computeMain", shaderProgram.writeRef()));
+    const char* shaderModule = typed ? "test-buffer-from-handle" : "test-compute-trivial";
+    REQUIRE_CALL(loadProgram(device, shaderModule, "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -32,8 +33,8 @@ GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal | CUDA | WGPU)
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
-    bufferDesc.format = Format::Undefined;
-    bufferDesc.elementSize = sizeof(float);
+    bufferDesc.format = typed ? Format::R32Float : Format::Undefined;
+    bufferDesc.elementSize = typed ? 0 : sizeof(float);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
@@ -91,5 +92,20 @@ GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal | CUDA | WGPU)
             SLANG_E_INVALID_HANDLE
         );
         CHECK_EQ(invalidBuffer.get(), nullptr);
+    }
+}
+
+GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal | CUDA | WGPU)
+{
+    SUBCASE("structured")
+    {
+        testBufferFromHandle(device, false);
+    }
+    if (ctx->deviceType == DeviceType::D3D12 || ctx->deviceType == DeviceType::Vulkan)
+    {
+        SUBCASE("typed")
+        {
+            testBufferFromHandle(device, true);
+        }
     }
 }
