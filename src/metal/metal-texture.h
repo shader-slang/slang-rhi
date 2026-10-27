@@ -31,12 +31,17 @@ class TextureViewImpl : public TextureView
 {
 public:
     TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc);
+    ~TextureViewImpl();
 
     // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) override;
 
 public:
     // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.

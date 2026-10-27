@@ -259,6 +259,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (m_hasResidencySet)
     {
         addFeature(Feature::ResidencySet);
+        // Handles may be stored anywhere in GPU memory, so per-encoder resource discovery is insufficient.
+        addFeature(Feature::Bindless);
     }
 
     addCapability(Capability::metal);

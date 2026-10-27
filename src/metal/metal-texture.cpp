@@ -50,10 +50,31 @@ TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& de
 {
 }
 
+TextureViewImpl::~TextureViewImpl()
+{
+    if (m_textureView)
+        getDevice<DeviceImpl>()->unregisterResource(m_textureView.get());
+}
+
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLTexture;
     outHandle->value = (uint64_t)m_textureView.get();
+    return SLANG_OK;
+}
+
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    if (!getDevice<DeviceImpl>()->m_hasResidencySet)
+        return SLANG_E_NOT_AVAILABLE;
+    if (access != DescriptorHandleAccess::Read && access != DescriptorHandleAccess::ReadWrite)
+        return SLANG_E_INVALID_ARG;
+
+    static_assert(sizeof(MTL::ResourceID) == sizeof(uint64_t));
+    outHandle->type =
+        access == DescriptorHandleAccess::Read ? DescriptorHandleType::Texture : DescriptorHandleType::RWTexture;
+    outHandle->value = m_textureView->gpuResourceID()._impl;
     return SLANG_OK;
 }
 
@@ -273,6 +294,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
         sr.mipCount == textureDesc.mipCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;
+        registerResource(viewImpl->m_textureView.get());
         returnComPtr(outView, viewImpl);
         return SLANG_OK;
     }
@@ -290,6 +312,8 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
         return SLANG_FAIL;
     }
 
+    // The view has its own resource ID, which shader validation must also know about.
+    registerResource(viewImpl->m_textureView.get());
     returnComPtr(outView, viewImpl);
     return SLANG_OK;
 }

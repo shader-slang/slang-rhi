@@ -126,7 +126,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         case slang::BindingType::MutableTypedBuffer:
             slotIndex = m_slotCount;
             m_slotCount += count;
-            m_resourceCount.buffer += count;
+            m_resourceCount.texture += count;
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
             slotIndex = m_slotCount;

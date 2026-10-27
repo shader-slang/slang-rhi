@@ -4,7 +4,7 @@ using namespace rhi;
 using namespace rhi::testing;
 
 // Bindless buffers are currently not supported on CUDA.
-GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
+GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan | Metal)
 {
     if (!device->hasFeature(Feature::Bindless))
     {
@@ -136,12 +136,12 @@ GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
         auto passEncoder = commandEncoder->beginComputePass();
         IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject);
-        cursor["buffer"].setDescriptorHandle(bufferHandle);
-        cursor["structuredBuffer"].setDescriptorHandle(structuredBufferHandle);
-        cursor["byteAddressBuffer"].setDescriptorHandle(byteAddressBufferHandle);
-        cursor["rwBuffer"].setDescriptorHandle(rwBufferHandle);
-        cursor["rwStructuredBuffer"].setDescriptorHandle(rwStructuredBufferHandle);
-        cursor["rwByteAddressBuffer"].setDescriptorHandle(rwByteAddressBufferHandle);
+        REQUIRE_CALL(cursor["params"]["buffer"].setDescriptorHandle(bufferHandle));
+        REQUIRE_CALL(cursor["params"]["structuredBuffer"].setDescriptorHandle(structuredBufferHandle));
+        REQUIRE_CALL(cursor["params"]["byteAddressBuffer"].setDescriptorHandle(byteAddressBufferHandle));
+        REQUIRE_CALL(cursor["params"]["rwBuffer"].setDescriptorHandle(rwBufferHandle));
+        REQUIRE_CALL(cursor["params"]["rwStructuredBuffer"].setDescriptorHandle(rwStructuredBufferHandle));
+        REQUIRE_CALL(cursor["params"]["rwByteAddressBuffer"].setDescriptorHandle(rwByteAddressBufferHandle));
         cursor["result"].setBinding(result);
 
         passEncoder->dispatchCompute(1, 1, 1);
@@ -181,7 +181,7 @@ GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
     compareComputeResult(device, rwByteAddressBuffer, std::array{2.f, 3.f});
 }
 
-GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA | Metal)
 {
     if (!device->hasFeature(Feature::Bindless))
     {
@@ -463,20 +463,20 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
         auto passEncoder = commandEncoder->beginComputePass();
         IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject);
-        cursor["texture1D"].setDescriptorHandle(texture1DHandle);
-        cursor["texture2D"].setDescriptorHandle(texture2DHandle);
-        cursor["texture3D"].setDescriptorHandle(texture3DHandle);
-        cursor["textureCube"].setDescriptorHandle(textureCubeHandle);
-        cursor["texture1DArray"].setDescriptorHandle(texture1DArrayHandle);
-        cursor["texture2DArray"].setDescriptorHandle(texture2DArrayHandle);
-        cursor["textureCubeArray"].setDescriptorHandle(textureCubeArrayHandle);
-        cursor["rwTexture1D"].setDescriptorHandle(rwTexture1DHandle);
-        cursor["rwTexture2D"].setDescriptorHandle(rwTexture2DHandle);
-        cursor["rwTexture3D"].setDescriptorHandle(rwTexture3DHandle);
-        cursor["rwTexture1DArray"].setDescriptorHandle(rwTexture1DArrayHandle);
-        cursor["rwTexture2DArray"].setDescriptorHandle(rwTexture2DArrayHandle);
-        cursor["samplerPoint"].setDescriptorHandle(samplerPointHandle);
-        cursor["samplerLinear"].setDescriptorHandle(samplerLinearHandle);
+        REQUIRE_CALL(cursor["params"]["texture1D"].setDescriptorHandle(texture1DHandle));
+        REQUIRE_CALL(cursor["params"]["texture2D"].setDescriptorHandle(texture2DHandle));
+        REQUIRE_CALL(cursor["params"]["texture3D"].setDescriptorHandle(texture3DHandle));
+        REQUIRE_CALL(cursor["params"]["textureCube"].setDescriptorHandle(textureCubeHandle));
+        REQUIRE_CALL(cursor["params"]["texture1DArray"].setDescriptorHandle(texture1DArrayHandle));
+        REQUIRE_CALL(cursor["params"]["texture2DArray"].setDescriptorHandle(texture2DArrayHandle));
+        REQUIRE_CALL(cursor["params"]["textureCubeArray"].setDescriptorHandle(textureCubeArrayHandle));
+        REQUIRE_CALL(cursor["params"]["rwTexture1D"].setDescriptorHandle(rwTexture1DHandle));
+        REQUIRE_CALL(cursor["params"]["rwTexture2D"].setDescriptorHandle(rwTexture2DHandle));
+        REQUIRE_CALL(cursor["params"]["rwTexture3D"].setDescriptorHandle(rwTexture3DHandle));
+        REQUIRE_CALL(cursor["params"]["rwTexture1DArray"].setDescriptorHandle(rwTexture1DArrayHandle));
+        REQUIRE_CALL(cursor["params"]["rwTexture2DArray"].setDescriptorHandle(rwTexture2DArrayHandle));
+        REQUIRE_CALL(cursor["params"]["samplerPoint"].setDescriptorHandle(samplerPointHandle));
+        REQUIRE_CALL(cursor["params"]["samplerLinear"].setDescriptorHandle(samplerLinearHandle));
         cursor["result"].setBinding(result);
 
         passEncoder->dispatchCompute(1, 1, 1);
@@ -780,4 +780,274 @@ GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
             12.f,
         }
     );
+}
+
+// Metal handles are native 64-bit values. Keep targets alive explicitly: the only
+// shader binding referencing them is a device-local buffer containing these records.
+GPU_TEST_CASE("bindless-records", Metal)
+{
+    if (!device->hasFeature(Feature::Bindless))
+        SKIP("Bindless requires a residency set on Metal");
+
+    struct Record
+    {
+        uint64_t buffer;
+        uint64_t typedBuffer;
+        uint64_t writableBuffer;
+        uint64_t texture;
+        uint64_t sampler;
+    };
+    static_assert(sizeof(Record) == 40);
+    Record records[2] = {};
+
+    std::array<float, 132> values = {};
+    values[64] = 3.f;
+    values[65] = 7.f;
+    values[128] = 5.f;
+    values[129] = 11.f;
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(values);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, values.data(), buffer.writeRef()));
+
+    SamplerDesc samplerDesc = {};
+    samplerDesc.minFilter = TextureFilteringMode::Point;
+    samplerDesc.magFilter = TextureFilteringMode::Point;
+    ComPtr<ISampler> sampler;
+    REQUIRE_CALL(device->createSampler(samplerDesc, sampler.writeRef()));
+    DescriptorHandle samplerHandle;
+    REQUIRE_CALL(sampler->getDescriptorHandle(&samplerHandle));
+
+    // Each record selects a different layer, and each view starts at mip 1.
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2DArray;
+    textureDesc.size = {2, 2, 1};
+    textureDesc.arrayLength = 2;
+    textureDesc.mipCount = 2;
+    textureDesc.format = Format::R32Float;
+    textureDesc.usage = TextureUsage::ShaderResource;
+    const float baseMip[4] = {-1.f, -1.f, -1.f, -1.f};
+    const float mipValues[2] = {13.f, 17.f};
+    SubresourceData textureData[] = {
+        {baseMip, 8, 16},
+        {&mipValues[0], 4, 4},
+        {baseMip, 8, 16},
+        {&mipValues[1], 4, 4},
+    };
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, textureData, texture.writeRef()));
+    ComPtr<ITextureView> views[2];
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        BufferRange range = {256 * (i + 1), 8};
+        DescriptorHandle handle;
+        REQUIRE_CALL(buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::Undefined, range, &handle));
+        records[i].buffer = handle.value;
+        REQUIRE_CALL(buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::R32Float, range, &handle));
+        records[i].typedBuffer = handle.value;
+        DescriptorHandle repeated;
+        REQUIRE_CALL(buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::R32Float, range, &repeated));
+        CHECK(repeated.value == handle.value);
+        REQUIRE_CALL(buffer->getDescriptorHandle(DescriptorHandleAccess::ReadWrite, Format::R32Float, range, &handle));
+        records[i].writableBuffer = handle.value;
+
+        TextureViewDesc viewDesc = {};
+        viewDesc.subresourceRange = {i, 1, 1, 1};
+        REQUIRE_CALL(device->createTextureView(texture, viewDesc, views[i].writeRef()));
+        REQUIRE_CALL(views[i]->getDescriptorHandle(DescriptorHandleAccess::Read, &handle));
+        records[i].texture = handle.value;
+        records[i].sampler = samplerHandle.value;
+    }
+
+    BufferDesc recordsDesc = {};
+    recordsDesc.size = sizeof(records);
+    recordsDesc.elementSize = sizeof(Record);
+    recordsDesc.usage = BufferUsage::ShaderResource;
+    ComPtr<IBuffer> recordsBuffer;
+    REQUIRE_CALL(device->createBuffer(recordsDesc, records, recordsBuffer.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    SUBCASE("compute")
+    {
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadProgram(device, "test-bindless-records", "computeMain", program.writeRef()));
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        ComPtr<IComputePipeline> pipeline;
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+        BufferDesc resultDesc = {};
+        resultDesc.size = 2 * sizeof(float);
+        resultDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        ComPtr<IBuffer> result;
+        REQUIRE_CALL(device->createBuffer(resultDesc, nullptr, result.writeRef()));
+        auto encoder = queue->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        ShaderCursor cursor(pass->bindPipeline(pipeline));
+        REQUIRE_CALL(cursor["records"].setBinding(recordsBuffer));
+        REQUIRE_CALL(cursor["result"].setBinding(result));
+        pass->dispatchCompute(2, 1, 1);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(device, result, std::array{23.f, 33.f});
+        values[64] += 1;
+        values[128] += 1;
+        compareComputeResult(device, buffer, values);
+    }
+    SUBCASE("graphics")
+    {
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadProgram(device, "test-bindless-records", {"vertexMain", "fragmentMain"}, program.writeRef()));
+        ColorTargetDesc target = {};
+        target.format = Format::RGBA32Float;
+        RenderPipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
+        ComPtr<IRenderPipeline> pipeline;
+        REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+        TextureDesc outputDesc = {};
+        outputDesc.size = {2, 1, 1};
+        outputDesc.format = target.format;
+        outputDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
+        ComPtr<ITexture> output;
+        REQUIRE_CALL(device->createTexture(outputDesc, nullptr, output.writeRef()));
+
+        auto encoder = queue->createCommandEncoder();
+        RenderPassColorAttachment attachment = {};
+        attachment.view = output->getDefaultView();
+        RenderPassDesc passDesc = {};
+        passDesc.colorAttachments = &attachment;
+        passDesc.colorAttachmentCount = 1;
+        auto pass = encoder->beginRenderPass(passDesc);
+        ShaderCursor cursor(pass->bindPipeline(pipeline));
+        REQUIRE_CALL(cursor["records"].setBinding(recordsBuffer));
+        RenderState state = {};
+        state.viewports[0] = Viewport::fromSize(2, 1);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect::fromSize(2, 1);
+        state.scissorRectCount = 1;
+        pass->setRenderState(state);
+        DrawArguments args = {};
+        args.vertexCount = 3;
+        pass->draw(args);
+        pass->end();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        ComPtr<ISlangBlob> data;
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(output, 0, 0, data.writeRef(), &layout));
+        const float* pixels = static_cast<const float*>(data->getBufferPointer());
+        CHECK(pixels[0] == 23.f);
+        CHECK(pixels[4] == 33.f);
+    }
+}
+
+GPU_TEST_CASE("bindless-metal-availability", Metal)
+{
+    bool supported = device->hasFeature(Feature::ResidencySet);
+    CHECK(device->hasFeature(Feature::Bindless) == supported);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = 256;
+    bufferDesc.usage = BufferUsage::ShaderResource;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+    TextureDesc textureDesc = {};
+    textureDesc.format = Format::R32Float;
+    textureDesc.usage = TextureUsage::ShaderResource;
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, nullptr, texture.writeRef()));
+    ComPtr<ISampler> sampler;
+    REQUIRE_CALL(device->createSampler({}, sampler.writeRef()));
+    Result expected = supported ? SLANG_OK : SLANG_E_NOT_AVAILABLE;
+    DescriptorHandle handle = {};
+    CHECK(
+        buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::Undefined, kEntireBuffer, &handle) == expected
+    );
+    CHECK(bool(handle) == supported);
+    CHECK(
+        buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::R32Float, kEntireBuffer, &handle) == expected
+    );
+    CHECK(bool(handle) == supported);
+    CHECK(texture->getDefaultView()->getDescriptorHandle(DescriptorHandleAccess::Read, &handle) == expected);
+    CHECK(bool(handle) == supported);
+    CHECK(sampler->getDescriptorHandle(&handle) == expected);
+    CHECK(bool(handle) == supported);
+    CHECK(texture->getDefaultView()->getCombinedTextureSamplerDescriptorHandle(&handle) == SLANG_E_NOT_AVAILABLE);
+
+    if (supported)
+    {
+        CHECK(
+            buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::R32Float, {1, 4}, &handle) ==
+            SLANG_E_INVALID_ARG
+        );
+        CHECK_FALSE(handle);
+        CHECK(
+            buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::R32Float, {0, 3}, &handle) ==
+            SLANG_E_INVALID_ARG
+        );
+        CHECK(
+            buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::Undefined, {256, 0}, &handle) ==
+            SLANG_E_INVALID_ARG
+        );
+        CHECK(
+            buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::BC1Unorm, kEntireBuffer, &handle) ==
+            SLANG_E_NOT_AVAILABLE
+        );
+    }
+}
+
+// The same texture-buffer view implementation is used for ordinary bindings.
+// Exercise both layouts even when bindless is unavailable (the residency fallback).
+GPU_TEST_CASE("metal-typed-buffer-bindings", Metal)
+{
+    bool parameterBlock = false;
+    SUBCASE("root") {}
+    SUBCASE("parameter-block")
+    {
+        parameterBlock = true;
+    }
+    const char* rootSource = R"(
+        Buffer<uint> source;
+        RWBuffer<uint> destination;
+        [shader("compute")] [numthreads(1, 1, 1)]
+        void computeMain() { destination[0] = source[0] + 1; destination[1] = source[1] + 2; }
+    )";
+    const char* blockSource = R"(
+        struct Params { Buffer<uint> source; RWBuffer<uint> destination; };
+        ParameterBlock<Params> params;
+        [shader("compute")] [numthreads(1, 1, 1)]
+        void computeMain() { params.destination[0] = params.source[0] + 1; params.destination[1] = params.source[1] + 2; }
+    )";
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadComputeProgramFromSource(device, parameterBlock ? blockSource : rootSource, program.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+    BufferDesc desc = {};
+    desc.size = 8;
+    desc.format = Format::R32Uint;
+    desc.usage = BufferUsage::ShaderResource;
+    const uint32_t input[] = {41, 100};
+    ComPtr<IBuffer> source;
+    REQUIRE_CALL(device->createBuffer(desc, input, source.writeRef()));
+    desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    ComPtr<IBuffer> destination;
+    REQUIRE_CALL(device->createBuffer(desc, nullptr, destination.writeRef()));
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    auto pass = encoder->beginComputePass();
+    ShaderCursor cursor(pass->bindPipeline(pipeline));
+    if (parameterBlock)
+        cursor = cursor["params"];
+    REQUIRE_CALL(cursor["source"].setBinding(source));
+    REQUIRE_CALL(cursor["destination"].setBinding(destination));
+    pass->dispatchCompute(1, 1, 1);
+    pass->end();
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+    compareComputeResult(device, destination, std::array{42u, 102u});
 }

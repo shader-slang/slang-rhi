@@ -256,10 +256,29 @@ Result BindingDataBuilder::bindAsValue(
                 }
             }
             break;
-        case slang::BindingType::RawBuffer:
-        case slang::BindingType::MutableRawBuffer:
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableTypedBuffer:
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
+                BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
+                if (buffer)
+                {
+                    bool writable = bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer;
+                    MTL::Texture* view;
+                    SLANG_RETURN_ON_FAIL(buffer->getTextureView(
+                        slot.format,
+                        slot.bufferRange,
+                        writable ? DescriptorHandleAccess::ReadWrite : DescriptorHandleAccess::Read,
+                        &view
+                    ));
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
+                    SLANG_RETURN_ON_FAIL(setTexture(m_bindingData, registerIndex, view));
+                }
+            }
+            break;
+        case slang::BindingType::RawBuffer:
+        case slang::BindingType::MutableRawBuffer:
             for (uint32_t i = 0; i < count; ++i)
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
@@ -548,10 +567,40 @@ Result BindingDataBuilder::writeArgumentBuffer(
                 }
             }
             break;
-        case slang::BindingType::RawBuffer:
-        case slang::BindingType::MutableRawBuffer:
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableTypedBuffer:
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
+                BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
+                if (buffer)
+                {
+                    bool writable = bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer;
+                    MTL::Texture* view;
+                    SLANG_RETURN_ON_FAIL(buffer->getTextureView(
+                        slot.format,
+                        slot.bufferRange,
+                        writable ? DescriptorHandleAccess::ReadWrite : DescriptorHandleAccess::Read,
+                        &view
+                    ));
+                    auto resourceId = view->gpuResourceID();
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                    if (!m_device->m_hasResidencySet)
+                    {
+                        if (writable)
+                        {
+                            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, view));
+                        }
+                        else
+                        {
+                            SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, view));
+                        }
+                    }
+                }
+            }
+            break;
+        case slang::BindingType::RawBuffer:
+        case slang::BindingType::MutableRawBuffer:
         {
             for (uint32_t i = 0; i < count; ++i)
             {
@@ -563,8 +612,7 @@ Result BindingDataBuilder::writeArgumentBuffer(
                     memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
                     if (!m_device->m_hasResidencySet)
                     {
-                        if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
-                            bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                        if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer)
                         {
                             SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
                         }

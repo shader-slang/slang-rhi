@@ -86,6 +86,17 @@ Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    if (!getDevice<DeviceImpl>()->m_hasResidencySet)
+        return SLANG_E_NOT_AVAILABLE;
+
+    static_assert(sizeof(MTL::ResourceID) == sizeof(uint64_t));
+    *outHandle = {DescriptorHandleType::Sampler, m_samplerState->gpuResourceID()._impl};
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     AUTORELEASEPOOL

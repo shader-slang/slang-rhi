@@ -58,12 +58,12 @@
 
 ## `IBuffer` interface
 
-| API                   | CPU     | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-----------------------|---------|------|-------|-------|--------|-------|------|
-| `getDesc`             | yes     | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getSharedHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
-| `getDeviceAddress`    | yes (1) | yes  | :x:   | yes   | yes    | yes   | :x:  |
-| `getDescriptorHandle` | :x:     | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| API                   | CPU     | CUDA | D3D11 | D3D12 | Vulkan | Metal   | WGPU |
+|-----------------------|---------|------|-------|-------|--------|---------|------|
+| `getDesc`             | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `getSharedHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
+| `getDeviceAddress`    | yes (1) | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getDescriptorHandle` | :x:     | :x:  | :x:   | yes   | yes    | yes (2) | :x:  |
 
 (1) returns host address
 
@@ -79,19 +79,32 @@
 
 ## `ITextureView` interface
 
-| API                                        | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|--------------------------------------------|-----|------|-------|-------|--------|-------|------|
-| `getDesc`                                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getTexture`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getDescriptorHandle`                      | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
-| `getCombinedTextureSamplerDescriptorHandle`| :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+| API                                        | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal   | WGPU |
+|--------------------------------------------|-----|------|-------|-------|--------|---------|------|
+| `getDesc`                                  | yes | yes  | yes   | yes   | yes    | yes     | yes  |
+| `getTexture`                               | yes | yes  | yes   | yes   | yes    | yes     | yes  |
+| `getDescriptorHandle`                      | :x: | yes  | :x:   | yes   | yes    | yes (2) | :x:  |
+| `getCombinedTextureSamplerDescriptorHandle`| :x: | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 
 ## `ISampler` interface
 
-| API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-----------------------|-----|------|-------|-------|--------|-------|------|
-| `getDesc`             | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getDescriptorHandle` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal   | WGPU |
+|-----------------------|-----|------|-------|-------|--------|---------|------|
+| `getDesc`             | yes | yes  | yes   | yes   | yes    | yes     | yes  |
+| `getDescriptorHandle` | :x: | :x:  | :x:   | yes   | yes    | yes (2) | :x:  |
+
+(2) Metal requires an active residency set (`Feature::ResidencySet`). Bindless handles are unavailable
+when `SLANG_RHI_METAL_NO_RESIDENCY_SET` is set or residency-set creation is unsupported or fails.
+Handles contain native 64-bit GPU addresses (structured/raw buffers) or resource IDs (typed-buffer
+views, texture views, and samplers); no descriptor heap is allocated and `BindlessDesc` capacities
+do not apply. Typed-buffer views must use a supported Metal texture-buffer format and an aligned
+buffer offset. Read/write views additionally require support for read/write access to that format.
+
+On Metal, put handles in a `ParameterBlock` or in structs stored in a `StructuredBuffer`.
+Top-level `.Handle` parameters use ordinary Metal resource bindings and cannot be populated with
+`setDescriptorHandle`. Applications must keep buffers, texture views, and samplers referenced by
+handles alive until GPU execution completes. Handles do not retain their resources. Combined
+texture/sampler handles and acceleration-structure descriptor handles remain unsupported.
 
 ## `IFence` interface
 
