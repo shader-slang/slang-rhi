@@ -285,7 +285,8 @@ Result AccelerationStructureBuildDescConverter::convert(
                 geometry.geometry.triangles.pNext = &ommData;
             }
 
-            primitiveCounts[i] = max(triangles.vertexCount, triangles.indexCount) / 3;
+            // With an index buffer, the triangles are defined by the indices.
+            primitiveCounts[i] = (triangles.indexBuffer ? triangles.indexCount : triangles.vertexCount) / 3;
         }
 
         buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;

@@ -388,6 +388,14 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() override;
 
+    using ICommandEncoder::aliasResources;
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(
+        uint32_t beforeCount,
+        IResource* const* before,
+        uint32_t afterCount,
+        IResource* const* after
+    ) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;

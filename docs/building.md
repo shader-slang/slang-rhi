@@ -41,16 +41,33 @@ default preset, executables are placed in `build/<configuration>/`.
 Activate the Emscripten SDK, then run from the repository root:
 
 ```sh
-cmake --preset emscripten
-cmake --build build --config Debug --target wasm-test
-python -m http.server 8000 --bind 127.0.0.1 --directory build/Debug
+cmake --preset emscripten -B build/browser
+cmake --build build/browser --config Release --target example-site
+python -m http.server 8000 --bind 127.0.0.1 --directory build/browser/Release/site
 ```
 
-Open `http://localhost:8000/wasm-test.html` in a browser with WebGPU and JSPI support.
-The browser smoke test lives in `tests/wasm` and is built when
-`SLANG_RHI_BUILD_TESTS` is enabled, independently of `SLANG_RHI_BUILD_EXAMPLES`.
-CI currently compiles it in Debug and Release but does not run it in a browser.
+Open `http://localhost:8000/` in a browser with WebGPU and JSPI support.
+Use `index.html?example=raster` to launch a specific example.
 
+The `example-site` target assembles a self-contained `site/` directory containing
+all runtime assets. To host the examples, publish its contents together over HTTPS.
+
+CI packages the Emscripten Release build on pull requests and on `main`. Pull
+requests expose a downloadable `browser-examples` artifact. Only pushes to
+upstream `main` deploy the site, after the full build matrix succeeds, to
+<https://shader-slang.github.io/slang-rhi/examples/> using GitHub Pages. The Pages
+artifact contains an `examples/` subdirectory, leaving the site root available
+for future content. Each deployment replaces the entire Pages site; future
+content must be included in the same artifact.
+
+Repository setup: select **GitHub Actions** under **Settings > Pages > Build and
+deployment > Source**, and restrict the `github-pages` environment to deployments
+from `main`. Pull requests and manual workflow runs do not deploy.
+
+The browser smoke test lives in `tests/wasm` and is built as `wasm-test` when
+`SLANG_RHI_BUILD_TESTS` is enabled, independently of `SLANG_RHI_BUILD_EXAMPLES`.
+Build `wasm-test` and serve `build/browser/Release` to open `wasm-test.html`.
+CI currently compiles it in Debug and Release but does not run it in a browser.
 The preset uses `-sJSPI`; additional JavaScript-facing exports that can wait must
 be listed in `-sJSPI_EXPORTS` and their returned promises awaited (`main` is included by default).
 
@@ -101,8 +118,25 @@ On Windows, append `.exe` to executable names. Tests and examples need the
 corresponding build options enabled; windowed examples also need a display and
 a backend that supports rendering and presentation.
 
-Desktop builds produce individual binaries such as `example-triangle` and a
-combined `example-runner`.
+Native builds produce individual binaries such as `example-triangle` and a combined
+`example-runner`. Browser builds produce only the combined runner. The combined
+runner starts with Triangle by default. To list examples or select an example and backend:
+
+```sh
+./example-runner --list-examples
+./example-runner --example raster
+./example-runner --example triangle --device wgpu
+```
+
+To run the browser integration tests, install Python's `playwright` package and
+Chromium (`python -m playwright install chromium`), then run from the repository root
+with `example-site` built:
+
+```sh
+python tools/test-example-runner.py build/browser/Release/site --site
+```
+
+Use `--browser-executable <path>` to test with an installed Chromium browser.
 
 GPU test names end in the backend name. Use doctest's test-case filter to select
 tests, or select a backend explicitly:

@@ -42,6 +42,9 @@ DeviceAddress BufferImpl::getDeviceAddress()
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
+    if (desc_.heap)
+        return SLANG_E_NOT_AVAILABLE;
+
     BufferDesc desc = fixupBufferDesc(desc_);
 
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);

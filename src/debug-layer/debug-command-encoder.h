@@ -306,6 +306,14 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    using ICommandEncoder::aliasResources;
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(
+        uint32_t beforeCount,
+        IResource* const* before,
+        uint32_t afterCount,
+        IResource* const* after
+    ) override;
+
 public:
     void requireOpen();
     void requireNoPass();

@@ -138,6 +138,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -460,7 +461,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
     // Setup color attachments.
-    renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
+    // Note: renderTargetArrayLength is the number of layers for layered rendering, not the number of
+    // attachments. Leave it at its default (0, not layered).
     for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
@@ -1031,6 +1033,12 @@ void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
 void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 {
     SLANG_UNUSED(cmd);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    SLANG_UNUSED(cmd);
+    cmdGlobalBarrier({});
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

@@ -578,3 +578,109 @@ GPU_TEST_CASE("cmd-draw-change-vertex-buffer", D3D11 | D3D12 | Vulkan | Metal | 
         CHECK(pixel[3] == 1);
     }
 }
+
+// Render to multiple color targets in a single pass and check that each target receives its own output.
+GPU_TEST_CASE("cmd-draw-multiple-render-targets", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    const char* shaderSource = R"(
+        [shader("vertex")]
+        float4 vertexMain(uint vid: SV_VertexID) : SV_Position
+        {
+            float2 uv = float2((vid << 1) & 2, vid & 2);
+            return float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
+        }
+
+        struct FragmentOutput
+        {
+            float4 color0 : SV_Target0;
+            float4 color1 : SV_Target1;
+        };
+
+        [shader("fragment")]
+        FragmentOutput fragmentMain()
+        {
+            FragmentOutput output;
+            output.color0 = float4(1.0, 0.0, 0.0, 1.0);
+            output.color1 = float4(0.0, 0.0, 1.0, 1.0);
+            return output;
+        }
+    )";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(
+        loadRenderProgramFromSource(device, shaderSource, "vertexMain", "fragmentMain", shaderProgram.writeRef())
+    );
+
+    const uint32_t kTargetCount = 2;
+    const uint32_t kSize = 4;
+
+    ColorTargetDesc colorTargets[kTargetCount] = {};
+    ComPtr<ITexture> textures[kTargetCount];
+    RenderPassColorAttachment colorAttachments[kTargetCount] = {};
+    for (uint32_t i = 0; i < kTargetCount; ++i)
+    {
+        colorTargets[i].format = Format::RGBA32Float;
+
+        TextureDesc textureDesc = {};
+        textureDesc.format = Format::RGBA32Float;
+        textureDesc.size = {kSize, kSize, 1};
+        textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
+        textureDesc.defaultState = ResourceState::RenderTarget;
+        REQUIRE_CALL(device->createTexture(textureDesc, nullptr, textures[i].writeRef()));
+
+        colorAttachments[i].view = textures[i]->getDefaultView();
+    }
+
+    RenderPipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    pipelineDesc.targets = colorTargets;
+    pipelineDesc.targetCount = kTargetCount;
+    ComPtr<IRenderPipeline> pipeline;
+    REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    RenderPassDesc renderPass = {};
+    renderPass.colorAttachments = colorAttachments;
+    renderPass.colorAttachmentCount = kTargetCount;
+    auto pass = encoder->beginRenderPass(renderPass);
+    pass->bindPipeline(pipeline);
+    RenderState state = {};
+    state.viewports[0] = Viewport::fromSize(kSize, kSize);
+    state.viewportCount = 1;
+    state.scissorRects[0] = ScissorRect::fromSize(kSize, kSize);
+    state.scissorRectCount = 1;
+    pass->setRenderState(state);
+    DrawArguments args = {};
+    args.vertexCount = 3;
+    pass->draw(args);
+    pass->end();
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    const float kExpected[kTargetCount][4] = {
+        {1.0f, 0.0f, 0.0f, 1.0f},
+        {0.0f, 0.0f, 1.0f, 1.0f},
+    };
+    for (uint32_t i = 0; i < kTargetCount; ++i)
+    {
+        ComPtr<ISlangBlob> data;
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(textures[i], 0, 0, data.writeRef(), &layout));
+        for (uint32_t y = 0; y < kSize; ++y)
+        {
+            auto row = static_cast<const uint8_t*>(data->getBufferPointer()) + y * layout.rowPitch;
+            for (uint32_t x = 0; x < kSize; ++x)
+            {
+                auto pixel = reinterpret_cast<const float*>(row) + x * 4;
+                CAPTURE(i);
+                CAPTURE(x);
+                CAPTURE(y);
+                CHECK(pixel[0] == kExpected[i][0]);
+                CHECK(pixel[1] == kExpected[i][1]);
+                CHECK(pixel[2] == kExpected[i][2]);
+                CHECK(pixel[3] == kExpected[i][3]);
+            }
+        }
+    }
+}

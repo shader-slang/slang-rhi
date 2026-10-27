@@ -381,6 +381,25 @@ void CommandList::write(commands::GlobalBarrier&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::AliasResources&& cmd)
+{
+    auto copyResources = [&](IResource* const* resources, uint32_t count) -> IResource* const*
+    {
+        if (!count)
+            return nullptr;
+        auto copy = static_cast<IResource* const*>(writeData(resources, size_t(count) * sizeof(IResource*)));
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            retainResource(asBuffer(copy[i]));
+            retainResource(asTexture(copy[i]));
+        }
+        return copy;
+    };
+    cmd.before = copyResources(cmd.before, cmd.beforeCount);
+    cmd.after = copyResources(cmd.after, cmd.afterCount);
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::PushDebugGroup&& cmd)
 {
     if (cmd.name)

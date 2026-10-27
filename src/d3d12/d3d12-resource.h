@@ -29,6 +29,16 @@ struct D3D12Resource
         D3D12MA::Allocator* allocator = nullptr
     );
 
+    /// Initialize as a placed resource in an existing heap.
+    Result initPlaced(
+        ID3D12Device* device,
+        ID3D12Heap* heap,
+        UINT64 heapOffset,
+        const D3D12_RESOURCE_DESC& resourceDesc,
+        D3D12_RESOURCE_STATES initState,
+        const D3D12_CLEAR_VALUE* clearValue
+    );
+
     /// Set a resource.
     void setResource(ID3D12Resource* resource);
     /// Make the resource null

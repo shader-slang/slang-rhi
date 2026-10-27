@@ -796,6 +796,12 @@ enum CUjit_option
 #define CUDA_SYM(x) extern x;
 #endif
 
+// The dynamically loaded driver entry points are declared in a namespace. Global variables are not
+// name-mangled, so at global scope they would share the symbol names of the CUDA driver functions
+// (e.g. `cuInit`) and could be bound by other libraries in the process that call the CUDA driver
+// directly, which then call through these (possibly null) function pointers instead.
+namespace rhi::cuda_driver {
+
 // clang-format off
 CUDA_SYM(CUresult (*cuGetErrorString)(CUresult, const char**));
 CUDA_SYM(CUresult (*cuGetErrorName)(CUresult, const char**));
@@ -891,6 +897,10 @@ CUDA_SYM(CUresult (*cuSurfObjectCreate)(CUsurfObject*, const CUDA_RESOURCE_DESC*
 CUDA_SYM(CUresult (*cuSurfObjectDestroy)(CUsurfObject));
 CUDA_SYM(CUresult (*cuTexObjectCreate)(CUtexObject*, const CUDA_RESOURCE_DESC*, const CUDA_TEXTURE_DESC*, const CUDA_RESOURCE_VIEW_DESC*));
 CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
+
+} // namespace rhi::cuda_driver
+
+using namespace rhi::cuda_driver;
 // clang-format on
 
 #define CU_LAUNCH_PARAM_END_AS_INT 0x00

@@ -2,6 +2,8 @@
 #include "debug-command-buffer.h"
 #include "debug-helper-functions.h"
 #include "debug-query.h"
+#include "../resource-heap.h"
+#include "../command-buffer.h"
 
 #include <vector>
 
@@ -1878,6 +1880,114 @@ void DebugCommandEncoder::globalBarrier()
     requireNoPass();
 
     baseObject->globalBarrier();
+}
+
+void DebugCommandEncoder::aliasResources(
+    uint32_t beforeCount,
+    IResource* const* before,
+    uint32_t afterCount,
+    IResource* const* after
+)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, aliasResources);
+
+    if (m_state != EncoderState::Open)
+    {
+        requireOpen();
+        return;
+    }
+    if (m_passState != PassState::NoPass)
+    {
+        requireNoPass();
+        return;
+    }
+
+    Device* device = checked_cast<CommandEncoder*>(baseObject.get())->getDevice();
+    if (!device->hasFeature(Feature::ResourceAliasing))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource aliasing.");
+        return;
+    }
+
+    if (beforeCount && !before)
+    {
+        RHI_VALIDATION_ERROR("'before' must not be null when 'beforeCount' is non-zero.");
+        return;
+    }
+    if (!afterCount || !after)
+    {
+        RHI_VALIDATION_ERROR("'after' must be a non-empty resource array.");
+        return;
+    }
+
+    auto validateResource = [this, device](IResource* resource, const char* list) -> Resource*
+    {
+        Resource* impl = asBuffer(resource);
+        if (!impl)
+            impl = asTexture(resource);
+        if (!impl || !impl->isPlaced())
+        {
+            RHI_VALIDATION_ERROR_FORMAT("Each '%s' entry must be a placed buffer or texture.", list);
+            return nullptr;
+        }
+        if (impl->getDevice() != device)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("Each '%s' entry must belong to the same device as the command encoder.", list);
+            return nullptr;
+        }
+        // Heap compatibility was validated when this immutable placement was created.
+        return impl;
+    };
+    auto overlaps = [](Resource* a, Resource* b)
+    {
+        const auto& aPlacement = *a->m_placement;
+        const auto& bPlacement = *b->m_placement;
+        return aPlacement.heap == bPlacement.heap && aPlacement.offset < bPlacement.offset + bPlacement.size &&
+               bPlacement.offset < aPlacement.offset + aPlacement.size;
+    };
+
+    short_vector<Resource*, 16> destinations;
+    for (uint32_t i = 0; i < afterCount; ++i)
+    {
+        Resource* resource = validateResource(after[i], "after");
+        if (!resource)
+            return;
+        for (Resource* other : destinations)
+        {
+            if (overlaps(resource, other))
+            {
+                RHI_VALIDATION_ERROR("'after' placement ranges must not overlap each other.");
+                return;
+            }
+        }
+        destinations.push_back(resource);
+    }
+
+    for (uint32_t i = 0; i < beforeCount; ++i)
+    {
+        Resource* resource = validateResource(before[i], "before");
+        if (!resource)
+            return;
+        bool sharesHeap = false;
+        bool overlapsDestination = false;
+        for (Resource* destination : destinations)
+        {
+            sharesHeap |= resource->m_placement->heap == destination->m_placement->heap;
+            overlapsDestination |= overlaps(resource, destination);
+        }
+        if (!sharesHeap)
+        {
+            RHI_VALIDATION_ERROR("Each 'before' entry must use the same resource heap as at least one 'after' entry.");
+            return;
+        }
+        if (!overlapsDestination)
+        {
+            RHI_VALIDATION_ERROR("'before' and 'after' placement ranges must overlap.");
+            return;
+        }
+    }
+
+    baseObject->aliasResources(beforeCount, before, afterCount, after);
 }
 
 void DebugCommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
