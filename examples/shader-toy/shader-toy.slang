@@ -24,12 +24,12 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord);
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void mainCompute(uint3 tid: SV_DispatchThreadID, uniform RWTexture2D<float4> texture)
+void mainCompute(uint3 tid: SV_DispatchThreadID, [format("rgba32f")] uniform WTexture2D<float4> texture)
 {
     if (any(tid.xy >= uint2(iResolution.xy)))
         return;
 
     float4 fragColor;
     mainImage(fragColor, tid.xy);
-    texture[uint2(tid.x, uint(iResolution.y) - tid.y - 1)] = fragColor;
+    texture.Store(uint2(tid.x, uint(iResolution.y) - tid.y - 1), fragColor);
 }

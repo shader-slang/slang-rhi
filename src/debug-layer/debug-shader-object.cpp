@@ -53,7 +53,7 @@ Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntry
         return SLANG_FAIL;
     }
 
-    returnComPtr(outEntryPoint, m_entryPoints[index]);
+    returnComPtrCopy(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;
 }
 

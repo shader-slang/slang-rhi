@@ -1,4 +1,5 @@
 #include "d3d12-device.h"
+#include "d3d12-resource-heap.h"
 #include "d3d12-backend.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
@@ -907,7 +908,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             {
                 addFeature(Feature::Bindless);
             }
+
+            m_resourceHeapTier = options.ResourceHeapTier;
         }
+        addFeature(Feature::ResourceHeaps);
+        addFeature(Feature::ResourceAliasing);
     }
     {
         D3D12_FEATURE_DATA_D3D12_OPTIONS1 options = {};
@@ -1246,7 +1251,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     SLANG_RETURN_ON_FAIL(m_queue->init(0));
-    m_queue->setInternalReferenceCount(1);
 
     // Retrieve timestamp frequency.
     m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
@@ -1278,7 +1282,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -1388,15 +1392,101 @@ Result DeviceImpl::createBuffer(
     return SLANG_OK;
 }
 
+static bool shouldCreateTypelessTexture(const TextureDesc& desc)
+{
+    // Depth formats use different typed formats for shader and depth/stencil views
+    // (e.g. R32_FLOAT SRV/UAV versus D32_FLOAT DSV), so the backing resource must
+    // be typeless when shader access is requested. This also supports a depth-format
+    // descriptor used only as an R32/R16 shader resource, without DepthStencil usage.
+    // Keep allocation queries and creation on the same native format-selection path.
+    return is_set(desc.usage, TextureUsage::Typeless) ||
+           (isDepthFormat(desc.format) &&
+            (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)));
+}
+
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
 {
     TextureDesc desc = fixupTextureDesc(desc_);
-    bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
+    if (desc.memoryType != MemoryType::DeviceLocal)
+        return SLANG_E_NOT_AVAILABLE;
+    bool isTypeless = shouldCreateTypelessTexture(desc);
     D3D12_RESOURCE_DESC resourceDesc = {};
-    initTextureDesc(resourceDesc, desc, isTypeless);
+    SLANG_RETURN_ON_FAIL(initTextureDesc(resourceDesc, desc, isTypeless));
     auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+    if (allocInfo.SizeInBytes == UINT64_MAX)
+        return SLANG_FAIL;
     *outSize = (Size)allocInfo.SizeInBytes;
     *outAlignment = (Size)allocInfo.Alignment;
+    return SLANG_OK;
+}
+
+static D3D12_RESOURCE_STATES getPlacedResourceInitialState(MemoryType memoryType, D3D12_RESOURCE_STATES defaultState)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return D3D12_RESOURCE_STATE_GENERIC_READ;
+    case MemoryType::ReadBack:
+        return D3D12_RESOURCE_STATE_COPY_DEST;
+    default:
+        return defaultState;
+    }
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    BufferDesc desc = fixupBufferDesc(desc_);
+    D3D12_RESOURCE_DESC resourceDesc;
+    initBufferDesc(desc, resourceDesc);
+    auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+    if (allocInfo.SizeInBytes == UINT64_MAX)
+        return SLANG_FAIL;
+
+    outRequirements->size = (Size)allocInfo.SizeInBytes;
+    outRequirements->alignment = (Size)allocInfo.Alignment;
+    outRequirements->heapAlignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = getResourceHeapUsage(desc);
+    outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    setResourceHeapCompatibility(*outRequirements, this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    TextureDesc desc = fixupTextureDesc(desc_);
+    if (desc.memoryType != MemoryType::DeviceLocal)
+        return SLANG_E_NOT_AVAILABLE;
+    bool isTypeless = shouldCreateTypelessTexture(desc);
+    D3D12_RESOURCE_DESC resourceDesc = {};
+    SLANG_RETURN_ON_FAIL(initTextureDesc(resourceDesc, desc, isTypeless));
+    auto allocInfo = m_device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+    if (allocInfo.SizeInBytes == UINT64_MAX)
+        return SLANG_FAIL;
+
+    outRequirements->size = (Size)allocInfo.SizeInBytes;
+    outRequirements->alignment = (Size)allocInfo.Alignment;
+    outRequirements->heapAlignment = desc.sampleCount > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT
+                                                          : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = getResourceHeapUsage(desc);
+    outRequirements->flags = is_set(desc.usage, TextureUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    setResourceHeapCompatibility(*outRequirements, this);
     return SLANG_OK;
 }
 
@@ -1419,13 +1509,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dn899215%28v=vs.85%29.aspx
 
     TextureDesc desc = fixupTextureDesc(desc_);
+    if (desc.memoryType != MemoryType::DeviceLocal)
+        return SLANG_E_NOT_AVAILABLE;
 
-    bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
-    if (isDepthFormat(desc.format) &&
-        (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)))
-    {
-        isTypeless = true;
-    }
+    bool isTypeless = shouldCreateTypelessTexture(desc);
     D3D12_RESOURCE_DESC resourceDesc = {};
     SLANG_RETURN_ON_FAIL(initTextureDesc(resourceDesc, desc, isTypeless));
 
@@ -1463,15 +1550,35 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             clearValuePtr = nullptr;
         }
 
-        SLANG_RETURN_ON_FAIL(texture->m_resource.initCommitted(
-            m_device,
-            heapProps,
-            flags,
-            resourceDesc,
-            texture->m_defaultState,
-            clearValuePtr,
-            m_allocator
-        ));
+        if (desc.heap)
+        {
+            ResourceMemoryRequirements requirements = {};
+            SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
+            SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
+
+            ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+            SLANG_RETURN_ON_FAIL(texture->m_resource.initPlaced(
+                m_device,
+                heap->m_heap,
+                desc.heapOffset,
+                resourceDesc,
+                getPlacedResourceInitialState(desc.memoryType, texture->m_defaultState),
+                clearValuePtr
+            ));
+            texture->setPlacement(heap, desc.heapOffset, requirements.size);
+        }
+        else
+        {
+            SLANG_RETURN_ON_FAIL(texture->m_resource.initCommitted(
+                m_device,
+                heapProps,
+                flags,
+                resourceDesc,
+                texture->m_defaultState,
+                clearValuePtr,
+                m_allocator
+            ));
+        }
 
         if (desc.label)
         {
@@ -1568,20 +1675,92 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
 
     D3D12_RESOURCE_DESC bufferDesc;
-    initBufferDesc(desc.size, bufferDesc);
-
-    bufferDesc.Flags |= calcResourceFlags(desc.usage);
+    initBufferDesc(desc, bufferDesc);
 
     const D3D12_RESOURCE_STATES initialState = buffer->m_defaultState;
-    SLANG_RETURN_ON_FAIL(createBuffer(
-        bufferDesc,
-        initData,
-        desc.size,
-        initialState,
-        buffer->m_resource,
-        is_set(desc.usage, BufferUsage::Shared),
-        desc.memoryType
-    ));
+    if (desc.heap)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+        const D3D12_RESOURCE_STATES placedInitialState =
+            initData && desc.memoryType == MemoryType::DeviceLocal
+                ? D3D12_RESOURCE_STATE_COPY_DEST
+                : getPlacedResourceInitialState(desc.memoryType, initialState);
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_resource
+                .initPlaced(m_device, heap->m_heap, desc.heapOffset, bufferDesc, placedInitialState, nullptr)
+        );
+        buffer->setPlacement(heap, desc.heapOffset, requirements.size);
+
+        if (initData)
+        {
+            if (desc.memoryType == MemoryType::DeviceLocal)
+            {
+                D3D12Resource uploadResource;
+                D3D12_HEAP_PROPERTIES uploadProps = makeHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
+                D3D12_RESOURCE_DESC uploadDesc = bufferDesc;
+                uploadDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+                SLANG_RETURN_ON_FAIL(uploadResource.initCommitted(
+                    m_device,
+                    uploadProps,
+                    D3D12_HEAP_FLAG_NONE,
+                    uploadDesc,
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    nullptr,
+                    m_allocator
+                ));
+
+                UINT8* dstData = nullptr;
+                D3D12_RANGE readRange = {};
+                SLANG_D3D_RETURN_ON_FAIL_REPORT(
+                    uploadResource.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&dstData)),
+                    this
+                );
+                ::memcpy(dstData, initData, desc.size);
+                uploadResource.getResource()->Unmap(0, nullptr);
+
+                ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+                commandList->CopyBufferRegion(buffer->m_resource, 0, uploadResource, 0, desc.size);
+                if (initialState != D3D12_RESOURCE_STATE_COPY_DEST)
+                {
+                    D3D12_RESOURCE_BARRIER barrier = {};
+                    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                    barrier.Transition.pResource = buffer->m_resource;
+                    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+                    barrier.Transition.StateAfter = initialState;
+                    commandList->ResourceBarrier(1, &barrier);
+                }
+                endImmediateCommandList();
+            }
+            else
+            {
+                UINT8* dstData = nullptr;
+                D3D12_RANGE readRange = {};
+                SLANG_D3D_RETURN_ON_FAIL_REPORT(
+                    buffer->m_resource.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&dstData)),
+                    this
+                );
+                ::memcpy(dstData, initData, desc.size);
+                buffer->m_resource.getResource()->Unmap(0, nullptr);
+            }
+        }
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(createBuffer(
+            bufferDesc,
+            initData,
+            desc.size,
+            initialState,
+            buffer->m_resource,
+            is_set(desc.usage, BufferUsage::Shared),
+            desc.memoryType
+        ));
+    }
 
     if (desc.label)
     {
@@ -1668,8 +1847,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
-    view->m_texture = checked_cast<TextureImpl*>(texture);
+    RefPtr<TextureViewImpl> view = new TextureViewImpl(checked_cast<TextureImpl*>(texture), desc);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
@@ -1797,6 +1975,8 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
+    if (shaderProgram->getSyntheticResourceBindingState())
+        return SLANG_E_NOT_IMPLEMENTED;
     ComPtr<ID3DBlob> d3dDiagnosticBlob;
     auto rootShaderLayoutResult = RootShaderObjectLayoutImpl::create(
         this,
@@ -1827,7 +2007,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(this, session, typeLayout, layout.writeRef()));
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -2126,7 +2306,9 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)
         return SLANG_FAIL;
@@ -2150,7 +2332,9 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure | BufferUsage::MicromapStorage;
     bufferDesc.defaultState = ResourceState::MicromapRead;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    RefPtr<BufferImpl> buffer;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    result->m_buffer = buffer;
     returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
@@ -2289,6 +2473,13 @@ DeviceImpl::~DeviceImpl()
     }
 #endif
 
+    // Wait and release command-owned allocations while their heaps and device are still valid.
+    if (m_queue)
+    {
+        m_queue->waitAndReleaseCommandBuffers();
+    }
+
+    m_shaderCache.free();
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
 
     m_uploadHeap.release();
@@ -2326,7 +2517,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 } // namespace rhi::d3d12

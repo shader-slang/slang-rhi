@@ -22,7 +22,6 @@ namespace rhi {
 // Forward declarations
 class Device;
 class Heap;
-struct EntryPointCompilationStats;
 
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
@@ -83,18 +82,22 @@ struct ComponentKey
 
 struct PipelineKey
 {
-    Pipeline* pipeline;
+    // Cache entries can outlive their source pipeline. A recycled address must
+    // not identify a new pipeline as an old one with the same specialization.
+    uint64_t pipelineId = 0;
     short_vector<ShaderComponentID> specializationArgs;
-    size_t hash;
+    size_t hash = 0;
+    PipelineKey() = default;
+    explicit PipelineKey(Pipeline* pipeline);
     void updateHash()
     {
-        hash = std::hash<void*>()(pipeline);
+        hash = std::hash<uint64_t>()(pipelineId);
         for (auto& arg : specializationArgs)
             hash_combine(hash, arg);
     }
     bool operator==(const PipelineKey& other) const
     {
-        if (pipeline != other.pipeline)
+        if (pipelineId != other.pipelineId)
             return false;
         if (specializationArgs.size() != other.specializationArgs.size())
             return false;
@@ -133,7 +136,7 @@ protected:
 
     std::mutex m_mutex;
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
+    std::unordered_map<PipelineKey, InternalRefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
 class NullDebugCallback : public IDebugCallback
@@ -386,21 +389,32 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override { return SLANG_OK; }
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override { return SLANG_OK; }
 
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResourceHeapCompatible(
+        IResourceHeap* heap,
+        const ResourceMemoryRequirements& requirements,
+        bool* outCompatible
+    ) override;
+
     // Flush all global heaps managed by this device
     Result flushHeaps();
-
-    Result getEntryPointCodeFromShaderCache(
-        ShaderProgram* program,
-        slang::IComponentType* componentType,
-        const char* entryPointName,
-        uint32_t entryPointIndex,
-        uint32_t targetIndex,
-        slang::IBlob* cacheKey,
-        bool measureCompilerTime,
-        EntryPointCompilationStats* outStats,
-        slang::IBlob** outCode,
-        slang::IBlob** outDiagnostics = nullptr
-    );
 
     /// Returns the cached shader object layout for `type` in `session`, creating it
     /// on first use.
@@ -470,6 +484,10 @@ public:
     ) = 0;
 
     virtual void customizeShaderObject(ShaderObject* shaderObject) { SLANG_UNUSED(shaderObject); }
+
+    /// Write data to a buffer with MemoryType::Upload. Used by the upload heap when its pages are not
+    /// kept mapped. The default implementation maps the buffer, copies the data and unmaps it.
+    virtual Result writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data);
 
     virtual Result createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline);
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);

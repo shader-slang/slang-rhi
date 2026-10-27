@@ -29,7 +29,15 @@ WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
-#if !SLANG_WASM
+#if SLANG_WASM
+    // Timed waits let wait() suspend on a future's promise instead of polling (JSPI).
+    static const WGPUInstanceFeatureName features[] = {WGPUInstanceFeatureName_TimedWaitAny};
+    WGPUInstanceLimits limits = {};
+    limits.timedWaitAnyMaxCount = 1;
+    instanceDesc.requiredFeatureCount = SLANG_COUNT_OF(features);
+    instanceDesc.requiredFeatures = features;
+    instanceDesc.requiredLimits = &limits;
+#else
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
@@ -107,6 +115,11 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
 WGPUStringView translateString(const char* str)
 {
     return str ? WGPUStringView{str, ::strlen(str)} : WGPUStringView{nullptr, 0};
+}
+
+std::string translateString(WGPUStringView str)
+{
+    return str.length ? std::string(str.data, str.length) : std::string();
 }
 
 WGPUTextureFormat translateTextureFormat(Format format)
@@ -709,39 +722,11 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     return WGPUStoreOp_Undefined;
 }
 
-// Synchronously waits for a WebGPU future to complete, using native blocking on desktop and safe, adaptive event-loop
-// polling in WebAssembly to prevent browser deadlocks.
+// Waits for a WebGPU future, blocking on desktop and suspending through JSPI in WebAssembly.
 WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, uint64_t timeoutNS)
 {
     WGPUFutureWaitInfo futures[1] = {{future}};
-
-#if !SLANG_WASM
     return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-#else
-    double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
-    int spinCount = 0;
-
-    while (true)
-    {
-        WGPUWaitStatus status = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, 0);
-
-        if (status == WGPUWaitStatus_Error)
-            return WGPUWaitStatus_Error;
-
-        if (futures[0].completed)
-            return WGPUWaitStatus_Success;
-
-        if (timeoutNS != UINT64_MAX)
-        {
-            if ((emscripten_get_now() - startMS) * 1000000.0 >= timeoutNS)
-                return WGPUWaitStatus_TimedOut;
-        }
-
-        // adaptive yielding
-        emscripten_sleep((spinCount < 5) ? 0 : 1);
-        spinCount++;
-    }
-#endif
 }
 
 WGPUWaitStatus wait(Context& ctx, WGPUFuture future, uint64_t timeoutNS)

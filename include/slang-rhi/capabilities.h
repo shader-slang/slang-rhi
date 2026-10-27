@@ -64,12 +64,22 @@
     x(hlsl_nvapi) \
     x(hlsl_2018) \
     x(_cuda_sm_1_0) \
+    x(_cuda_sm_1_1) \
+    x(_cuda_sm_1_2) \
+    x(_cuda_sm_1_3) \
     x(_cuda_sm_2_0) \
+    x(_cuda_sm_2_1) \
     x(_cuda_sm_3_0) \
+    x(_cuda_sm_3_2) \
     x(_cuda_sm_3_5) \
+    x(_cuda_sm_3_7) \
     x(_cuda_sm_4_0) \
     x(_cuda_sm_5_0) \
+    x(_cuda_sm_5_2) \
+    x(_cuda_sm_5_3) \
     x(_cuda_sm_6_0) \
+    x(_cuda_sm_6_1) \
+    x(_cuda_sm_6_2) \
     x(_cuda_sm_7_0) \
     x(_cuda_sm_7_2) \
     x(_cuda_sm_7_5) \
@@ -80,6 +90,7 @@
     x(_cuda_sm_8_9) \
     x(_cuda_sm_9_0) \
     x(_cuda_sm_10_0) \
+    x(_cuda_sm_10_1) \
     x(_cuda_sm_10_3) \
     x(_cuda_sm_11_0) \
     x(_cuda_sm_12_0) \

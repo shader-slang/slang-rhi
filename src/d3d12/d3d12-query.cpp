@@ -206,7 +206,7 @@ Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
     );
 
     m_queryType = m_desc.type;
-    m_device = device;
+    SLANG_RHI_ASSERT(m_device == device);
     m_stride = stride;
     m_count = (uint32_t)m_desc.count;
     return SLANG_OK;

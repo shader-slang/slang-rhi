@@ -1,5 +1,6 @@
 #include "vk-buffer.h"
 #include "vk-device.h"
+#include "vk-resource-heap.h"
 #include "vk-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
@@ -40,18 +41,32 @@ Result createVkBuffer(
     return SLANG_OK;
 }
 
-// Helper function to allocate VkDeviceMemory with optional external memory support
+// Helper function to allocate VkDeviceMemory with optional external memory support.
+// The memory type must have all of reqMemoryProperties. If a type that also has all of
+// preferredMemoryProperties exists, it is tried first, and the required-only type is used
+// if that type is out of memory.
 Result allocateVkMemory(
     const VulkanApi& api,
     const VkMemoryRequirements& memoryReqs,
     VkMemoryPropertyFlags reqMemoryProperties,
+    VkMemoryPropertyFlags preferredMemoryProperties,
     bool needsDeviceAddress,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory
+    VkDeviceMemory* outMemory,
+    uint32_t* outMemoryTypeIndex
 )
 {
-    int memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
-    SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
+    int requiredMemoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
+    int memoryTypeIndex = requiredMemoryTypeIndex;
+    if (preferredMemoryProperties)
+    {
+        int preferredMemoryTypeIndex =
+            api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties | preferredMemoryProperties);
+        if (preferredMemoryTypeIndex >= 0)
+            memoryTypeIndex = preferredMemoryTypeIndex;
+    }
+    if (memoryTypeIndex < 0)
+        return SLANG_E_NOT_AVAILABLE;
 
     VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocateInfo.allocationSize = memoryReqs.size;
@@ -90,7 +105,17 @@ Result allocateVkMemory(
         allocateInfo.pNext = &flagInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory));
+    VkResult result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
+    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY && memoryTypeIndex != requiredMemoryTypeIndex)
+    {
+        // The preferred memory type may live in a heap that is full, while a required-only type
+        // still has room.
+        allocateInfo.memoryTypeIndex = requiredMemoryTypeIndex;
+        result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
+    }
+    SLANG_VK_RETURN_ON_FAIL(result);
+    if (outMemoryTypeIndex)
+        *outMemoryTypeIndex = allocateInfo.memoryTypeIndex;
     return SLANG_OK;
 }
 
@@ -100,6 +125,7 @@ Result allocateVkMemoryForBuffer(
     VkBuffer buffer,
     VkBufferUsageFlags bufferUsage,
     VkMemoryPropertyFlags reqMemoryProperties,
+    VkMemoryPropertyFlags preferredMemoryProperties,
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
     VkDeviceMemory* outMemory
 )
@@ -113,6 +139,7 @@ Result allocateVkMemoryForBuffer(
         api,
         memoryReqs,
         reqMemoryProperties,
+        preferredMemoryProperties,
         needsDeviceAddress,
         externalMemoryHandleTypeFlags,
         outMemory
@@ -124,7 +151,8 @@ Result VKBufferHandleRAII::init(
     Size bufferSize,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags reqMemoryProperties,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkMemoryPropertyFlags preferredMemoryProperties
 )
 {
     SLANG_RHI_ASSERT(!isInitialized());
@@ -137,13 +165,45 @@ Result VKBufferHandleRAII::init(
     SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
 
     // Allocate memory
-    SLANG_RETURN_ON_FAIL(
-        allocateVkMemoryForBuffer(api, m_buffer, usage, reqMemoryProperties, externalMemoryHandleTypeFlags, &m_memory)
-    );
+    SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
+        api,
+        m_buffer,
+        usage,
+        reqMemoryProperties,
+        preferredMemoryProperties,
+        externalMemoryHandleTypeFlags,
+        &m_memory
+    ));
 
     // Bind buffer to memory
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
+    m_ownsMemory = true;
 
+    return SLANG_OK;
+}
+
+Result VKBufferHandleRAII::initPlaced(
+    const VulkanApi& api,
+    Size bufferSize,
+    VkBufferUsageFlags usage,
+    uint32_t memoryTypeIndex,
+    VkDeviceMemory memory,
+    Offset offset
+)
+{
+    SLANG_RHI_ASSERT(!isInitialized());
+
+    m_api = &api;
+    m_memory = memory;
+    m_buffer = VK_NULL_HANDLE;
+    m_ownsMemory = false;
+
+    SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, 0, &m_buffer));
+    VkMemoryRequirements requirements = {};
+    api.vkGetBufferMemoryRequirements(api.m_device, m_buffer, &requirements);
+    if ((requirements.memoryTypeBits & (1u << memoryTypeIndex)) == 0)
+        return SLANG_E_INVALID_ARG;
+    SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, memory, offset));
     return SLANG_OK;
 }
 
@@ -400,21 +460,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     const Size bufferSize = desc.size;
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
+    VkMemoryPropertyFlags preferredMemoryProperties = 0;
 
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
-    if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-    {
-        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    }
-    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
-        m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-    {
-        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    }
-    if (initData)
-    {
-        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    }
+    VkBufferUsageFlags usage = getBufferUsageFlags(m_api, desc);
 
     if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
         desc.memoryType == MemoryType::ReadBack)
@@ -425,9 +473,28 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
+    if (desc.memoryType == MemoryType::ReadBack)
+    {
+        // Readback memory is read by the CPU, so prefer a cached memory type.
+        // Uncached (write-combined) memory is very slow to read from the CPU.
+        preferredMemoryProperties = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    if (is_set(desc.usage, BufferUsage::Shared))
+    if (desc.heap)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_buffer
+                .initPlaced(m_api, desc.size, usage, heap->m_memoryTypeIndex, heap->m_memory, desc.heapOffset)
+        );
+        buffer->setPlacement(heap, desc.heapOffset, requirements.size);
+    }
+    else if (is_set(desc.usage, BufferUsage::Shared))
     {
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
 #if SLANG_WINDOWS_FAMILY
@@ -435,13 +502,20 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 #else
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-        SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags)
-        );
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(
+            m_api,
+            desc.size,
+            usage,
+            reqMemoryProperties,
+            externalMemoryHandleTypeFlags,
+            preferredMemoryProperties
+        ));
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, 0, preferredMemoryProperties)
+        );
     }
 
     _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
@@ -454,14 +528,24 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         }
         else
         {
-            // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_RETURN_ON_FAIL_REPORT(
-                m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
-                this
-            );
-            ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+            if (desc.heap)
+            {
+                ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+                if (!heap->m_mapped)
+                    return SLANG_FAIL;
+                mappedData = static_cast<uint8_t*>(heap->m_mapped) + desc.heapOffset;
+                ::memcpy(mappedData, initData, bufferSize);
+            }
+            else
+            {
+                SLANG_VK_RETURN_ON_FAIL_REPORT(
+                    m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
+                    this
+                );
+                ::memcpy(mappedData, initData, bufferSize);
+                m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+            }
         }
     }
 
@@ -487,6 +571,14 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (bufferImpl->isPlaced())
+    {
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(bufferImpl->m_placement->heap.get());
+        if (!heap->m_mapped)
+            return SLANG_FAIL;
+        *outData = static_cast<uint8_t*>(heap->m_mapped) + bufferImpl->m_placement->offset;
+        return SLANG_OK;
+    }
     SLANG_VK_RETURN_ON_FAIL_REPORT(
         m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData),
         this
@@ -497,6 +589,8 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (bufferImpl->isPlaced())
+        return SLANG_OK;
     m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory);
     return SLANG_OK;
 }

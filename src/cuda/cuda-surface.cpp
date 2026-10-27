@@ -21,6 +21,8 @@
 #endif
 
 #include <algorithm>
+#include <set>
+#include <string>
 
 // Note:
 // CUDA doesn't provide a swapchain implementation.
@@ -164,12 +166,27 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 #elif SLANG_LINUX_FAMILY
     case WindowHandleType::XlibWindow:
     {
+        if (!m_api.vkCreateXlibSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
         VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
         SLANG_VK_RETURN_ON_FAIL(
             m_api.vkCreateXlibSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
+        );
+        break;
+    }
+    case WindowHandleType::WaylandSurface:
+    {
+        if (!m_api.vkCreateWaylandSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
+        VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.display = (wl_display*)windowHandle.handleValues[0];
+        surfaceCreateInfo.surface = (wl_surface*)windowHandle.handleValues[1];
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api.vkCreateWaylandSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
         );
         break;
     }
@@ -227,6 +244,16 @@ Result SurfaceImpl::createVulkanInstance()
     VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     applicationInfo.apiVersion = VK_API_VERSION_1_2;
 
+    // Query the available instance extensions
+    uint32_t extensionCount = 0;
+    m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+    std::vector<VkExtensionProperties> extensions;
+    extensions.resize(extensionCount);
+    m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions.data());
+    std::set<std::string> extensionNames;
+    for (const auto& e : extensions)
+        extensionNames.emplace(e.extensionName);
+
     short_vector<const char*, 16> instanceExtensions;
 
     instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -238,7 +265,10 @@ Result SurfaceImpl::createVulkanInstance()
 #if SLANG_WINDOWS_FAMILY
     instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif SLANG_LINUX_FAMILY
-    instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+    if (extensionNames.count(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
+        instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+    if (extensionNames.count(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME))
+        instanceExtensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -935,8 +965,6 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     FrameData& frameData = m_frameData[m_currentFrameIndex];
 
     SLANG_VK_RETURN_ON_FAIL(m_api.vkWaitForFences(m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &frameData.fence));
-
     SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
 
     m_currentSwapchainImageIndex = -1;
@@ -954,7 +982,10 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
-    returnComPtr(outTexture, frameData.sharedTexture.cudaTexture);
+    // Failed acquisition submits no work, so leave the fence signaled until an image is acquired.
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &frameData.fence));
+
+    returnComPtrCopy(outTexture, frameData.sharedTexture.cudaTexture);
     return SLANG_OK;
 }
 
@@ -1185,6 +1216,9 @@ Result SurfaceImpl::present()
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentSwapchainImageIndex;
     VkResult result = m_api.vkQueuePresentKHR(m_queue, &presentInfo);
+    // Resizing on the window thread can invalidate the swapchain during this frame.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+        return SLANG_OK;
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;

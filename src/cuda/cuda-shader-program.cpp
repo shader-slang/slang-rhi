@@ -15,7 +15,7 @@ Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPt
     Module module;
     module.stage = desc.stage;
     module.entryPointName = desc.entryPointName;
-    module.code = kernelCode;
+    module.code.assign(static_cast<const char*>(kernelCode->getBufferPointer()), kernelCode->getBufferSize());
     m_modules.push_back(module);
     return SLANG_OK;
 }

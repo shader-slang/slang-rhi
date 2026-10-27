@@ -9,7 +9,13 @@
 
 namespace rhi::cpu {
 
-DeviceImpl::~DeviceImpl() {}
+DeviceImpl::~DeviceImpl()
+{
+    m_shaderCache.free();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
+    m_queue.setNull();
+}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
@@ -22,6 +28,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.adapterName = "CPU";
         m_info.adapterLUID = {};
         m_info.timestampFrequency = getCpuTimestampFrequency();
+
+        // CPU has no hardware grid-dimension bound on dispatches; advertise an effectively
+        // unbounded limit (as the Metal backend does) so consumers that clamp dispatch sizes
+        // against it don't clamp to zero.
+        DeviceLimits& limits = m_info.limits;
+        limits.maxComputeDispatchThreadGroups[0] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[1] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[2] = 0xffffffff;
     }
 
     // Initialize features & capabilities
@@ -62,7 +76,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     ));
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
@@ -82,7 +95,7 @@ Result DeviceImpl::createShaderObjectLayout(
 )
 {
     RefPtr<ShaderObjectLayoutImpl> cpuLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
-    returnRefPtrMove(outLayout, cpuLayout);
+    returnRefPtr(outLayout, cpuLayout);
     return SLANG_OK;
 }
 
@@ -103,6 +116,8 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(program->init());
+    if (program->getSyntheticResourceBindingState())
+        return SLANG_E_NOT_IMPLEMENTED;
     auto slangGlobalScope = program->linkedProgram;
     if (slangGlobalScope)
     {
@@ -134,7 +149,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 

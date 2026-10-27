@@ -10,9 +10,6 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
-    // ITexture implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
-
 public:
     ID3D11RenderTargetView* getRTV(Format format, const SubresourceRange& range);
     ID3D11DepthStencilView* getDSV(Format format, const SubresourceRange& range);
@@ -22,7 +19,6 @@ public:
     ComPtr<ID3D11Resource> m_resource;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
     bool m_isTypeless = false;
-    RefPtr<TextureViewImpl> m_defaultView;
 
 
     struct ViewKey
@@ -55,11 +51,7 @@ public:
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc);
-
-    // RefObject implementation
-    virtual void makeExternal() override { m_texture.establishStrongReference(); }
-    virtual void makeInternal() override { m_texture.breakStrongReference(); }
+    TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc);
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
@@ -93,7 +85,8 @@ public:
         return m_uav;
     }
 
-    BreakableReference<TextureImpl> m_texture;
+    // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
+    TextureImpl* m_texture;
     ID3D11RenderTargetView* m_rtv = nullptr;
     ID3D11DepthStencilView* m_dsv = nullptr;
     ID3D11ShaderResourceView* m_srv = nullptr;

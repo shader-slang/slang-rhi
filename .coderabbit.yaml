@@ -26,14 +26,18 @@ reviews:
   path_instructions:
     - path: "include/**"
       instructions: >-
-        PUBLIC API HEADERS. Changes here are potentially breaking for all
-        downstream users (slang, slangpy, Falcor, etc.). Review for:
-        (1) ABI stability — flag any change to existing struct layouts, enum
-        values (never insert in the middle; always append before the terminal
-        sentinel), or virtual method signatures.
-        (2) COM-style interface vtables — never reorder, change signatures of,
-        or insert virtual methods in the middle of an existing interface;
-        append-only at the end. Never remove a method — stub it instead.
+        PUBLIC API HEADERS. Follow the compatibility policy in README.md:
+        source and binary compatibility (ABI) are not currently guaranteed.
+        Do not flag changes solely for breaking compatibility with previous
+        revisions or releases. Struct layout changes, enum value changes, and
+        adding, removing, reordering, or changing virtual methods are allowed;
+        do not require append-only interfaces, compatibility stubs, or ABI
+        preservation. Review for:
+        (1) Consistency — update affected backend implementations, debug-layer
+        wrappers, callers, tests, and documentation together.
+        (2) Correctness within the current revision — flag concrete issues such
+        as mismatched overrides, invalid enum indexing or mappings, and broken
+        native API interop. The compatibility policy does not excuse these bugs.
         (3) Header-only / inline correctness — anything inline must compile
         cleanly across all consumer toolchains.
         (4) Doc comments accurately describe behavior, error codes, and

@@ -141,6 +141,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
+        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
 
         // We'd like to extract the information on the Metal resource
         // index that this range should bind into.
@@ -250,7 +251,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
     auto layout = RefPtr<ShaderObjectLayoutImpl>(new ShaderObjectLayoutImpl());
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
@@ -300,7 +301,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
 
-    returnRefPtrMove(outLayout, layout);
+    returnRefPtr(outLayout, layout);
     return SLANG_OK;
 }
 
