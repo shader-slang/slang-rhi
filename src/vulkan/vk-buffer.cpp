@@ -158,11 +158,10 @@ Result VKBufferHandleRAII::init(
     SLANG_RHI_ASSERT(!isInitialized());
 
     m_api = &api;
-    m_memory = VK_NULL_HANDLE;
-    m_buffer = VK_NULL_HANDLE;
 
     // Create buffer
     SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
+    m_ownsBuffer = true;
 
     // Allocate memory
     SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
@@ -174,10 +173,10 @@ Result VKBufferHandleRAII::init(
         externalMemoryHandleTypeFlags,
         &m_memory
     ));
+    m_ownsMemory = true;
 
     // Bind buffer to memory
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
-    m_ownsMemory = true;
 
     return SLANG_OK;
 }
@@ -195,16 +194,24 @@ Result VKBufferHandleRAII::initPlaced(
 
     m_api = &api;
     m_memory = memory;
-    m_buffer = VK_NULL_HANDLE;
-    m_ownsMemory = false;
 
     SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, 0, &m_buffer));
+    m_ownsBuffer = true;
     VkMemoryRequirements requirements = {};
     api.vkGetBufferMemoryRequirements(api.m_device, m_buffer, &requirements);
     if ((requirements.memoryTypeBits & (1u << memoryTypeIndex)) == 0)
         return SLANG_E_INVALID_ARG;
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, memory, offset));
     return SLANG_OK;
+}
+
+void VKBufferHandleRAII::initFromNativeHandle(const VulkanApi& api, VkBuffer buffer)
+{
+    SLANG_RHI_ASSERT(!isInitialized());
+    SLANG_RHI_ASSERT(buffer != VK_NULL_HANDLE);
+
+    m_api = &api;
+    m_buffer = buffer;
 }
 
 BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
@@ -226,7 +233,7 @@ BufferImpl::~BufferImpl()
 
     for (auto& view : m_views)
     {
-        m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);
+        device->m_api.vkDestroyBufferView(device->m_api.m_device, view.second, nullptr);
     }
 
     if (m_sharedHandle)
@@ -390,7 +397,8 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     //     SLANG_RHI_ASSERT_FAILURE("Unhandled");
     // }
 
-    VkResult result = m_buffer.m_api->vkCreateBufferView(m_buffer.m_api->m_device, &info, nullptr, &view);
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    VkResult result = device->m_api.vkCreateBufferView(device->m_api.m_device, &info, nullptr, &view);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
     return view;
 }
@@ -556,7 +564,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, fixupBufferDesc(desc)));
-    buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
+    buffer->m_buffer.initFromNativeHandle(m_api, (VkBuffer)handle.value);
 
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
