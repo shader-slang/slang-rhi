@@ -371,8 +371,17 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
         NOT_SUPPORTED(ICommandEncoder, clearTextureFloat);
         return;
     }
+    float clearValue[4] = {cmd.clearValue[0], cmd.clearValue[1], cmd.clearValue[2], cmd.clearValue[3]};
+    const FormatInfo& formatInfo = getFormatInfo(texture->m_desc.format);
+    if (formatInfo.kind == FormatKind::Normalized)
+    {
+        // The pack functions do not clamp, unlike render attachment clears.
+        float minValue = formatInfo.isSigned ? -1.f : 0.f;
+        for (float& value : clearValue)
+            value = clamp(value, minValue, 1.f);
+    }
     uint8_t texel[16] = {};
-    packFloat(cmd.clearValue, texel);
+    packFloat(clearValue, texel);
     clearTextureWithCopy(texture, cmd.subresourceRange, texel);
 }
 

@@ -391,20 +391,23 @@ static void testClearRenderTargetSubresource(IDevice* device, Format format, con
     }
 }
 
-GPU_TEST_CASE("cmd-clear-texture-render-target-subresource", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("cmd-clear-texture-render-target-subresource-float", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
-    {
-        float value[4] = {0.5f, -2.f, 3.f, 4.f};
-        testClearRenderTargetSubresource<float>(
-            device,
-            Format::RGBA32Float,
-            value,
-            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
-            {
-                encoder->clearTextureFloat(texture, range, value);
-            }
-        );
-    }
+    float value[4] = {0.5f, -2.f, 3.f, 4.f};
+    testClearRenderTargetSubresource<float>(
+        device,
+        Format::RGBA32Float,
+        value,
+        [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+        {
+            encoder->clearTextureFloat(texture, range, value);
+        }
+    );
+}
+
+// D3D11/D3D12 currently require UnorderedAccess usage for integer texture clears.
+GPU_TEST_CASE("cmd-clear-texture-render-target-subresource-integer", Vulkan | Metal | WGPU)
+{
     {
         const uint16_t value[4] = {7, 8, 9, 65535};
         uint32_t clearValue[4] = {7, 8, 9, 65535};
@@ -430,5 +433,45 @@ GPU_TEST_CASE("cmd-clear-texture-render-target-subresource", D3D11 | D3D12 | Vul
                 encoder->clearTextureSint(texture, range, clearValue);
             }
         );
+    }
+}
+
+GPU_TEST_CASE("cmd-clear-texture-copy-float-clamp", WGPU)
+{
+    struct TestCase
+    {
+        Format format;
+        float expected[4];
+    };
+    const TestCase cases[] = {
+        {Format::RGBA8Unorm, {0.f, 1.f, 0.f, 1.f}},
+        {Format::RGBA8Snorm, {-1.f, 1.f, 0.f, 1.f}},
+        {Format::RGBA32Float, {-2.f, 2.f, 0.f, 1.f}},
+    };
+
+    for (const auto& testCase : cases)
+    {
+        CAPTURE(testCase.format);
+        TextureDesc desc = {};
+        desc.type = TextureType::Texture2D;
+        desc.format = testCase.format;
+        desc.size = {4, 4, 1};
+        // Without RenderTarget usage, WebGPU clears through the buffer-copy path.
+        desc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
+        desc.defaultState = ResourceState::UnorderedAccess;
+        TextureData data;
+        data.init(device, desc, TextureInitMode::Random);
+        ComPtr<ITexture> texture;
+        REQUIRE_CALL(data.createTexture(texture.writeRef()));
+
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+        ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+        float clearValue[4] = {-2.f, 2.f, 0.f, 1.f};
+        encoder->clearTextureFloat(texture, kEntireTexture, clearValue);
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        data.clearFloat(testCase.expected);
+        data.checkEqualFloat(texture);
     }
 }
