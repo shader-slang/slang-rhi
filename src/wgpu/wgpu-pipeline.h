@@ -4,6 +4,20 @@
 
 namespace rhi::wgpu {
 
+/// Pipelines created on this thread while a scope is alive use the synchronous entry points instead
+/// of waiting on the async ones. finish() resolves deferred pipelines in a scope, since it must not
+/// wait: in browsers, waiting yields between acquiring a canvas texture and submitting.
+class PipelineResolutionScope
+{
+public:
+    PipelineResolutionScope() { s_active = true; }
+    ~PipelineResolutionScope() { s_active = false; }
+    static bool isActive() { return s_active; }
+
+private:
+    static inline thread_local bool s_active = false;
+};
+
 class RenderPipelineImpl : public RenderPipeline
 {
 public:

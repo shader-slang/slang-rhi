@@ -3,6 +3,8 @@
 #include "debug-fence.h"
 #include "debug-heap.h"
 #include "debug-helper-functions.h"
+#include "debug-resource-heap.h"
+#include "../resource-heap.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
 
@@ -16,6 +18,16 @@
 #include <vector>
 
 namespace rhi::debug {
+
+Result validateResourcePlacementHeap(DebugContext* ctx, IDevice* device, IResourceHeap* heap)
+{
+    if (heap && !device->hasFeature(Feature::ResourceHeaps))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource heaps.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return SLANG_OK;
+}
 
 Result DebugDevice::queryInterface(const SlangUUID& uuid, void** outObject) noexcept
 {
@@ -157,17 +169,8 @@ Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
     return baseObject->getSlangSession(outSlangSession);
 }
 
-Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+static Result validateTextureDesc(DebugContext* ctx, const TextureDesc& desc)
 {
-    SLANG_RHI_DEBUG_API(IDevice, createTexture);
-
-    validateCudaContext();
-
-    if (!outTexture)
-    {
-        RHI_VALIDATION_ERROR("'outTexture' must not be null.");
-        return SLANG_E_INVALID_ARG;
-    }
     if (!isValidTextureType(desc.type))
     {
         RHI_VALIDATION_ERROR("Invalid texture type.");
@@ -281,11 +284,6 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture sample count must be a power of 2.");
             return SLANG_E_INVALID_ARG;
         }
-        if (initData)
-        {
-            RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data.");
-            return SLANG_E_INVALID_ARG;
-        }
         if (desc.mipCount != 1 && desc.mipCount != kAllMips)
         {
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have multiple mip levels.");
@@ -350,6 +348,28 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         break;
     }
 
+    return SLANG_OK;
+}
+
+Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createTexture);
+
+    validateCudaContext();
+
+    if (!outTexture)
+    {
+        RHI_VALIDATION_ERROR("'outTexture' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    SLANG_RETURN_ON_FAIL(validateTextureDesc(ctx, desc));
+
+    if (initData && (desc.type == TextureType::Texture2DMS || desc.type == TextureType::Texture2DMSArray))
+    {
+        RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     TextureDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -357,6 +377,9 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         label = createTextureLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementHeap(ctx, baseObject, patchedDesc.heap));
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
 
     Result result = baseObject->createTexture(patchedDesc, initData, outTexture);
     // A newly created shared texture mints a fresh handle, so drop any stale (recycled) tracker entry
@@ -408,17 +431,8 @@ Result DebugDevice::createTextureFromSharedHandle(
     return result;
 }
 
-Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
+static Result validateBufferDesc(DebugContext* ctx, const BufferDesc& desc)
 {
-    SLANG_RHI_DEBUG_API(IDevice, createBuffer);
-
-    validateCudaContext();
-
-    if (!outBuffer)
-    {
-        RHI_VALIDATION_ERROR("'outBuffer' must not be null.");
-        return SLANG_E_INVALID_ARG;
-    }
     if (desc.size == 0)
     {
         RHI_VALIDATION_ERROR("Buffer size must be greater than 0.");
@@ -444,6 +458,22 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         RHI_VALIDATION_WARNING("Buffer size is not a multiple of element size.");
     }
 
+    return SLANG_OK;
+}
+
+Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createBuffer);
+
+    validateCudaContext();
+
+    if (!outBuffer)
+    {
+        RHI_VALIDATION_ERROR("'outBuffer' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    SLANG_RETURN_ON_FAIL(validateBufferDesc(ctx, desc));
+
     BufferDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -451,6 +481,9 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         label = createBufferLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementHeap(ctx, baseObject, patchedDesc.heap));
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
 
     Result result = baseObject->createBuffer(patchedDesc, initData, outBuffer);
     // A newly created shared buffer mints a fresh handle, so drop any stale (recycled) tracker entry
@@ -1701,6 +1734,123 @@ Result DebugDevice::popCudaContext()
     SLANG_RHI_DEBUG_API(IDevice, popCudaContext);
 
     return baseObject->popCudaContext();
+}
+
+Result DebugDevice::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createResourceHeap);
+    validateCudaContext();
+
+    if (!outHeap)
+    {
+        RHI_VALIDATION_ERROR("'outHeap' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    *outHeap = nullptr;
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+    {
+        RHI_VALIDATION_ERROR("Device does not support resource heaps.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (desc.size == 0)
+    {
+        RHI_VALIDATION_ERROR("Resource heap size must be greater than 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!isValidMemoryType(desc.memoryType))
+    {
+        RHI_VALIDATION_ERROR("Invalid memory type.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!isValidResourceHeapUsage(desc.usage))
+    {
+        RHI_VALIDATION_ERROR("Invalid resource heap usage.");
+        return SLANG_E_INVALID_ARG;
+    }
+    Result validationResult = validateResourceHeapDesc(checked_cast<Device*>(baseObject.get()), desc);
+    if (SLANG_FAILED(validationResult))
+    {
+        RHI_VALIDATION_ERROR("Invalid or incompatible resource heap requirements.");
+        return validationResult;
+    }
+
+    ResourceHeapDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createResourceHeapLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    RefPtr<DebugResourceHeap> result = new DebugResourceHeap(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createResourceHeap(patchedDesc, result->baseObject.writeRef()));
+    returnComPtr(outHeap, result);
+    return SLANG_OK;
+}
+
+Result DebugDevice::getBufferMemoryRequirements(const BufferDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_RHI_DEBUG_API(IDevice, getBufferMemoryRequirements);
+
+    if (!outRequirements)
+    {
+        RHI_VALIDATION_ERROR("'outRequirements' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+        return SLANG_E_NOT_AVAILABLE;
+
+    SLANG_RETURN_ON_FAIL(validateBufferDesc(ctx, desc));
+
+    BufferDesc patchedDesc = desc;
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
+    return baseObject->getBufferMemoryRequirements(patchedDesc, outRequirements);
+}
+
+Result DebugDevice::getTextureMemoryRequirements(const TextureDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_RHI_DEBUG_API(IDevice, getTextureMemoryRequirements);
+
+    if (!outRequirements)
+    {
+        RHI_VALIDATION_ERROR("'outRequirements' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+        return SLANG_E_NOT_AVAILABLE;
+
+    SLANG_RETURN_ON_FAIL(validateTextureDesc(ctx, desc));
+
+    TextureDesc patchedDesc = desc;
+    patchedDesc.heap = getInnerObj(patchedDesc.heap);
+    return baseObject->getTextureMemoryRequirements(patchedDesc, outRequirements);
+}
+
+Result DebugDevice::isResourceHeapCompatible(
+    IResourceHeap* heap,
+    const ResourceMemoryRequirements& requirements,
+    bool* outCompatible
+)
+{
+    SLANG_RHI_DEBUG_API(IDevice, isResourceHeapCompatible);
+
+    if (!heap)
+    {
+        RHI_VALIDATION_ERROR("'heap' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outCompatible)
+    {
+        RHI_VALIDATION_ERROR("'outCompatible' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (!baseObject->hasFeature(Feature::ResourceHeaps))
+        return SLANG_E_NOT_AVAILABLE;
+
+    return baseObject->isResourceHeapCompatible(getInnerObj(heap), requirements, outCompatible);
 }
 
 void DebugDevice::validateCudaContext()

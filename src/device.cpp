@@ -3,10 +3,12 @@
 #include "rhi-shared.h"
 #include "shader.h"
 #include "heap.h"
+#include "resource-heap.h"
 #include "debug-layer/debug-device.h"
 
 #include <algorithm>
 #include <cstdarg>
+#include <cstring>
 
 namespace rhi {
 
@@ -367,6 +369,14 @@ Result Device::createConcretePipeline(Pipeline* pipeline, ShaderProgram* program
     return SLANG_OK;
 }
 
+Result Device::writeUploadBuffer(Buffer* buffer, Offset offset, Size size, const void* data)
+{
+    void* mapped = nullptr;
+    SLANG_RETURN_ON_FAIL(mapBuffer(buffer, CpuAccessMode::Write, &mapped));
+    std::memcpy(static_cast<uint8_t*>(mapped) + offset, data, size);
+    return unmapBuffer(buffer);
+}
+
 Result Device::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
@@ -386,84 +396,6 @@ Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRa
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outPipeline);
     return SLANG_E_NOT_AVAILABLE;
-}
-
-Result Device::getEntryPointCodeFromShaderCache(
-    ShaderProgram* program,
-    slang::IComponentType* componentType,
-    const char* entryPointName,
-    uint32_t entryPointIndex,
-    uint32_t targetIndex,
-    slang::IBlob* cacheKey,
-    bool measureCompilerTime,
-    EntryPointCompilationStats* outStats,
-    slang::IBlob** outCode,
-    slang::IBlob** outDiagnostics
-)
-{
-    TimePoint startTime = Timer::now();
-    ComPtr<ISlangBlob> codeBlob;
-    ComPtr<ISlangBlob> hashBlob(cacheKey);
-    SLANG_UNUSED(program);
-    SLANG_UNUSED(entryPointName);
-
-    if (outStats)
-    {
-        *outStats = {};
-        outStats->startTime = startTime;
-    }
-
-    if (m_persistentShaderCache)
-    {
-        // Hash all relevant state for generating the entry point shader code to use as a key
-        // for the shader cache.
-        if (!hashBlob)
-            componentType->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
-
-        // Query the shader cache.
-        Result cacheResult = m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef());
-        if (cacheResult == SLANG_OK)
-        {
-            if (outStats)
-            {
-                outStats->endTime = Timer::now();
-                outStats->isCached = true;
-                outStats->cacheSize = codeBlob->getBufferSize();
-            }
-
-            returnComPtr(outCode, codeBlob);
-            return SLANG_OK;
-        }
-    }
-
-    // Cached entry not found, generate the code and measure compilation time.
-    double startTotalTime = 0.0, endTotalTime = 0.0;
-    double startDownstreamTime = 0.0, endDownstreamTime = 0.0;
-    if (measureCompilerTime)
-        componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&startTotalTime, &startDownstreamTime);
-    SLANG_RETURN_ON_FAIL(
-        componentType->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
-    );
-    if (measureCompilerTime)
-        componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&endTotalTime, &endDownstreamTime);
-
-    // Write the generated code to the shader cache if available.
-    if (m_persistentShaderCache)
-    {
-        m_persistentShaderCache->writeCache(hashBlob, codeBlob);
-    }
-
-    if (outStats)
-    {
-        outStats->endTime = Timer::now();
-        outStats->totalTime = measureCompilerTime ? endTotalTime - startTotalTime : 0.0;
-        outStats->downstreamTime = measureCompilerTime ? endDownstreamTime - startDownstreamTime : 0.0;
-        outStats->isCached = false;
-        outStats->cacheSize = codeBlob->getBufferSize();
-    }
-
-    returnComPtr(outCode, codeBlob);
-    return SLANG_OK;
 }
 
 Result Device::queryInterface(const SlangUUID& uuid, void** outObject)
@@ -912,6 +844,44 @@ Result Device::createHeap(const HeapDesc& desc, IHeap** outHeap)
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outHeap);
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outHeap);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::getBufferMemoryRequirements(const BufferDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc);
+    if (outRequirements)
+        resetResourceMemoryRequirements(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::getTextureMemoryRequirements(const TextureDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc);
+    if (outRequirements)
+        resetResourceMemoryRequirements(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::isResourceHeapCompatible(
+    IResourceHeap* heap,
+    const ResourceMemoryRequirements& requirements,
+    bool* outCompatible
+)
+{
+    if (!heap || !outCompatible)
+        return SLANG_E_INVALID_ARG;
+    ResourceHeap* resourceHeap = checked_cast<ResourceHeap*>(heap);
+    if (resourceHeap->getDevice() != this)
+        return SLANG_E_INVALID_ARG;
+    *outCompatible = resourceHeap->isCompatible(requirements);
+    return SLANG_OK;
 }
 
 Result Device::readTexture(

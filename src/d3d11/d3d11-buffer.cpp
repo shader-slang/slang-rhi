@@ -97,6 +97,9 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
+    if (desc_.heap)
+        return SLANG_E_NOT_AVAILABLE;
+
     BufferDesc desc = fixupBufferDesc(desc_);
 
     auto d3dBindFlags = _calcResourceBindFlags(desc.usage);

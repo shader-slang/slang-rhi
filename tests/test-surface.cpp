@@ -68,8 +68,6 @@ struct SurfaceTest
         this->surface = device->createSurface(getWindowHandleFromGLFW(window));
         REQUIRE(this->surface);
         CHECK(is_set(this->surface->getInfo().supportedUsage, TextureUsage::Present));
-
-        initResources();
     }
 
     void shutdown()
@@ -267,7 +265,7 @@ struct ComputeSurfaceTest : SurfaceTest
 
     Format getSurfaceFormat() override
     {
-        // Choose an non-sRGB format to allow compute shader to write to the surface.
+        // Choose a non-sRGB format that supports storage writes.
         const SurfaceInfo& info = surface->getInfo();
         for (uint32_t i = 0; i < info.formatCount; ++i)
         {
@@ -276,12 +274,19 @@ struct ComputeSurfaceTest : SurfaceTest
             case Format::RGBA8Unorm:
             case Format::BGRA8Unorm:
             case Format::BGRX8Unorm:
+                if (device->getDeviceType() == DeviceType::WGPU)
+                {
+                    FormatSupport support = {};
+                    REQUIRE_CALL(device->getFormatSupport(info.formats[i], &support));
+                    if (!is_set(support, FormatSupport::ShaderUavStore))
+                        continue;
+                }
                 return info.formats[i];
             default:
                 break;
             }
         }
-        return info.preferredFormat;
+        return device->getDeviceType() == DeviceType::WGPU ? Format::Undefined : info.preferredFormat;
     }
 
     TextureUsage getSurfaceUsage() override
@@ -301,7 +306,20 @@ struct ComputeSurfaceTest : SurfaceTest
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-surface-compute", "computeMain", shaderProgram.writeRef()));
+        // Storage texture formats are part of the shader type on WebGPU.
+        if (device->getDeviceType() == DeviceType::WGPU)
+        {
+            const char* format =
+                getSurfaceFormat() == Format::BGRA8Unorm ? "bgra8" : getFormatInfo(getSurfaceFormat()).slangName;
+            REQUIRE(format);
+            std::string source =
+                std::string("#define SURFACE_FORMAT \"") + format + "\"\n#include \"test-surface-compute.slang\"\n";
+            REQUIRE_CALL(loadComputeProgramFromSource(device, source, shaderProgram.writeRef()));
+        }
+        else
+        {
+            REQUIRE_CALL(loadProgram(device, "test-surface-compute", "computeMain", shaderProgram.writeRef()));
+        }
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -368,6 +386,13 @@ void testSurface(IDevice* device)
 
     Test t;
     t.init(device);
+    if (t.getSurfaceFormat() == Format::Undefined)
+    {
+        t.shutdown();
+        glfwTerminate();
+        SKIP("No storage-capable surface format");
+    }
+    t.initResources();
     t.run();
     t.shutdown();
 
@@ -380,8 +405,7 @@ GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     testSurface<RenderSurfaceTest>(device);
 }
 
-// skip WGPU: RWTexture binding fails
-GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
     {
@@ -391,7 +415,7 @@ GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
     testSurface<ComputeSurfaceTest>(device);
 }
 
-GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
     {
@@ -400,4 +424,49 @@ GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }
+
+GPU_TEST_CASE("surface-resize-during-frame", Vulkan | CUDA)
+{
+    if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
+        SKIP("CUDA surface requires Vulkan");
+
+    glfwInit();
+    if (!hasMonitor())
+        SKIP("No monitor attached");
+
+    NoRenderSurfaceTest t;
+    t.init(device);
+    int width, height;
+    glfwGetFramebufferSize(t.window, &width, &height);
+    t.configureSurface(width, height);
+
+    // A window thread can resize after acquisition but before presentation.
+    ComPtr<ITexture> texture = t.surface->acquireNextImage();
+    REQUIRE(texture);
+    glfwSetWindowSize(t.window, 700, 700);
+    glfwPollEvents();
+    REQUIRE_CALL(t.surface->present());
+    texture.setNull();
+
+    // The render thread may attempt more frames before receiving the resize event.
+    // An out-of-date acquisition must leave the frame fence signaled for the next attempt.
+    for (int i = 0; i < 2; ++i)
+    {
+        texture = t.surface->acquireNextImage();
+        if (texture)
+            REQUIRE_CALL(t.surface->present());
+        texture.setNull();
+    }
+
+    glfwGetFramebufferSize(t.window, &width, &height);
+    t.configureSurface(width, height);
+    texture = t.surface->acquireNextImage();
+    REQUIRE(texture);
+    REQUIRE_CALL(t.surface->present());
+    texture.setNull();
+    t.queue->waitOnHost();
+    t.shutdown();
+    glfwTerminate();
+}
+
 #endif // SLANG_RHI_BUILD_TESTS_WITH_GLFW

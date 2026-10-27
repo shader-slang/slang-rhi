@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-backend.h"
 #include "cuda-command.h"
 #include "cuda-buffer.h"
@@ -16,6 +17,8 @@
 #include "synthetic-resource-bindings.h"
 
 #include "core/platform.h"
+
+#include <filesystem>
 
 namespace rhi::cuda {
 
@@ -207,6 +210,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
+    addFeature(Feature::ResourceHeaps);
+    addFeature(Feature::ResourceAliasing);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
@@ -319,13 +324,39 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
 
+    // Configure headers only after the OptiX runtime (including fallback) has been selected.
+    std::string optixIncludeArg;
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+    if (desc.optixDeviceHeaderRoot && m_info.optixVersion != 0)
+    {
+        uint32_t version = m_info.optixVersion;
+        std::string tag = std::to_string(version / 10000) + "_" + std::to_string((version % 10000) / 100);
+        auto path = std::filesystem::path(desc.optixDeviceHeaderRoot) / tag;
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(path / "optix.h", error))
+        {
+            printError("OptiX %u device header not found: %s", version, (path / "optix.h").string().c_str());
+            return SLANG_E_INVALID_ARG;
+        }
+
+        // DownstreamArgs separates arguments with newlines, so spaces need no shell quoting.
+        optixIncludeArg = "-I" + path.string();
+        slang::CompilerOptionEntry option = {};
+        option.name = slang::CompilerOptionName::DownstreamArgs;
+        option.value.kind = slang::CompilerOptionValueKind::String;
+        option.value.stringValue0 = "nvrtc";
+        option.value.stringValue1 = optixIncludeArg.c_str();
+        compilerOptions.push_back(option);
+    }
+
     // Initialize slang context
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_PTX,
         nullptr,
         getCapabilities(),
-        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}}
+        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}},
+        compilerOptions
     ));
 
     // Initialize format support table
@@ -685,6 +716,47 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 {
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
+    ResourceHeapUsage usage = desc.usage;
+    if (usage == ResourceHeapUsage::None)
+    {
+        for (uint32_t i = 0; i < desc.requirementCount; ++i)
+            usage |= desc.requirements[i].usage;
+    }
+    if (!isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, usage))
+        return SLANG_E_NOT_AVAILABLE;
+
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    BufferDesc desc = fixupBufferDesc(desc_);
+    outRequirements->size = desc.size;
+    outRequirements->alignment = 256;
+    outRequirements->heapAlignment = 1;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = ResourceHeapUsage::Buffers;
+    outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    setResourceHeapCompatibility(*outRequirements, this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc_);
+    resetResourceMemoryRequirements(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)

@@ -1,41 +1,46 @@
 #pragma once
 
 #include "utils.h"
+#include "text-renderer.h"
+#include "profiler.h"
 
 #include <slang.h>
 #include <slang-rhi.h>
 
-#if SLANG_WINDOWS_FAMILY
-#define GLFW_EXPOSE_NATIVE_WIN32
-#elif SLANG_LINUX_FAMILY
-#define GLFW_EXPOSE_NATIVE_X11
-#elif SLANG_APPLE_FAMILY
-#define GLFW_EXPOSE_NATIVE_COCOA
-#endif
 #include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
 
-#include <slang-rhi/glfw.h>
-
+#include <memory>
+#include <string_view>
 #include <string>
+#include <utility>
 #include <vector>
-#include <algorithm>
-#include <cctype>
 
 namespace rhi {
 
+struct ExampleDesc;
+
+namespace detail {
+struct ExampleRunner;
+} // namespace detail
+
 // Base class for examples.
 // Derive from this class to implement an example.
+// The runner calls lifecycle methods and input callbacks on one dedicated thread per native example.
+// Browser examples run on the main thread and yield between frames and during asynchronous GPU work.
+// Use the window helpers below; GLFW window operations belong to the main thread.
 class ExampleBase
 {
 public:
+    // Constructs an example without creating device, window, or overlay resources.
+    ExampleBase();
+    // Destroys the window and releases the overlay; call shutdown() first.
     virtual ~ExampleBase();
 
     // Called to initialize the example for the specified device type.
     virtual Result init(DeviceType deviceType) = 0;
-    // Called to shut down the example.
+    // Called to shut down the example, including after a partially failed init().
     virtual void shutdown() = 0;
-    // Called every frame to update the example.
+    // Called every frame to update the example. All examples receive the same time unless --free-running is used.
     virtual Result update(double time) = 0;
     // Called every frame to render the example.
     virtual Result draw() = 0;
@@ -43,9 +48,11 @@ public:
     // Event callbacks
 
     // Called when the window is resized.
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) {}
+    virtual Result onResize(int width, int height, int framebufferWidth, int framebufferHeight) { return SLANG_OK; }
     // Called when the mouse is moved.
     virtual void onMousePosition(float x, float y) {}
+    // Called when the mouse enters or leaves any backend window.
+    virtual void onMouseEnter(bool entered) {}
     // Called when a mouse button is pressed or released.
     virtual void onMouseButton(int button, int action, int mods) {}
     // Called when the mouse wheel is scrolled.
@@ -79,17 +86,85 @@ public:
 
     // Window management
 
-    // Creates a window with the specified title and size.
-    // Automatically appends device and adapter information to the title.
-    Result createWindow(IDevice* device, const char* title, uint32_t width = 640, uint32_t height = 360);
+    // Creates a window using the registered title and the common initial size.
+    // The initial layout reduces the size as needed to fit all backend windows.
+    // Automatically appends device, adapter, FPS, and VSync information to the title.
+    Result createWindow(IDevice* device);
     // Destroys the window.
     void destroyWindow();
     // Returns whether the window has been asked to close.
     bool shouldClose() const;
+    // Returns the cached window size in the same coordinates as mouse input.
+    int getWindowWidth() const { return m_windowWidth; }
+    int getWindowHeight() const { return m_windowHeight; }
+
+    // Surface management
 
     // Creates a surface for the window with the specified format.
     // Use Format::Undefined to use the preferred format.
     Result createSurface(IDevice* device, Format format, ISurface** outSurface);
+    // Configures a surface using the shared VSync preference, including after resizing.
+    Result configureSurface(ISurface* surface, SurfaceConfig config);
+    // Presents the window surface and records application frame timing.
+    Result presentSurface();
+    // Applied by the runner between frames; input callbacks run on the owning worker.
+    void toggleVsync()
+    {
+        m_vsync = !m_vsync;
+        m_vsyncChanged = true;
+    }
+
+    // Returns the current frame statistics.
+    const FrameStats& getFrameStats() const { return m_frameStats; }
+
+    // Profiler
+
+    // Initializes optional profiling of explicitly marked regions on the example's queue.
+    // Initialize once; shutdown() must wait for submissions before destruction.
+    Result initProfiler(IDevice* device);
+
+    // Returns the profiler. Requires successful initProfiler().
+    Profiler& getProfiler();
+
+    // Toggles profiling independently of overlay visibility. Does nothing if uninitialized.
+    void toggleProfiler();
+
+    // Overlay utility
+
+    // Initializes the optional text overlay for the output format.
+    // The window content scale multiplies the native 6x9 font size, rounded to whole pixels.
+    // Uses rasterization or a compute fallback, depending on the device and target.
+    Result initOverlay(IDevice* device, Format format);
+
+    // Clears accumulated overlay text. Call before composing a new frame's text, even if drawing is skipped.
+    void clearOverlay();
+
+    // Prints the common shortcuts as the first overlay line. Call after clearOverlay(),
+    // before appending example-specific controls and information.
+    void printOverlayHeader();
+
+    // Prints the shared CameraController shortcuts.
+    void printCameraControls();
+
+    // Appends printf-formatted text; end each line with a newline, including the final status line.
+    // ^0 restores the default color; ^1-^7 select red, green, yellow, blue, cyan, magenta, white.
+    // Color persists until changed or clearOverlay(); unknown codes are printed literally.
+    // Does nothing when hidden or uninitialized. Failed formatting is skipped without changing accumulated text.
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 2, 3)))
+#endif
+    void
+    printOverlay(const char* format, ...);
+
+    // Draws the picker when open, otherwise the accumulated overlay text, over the existing image.
+    // Call after the example has finished rendering, before submission.
+    // The picker ignores normal overlay visibility. The image must use the initialized output format.
+    Result drawOverlay(ICommandEncoder* encoder, ITexture* image);
+
+    // Returns whether the normal overlay is enabled, independently of the picker and initialization.
+    bool isOverlayVisible() const { return m_overlayVisible; }
+    // Toggles overlay visibility without creating or destroying its resources.
+    void toggleOverlay() { m_overlayVisible = !m_overlayVisible; }
 
 public:
     DeviceType m_deviceType = DeviceType::Default;
@@ -98,451 +173,76 @@ public:
 
     float m_mousePos[2] = {0.0f, 0.0f};
     bool m_mouseDown[3] = {false, false, false};
+
+private:
+    Result updateWindowTitle();
+    Result applyVsync();
+
+    const ExampleDesc* m_desc = nullptr;
+    std::string m_windowTitle;
+    FrameStats m_frameStats;
+    bool m_vsync = true;
+    bool m_vsyncChanged = false;
+    ComPtr<ISurface> m_presentationSurface;
+    ComPtr<ICommandQueue> m_presentationQueue;
+    detail::ExampleRunner* m_runner = nullptr;
+    int m_windowWidth = 0;
+    int m_windowHeight = 0;
+    int m_framebufferWidth = 0;
+    int m_framebufferHeight = 0;
+    float m_contentScale = 1.f; // Use the X scale uniformly to preserve the bitmap font's aspect ratio.
+    bool m_minimized = false;
+    bool m_overlayVisible = true;
+    std::string m_examplePickerText;
+    std::unique_ptr<TextRenderer> m_textRenderer;
+    std::unique_ptr<Profiler> m_profiler;
+
+    friend struct detail::ExampleRunner;
+};
+
+// A stable identifier, display name, and factory shared by standalone and combined executables.
+// Capability checks remain in init(), so there is only one source of feature requirements.
+struct ExampleDesc
+{
+    const char* name;
+    const char* title;
+    const char* shaderSearchPath;
+    ExampleBase* (*create)();
 };
 
 namespace detail {
-static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
-static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
-static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
-static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
-static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
-static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
-static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-
-static std::vector<ExampleBase*>& getExamples()
+struct ExampleRegistration
 {
-    static std::vector<ExampleBase*> examples;
-    return examples;
-}
+    explicit ExampleRegistration(ExampleDesc desc);
+};
 
-static ExampleBase* mainExample = nullptr;
-
-static void setMainExample(ExampleBase* example)
-{
-    if (mainExample)
-        glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_FALSE);
-    mainExample = example;
-    if (mainExample)
-        glfwSetWindowAttrib(mainExample->m_window, GLFW_RESIZABLE, GLFW_TRUE);
-}
-
-} // namespace detail
-
-
-ExampleBase::~ExampleBase()
-{
-    destroyWindow();
-}
-
-Result ExampleBase::createDevice(
-    DeviceType deviceType,
-    std::vector<Feature> requiredFeatures,
-    std::vector<std::pair<std::string, std::string>> preprocessorMacros,
-    IDevice** outDevice
-)
-{
-    SLANG_RETURN_ON_FAIL(
-        rhi::createDevice(deviceType, requiredFeatures, preprocessorMacros, outDevice, &m_missingFeatures)
-    );
-    m_deviceType = (*outDevice)->getDeviceType();
-    return SLANG_OK;
-}
-
-Result ExampleBase::createWindow(IDevice* device, const char* title, uint32_t width, uint32_t height)
-{
-    const auto& deviceInfo = device->getInfo();
-    char fullTitle[1024];
-    snprintf(
-        fullTitle,
-        sizeof(fullTitle),
-        "%s | %s (%s)",
-        title,
-        getRHI()->getDeviceTypeName(deviceInfo.deviceType),
-        deviceInfo.adapterName
-    );
-
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-    m_window = glfwCreateWindow(width, height, fullTitle, nullptr, nullptr);
-    if (!m_window)
-    {
-        return SLANG_FAIL;
-    }
-    glfwSetWindowUserPointer(m_window, this);
-    glfwSetWindowPosCallback(m_window, detail::glfwWindowPosCallback);
-    glfwSetWindowSizeCallback(m_window, detail::glfwWindowSizeCallback);
-    glfwSetWindowIconifyCallback(m_window, detail::glfwWindowIconifyCallback);
-    glfwSetWindowMaximizeCallback(m_window, detail::glfwWindowMaximizeCallback);
-    glfwSetFramebufferSizeCallback(m_window, detail::glfwFramebufferSizeCallback);
-    glfwSetCursorPosCallback(m_window, detail::glfwCursorPosCallback);
-    glfwSetMouseButtonCallback(m_window, detail::glfwMouseButtonCallback);
-    glfwSetScrollCallback(m_window, detail::glfwScrollCallback);
-    glfwSetKeyCallback(m_window, detail::glfwKeyCallback);
-
-    return SLANG_OK;
-}
-
-void ExampleBase::destroyWindow()
-{
-    if (m_window)
-    {
-        glfwDestroyWindow(m_window);
-        m_window = nullptr;
-    }
-}
-
-bool ExampleBase::shouldClose() const
-{
-    return m_window && glfwWindowShouldClose(m_window) != 0;
-}
-
-Result ExampleBase::createSurface(IDevice* device, Format format, ISurface** outSurface)
-{
-    ASSERT(m_window, "Window must be created before creating surface");
-
-    int width, height;
-    glfwGetFramebufferSize(m_window, &width, &height);
-
-    SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(m_window), outSurface));
-    SurfaceConfig surfaceConfig;
-    surfaceConfig.width = width;
-    surfaceConfig.height = height;
-    surfaceConfig.format = format;
-    SLANG_RETURN_ON_FAIL((*outSurface)->configure(surfaceConfig));
-
-    return SLANG_OK;
-}
-
-namespace detail {
-
-static bool layoutInProgress = false;
-
-static void layoutWindows()
-{
-    if (getExamples().size() <= 1)
-    {
-        return;
-    }
-
-    static const int kMargin = 100;
-
-    int wx, wy, ww, wh;
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    glfwGetMonitorWorkarea(monitor, &wx, &wy, &ww, &wh);
-
-    int frameLeft, frameTop, frameRight, frameBottom;
-    glfwGetWindowFrameSize(mainExample->m_window, &frameLeft, &frameTop, &frameRight, &frameBottom);
-
-    layoutInProgress = true;
-
-    int x = wx + kMargin;
-    int y = wy + kMargin;
-
-    for (ExampleBase* example : getExamples())
-    {
-        int width, height;
-        glfwGetWindowSize(example->m_window, &width, &height);
-        width += frameLeft + frameRight;
-        height += frameTop + frameBottom;
-
-        if (x + width >= ww)
-        {
-            x = wx + kMargin;
-            y += height;
-        }
-        glfwSetWindowPos(example->m_window, x, y);
-        x += width;
-    }
-
-    layoutInProgress = false;
-}
-
-static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos)
-{
-    if (layoutInProgress)
-    {
-        return;
-    }
-    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
-    if (srcExample == mainExample)
-    {
-        layoutWindows();
-    }
-}
-
-static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
-{
-    if (layoutInProgress)
-    {
-        return;
-    }
-    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
-    for (ExampleBase* example : getExamples())
-    {
-        if (example != srcExample)
-        {
-            glfwSetWindowSize(example->m_window, width, height);
-        }
-    }
-    if (srcExample == mainExample)
-    {
-        layoutWindows();
-    }
-}
-
-static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
-{
-    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
-    for (ExampleBase* example : getExamples())
-    {
-        if (example != srcExample)
-        {
-            if (iconified)
-            {
-                glfwIconifyWindow(example->m_window);
-            }
-            else
-            {
-                glfwRestoreWindow(example->m_window);
-            }
-        }
-    }
-}
-
-static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
-{
-    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
-    for (ExampleBase* example : getExamples())
-    {
-        if (example != srcExample)
-        {
-            if (maximized)
-            {
-                glfwMaximizeWindow(example->m_window);
-            }
-            else
-            {
-                glfwRestoreWindow(example->m_window);
-            }
-        }
-    }
-}
-
-static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height)
-{
-    int windowWidth, windowHeight;
-    glfwGetWindowSize(window, &windowWidth, &windowHeight);
-    int framebufferWidth, framebufferHeight;
-    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
-    ExampleBase* example = (ExampleBase*)glfwGetWindowUserPointer(window);
-    example->onResize(windowWidth, windowHeight, framebufferWidth, framebufferHeight);
-}
-
-static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
-{
-    for (ExampleBase* example : getExamples())
-    {
-        example->m_mousePos[0] = xpos;
-        example->m_mousePos[1] = ypos;
-        example->onMousePosition(xpos, ypos);
-    }
-}
-
-static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{
-    for (ExampleBase* example : getExamples())
-    {
-        if (button < SLANG_COUNT_OF(example->m_mouseDown))
-            example->m_mouseDown[button] = (action == GLFW_PRESS);
-        example->onMouseButton(button, action, mods);
-    }
-}
-
-static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    for (ExampleBase* example : getExamples())
-    {
-        example->onScroll(xoffset, yoffset);
-    }
-}
-
-static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    for (ExampleBase* example : getExamples())
-    {
-        example->onKey(key, scancode, action, mods);
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        {
-            glfwSetWindowShouldClose(example->m_window, GLFW_TRUE);
-        }
-    }
-}
-
-template<typename Example>
-static int main(int argc, const char** argv)
-{
-    std::vector<DeviceType> deviceTypes = {
-        DeviceType::D3D11,
-        DeviceType::D3D12,
-        DeviceType::Vulkan,
-        DeviceType::Metal,
-        DeviceType::CPU,
-        DeviceType::CUDA,
-        // Exclude for now as WGPU backend is not fully functional
-        // DeviceType::WGPU,
-    };
-
-    if (argc > 1)
-    {
-        if (argc != 3 || std::string(argv[1]) != "--device")
-        {
-            LOG_ERROR("Usage: %s [--device <d3d11|d3d12|vulkan|metal|cpu|cuda>]", argv[0]);
-            return 1;
-        }
-        std::string requestedDevice = argv[2];
-        auto toLower = [](unsigned char c)
-        {
-            return char(std::tolower(c));
-        };
-        std::transform(requestedDevice.begin(), requestedDevice.end(), requestedDevice.begin(), toLower);
-        auto selectedDevice = std::find_if(
-            deviceTypes.begin(),
-            deviceTypes.end(),
-            [&](DeviceType type)
-            {
-                std::string name = getRHI()->getDeviceTypeName(type);
-                std::transform(name.begin(), name.end(), name.begin(), toLower);
-                return name == requestedDevice;
-            }
-        );
-        if (selectedDevice == deviceTypes.end())
-        {
-            LOG_ERROR("Unknown device: %s", argv[2]);
-            return 1;
-        }
-        deviceTypes = {*selectedDevice};
-    }
-
-    if (!glfwInit())
-    {
-        LOG_ERROR("Failed to initialize GLFW");
-        return 1;
-    }
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-    std::vector<ExampleBase*>& examples = getExamples();
-    int exitCode = 0;
-
-    // Create an example for each supported device type
-    for (DeviceType deviceType : deviceTypes)
-    {
-        if (rhi::getRHI()->isDeviceTypeSupported(deviceType))
-        {
-            Example* example = new Example();
-            Result result = example->init(deviceType);
-            if (SLANG_FAILED(result))
-            {
-                if (result == SLANG_E_NOT_AVAILABLE && !example->m_missingFeatures.empty())
-                {
-                    std::string missingFeatures;
-                    for (Feature feature : example->m_missingFeatures)
-                    {
-                        if (!missingFeatures.empty())
-                            missingFeatures += ", ";
-                        const char* name = getRHI()->getFeatureName(feature);
-                        missingFeatures += name ? name : "unknown";
-                    }
-                    LOG_INFO(
-                        "%s: skipped (missing required features: %s).",
-                        getRHI()->getDeviceTypeName(deviceType),
-                        missingFeatures.c_str()
-                    );
-                }
-                else
-                {
-                    exitCode = 1;
-                    LOG_ERROR(
-                        "Could not initialize %s example (0x%08x).",
-                        getRHI()->getDeviceTypeName(deviceType),
-                        unsigned(result)
-                    );
-                }
-                delete example;
-                continue;
-            }
-            examples.push_back(example);
-            if (!mainExample)
-                setMainExample(example);
-        }
-        else
-        {
-            LOG_INFO("%s: skipped (backend not enabled in this build).", getRHI()->getDeviceTypeName(deviceType));
-        }
-    }
-
-    layoutWindows();
-
-    if (examples.empty())
-        exitCode = 1;
-
-    while (!examples.empty())
-    {
-        glfwPollEvents();
-
-        double time = glfwGetTime();
-        bool shouldClose = false;
-
-        for (auto it = examples.begin(); it != examples.end();)
-        {
-            ExampleBase* example = *it;
-            shouldClose |= example->shouldClose();
-            Result result = example->update(time);
-            if (SLANG_SUCCEEDED(result))
-                result = example->draw();
-            if (SLANG_FAILED(result))
-            {
-                LOG_ERROR(
-                    "%s: example frame failed (0x%08x).",
-                    getRHI()->getDeviceTypeName(example->m_deviceType),
-                    unsigned(result)
-                );
-                exitCode = 1;
-                it = examples.erase(it);
-                if (mainExample == example)
-                    setMainExample(examples.empty() ? nullptr : examples.front());
-                example->shutdown();
-                delete example;
-                layoutWindows();
-            }
-            else
-                ++it;
-        }
-        if (shouldClose)
-            break;
-    }
-
-    for (ExampleBase* example : examples)
-    {
-        example->shutdown();
-        delete example;
-    }
-
-    examples.clear();
-    mainExample = nullptr;
-
-    glfwTerminate();
-
-    return exitCode;
-}
-
+int runRegisteredExamples(int argc, const char** argv, std::string_view defaultExample = {});
 } // namespace detail
 
 } // namespace rhi
 
-#define EXAMPLE_MAIN(Example)                                                                                          \
+// Each translation unit registers its descriptor without constructing an example.
+// Only standalone builds define main().
+#if defined(EXAMPLE_COMBINED)
+#define EXAMPLE_STANDALONE_MAIN()
+#else
+#define EXAMPLE_STANDALONE_MAIN()                                                                                      \
     int main(int argc, const char** argv)                                                                              \
     {                                                                                                                  \
-        return rhi::detail::main<Example>(argc, argv);                                                                 \
+        return rhi::detail::runRegisteredExamples(argc, argv);                                                         \
     }
+#endif
+
+#define EXAMPLE_MAIN(Example, Name, Title)                                                                             \
+    namespace {                                                                                                        \
+    const rhi::detail::ExampleRegistration register##Example({                                                         \
+        Name,                                                                                                          \
+        Title,                                                                                                         \
+        EXAMPLE_DIR,                                                                                                   \
+        []() -> rhi::ExampleBase*                                                                                      \
+        {                                                                                                              \
+            return new Example();                                                                                      \
+        },                                                                                                             \
+    });                                                                                                                \
+    }                                                                                                                  \
+    EXAMPLE_STANDALONE_MAIN()

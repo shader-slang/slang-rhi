@@ -71,7 +71,7 @@ public:
 
     RenderPassEncoder(CommandEncoder* commandEncoder);
 
-    void writeRenderState();
+    Result writeRenderState();
 
     // IRenderPassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IRenderPipeline* pipeline) override;
@@ -118,7 +118,7 @@ public:
 
     ComputePassEncoder(CommandEncoder* commandEncoder);
 
-    void writeComputeState();
+    Result writeComputeState();
 
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
@@ -157,7 +157,7 @@ public:
 
     RayTracingPassEncoder(CommandEncoder* commandEncoder);
 
-    void writeRayTracingState();
+    Result writeRayTracingState();
 
     // IRayTracingPassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(
@@ -199,6 +199,10 @@ public:
     // Current command list to write to. Must be set by the derived class.
     CommandList* m_commandList = nullptr;
 
+    // Preserve the first state preparation failure until finish(), since draw and
+    // dispatch APIs cannot return errors. An invalid encoder must not be submitted.
+    Result m_recordingResult = SLANG_OK;
+
     RenderPassEncoder m_renderPassEncoder;
     ComputePassEncoder m_computePassEncoder;
     RayTracingPassEncoder m_rayTracingPassEncoder;
@@ -218,6 +222,13 @@ public:
     }
 
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) = 0;
+
+    Result prepareBindings(
+        IPipeline* pipeline,
+        RootShaderObject* rootObject,
+        ExtendedShaderObjectTypeListObject*& outSpecializationArgs,
+        BindingData*& outBindingData
+    );
 
     Result getPipelineSpecializationArgs(
         IPipeline* pipeline,
@@ -376,6 +387,14 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() override;
+
+    using ICommandEncoder::aliasResources;
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(
+        uint32_t beforeCount,
+        IResource* const* before,
+        uint32_t afterCount,
+        IResource* const* after
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;

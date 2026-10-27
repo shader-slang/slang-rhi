@@ -135,6 +135,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -459,7 +460,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
     // Setup color attachments.
-    renderPassDesc->setRenderTargetArrayLength(desc.colorAttachmentCount);
+    // Note: renderTargetArrayLength is the number of layers for layered rendering, not the number of
+    // attachments. Leave it at its default (0, not layered).
     for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i)
     {
         const auto& attachment = desc.colorAttachments[i];
@@ -740,16 +742,58 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
     );
 }
 
+// IndirectDrawArguments and IndirectDrawIndexedArguments match the layout of
+// MTLDrawPrimitivesIndirectArguments and MTLDrawIndexedPrimitivesIndirectArguments.
+static_assert(sizeof(IndirectDrawArguments) == sizeof(MTL::DrawPrimitivesIndirectArguments));
+static_assert(sizeof(IndirectDrawIndexedArguments) == sizeof(MTL::DrawIndexedPrimitivesIndirectArguments));
+
 void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(IRenderPassEncoder, drawIndirect);
+    if (!m_renderStateValid)
+        return;
+
+    // Metal has no native draw count buffer (this would require indirect command buffers).
+    if (cmd.countBuffer)
+    {
+        NOT_SUPPORTED(IRenderPassEncoder, drawIndirect with count buffer);
+        return;
+    }
+
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    for (uint32_t i = 0; i < cmd.maxDrawCount; ++i)
+    {
+        m_renderCommandEncoder->drawPrimitives(
+            m_renderPipeline->m_primitiveType,
+            argBuffer->m_buffer.get(),
+            cmd.argBuffer.offset + i * sizeof(IndirectDrawArguments)
+        );
+    }
 }
 
 void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect);
+    if (!m_renderStateValid)
+        return;
+
+    // Metal has no native draw count buffer (this would require indirect command buffers).
+    if (cmd.countBuffer)
+    {
+        NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect with count buffer);
+        return;
+    }
+
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    for (uint32_t i = 0; i < cmd.maxDrawCount; ++i)
+    {
+        m_renderCommandEncoder->drawIndexedPrimitives(
+            m_renderPipeline->m_primitiveType,
+            m_indexType,
+            m_indexBuffer->m_buffer.get(),
+            m_indexBufferOffset,
+            argBuffer->m_buffer.get(),
+            cmd.argBuffer.offset + i * sizeof(IndirectDrawIndexedArguments)
+        );
+    }
 }
 
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
@@ -977,6 +1021,12 @@ void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
 void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 {
     SLANG_UNUSED(cmd);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    SLANG_UNUSED(cmd);
+    cmdGlobalBarrier({});
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

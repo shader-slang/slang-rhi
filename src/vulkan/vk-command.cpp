@@ -11,6 +11,7 @@
 #include "vk-shader-object.h"
 #include "vk-shader-object-layout.h"
 #include "../command-list.h"
+#include "../rhi-shared.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 
@@ -120,6 +121,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -222,6 +224,13 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
                 else if (subCmdSlot->id == CommandID::EndRenderPass)
                 {
                     break;
+                }
+                else if (subCmdSlot->id == CommandID::WriteTimestamp)
+                {
+                    // Query resets, unlike timestamp writes, are forbidden inside rendering.
+                    const auto& timestamp = commandList.getCommand<commands::WriteTimestamp>(subCmdSlot);
+                    auto pool = checked_cast<QueryPoolImpl*>(timestamp.queryPool);
+                    m_api.vkCmdResetQueryPool(m_cmdBuffer, pool->m_pool, timestamp.queryIndex, 1);
                 }
             }
             commitBarriers();
@@ -1599,6 +1608,38 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
 }
 
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    commitBarriers();
+
+    VkMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+    m_api.vkCmdPipelineBarrier(
+        m_cmdBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VkDependencyFlags(0),
+        1,
+        &memoryBarrier,
+        0,
+        nullptr,
+        0,
+        nullptr
+    );
+
+    m_stateTracking.deactivateAliases({cmd.after, cmd.afterCount}, false);
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
+    {
+        if (Buffer* buffer = asBuffer(cmd.after[i]))
+            m_stateTracking.resetBufferState(buffer);
+        if (Texture* texture = asTexture(cmd.after[i]))
+            m_stateTracking.resetTextureState(texture);
+    }
+}
+
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
     // On vulkan the global barrier is a memory barrier that:
@@ -1680,7 +1721,9 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     uint32_t queryIndex = (uint32_t)cmd.queryIndex;
-    m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
+    // Render-pass queries are reset by the pre-pass scan, before rendering begins.
+    if (!m_renderPassActive)
+        m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
     m_api.vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool->m_pool, queryIndex);
 }
 
@@ -2255,21 +2298,14 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    // Increment last submitted ID which is used to track command buffer completion.
-    ++m_lastSubmittedID;
+    // Commit this ID and resource tracking only after the driver accepts the submission.
+    uint64_t submissionID = m_lastSubmittedID + 1;
 
-    // Collect & process command buffers.
+    // Collect command buffers.
     short_vector<VkCommandBuffer> vkCommandBuffers;
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        commandBuffer->m_submissionID = m_lastSubmittedID;
-        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
-        {
-            checked_cast<QueryPool*>(queryWrite.queryPool)
-                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
-        }
-        m_commandBuffersInFlight.push_back(commandBuffer);
         vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
     }
 
@@ -2291,7 +2327,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
     {
         addWaitSemaphore(m_surfaceSync.imageAvailableSemaphore, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-        m_surfaceSync.imageAvailableSemaphore = VK_NULL_HANDLE;
     }
 
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
@@ -2312,10 +2347,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
     {
         addSignalSemaphore(m_surfaceSync.renderFinishedSemaphore, 0);
-        m_surfaceSync.renderFinishedSemaphore = VK_NULL_HANDLE;
     }
 
-    addSignalSemaphore(m_trackingSemaphore, m_lastSubmittedID);
+    addSignalSemaphore(m_trackingSemaphore, submissionID);
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
@@ -2348,7 +2382,19 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     }
 
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
-    m_surfaceSync.fence = VK_NULL_HANDLE;
+    m_lastSubmittedID = submissionID;
+    for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
+    {
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+        commandBuffer->m_submissionID = submissionID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, submissionID);
+        }
+        m_commandBuffersInFlight.push_back(commandBuffer);
+    }
+    m_surfaceSync = {};
 
     retireCommandBuffers();
 

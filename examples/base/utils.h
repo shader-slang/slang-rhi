@@ -1,16 +1,26 @@
 #pragma once
 
-#include <slang-rhi.h>
-#include <slang-rhi/shader-cursor.h>
+#include "math.h"
 #include "../../src/enum-strings.h"
 
+#include <slang-rhi.h>
+#include <slang-rhi/shader-cursor.h>
+
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cmath>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <execution>
 #include <limits>
 #include <mutex>
+#include <random>
+#include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 // ---------------------------------------------------------------------------------------
@@ -56,29 +66,47 @@ inline void logMessage(DebugMessageType type, const char* format, ...)
     }                                                                                                                  \
     while (0)
 
+namespace rhi {
+
 // ---------------------------------------------------------------------------------------
-// Math
+// Random number generator
 // ---------------------------------------------------------------------------------------
 
-static constexpr float kPI = 3.14159265358979323846f;
-
-inline float radians(float degrees)
+// Seeded scene generation, identical across backend windows.
+struct RNG
 {
-    return degrees * kPI / 180.0f;
-}
+    std::mt19937 generator;
 
-inline float degrees(float radians)
-{
-    return radians * 180.0f / kPI;
-}
+    explicit RNG(uint32_t seed = 123456789)
+        : generator(seed)
+    {
+    }
+
+    uint32_t nextU32() { return generator(); }
+    float nextFloat() { return float(nextU32() >> 8) * 0x1p-24f; }
+    math::float3 nextFloat3()
+    {
+        // Sequence the draws explicitly; function argument evaluation order varies by compiler.
+        float x = nextFloat();
+        float y = nextFloat();
+        float z = nextFloat();
+        return {x, y, z};
+    }
+};
+
+// ---------------------------------------------------------------------------------------
+// Buffer upload helper
+// ---------------------------------------------------------------------------------------
 
 template<typename T>
-T divRoundUp(T x, T y)
+Result uploadBuffer(IDevice* device, std::span<const T> data, BufferUsage usage, const char* label, IBuffer** outBuffer)
 {
-    return (x + (y - 1)) / y;
+    BufferDesc desc = {};
+    desc.size = data.size_bytes();
+    desc.usage = usage;
+    desc.label = label;
+    return device->createBuffer(desc, data.data(), outBuffer);
 }
-
-namespace rhi {
 
 // ---------------------------------------------------------------------------------------
 // Debug printer
@@ -115,6 +143,7 @@ private:
 inline Result createDevice(
     DeviceType deviceType,
     std::vector<Feature> requiredFeatures,
+    const char* shaderSearchPath,
     std::vector<std::pair<std::string, std::string>> preprocessorMacros,
     IDevice** outDevice,
     std::vector<Feature>* outMissingFeatures = nullptr
@@ -127,16 +156,38 @@ inline Result createDevice(
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    DebugLayerOptions debugLayerOptions;
-    debugLayerOptions.coreValidation = true;
-    getRHI()->setDebugLayerOptions(debugLayerOptions);
     deviceDesc.enableValidation = true;
     static DebugPrinter debugPrinter(DebugMessageType::Warning);
     deviceDesc.debugCallback = &debugPrinter;
 #endif
-    const char* searchPaths[] = {EXAMPLE_DIR};
+    const char* searchPaths[] = {shaderSearchPath};
     deviceDesc.slang.searchPaths = searchPaths;
     deviceDesc.slang.searchPathCount = SLANG_COUNT_OF(searchPaths);
+
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+
+#if SLANG_RHI_ENABLE_NVAPI
+    // Setup NVAPI shader extension
+    if (deviceType == DeviceType::D3D12)
+    {
+        deviceDesc.nvapiExtUavSlot = 999;
+        preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
+        slang::CompilerOptionEntry nvapiSearchPath = {};
+        nvapiSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
+        nvapiSearchPath.value.kind = slang::CompilerOptionValueKind::String;
+        nvapiSearchPath.value.stringValue0 = "dxc";
+        nvapiSearchPath.value.stringValue1 = "-I" SLANG_RHI_NVAPI_INCLUDE_DIR;
+        compilerOptions.push_back(nvapiSearchPath);
+    }
+#endif
+
+#if SLANG_RHI_ENABLE_OPTIX
+    // Let the CUDA backend select headers matching the initialized OptiX runtime.
+    if (deviceType == DeviceType::CUDA)
+    {
+        deviceDesc.optixDeviceHeaderRoot = SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR;
+    }
+#endif
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacrosDescs;
     for (const auto& macro : preprocessorMacros)
@@ -149,6 +200,9 @@ inline Result createDevice(
 
     deviceDesc.slang.preprocessorMacros = preprocessorMacrosDescs.data();
     deviceDesc.slang.preprocessorMacroCount = preprocessorMacrosDescs.size();
+
+    deviceDesc.slang.compilerOptionEntries = compilerOptions.data();
+    deviceDesc.slang.compilerOptionEntryCount = (uint32_t)compilerOptions.size();
 
     // Check example requirements after creation so an unsupported example is
     // reported once, rather than as a separate device error for each feature.
@@ -209,21 +263,23 @@ inline Result _createProgram(
         LOG_ERROR("Failed to load Slang module from '%s'", pathOrSource);
         return SLANG_FAIL;
     }
-    std::vector<slang::IComponentType*> entryPoints;
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
-        slang::IEntryPoint* entryPoint;
-        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, &entryPoint)))
+        ComPtr<slang::IEntryPoint> entryPoint;
+        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, entryPoint.writeRef())))
         {
             LOG_ERROR("Failed to find entry point '%s' in module '%s'", entryPointName, pathOrSource);
             return SLANG_FAIL;
         }
-        entryPoints.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(std::move(entryPoint));
     }
     ShaderProgramDesc programDesc = {};
     programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    programDesc.slangEntryPoints = entryPoints.data();
-    programDesc.slangEntryPointCount = entryPoints.size();
+    programDesc.slangEntryPoints = entryPointComponents.data();
+    programDesc.slangEntryPointCount = entryPointComponents.size();
     programDesc.slangGlobalScope = module;
     device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
     PRINT_DIAGNOSTICS(diagnostics);
@@ -527,78 +583,82 @@ private:
     ComPtr<IRenderPipeline> m_blitRenderPipeline;
 };
 
-} // namespace rhi
-
 // ---------------------------------------------------------------------------------------
-// Threading
+// FrameStats
 // ---------------------------------------------------------------------------------------
 
-// TODO: Not available on macOS
-#if 0
-template<typename T>
-struct ioterable
+// Application-loop timing, shared in meaning across the side-by-side windows.
+// A rolling window of 120 intervals smooths the display; publish at most 4 Hz.
+class FrameStats
 {
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = T;
-    using difference_type = T;
-    using pointer = std::add_pointer_t<T>;
-    using reference = T;
-
-    explicit ioterable(T n)
-        : val_(n)
+public:
+    bool update(double time)
     {
+        if (m_previousTime < 0 || time <= m_previousTime)
+        {
+            reset();
+            m_previousTime = m_lastReport = time;
+            return false;
+        }
+        double elapsed = time - m_previousTime;
+        m_previousTime = time;
+        m_total += elapsed - m_intervals[m_next];
+        m_intervals[m_next] = elapsed;
+        m_next = (m_next + 1) % m_intervals.size();
+        if (m_count < m_intervals.size())
+            ++m_count;
+        if (time - m_lastReport < 0.25)
+            return false;
+        m_lastReport = time;
+        m_frameTime = m_total / double(m_count);
+        return true;
     }
 
-    ioterable() = default;
-    ioterable(ioterable&&) = default;
-    ioterable(const ioterable&) = default;
-    ioterable& operator=(ioterable&&) = default;
-    ioterable& operator=(const ioterable&) = default;
-
-    ioterable& operator++()
-    {
-        ++val_;
-        return *this;
-    }
-    ioterable operator++(int)
-    {
-        ioterable tmp(*this);
-        ++val_;
-        return tmp;
-    }
-    bool operator==(const ioterable& other) const { return val_ == other.val_; }
-    bool operator!=(const ioterable& other) const { return val_ != other.val_; }
-
-    value_type operator*() const { return val_; }
+    void reset() { *this = FrameStats(); }
+    double fps() const { return m_frameTime > 0 ? 1.0 / m_frameTime : 0; }
+    double milliseconds() const { return m_frameTime * 1000.0; }
 
 private:
-    T val_{std::numeric_limits<T>::max()};
+    std::array<double, 120> m_intervals = {};
+    size_t m_next = 0, m_count = 0;
+    double m_previousTime = -1, m_lastReport = 0, m_total = 0, m_frameTime = 0;
 };
 
-template<typename T, typename Func>
-void parallelFor(T begin, T end, Func&& func)
-{
-    std::for_each(
-        std::execution::par,
-        ioterable(begin),
-        ioterable(end),
-        [&](T i)
-        {
-            func(i);
-        }
-    );
-}
+// ---------------------------------------------------------------------------------------
+// FixedStepClock
+// ---------------------------------------------------------------------------------------
 
-template<typename T, typename Func>
-void parallelForEach(std::vector<T>& vec, Func&& func)
+// Every backend receives the same absolute application time. Never use draw
+// duration as simulation time; clamp catch-up after a stall to keep input usable.
+class FixedStepClock
 {
-    parallelFor(
-        size_t(0),
-        vec.size(),
-        [&](size_t i)
+public:
+    explicit FixedStepClock(double step = 1.0 / 120.0, uint32_t maxCatchUpSteps = 8)
+        : m_step(std::isfinite(step) && step > 0 ? step : 1.0 / 120.0)
+        , m_maxCatchUpSteps(maxCatchUpSteps)
+    {
+    }
+    double step() const { return m_step; }
+    uint32_t update(double time, bool running)
+    {
+        double elapsed = m_lastTime < 0 ? 0 : std::clamp(time - m_lastTime, 0.0, m_maxCatchUpSteps * m_step);
+        m_lastTime = time;
+        if (!running)
         {
-            func(vec[i]);
+            m_accumulator = 0;
+            return 0;
         }
-    );
-}
-#endif
+        m_accumulator += elapsed;
+        uint32_t steps = uint32_t(std::floor((m_accumulator + 1e-10) / m_step));
+        m_accumulator = std::max(0.0, m_accumulator - steps * m_step);
+        return steps;
+    }
+    void reset() { m_accumulator = 0; }
+
+private:
+    double m_step;
+    uint32_t m_maxCatchUpSteps;
+    double m_lastTime = -1, m_accumulator = 0;
+};
+
+} // namespace rhi

@@ -1041,6 +1041,15 @@ struct StubCommandEncoder : public ICommandEncoder
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer*, ResourceState) override {}
     virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(ITexture*, SubresourceRange, ResourceState) override {}
     virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() override {}
+    using ICommandEncoder::aliasResources;
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(
+        uint32_t,
+        IResource* const*,
+        uint32_t,
+        IResource* const*
+    ) override
+    {
+    }
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char*, const MarkerColor&) override {}
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override {}
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char*, const MarkerColor&) override {}

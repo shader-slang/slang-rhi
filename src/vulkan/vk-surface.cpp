@@ -128,12 +128,28 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 #else
     case WindowHandleType::XlibWindow:
     {
+        if (!api.vkCreateXlibSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
         VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
         SLANG_VK_RETURN_ON_FAIL_REPORT(
             api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
+        break;
+    }
+    case WindowHandleType::WaylandSurface:
+    {
+        if (!api.vkCreateWaylandSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
+        VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.display = (wl_display*)windowHandle.handleValues[0];
+        surfaceCreateInfo.surface = (wl_surface*)windowHandle.handleValues[1];
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateWaylandSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
             m_device
         );
         break;
@@ -508,8 +524,6 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX),
         m_device
     );
-    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
-
     m_currentTextureIndex = -1;
     VkResult result = api.vkAcquireNextImageKHR(
         api.m_device,
@@ -524,6 +538,10 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     {
         return SLANG_FAIL;
     }
+
+    // An out-of-date swapchain does not acquire an image or submit work. Keep the fence
+    // signaled in that case so another acquisition before reconfiguration cannot hang.
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
 
     // Setup queue's next submit for synchronization with the swapchain.
     m_device->m_queue->m_surfaceSync.fence = frameData.fence;
@@ -576,6 +594,10 @@ Result SurfaceImpl::present()
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
     VkResult result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    // A window may resize between acquisition and presentation. Drop this frame and let
+    // the application reconfigure the surface when it processes the resize event.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+        return SLANG_OK;
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         reportVulkanError(result, "vkQueuePresentKHR", SLANG_RHI_SOURCE_LOCATION(), m_device);

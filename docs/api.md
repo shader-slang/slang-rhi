@@ -44,6 +44,10 @@
 | `createFence`                      | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `waitForFences`                    | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createHeap`                       | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createResourceHeap`               | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getBufferMemoryRequirements`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getTextureMemoryRequirements`     | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
+| `isResourceHeapCompatible`         | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureAllocationInfo`         | yes     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureRowAlignment`           | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `getCooperativeVectorProperties`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
@@ -221,6 +225,7 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `globalBarrier`                        | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `handOffShared` (1)                    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `takeOverShared` (1)                   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `aliasResources`                       | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `pushDebugGroup`                       | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `popDebugGroup`                        | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `insertDebugMarker`                    | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
@@ -248,9 +253,19 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `setRenderState`      | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `draw`                | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawIndexed`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
-| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
+| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawMeshTasks`       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+
+WebGPU single indirect draws without a count buffer use the core WebGPU API.
+Other indirect-draw forms currently use Dawn's native multi-draw extension and
+require that optional feature to be enabled; they are unavailable in the Wasm path.
+
+Metal indirect draws issue one native indirect draw per argument record and do not
+support a count buffer.
+
+See [error handling and diagnostics](error-handling.md#webgpu-recording-and-validation)
+for WebGPU recording errors and asynchronous validation.
 
 ## `IComputePassEncoder` interface
 
@@ -315,6 +330,15 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `report`           | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+
+## `IResourceHeap` interface
+
+See [Resource heaps](resource-heaps.md) for placement, aliasing, lifetime, and synchronization guidance.
+
+| API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`         | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `getNativeHandle` | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 
 ## OptiX callable stack limits
 

@@ -190,18 +190,48 @@ Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<C
 
 Result ShaderProgram::compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime)
 {
-    return device->getEntryPointCodeFromShaderCache(
-        this,
-        entryPoint.componentType,
-        entryPoint.name.c_str(),
+    entryPoint.stats = {};
+    entryPoint.stats.startTime = Timer::now();
+    ComPtr<ISlangBlob> code;
+
+    if (device->m_persistentShaderCache)
+    {
+        // Cache keys are prepared before entry points are dispatched to workers.
+        Result cacheResult = device->m_persistentShaderCache->queryCache(entryPoint.cacheKey, code.writeRef());
+        if (cacheResult == SLANG_OK)
+        {
+            entryPoint.stats.endTime = Timer::now();
+            entryPoint.stats.isCached = true;
+            entryPoint.stats.cacheSize = code->getBufferSize();
+            entryPoint.code = code;
+            return SLANG_OK;
+        }
+    }
+
+    // Cached entry not found, generate the code and measure compilation time.
+    double startTotalTime = 0.0, endTotalTime = 0.0;
+    double startDownstreamTime = 0.0, endDownstreamTime = 0.0;
+    auto globalSession = entryPoint.componentType->getSession()->getGlobalSession();
+    if (measureCompilerTime)
+        globalSession->getCompilerElapsedTime(&startTotalTime, &startDownstreamTime);
+    SLANG_RETURN_ON_FAIL(entryPoint.componentType->getEntryPointCode(
         entryPoint.entryPointIndex,
         entryPoint.targetIndex,
-        entryPoint.cacheKey,
-        measureCompilerTime,
-        &entryPoint.stats,
-        entryPoint.code.writeRef(),
+        code.writeRef(),
         entryPoint.diagnostics.writeRef()
-    );
+    ));
+    if (measureCompilerTime)
+        globalSession->getCompilerElapsedTime(&endTotalTime, &endDownstreamTime);
+
+    if (device->m_persistentShaderCache)
+        device->m_persistentShaderCache->writeCache(entryPoint.cacheKey, code);
+
+    entryPoint.stats.endTime = Timer::now();
+    entryPoint.stats.totalTime = measureCompilerTime ? endTotalTime - startTotalTime : 0.0;
+    entryPoint.stats.downstreamTime = measureCompilerTime ? endDownstreamTime - startDownstreamTime : 0.0;
+    entryPoint.stats.cacheSize = code->getBufferSize();
+    entryPoint.code = code;
+    return SLANG_OK;
 }
 
 void ShaderProgram::reportEntryPointCompilation(Device* device, const CompiledEntryPoint& entryPoint)

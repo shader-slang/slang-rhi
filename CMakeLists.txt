@@ -801,6 +801,7 @@ target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
     src/format-conversion.cpp
     src/heap.cpp
+    src/resource-heap.cpp
     src/pipeline.cpp
     src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
@@ -826,6 +827,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
     src/debug-layer/debug-heap.cpp
+    src/debug-layer/debug-resource-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
@@ -896,6 +898,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-posix-synchapi.cpp
         src/d3d12/d3d12-query.cpp
         src/d3d12/d3d12-resource.cpp
+        src/d3d12/d3d12-resource-heap.cpp
         src/d3d12/d3d12-sampler.cpp
         src/d3d12/d3d12-shader-object-layout.cpp
         src/d3d12/d3d12-shader-object.cpp
@@ -921,6 +924,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
         src/vulkan/vk-heap.cpp
+        src/vulkan/vk-resource-heap.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
@@ -949,6 +953,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-input-layout.cpp
         src/metal/metal-pipeline.cpp
         src/metal/metal-query.cpp
+        src/metal/metal-resource-heap.cpp
         src/metal/metal-sampler.cpp
         src/metal/metal-shader-object-layout.cpp
         src/metal/metal-shader-object.cpp
@@ -976,6 +981,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-nvrtc.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
+        src/cuda/cuda-resource-heap.cpp
         src/cuda/cuda-sampler.cpp
         src/cuda/cuda-shader-object-layout.cpp
         src/cuda/cuda-shader-object.cpp
@@ -1032,7 +1038,7 @@ target_compile_definitions(slang-rhi
 target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Tests currently require linking statically due to reaching into internal details of the RHI implementation.
+# Native tests require linking statically due to reaching into internal details of the RHI implementation.
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
@@ -1097,12 +1103,14 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp
+        tests/test-resource-heap.cpp
         tests/test-imported-constant-buffer.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp
         tests/test-link-time-type.cpp
         tests/test-math.cpp
+        tests/test-metal-buffer-address-map.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
@@ -1141,9 +1149,11 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-staging-heap.cpp
         tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
+        tests/test-storage-texture.cpp
         tests/test-surface.cpp
         tests/test-synthetic-resource-bindings.cpp
         tests/test-texture-allocation-info.cpp
+        tests/test-texture-bindings.cpp
         tests/test-texture-create.cpp
         tests/test-texture-from-handle.cpp
         tests/test-texture-layout.cpp
@@ -1153,11 +1163,13 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/test-wgpu-pipeline-creation.cpp
         tests/memory-report.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/texture-test.cpp
         tests/test-task-pool.cpp
+        tests/test-upload-buffer.cpp
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
@@ -1177,6 +1189,9 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
     endif()
+    if(SLANG_RHI_ENABLE_WGPU)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-dawn)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         target_link_libraries(slang-rhi-tests PRIVATE psapi)
     endif()
@@ -1191,42 +1206,86 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/$<CONFIG>/nsystests.bat INPUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/nsystests.bat.ln)
     endif()
+endif()
 
+if(SLANG_RHI_BUILD_TESTS AND EMSCRIPTEN)
+    add_executable(wasm-test tests/wasm/wasm-test.cpp)
+    target_compile_features(wasm-test PRIVATE cxx_std_17)
+    target_link_libraries(wasm-test PRIVATE slang-rhi slang)
+    set_target_properties(wasm-test PROPERTIES
+        SUFFIX ".html"
+        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html"
+    )
+    target_link_options(wasm-test PRIVATE
+        "--use-port=emdawnwebgpu"
+        "SHELL:--shell-file \"${CMAKE_CURRENT_SOURCE_DIR}/tests/wasm/index.html\""
+    )
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
-    if(NOT EMSCRIPTEN)
-        function(add_example name source)
-            add_executable(${name} ${source})
-            target_compile_features(${name} PRIVATE cxx_std_20)
-            get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
-            target_compile_definitions(${name}
-                PRIVATE
-                EXAMPLE_DIR="${EXAMPLE_DIR}"
-                SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
-                $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
-                $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
-                $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
-            )
-            target_link_libraries(${name} PRIVATE slang-rhi slang glfw slang-rhi-warnings)
-        endfunction()
-
-        add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
-        add_example(example-surface examples/surface/example-surface.cpp)
-        add_example(example-triangle examples/triangle/example-triangle.cpp)
+    set(example_root "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(EMSCRIPTEN)
+        set(example_root "") # Examples are preloaded at /examples in the browser filesystem.
+        include(ExampleWasm)
     else()
-        add_executable(wasm-test examples/wasm/wasm-test.cpp)
-        target_compile_features(wasm-test PRIVATE cxx_std_17)
-        target_link_libraries(wasm-test PRIVATE slang-rhi slang)
-        set_target_properties(wasm-test PROPERTIES
-            OUTPUT_NAME "wasm-test"
-            SUFFIX ".html"
-        )
-        target_link_options(wasm-test PRIVATE
-            "--use-port=emdawnwebgpu"
-            "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
-        )
+        find_package(Threads REQUIRED)
     endif()
+
+    add_library(example-base STATIC
+        examples/base/example.cpp
+        examples/base/example-app.cpp
+        examples/base/example-runner.cpp
+    )
+    target_compile_features(example-base PUBLIC cxx_std_20)
+    target_compile_definitions(example-base
+        PUBLIC
+        SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+        SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+        SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
+        $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
+        $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
+    )
+    target_link_libraries(example-base PUBLIC slang-rhi slang PRIVATE slang-rhi-warnings)
+    if(EMSCRIPTEN)
+        target_sources(example-base PRIVATE examples/base/example-browser.cpp)
+    else()
+        target_link_libraries(example-base PUBLIC glfw Threads::Threads)
+    endif()
+
+    function(add_example_executable name)
+        add_executable(${name} ${ARGN})
+        target_link_libraries(${name} PRIVATE example-base slang-rhi-warnings)
+        if(EMSCRIPTEN)
+            configure_wasm_example(${name})
+        endif()
+    endfunction()
+
+    set(example_sources "")
+    function(add_example name source)
+        get_filename_component(EXAMPLE_DIR "${example_root}/${source}" PATH)
+        set_property(SOURCE ${source} APPEND PROPERTY COMPILE_DEFINITIONS EXAMPLE_DIR="${EXAMPLE_DIR}")
+        if(NOT EMSCRIPTEN)
+            add_example_executable(${name} ${source})
+        endif()
+        list(APPEND example_sources ${source})
+        set(example_sources "${example_sources}" PARENT_SCOPE)
+    endfunction()
+
+    add_example(example-autodiff examples/autodiff/example-autodiff.cpp)
+    add_example(example-particles examples/particles/example-particles.cpp)
+    add_example(example-raster examples/raster/example-raster.cpp)
+    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
+    add_example(example-surface examples/surface/example-surface.cpp)
+    add_example(example-triangle examples/triangle/example-triangle.cpp)
+
+    if(NOT EMSCRIPTEN)
+        add_example(example-cluster-displacement examples/cluster-displacement/example-cluster-displacement.cpp)
+        add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+    endif()
+
+    add_example_executable(example-runner examples/example-runner.cpp ${example_sources})
+    target_compile_definitions(example-runner PRIVATE EXAMPLE_COMBINED=1)
 endif()
 
 

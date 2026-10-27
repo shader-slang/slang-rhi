@@ -12,6 +12,7 @@
 #endif
 
 #define VK_NO_PROTOTYPES
+#define VK_ENABLE_BETA_EXTENSIONS
 #include <vulkan/vulkan.h>
 
 #if SLANG_LINUX_FAMILY && !SLANG_ANDROID
@@ -23,6 +24,7 @@ typedef struct _XDisplay Display;
 typedef unsigned long Window;
 typedef unsigned long VisualID;
 #include <vulkan/vulkan_xlib.h>
+#include <vulkan/vulkan_wayland.h>
 #endif
 
 // Undef xlib macros
@@ -61,6 +63,7 @@ protected:
     x(vkGetInstanceProcAddr) \
     x(vkCreateInstance) \
     x(vkEnumerateInstanceLayerProperties) \
+    x(vkEnumerateInstanceExtensionProperties) \
     x(vkEnumerateDeviceExtensionProperties) \
     x(vkDestroyInstance) \
     /* */
@@ -217,6 +220,7 @@ protected:
     #else
         #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
             x(vkCreateXlibSurfaceKHR) \
+            x(vkCreateWaylandSurfaceKHR) \
             /* */
     #endif
 #else
@@ -261,6 +265,8 @@ protected:
 
 #define VK_API_DEVICE_OPT_PROCS(x) \
     VK_API_DEVICE_PLATFORM_OPT_PROCS(x) \
+    x(vkGetBufferMemoryRequirements2) \
+    x(vkGetImageMemoryRequirements2) \
     x(vkCmdSetPrimitiveTopologyEXT) \
     x(vkGetBufferDeviceAddress) \
     x(vkGetBufferDeviceAddressKHR) \

@@ -17,6 +17,21 @@ Backends include Direct3D 11, Direct3D 12, Vulkan, Metal, CUDA, WebGPU, and CPU.
 Availability and feature support vary by platform and device; see the
 [API implementation status](docs/api.md) and query device capabilities at runtime.
 
+## Try in your browser
+
+Run the [interactive examples](https://shader-slang.github.io/slang-rhi/examples/)
+using WebAssembly and WebGPU, with no local build required:
+
+[Triangle](https://shader-slang.github.io/slang-rhi/examples/?example=triangle) |
+[Raster](https://shader-slang.github.io/slang-rhi/examples/?example=raster) |
+[Particles](https://shader-slang.github.io/slang-rhi/examples/?example=particles) |
+[Autodiff](https://shader-slang.github.io/slang-rhi/examples/?example=autodiff) |
+[Shader Toy](https://shader-slang.github.io/slang-rhi/examples/?example=shader-toy) |
+[Surface](https://shader-slang.github.io/slang-rhi/examples/?example=surface)
+
+Requires a browser with WebGPU and WebAssembly JSPI support. The examples are
+updated from `main` after successful CI builds.
+
 ## Project status and compatibility
 
 `slang-rhi` is under active development. The public API is free to change, and
@@ -66,6 +81,7 @@ On Windows, append `.exe` to executable names.
 - [API implementation status](docs/api.md): coverage across backends.
 - [Error handling and diagnostics](docs/error-handling.md): result codes and debug callbacks.
 - [Object lifetime](docs/object-lifetime.md): reference counting and device ownership.
+- [Resource heaps](docs/resource-heaps.md): resource placement, aliasing, and synchronization.
 - [Synthetic resource bindings](docs/synthetic-bindings.md): compiler-generated shader resources.
 
 For contributions, see [CONTRIBUTING.md](CONTRIBUTING.md). Report bugs and request
@@ -86,3 +102,8 @@ features through [GitHub issues](https://github.com/shader-slang/slang-rhi/issue
 - [WinPixEventRuntime](https://www.nuget.org/packages/WinPixEventRuntime) (MIT)
 - [D3D12 Memory Allocator](https://gpuopen.com/d3d12-memory-allocator) (MIT)
 - [Vulkan Memory Allocator](https://gpuopen.com/vulkan-memory-allocator) (MIT)
+
+The example overlays use [Monogram](https://datagoblin.itch.io/monogram) by datagoblin
+(CC0-1.0), adapted from Luiz Bills' [font-monogram](https://github.com/luizbills/font-monogram)
+(Unlicense). The font data, attribution, and Unlicense text are included in
+[examples/base/font-monogram.h](examples/base/font-monogram.h).

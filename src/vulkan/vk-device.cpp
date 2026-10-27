@@ -1,4 +1,5 @@
 #include "vk-device.h"
+#include "vk-resource-heap.h"
 #include "vk-backend.h"
 #include "vk-command.h"
 #include "vk-buffer.h"
@@ -356,6 +357,16 @@ Result DeviceImpl::initVulkanInstance(
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
+        // Query the available instance extensions
+        uint32_t extensionCount = 0;
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, NULL);
+        std::vector<VkExtensionProperties> extensions;
+        extensions.resize(extensionCount);
+        m_api.vkEnumerateInstanceExtensionProperties(NULL, &extensionCount, extensions.data());
+        std::set<std::string> extensionNames;
+        for (const auto& e : extensions)
+            extensionNames.emplace(e.extensionName);
+
         std::vector<const char*> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
@@ -374,7 +385,10 @@ Result DeviceImpl::initVulkanInstance(
 #if SLANG_ANDROID
         instanceExtensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #else
-        instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        if (extensionNames.count(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME))
+            instanceExtensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
 #endif
 
@@ -593,9 +607,6 @@ Result DeviceImpl::initVulkanDevice(
     std::vector<const char*> deviceExtensions;
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
-#if SLANG_APPLE_FAMILY
-    deviceExtensions.push_back("VK_KHR_portability_subset");
-#endif
 
     VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount = 1;
@@ -607,6 +618,30 @@ Result DeviceImpl::initVulkanDevice(
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
         deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
+    }
+
+    // Keep the enabled feature structure alive until vkCreateDevice consumes its pNext chain.
+    VkPhysicalDevicePortabilitySubsetFeaturesKHR portabilitySubsetFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
+    };
+    if (extensionNames.count(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
+    {
+        deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+        // Physical support does not establish which features an imported device enabled.
+        m_supportsImageView2DOn3DImage = false;
+        if (!desc.existingDeviceHandles.handles[2] && m_api.vkGetPhysicalDeviceFeatures2)
+        {
+            VkPhysicalDevicePortabilitySubsetFeaturesKHR supported = {
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
+            };
+            VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+            deviceFeatures2.pNext = &supported;
+            m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
+            portabilitySubsetFeatures.imageView2DOn3DImage = supported.imageView2DOn3DImage;
+            portabilitySubsetFeatures.pNext = const_cast<void*>(deviceCreateInfo.pNext);
+            deviceCreateInfo.pNext = &portabilitySubsetFeatures;
+            m_supportsImageView2DOn3DImage = portabilitySubsetFeatures.imageView2DOn3DImage;
+        }
     }
 
     VkPhysicalDeviceProperties basicProps = {};
@@ -1715,6 +1750,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Rasterization);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::ResourceHeaps);
+    addFeature(Feature::ResourceAliasing);
     for (auto feature : availableFeatures)
     {
         addFeature(feature);
@@ -1938,14 +1975,16 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer
+    // create staging buffer (prefer cached memory, the CPU reads from it)
     VKBufferHandleRAII staging;
 
     SLANG_RETURN_ON_FAIL(staging.init(
         m_api,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        0,
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
     ));
 
     // Copy from real buffer to staging buffer
@@ -2216,63 +2255,123 @@ void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const ch
     }
 }
 
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    BufferDesc desc = fixupBufferDesc(desc_);
+    VkBufferUsageFlags usage = getBufferUsageFlags(m_api, desc);
+    VkBuffer buffer = VK_NULL_HANDLE;
+    SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, 0, &buffer));
+    VkMemoryRequirements reqs = {};
+    VkMemoryDedicatedRequirements dedicatedReqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
+    if (m_api.vkGetBufferMemoryRequirements2)
+    {
+        VkBufferMemoryRequirementsInfo2 info = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
+        info.buffer = buffer;
+        VkMemoryRequirements2 reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+        reqs2.pNext = &dedicatedReqs;
+        m_api.vkGetBufferMemoryRequirements2(m_device, &info, &reqs2);
+        reqs = reqs2.memoryRequirements;
+    }
+    else
+    {
+        m_api.vkGetBufferMemoryRequirements(m_device, buffer, &reqs);
+    }
+    m_api.vkDestroyBuffer(m_device, buffer, nullptr);
+
+    const Size granularity = max<Size>(m_api.m_deviceProperties.limits.bufferImageGranularity, 1);
+    outRequirements->size = math::calcAligned((Size)reqs.size, granularity);
+    outRequirements->alignment = max<Size>((Size)reqs.alignment, granularity);
+    outRequirements->heapAlignment = 1;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = getResourceHeapUsage(desc);
+    if (is_set(desc.usage, BufferUsage::Shared) || dedicatedReqs.requiresDedicatedAllocation)
+        outRequirements->flags |= ResourceMemoryRequirementFlags::RequiresDedicatedAllocation;
+    if (dedicatedReqs.prefersDedicatedAllocation)
+        outRequirements->flags |= ResourceMemoryRequirementFlags::PrefersDedicatedAllocation;
+    setResourceHeapCompatibility(*outRequirements, this, reqs.memoryTypeBits);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::checkTexturePlacementSupported(const TextureDesc& desc)
+{
+    if (desc.memoryType != MemoryType::DeviceLocal)
+        return SLANG_E_NOT_AVAILABLE;
+    if (desc.type == TextureType::Texture3D && is_set(desc.usage, TextureUsage::RenderTarget) &&
+        !m_supportsImageView2DOn3DImage)
+        return SLANG_E_NOT_AVAILABLE;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    TextureDesc desc = fixupTextureDesc(desc_);
+    SLANG_RETURN_ON_FAIL(checkTexturePlacementSupported(desc));
+    VkImageCreateInfo imageInfo = {};
+    SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, true, &imageInfo));
+
+    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
+        VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
+    };
+    if (is_set(desc.usage, TextureUsage::Shared))
+    {
+#if SLANG_WINDOWS_FAMILY
+        externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+        externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+        imageInfo.pNext = &externalMemoryImageCreateInfo;
+    }
+
+    VkImage image = VK_NULL_HANDLE;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image), this);
+    VkMemoryRequirements reqs = {};
+    VkMemoryDedicatedRequirements dedicatedReqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
+    if (m_api.vkGetImageMemoryRequirements2)
+    {
+        VkImageMemoryRequirementsInfo2 info = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2};
+        info.image = image;
+        VkMemoryRequirements2 reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+        reqs2.pNext = &dedicatedReqs;
+        m_api.vkGetImageMemoryRequirements2(m_device, &info, &reqs2);
+        reqs = reqs2.memoryRequirements;
+    }
+    else
+    {
+        m_api.vkGetImageMemoryRequirements(m_device, image, &reqs);
+    }
+    m_api.vkDestroyImage(m_device, image, nullptr);
+
+    const Size granularity = max<Size>(m_api.m_deviceProperties.limits.bufferImageGranularity, 1);
+    outRequirements->size = math::calcAligned((Size)reqs.size, granularity);
+    outRequirements->alignment = max<Size>((Size)reqs.alignment, granularity);
+    outRequirements->heapAlignment = 1;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = getResourceHeapUsage(desc);
+    if (is_set(desc.usage, TextureUsage::Shared) || dedicatedReqs.requiresDedicatedAllocation)
+        outRequirements->flags |= ResourceMemoryRequirementFlags::RequiresDedicatedAllocation;
+    if (dedicatedReqs.prefersDedicatedAllocation)
+        outRequirements->flags |= ResourceMemoryRequirementFlags::PrefersDedicatedAllocation;
+    setResourceHeapCompatibility(*outRequirements, this, reqs.memoryTypeBits);
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const VkFormat format = getVkFormat(desc.format);
-    if (format == VK_FORMAT_UNDEFINED)
-    {
-        SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
-        return SLANG_FAIL;
-    }
-    VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    switch (desc.type)
-    {
-    case TextureType::Texture1D:
-    case TextureType::Texture1DArray:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{desc.size.width, 1, 1};
-        break;
-    }
-    case TextureType::Texture2D:
-    case TextureType::Texture2DArray:
-    case TextureType::Texture2DMS:
-    case TextureType::Texture2DMSArray:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
-        break;
-    }
-    case TextureType::Texture3D:
-    {
-        // Can't have an array and 3d texture
-        SLANG_RHI_ASSERT(desc.arrayLength <= 1);
-        imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, desc.size.depth};
-        break;
-    }
-    case TextureType::TextureCube:
-    case TextureType::TextureCubeArray:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-        break;
-    }
-    }
-
-    imageInfo.mipLevels = desc.mipCount;
-    imageInfo.arrayLayers = desc.getLayerCount();
-
-    imageInfo.format = format;
-
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, nullptr);
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
+    VkImageCreateInfo imageInfo = {};
+    SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, false, &imageInfo));
 
     VkImage image;
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image), this);
