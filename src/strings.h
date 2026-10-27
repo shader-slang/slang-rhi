@@ -40,6 +40,13 @@
 #define S_MemoryType_Upload "Upload"
 #define S_MemoryType_ReadBack "ReadBack"
 
+// ResourceHeapUsage
+#define S_ResourceHeapUsage_None "None"
+#define S_ResourceHeapUsage_Buffers "Buffers"
+#define S_ResourceHeapUsage_NonRtDsTextures "NonRtDsTextures"
+#define S_ResourceHeapUsage_RtDsTextures "RtDsTextures"
+#define S_ResourceHeapUsage_All "All"
+
 // BufferUsage
 #define S_BufferUsage_None "None"
 #define S_BufferUsage_VertexBuffer "VertexBuffer"

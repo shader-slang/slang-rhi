@@ -377,7 +377,8 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::RenderTarget:
         return VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
     case ResourceState::ShaderResource:
-        return VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+        // Cover ordinary shader reads as well as input attachment reads.
+        return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT);
     case ResourceState::UnorderedAccess:
         return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
     case ResourceState::DepthRead:
@@ -507,6 +508,19 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
     if (is_set(usage, BufferUsage::ShaderTable))
         flags |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
     return VkBufferUsageFlagBits(flags);
+}
+
+VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc)
+{
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
+        api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    return usage;
 }
 
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)

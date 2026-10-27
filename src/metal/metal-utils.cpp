@@ -495,4 +495,42 @@ MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve)
     return MTL::StoreAction(0);
 }
 
+MTL::StorageMode translateStorageMode(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+    case MemoryType::ReadBack:
+        return MTL::StorageModeShared;
+    default:
+        return MTL::StorageModePrivate;
+    }
+}
+
+// Must match the CPU cache mode used by createBuffer() for the same MemoryType.
+// Metal rejects placed allocations whose cache mode differs from the heap.
+MTL::CPUCacheMode translateCpuCacheMode(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return MTL::CPUCacheModeWriteCombined;
+    default:
+        return MTL::CPUCacheModeDefaultCache;
+    }
+}
+
+MTL::ResourceOptions getMetalResourceOptions(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
+    case MemoryType::ReadBack:
+        return makeResourceOptions(MTL::ResourceStorageModeShared);
+    default:
+        return makeResourceOptions(MTL::ResourceStorageModePrivate);
+    }
+}
+
 } // namespace rhi::metal

@@ -75,6 +75,10 @@ MTL::TriangleFillMode translateTriangleFillMode(FillMode mode);
 MTL::LoadAction translateLoadOp(LoadOp loadOp);
 MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve);
 
+MTL::StorageMode translateStorageMode(MemoryType memoryType);
+MTL::CPUCacheMode translateCpuCacheMode(MemoryType memoryType);
+MTL::ResourceOptions getMetalResourceOptions(MemoryType memoryType);
+
 /// Build MTL::ResourceOptions with enforced restrictions:
 /// - MTLStorageModeManaged is forbidden
 /// - MTLHazardTrackingModeTracked is forbidden

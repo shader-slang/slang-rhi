@@ -1,15 +1,18 @@
+[__AttributeUsage(_AttributeTargets.Var)]
+struct rootAttribute {};
+
 Buffer<float> buffer1;
 Buffer<float> buffer2;
 Buffer<float> buffer3;
 RWBuffer<float> rwBuffer1;
 RWBuffer<float> rwBuffer2;
 RWBuffer<float> rwBuffer3;
-StructuredBuffer<float> structuredBuffer1;
-StructuredBuffer<float> structuredBuffer2;
+[root] StructuredBuffer<float> structuredBuffer1;
+[root] StructuredBuffer<float> structuredBuffer2;
 StructuredBuffer<float> structuredBuffer3;
 RWStructuredBuffer<float> rwStructuredBuffer1;
 RWStructuredBuffer<float> rwStructuredBuffer2;
-RWStructuredBuffer<float> rwStructuredBuffer3;
+[root] RWStructuredBuffer<float> rwStructuredBuffer3;
 Texture2D<float> texture1;
 Texture2D<float> texture2;
 Texture2D<float> texture3;
@@ -26,7 +29,7 @@ SamplerState samplerState1;
 SamplerState samplerState2;
 SamplerState samplerState3;
 #if defined(__D3D12__) || defined(__VULKAN__)
-RaytracingAccelerationStructure as1;
+[root] RaytracingAccelerationStructure as1;
 RaytracingAccelerationStructure as2;
 RaytracingAccelerationStructure as3;
 #endif
