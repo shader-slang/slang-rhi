@@ -9,6 +9,7 @@
 #include "core/common.h"
 #include "core/short_vector.h"
 #include "reference.h"
+#include "resource-heap.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -32,6 +33,9 @@ namespace rhi {
 class Device;
 class CommandEncoder;
 class CommandList;
+
+Buffer* asBuffer(IResource* resource);
+Texture* asTexture(IResource* resource);
 
 /// Common prefix for structures linked through a `next` chain.
 struct ChainedStructHeader
@@ -68,6 +72,14 @@ protected:
     NativeHandle m_sharedHandle = {};
 };
 
+struct ResourcePlacement
+{
+    InternalRefPtr<ResourceHeap> heap;
+    Offset offset;
+    // Native allocation size, including any padding required by the backend.
+    Size size;
+};
+
 class Resource : public DeviceChild
 {
 public:
@@ -78,6 +90,17 @@ public:
     }
 
     virtual ~Resource() { --testing::gResourceCount; }
+
+    void setPlacement(ResourceHeap* heap, Offset offset, Size size)
+    {
+        SLANG_RHI_ASSERT(heap && size > 0 && !m_placement);
+        m_placement = std::make_unique<ResourcePlacement>(ResourcePlacement{heap, offset, size});
+    }
+
+    bool isPlaced() const { return m_placement != nullptr; }
+
+    // Not reset in deleteThis(): a resource awaiting deferred deletion still uses the heap memory.
+    std::unique_ptr<ResourcePlacement> m_placement;
 };
 
 class Buffer : public IBuffer, public Resource

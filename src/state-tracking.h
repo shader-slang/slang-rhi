@@ -2,8 +2,11 @@
 
 #include "rhi-shared.h"
 
-#include <vector>
+#include <algorithm>
+#include <functional>
 #include <map>
+#include <span>
+#include <vector>
 
 namespace rhi {
 
@@ -121,6 +124,104 @@ public:
                 textureState->state = commonState;
                 textureState->subresourceStates.clear();
             }
+        }
+    }
+
+    void resetBufferState(Buffer* buffer)
+    {
+        BufferState* bufferState = getBufferState(buffer);
+        bufferState->state = ResourceState::Undefined;
+    }
+
+    void resetTextureState(Texture* texture)
+    {
+        TextureState* textureState = getTextureState(texture);
+        textureState->state = ResourceState::Undefined;
+        textureState->subresourceStates.clear();
+    }
+
+    // Activation invalidates every overlapping alias, including predecessors not explicitly
+    // named by the caller. D3D12 must restore their transition states before activation can
+    // overwrite compression metadata. Vulkan can simply forget their old layouts.
+    void deactivateAliases(std::span<IResource* const> after, bool restoreDefaultStates)
+    {
+        if (after.empty() || (m_bufferStates.empty() && m_textureStates.empty()))
+            return;
+
+        struct PlacementRange
+        {
+            Resource* resource;
+            ResourceHeap* heap;
+            Offset begin;
+            Offset end;
+        };
+        short_vector<PlacementRange, 16> destinations;
+        destinations.reserve(after.size());
+        for (IResource* entry : after)
+        {
+            Resource* resource = asBuffer(entry);
+            if (!resource)
+                resource = asTexture(entry);
+            SLANG_RHI_ASSERT(resource && resource->isPlaced());
+            const auto& placement = *resource->m_placement;
+            destinations.push_back(
+                {resource, placement.heap.get(), placement.offset, placement.offset + placement.size}
+            );
+        }
+        std::sort(
+            destinations.begin(),
+            destinations.end(),
+            [](const PlacementRange& a, const PlacementRange& b)
+            {
+                return a.heap != b.heap ? std::less<ResourceHeap*>()(a.heap, b.heap) : a.end < b.end;
+            }
+        );
+
+        // Scan each state map once. Destinations are disjoint, so the first range in the
+        // same heap ending after a resource begins is sufficient to determine overlap.
+        auto overlaps = [&destinations](Resource* resource)
+        {
+            const auto* placement = resource->m_placement.get();
+            if (!placement)
+                return false;
+            auto it = std::upper_bound(
+                destinations.begin(),
+                destinations.end(),
+                placement,
+                [](const ResourcePlacement* candidate, const PlacementRange& range)
+                {
+                    ResourceHeap* heap = candidate->heap.get();
+                    return heap != range.heap ? std::less<ResourceHeap*>()(heap, range.heap)
+                                              : candidate->offset < range.end;
+                }
+            );
+            return it != destinations.end() && it->heap == placement->heap.get() && it->resource != resource &&
+                   it->begin < placement->offset + placement->size;
+        };
+        for (auto it = m_bufferStates.begin(); it != m_bufferStates.end();)
+        {
+            Buffer* buffer = it->first;
+            if (!overlaps(buffer))
+            {
+                ++it;
+                continue;
+            }
+            if (restoreDefaultStates && it->second.state != buffer->m_desc.defaultState)
+                setBufferState(buffer, buffer->m_desc.defaultState);
+            it = m_bufferStates.erase(it);
+        }
+        for (auto it = m_textureStates.begin(); it != m_textureStates.end();)
+        {
+            Texture* texture = it->first;
+            if (!overlaps(texture))
+            {
+                ++it;
+                continue;
+            }
+            if (restoreDefaultStates &&
+                (!it->second.subresourceStates.empty() || it->second.state != texture->m_desc.defaultState))
+                setTextureState(texture, kEntireTexture, texture->m_desc.defaultState);
+            it = m_textureStates.erase(it);
         }
     }
 

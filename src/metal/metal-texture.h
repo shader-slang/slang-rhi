@@ -4,6 +4,9 @@
 
 namespace rhi::metal {
 
+Result checkTextureSupported(const TextureDesc& desc);
+NS::SharedPtr<MTL::TextureDescriptor> createTextureDescriptor(const TextureDesc& desc);
+
 class TextureImpl : public Texture
 {
 public:
