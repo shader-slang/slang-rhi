@@ -42,7 +42,8 @@ GPU_TEST_CASE("cooperative-matrix-query", Vulkan)
         return;
     }
     bool anySupported = false;
-    const uint32_t sizes[] = {16, 32, 64};
+    // Lavapipe supports 8x8x8 matrices; other implementations expose larger dimensions.
+    const uint32_t sizes[] = {8, 16, 32, 64};
     const CooperativeMatrixScope scopes[] = {
         CooperativeMatrixScope::Subgroup,
         CooperativeMatrixScope::Workgroup,
