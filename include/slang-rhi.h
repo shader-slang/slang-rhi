@@ -681,7 +681,11 @@ enum class DescriptorHandleAccess
 struct DescriptorHandle
 {
     DescriptorHandleType type = DescriptorHandleType::Undefined;
-    uint64_t value;
+    uint64_t value = 0;
+    /// Optional second word used by targets whose descriptor representation is
+    /// wider than a native handle. CUDA buffer handles use this for the element
+    /// count of the inline StructuredBuffer representation.
+    uint64_t auxiliary = 0;
 
     explicit operator bool() const { return type != DescriptorHandleType::Undefined; }
 };
