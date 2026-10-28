@@ -1,8 +1,22 @@
 #include "testing.h"
 #include "../src/state-tracking.h"
 
+#if SLANG_RHI_ENABLE_VULKAN
+#include "vulkan/vk-utils.h"
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
+
+#if SLANG_RHI_ENABLE_VULKAN
+TEST_CASE("vulkan-shader-resource-access-mask")
+{
+    const VkAccessFlags access = vk::calcAccessFlags(ResourceState::ShaderResource);
+    CHECK((access & VK_ACCESS_SHADER_READ_BIT) != 0);
+    CHECK((access & VK_ACCESS_INPUT_ATTACHMENT_READ_BIT) != 0);
+    CHECK((access & VK_ACCESS_SHADER_WRITE_BIT) == 0);
+}
+#endif
 
 struct Shader
 {
