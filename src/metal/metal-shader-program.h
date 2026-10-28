@@ -21,7 +21,7 @@ public:
         /// The entry point as a function a pipeline can be built from. A function that uses
         /// function constants (Slang emits one per specialization constant) has to be specialized
         /// first; it is specialized with no values, so each constant takes the default Slang
-        /// emitted for it, as on the other backends.
+        /// emitted for it.
         Result createFunction(DeviceImpl* device, NS::SharedPtr<MTL::Function>& outFunction) const;
     };
 
