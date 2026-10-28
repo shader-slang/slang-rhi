@@ -661,7 +661,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         colorAttachmentInfos.push_back(attachmentInfo);
     }
 
-    // Transition depth stencil from its initial state to depth write state.
+    // Transition depth/stencil and use the same layout for its rendering attachments.
     if (desc.depthStencilAttachment)
     {
         const auto& attachment = *desc.depthStencilAttachment;
@@ -670,11 +670,10 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         m_depthStencilView = checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
 
         // Transition state
-        requireTextureState(
-            view->m_texture,
-            view->m_desc.subresourceRange,
-            attachment.depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite
-        );
+        ResourceState depthStencilState =
+            attachment.depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite;
+        requireTextureState(view->m_texture, view->m_desc.subresourceRange, depthStencilState);
+        VkImageLayout depthStencilLayout = translateImageLayout(depthStencilState);
 
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
@@ -690,7 +689,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             hasDepthAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
             depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
-            depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthAttachmentInfo.imageLayout = depthStencilLayout;
             depthAttachmentInfo.loadOp = translateLoadOp(dsa.depthLoadOp);
             depthAttachmentInfo.storeOp = translateStoreOp(dsa.depthStoreOp);
             depthAttachmentInfo.clearValue.depthStencil.depth = dsa.depthClearValue;
@@ -700,7 +699,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             hasStencilAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
             stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
-            stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            stencilAttachmentInfo.imageLayout = depthStencilLayout;
             stencilAttachmentInfo.loadOp = translateLoadOp(dsa.stencilLoadOp);
             stencilAttachmentInfo.storeOp = translateStoreOp(dsa.stencilStoreOp);
             stencilAttachmentInfo.clearValue.depthStencil.stencil = dsa.stencilClearValue;

@@ -106,7 +106,7 @@ static const std::vector<Format> kDepthStencilFormats = {
     Format::D32FloatS8Uint,
 };
 
-GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -135,7 +135,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | C
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -164,7 +164,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal 
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -193,7 +193,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -222,7 +222,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal |
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -251,7 +251,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device, 1);
     options
@@ -323,4 +323,237 @@ GPU_TEST_CASE("cmd-clear-texture-depth-stencil", D3D11 | D3D12 | Vulkan | Metal)
         }
     );
 #endif
+}
+
+/// Clears one mip of one layer and verifies that all other subresources retain their initial values.
+/// The usage selects attachment clears or storage-texture clears (the copy path on WebGPU).
+template<typename T, typename ClearFunc>
+static void testClearTextureSubresource(
+    IDevice* device,
+    Format format,
+    const T clearValue[4],
+    TextureUsage usage,
+    ClearFunc clear
+)
+{
+    const uint32_t size = 8, layerCount = 2, mipCount = 2;
+    auto initialValue = [](uint32_t layer, uint32_t mip)
+    {
+        return T(1 + layer * 10 + mip);
+    };
+
+    TextureDesc desc = {};
+    desc.type = TextureType::Texture2DArray;
+    desc.format = format;
+    desc.size = {size, size, 1};
+    desc.arrayLength = layerCount;
+    desc.mipCount = mipCount;
+    desc.usage = usage | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    desc.defaultState =
+        is_set(usage, TextureUsage::RenderTarget) ? ResourceState::RenderTarget : ResourceState::UnorderedAccess;
+
+    std::vector<std::vector<T>> initData;
+    std::vector<SubresourceData> subresources;
+    for (uint32_t layer = 0; layer < layerCount; ++layer)
+    {
+        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            uint32_t mipSize = size >> mip;
+            initData.emplace_back(mipSize * mipSize * 4, initialValue(layer, mip));
+            subresources.push_back(
+                {initData.back().data(), mipSize * 4 * sizeof(T), mipSize * mipSize * 4 * sizeof(T)}
+            );
+        }
+    }
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(desc, subresources.data(), texture.writeRef()));
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+    clear(encoder, texture, SubresourceRange{1, 1, 1, 1});
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    for (uint32_t layer = 0; layer < layerCount; ++layer)
+    {
+        for (uint32_t mip = 0; mip < mipCount; ++mip)
+        {
+            ComPtr<ISlangBlob> blob;
+            SubresourceLayout layout;
+            REQUIRE_CALL(device->readTexture(texture, layer, mip, blob.writeRef(), &layout));
+            bool cleared = layer == 1 && mip == 1;
+            bool equal = true;
+            for (uint32_t y = 0; y < layout.size.height; ++y)
+            {
+                const T* row = reinterpret_cast<const T*>(
+                    static_cast<const uint8_t*>(blob->getBufferPointer()) + y * layout.rowPitch
+                );
+                for (uint32_t x = 0; x < layout.size.width * 4; ++x)
+                    equal &= row[x] == (cleared ? clearValue[x % 4] : initialValue(layer, mip));
+            }
+            CAPTURE(layer);
+            CAPTURE(mip);
+            CHECK(equal);
+        }
+    }
+}
+
+GPU_TEST_CASE("cmd-clear-texture-render-target-subresource-float", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    float value[4] = {0.5f, -2.f, 3.f, 4.f};
+    testClearTextureSubresource<float>(
+        device,
+        Format::RGBA32Float,
+        value,
+        TextureUsage::RenderTarget,
+        [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+        {
+            encoder->clearTextureFloat(texture, range, value);
+        }
+    );
+}
+
+// D3D11/D3D12 currently require UnorderedAccess usage for integer texture clears.
+GPU_TEST_CASE("cmd-clear-texture-render-target-subresource-integer", Vulkan | Metal | WGPU)
+{
+    {
+        const uint16_t value[4] = {7, 8, 9, 65535};
+        uint32_t clearValue[4] = {7, 8, 9, 65535};
+        testClearTextureSubresource<uint16_t>(
+            device,
+            Format::RGBA16Uint,
+            value,
+            TextureUsage::RenderTarget,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureUint(texture, range, clearValue);
+            }
+        );
+    }
+    {
+        const int16_t value[4] = {-7, 8, -32768, 32767};
+        int32_t clearValue[4] = {-7, 8, -32768, 32767};
+        testClearTextureSubresource<int16_t>(
+            device,
+            Format::RGBA16Sint,
+            value,
+            TextureUsage::RenderTarget,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureSint(texture, range, clearValue);
+            }
+        );
+    }
+}
+
+GPU_TEST_CASE("cmd-clear-texture-copy-subresource", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
+{
+    {
+        float value[4] = {0.5f, -2.f, 3.f, 4.f};
+        testClearTextureSubresource<float>(
+            device,
+            Format::RGBA32Float,
+            value,
+            TextureUsage::UnorderedAccess,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureFloat(texture, range, value);
+            }
+        );
+    }
+    {
+        const uint16_t value[4] = {7, 8, 9, 65535};
+        uint32_t clearValue[4] = {7, 8, 9, 65535};
+        testClearTextureSubresource<uint16_t>(
+            device,
+            Format::RGBA16Uint,
+            value,
+            TextureUsage::UnorderedAccess,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureUint(texture, range, clearValue);
+            }
+        );
+    }
+    {
+        const int16_t value[4] = {-7, 8, -32768, 32767};
+        int32_t clearValue[4] = {-7, 8, -32768, 32767};
+        testClearTextureSubresource<int16_t>(
+            device,
+            Format::RGBA16Sint,
+            value,
+            TextureUsage::UnorderedAccess,
+            [&](ICommandEncoder* encoder, ITexture* texture, SubresourceRange range)
+            {
+                encoder->clearTextureSint(texture, range, clearValue);
+            }
+        );
+    }
+}
+
+GPU_TEST_CASE("cmd-clear-texture-copy-chunks-3d", D3D11 | D3D12 | Vulkan | Metal | CUDA | WGPU)
+{
+    TextureDesc desc = {};
+    desc.type = TextureType::Texture3D;
+    desc.format = Format::RGBA32Float;
+    // Each slice exceeds 4 MiB by one row, exercising a full chunk and a short final chunk on WebGPU.
+    desc.size = {1024, 257, 4};
+    desc.mipCount = 2;
+    desc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    desc.defaultState = ResourceState::UnorderedAccess;
+    TextureData data;
+    data.init(device, desc, TextureInitMode::Zeros);
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(data.createTexture(texture.writeRef()));
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+    float clearValue[4] = {0.25f, -2.f, 3.f, 4.f};
+    encoder->clearTextureFloat(texture, SubresourceRange{0, 1, 0, 1}, clearValue);
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    data.clearFloat(0, 0, clearValue);
+    // Verify every row and slice, including the untouched mip level.
+    data.checkEqualFloat(texture);
+}
+
+GPU_TEST_CASE("cmd-clear-texture-copy-float-clamp", WGPU)
+{
+    struct TestCase
+    {
+        Format format;
+        float expected[4];
+    };
+    const TestCase cases[] = {
+        {Format::RGBA8Unorm, {0.f, 1.f, 0.f, 1.f}},
+        {Format::RGBA8Snorm, {-1.f, 1.f, 0.f, 1.f}},
+        {Format::RGBA32Float, {-2.f, 2.f, 0.f, 1.f}},
+    };
+
+    for (const auto& testCase : cases)
+    {
+        CAPTURE(testCase.format);
+        TextureDesc desc = {};
+        desc.type = TextureType::Texture2D;
+        desc.format = testCase.format;
+        desc.size = {4, 4, 1};
+        // Without RenderTarget usage, WebGPU clears through the buffer-copy path.
+        desc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
+        desc.defaultState = ResourceState::UnorderedAccess;
+        TextureData data;
+        data.init(device, desc, TextureInitMode::Random);
+        ComPtr<ITexture> texture;
+        REQUIRE_CALL(data.createTexture(texture.writeRef()));
+
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+        ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+        float clearValue[4] = {-2.f, 2.f, 0.f, 1.f};
+        encoder->clearTextureFloat(texture, kEntireTexture, clearValue);
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        data.clearFloat(testCase.expected);
+        data.checkEqualFloat(texture);
+    }
 }
