@@ -86,8 +86,8 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
 /// in Slang's reflection, not here: `ExistentialObjectParam` is excluded from the descriptor ranges it
 /// reports, and `InlineUniformData` is only produced from a `Uniform` resource kind, which is likewise
 /// excluded. Should Slang ever report `InlineUniformData` as a descriptor range, the two filters must be
-/// reconciled - this code maps it to a real Vulkan descriptor type while the loop below skips it, which is
-/// the same divergence that caused this bug.
+/// reconciled: `_mapDescriptorType` maps it to a real Vulkan descriptor type while the loop below skips it,
+/// so a set holding only such ranges would take a set index and still be empty.
 static bool _isPushConstantOnlyDescriptorSet(
     slang::TypeLayoutReflection* typeLayout,
     uint32_t descriptorSetIndex,
