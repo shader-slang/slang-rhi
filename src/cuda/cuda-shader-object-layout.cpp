@@ -247,7 +247,8 @@ int RootShaderObjectLayoutImpl::getEntryPointIndex(std::string_view kernelName)
     for (SlangUInt i = 0; i < m_programLayout->getEntryPointCount(); i++)
     {
         auto entryPoint = m_programLayout->getEntryPointByIndex(i);
-        if (kernelName == entryPoint->getName())
+        // Kernels are emitted under the override name, which differs from getName() after renameEntryPoint.
+        if (kernelName == entryPoint->getNameOverride())
         {
             return i;
         }
