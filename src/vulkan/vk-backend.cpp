@@ -8,6 +8,21 @@
 
 namespace rhi::vk {
 
+BackendImpl::~BackendImpl()
+{
+    releaseAdapterEnumerationContext();
+}
+
+void BackendImpl::releaseAdapterEnumerationContext()
+{
+    if (m_adapterEnumerationInstance != VK_NULL_HANDLE)
+    {
+        m_adapterEnumerationApi.vkDestroyInstance(m_adapterEnumerationInstance, nullptr);
+        m_adapterEnumerationInstance = VK_NULL_HANDLE;
+    }
+    m_adapterEnumerationModule.destroy();
+}
+
 std::span<const AdapterImpl> BackendImpl::getAdapters()
 {
     ensureAdapters();
@@ -30,12 +45,14 @@ Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 
 Result BackendImpl::enumerateAdapters()
 {
-    VulkanModule module;
-    SLANG_RETURN_ON_FAIL(module.init());
-    SLANG_RHI_DEFERRED({ module.destroy(); });
+    bool retainEnumerationContext = false;
+    SLANG_RHI_DEFERRED({
+        if (!retainEnumerationContext)
+            releaseAdapterEnumerationContext();
+    });
 
-    VulkanApi api;
-    SLANG_RETURN_ON_FAIL(api.initGlobalProcs(module));
+    SLANG_RETURN_ON_FAIL(m_adapterEnumerationModule.init());
+    SLANG_RETURN_ON_FAIL(m_adapterEnumerationApi.initGlobalProcs(m_adapterEnumerationModule));
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     const char* instanceExtensions[] = {
@@ -49,28 +66,34 @@ Result BackendImpl::enumerateAdapters()
 #if SLANG_APPLE_FAMILY
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
-    VkInstance instance;
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
-    SLANG_RHI_DEFERRED({ api.vkDestroyInstance(instance, nullptr); });
+    SLANG_VK_RETURN_ON_FAIL(
+        m_adapterEnumerationApi.vkCreateInstance(&instanceCreateInfo, nullptr, &m_adapterEnumerationInstance)
+    );
 
-    SLANG_RETURN_ON_FAIL(api.initInstanceProcs(instance));
-    if (!(api.vkEnumeratePhysicalDevices && api.vkGetPhysicalDeviceProperties2))
+    SLANG_RETURN_ON_FAIL(m_adapterEnumerationApi.initInstanceProcs(m_adapterEnumerationInstance));
+    if (!(m_adapterEnumerationApi.vkEnumeratePhysicalDevices && m_adapterEnumerationApi.vkGetPhysicalDeviceProperties2))
     {
         return SLANG_FAIL;
     }
 
     uint32_t physicalDeviceCount = 0;
-    SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
+    SLANG_VK_RETURN_ON_FAIL(
+        m_adapterEnumerationApi.vkEnumeratePhysicalDevices(m_adapterEnumerationInstance, &physicalDeviceCount, nullptr)
+    );
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-    SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()));
+    SLANG_VK_RETURN_ON_FAIL(m_adapterEnumerationApi.vkEnumeratePhysicalDevices(
+        m_adapterEnumerationInstance,
+        &physicalDeviceCount,
+        physicalDevices.data()
+    ));
 
     for (const auto& physicalDevice : physicalDevices)
     {
         VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
         VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         props.pNext = &idProps;
-        SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceProperties2);
-        api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
+        SLANG_RHI_ASSERT(m_adapterEnumerationApi.vkGetPhysicalDeviceProperties2);
+        m_adapterEnumerationApi.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
 
         AdapterInfo info = {};
         info.deviceType = DeviceType::Vulkan;
@@ -103,6 +126,12 @@ Result BackendImpl::enumerateAdapters()
 
     // Mark default adapter (prefer discrete if available).
     markDefaultAdapter(m_adapters);
+
+    // Keep the enumeration instance alive for the backend lifetime. Besides matching
+    // the lifetime of the cached adapter list, this prevents Vulkan ICDs from being
+    // unloaded and reloaded between devices. Some Linux drivers cannot reliably be
+    // reloaded after other GPU libraries have consumed the static TLS surplus.
+    retainEnumerationContext = true;
 
     return SLANG_OK;
 }

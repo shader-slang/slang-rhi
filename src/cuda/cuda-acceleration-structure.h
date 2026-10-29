@@ -28,4 +28,22 @@ public:
     optix::OptixTraversableHandle m_handle;
 };
 
+class MicromapImpl : public Micromap
+{
+public:
+    MicromapImpl(Device* device, const MicromapDesc& desc);
+    ~MicromapImpl();
+
+    virtual void deleteThis() override;
+
+    // IResource implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // IMicromap implementation
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
+
+public:
+    CUdeviceptr m_buffer = 0;
+};
+
 } // namespace rhi::cuda

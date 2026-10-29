@@ -1,12 +1,55 @@
 #include "testing.h"
+#include "device.h"
+#include "pipeline.h"
 
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <algorithm>
+#include <mutex>
+#include <optional>
 
 using namespace rhi;
 using namespace rhi::testing;
+
+TEST_CASE("shader-cache-pipeline-address-reuse")
+{
+    ShaderCache cache;
+    ComputePipelineDesc desc = {};
+    // These pipelines only exercise cache identity. Their constructors do not
+    // dereference the device, so no device is needed for this test.
+    std::optional<VirtualComputePipeline> source;
+    source.emplace(nullptr, desc);
+    Pipeline* address = &*source;
+
+    PipelineKey firstKey(&*source);
+    firstKey.specializationArgs.push_back(1);
+    firstKey.updateHash();
+    RefPtr<Pipeline> firstResult = new VirtualComputePipeline(nullptr, desc);
+    cache.addSpecializedPipeline(firstKey, firstResult);
+    CHECK_EQ(cache.getSpecializedPipeline(firstKey).get(), firstResult.get());
+
+    // Reconstruct in the same storage to force allocator address reuse. A new
+    // source pipeline must not inherit the previous lifetime's specialization,
+    // even when the address and specialization arguments are identical.
+    source.reset();
+    source.emplace(nullptr, desc);
+    REQUIRE_EQ(static_cast<Pipeline*>(&*source), address);
+    PipelineKey secondKey(&*source);
+    secondKey.specializationArgs.push_back(1);
+    secondKey.updateHash();
+    CHECK_FALSE(cache.getSpecializedPipeline(secondKey));
+
+    RefPtr<Pipeline> secondResult = new VirtualComputePipeline(nullptr, desc);
+    cache.addSpecializedPipeline(secondKey, secondResult);
+    CHECK_EQ(cache.getSpecializedPipeline(secondKey).get(), secondResult.get());
+    CHECK_EQ(cache.getSpecializedPipeline(firstKey).get(), firstResult.get());
+
+    PipelineKey otherArguments(&*source);
+    otherArguments.specializationArgs.push_back(2);
+    otherArguments.updateHash();
+    CHECK_FALSE(cache.getSpecializedPipeline(otherArguments));
+}
 
 class VirtualShaderCache : public IPersistentCache
 {
@@ -27,34 +70,29 @@ public:
         std::vector<uint8_t> data;
     };
 
-    std::map<Key, Entry> entries;
-    Stats stats;
-    uint32_t maxEntryCount = 1024;
-    uint32_t ticketCounter = 0;
-
     void clear()
     {
-        entries.clear();
-        stats = {};
-        maxEntryCount = 1024;
-        ticketCounter = 0;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_entries.clear();
+        m_stats = {};
+        m_maxEntryCount = 1024;
+        m_ticketCounter = 0;
+    }
+
+    Stats getStats() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_stats;
+    }
+
+    void setMaxEntryCount(uint32_t maxEntryCount)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_maxEntryCount = maxEntryCount;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key_, ISlangBlob* data_) override
     {
-        while (entries.size() >= maxEntryCount)
-        {
-            auto it = std::min_element(
-                entries.begin(),
-                entries.end(),
-                [](const auto& a, const auto& b)
-                {
-                    return a.second.ticket < b.second.ticket;
-                }
-            );
-            entries.erase(it);
-        }
-
         Key key(
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
@@ -63,8 +101,21 @@ public:
             static_cast<const uint8_t*>(data_->getBufferPointer()),
             static_cast<const uint8_t*>(data_->getBufferPointer()) + data_->getBufferSize()
         );
-        entries[key] = {ticketCounter++, data};
-        stats.entryCount = entries.size();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        while (m_entries.size() >= m_maxEntryCount)
+        {
+            auto it = std::min_element(
+                m_entries.begin(),
+                m_entries.end(),
+                [](const auto& a, const auto& b)
+                {
+                    return a.second.ticket < b.second.ticket;
+                }
+            );
+            m_entries.erase(it);
+        }
+        m_entries[key] = {m_ticketCounter++, data};
+        m_stats.entryCount = m_entries.size();
         return SLANG_OK;
     }
 
@@ -74,15 +125,16 @@ public:
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
         );
-        auto it = entries.find(key);
-        if (it == entries.end())
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto it = m_entries.find(key);
+        if (it == m_entries.end())
         {
-            stats.missCount++;
+            m_stats.missCount++;
             *outData = nullptr;
             return SLANG_E_NOT_FOUND;
         }
-        stats.hitCount++;
-        *outData = UnownedBlob::create(it->second.data.data(), it->second.data.size()).detach();
+        m_stats.hitCount++;
+        *outData = OwnedBlob::create(it->second.data.data(), it->second.data.size()).detach();
         return SLANG_OK;
     }
 
@@ -109,6 +161,13 @@ public:
         // if the ref count **was 1 before releasing** in order to free the object.
         return 2;
     }
+
+private:
+    mutable std::mutex m_mutex;
+    std::map<Key, Entry> m_entries;
+    Stats m_stats;
+    uint32_t m_maxEntryCount = 1024;
+    uint32_t m_ticketCounter = 0;
 };
 
 static VirtualShaderCache shaderCache;
@@ -287,7 +346,7 @@ struct ShaderCacheTest
         freeComputeResources();
     }
 
-    VirtualShaderCache::Stats getStats() { return shaderCache.stats; }
+    VirtualShaderCache::Stats getStats() { return shaderCache.getStats(); }
 
     void run(GpuTestContext* ctx_, std::string tempDirectory_)
     {
@@ -594,7 +653,7 @@ struct ShaderCacheTestEviction : ShaderCacheTest
 {
     void runTests()
     {
-        shaderCache.maxEntryCount = 2;
+        shaderCache.setMaxEntryCount(2);
 
         // Write shader source files.
         writeShader(computeShaderA, "shader-cache-compute-a.slang");
@@ -903,37 +962,37 @@ void runTest(GpuTestContext* ctx)
 // These tests are super expensive because they re-create devices.
 // This is needed because slang doesn't support reloading modules at this time.
 
-GPU_TEST_CASE("shader-cache-source-file", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-source-file", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestSourceFile>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-source-string", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-source-string", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestSourceString>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-entry-point", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-entry-point", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestEntryPoint>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-import-include", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-import-include", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestImportInclude>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-specialization", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-specialization", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestSpecialization>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-eviction", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-eviction", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestEviction>(ctx);
 }
 
-GPU_TEST_CASE("shader-cache-graphics", D3D12 | Vulkan | DontCreateDevice)
+GPU_TEST_CASE("shader-cache-graphics", D3D12 | Vulkan | WGPU | DontCreateDevice)
 {
     runTest<ShaderCacheTestGraphics>(ctx);
 }

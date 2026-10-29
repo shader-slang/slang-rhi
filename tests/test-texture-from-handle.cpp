@@ -28,6 +28,28 @@ GPU_TEST_CASE("texture-from-native-handle", D3D12 | Vulkan | Metal)
     NativeHandle handle = {};
     REQUIRE_CALL(originalTexture->getNativeHandle(&handle));
 
+    // Invalid native handles should fail without producing a wrapper object.
+    {
+        NativeHandle wrongTypeHandle = handle;
+        wrongTypeHandle.type = NativeHandleType::Undefined;
+
+        ComPtr<ITexture> invalidTexture;
+        CHECK_EQ(
+            device->createTextureFromNativeHandle(wrongTypeHandle, desc, invalidTexture.writeRef()),
+            SLANG_E_INVALID_HANDLE
+        );
+        CHECK_EQ(invalidTexture.get(), nullptr);
+
+        NativeHandle zeroValueHandle = handle;
+        zeroValueHandle.value = 0;
+
+        CHECK_EQ(
+            device->createTextureFromNativeHandle(zeroValueHandle, desc, invalidTexture.writeRef()),
+            SLANG_E_INVALID_HANDLE
+        );
+        CHECK_EQ(invalidTexture.get(), nullptr);
+    }
+
     // D3D12 and Metal can check the texture descriptor from the native handle.
     // Vulkan cannot, so we skip this check.
     if (device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Metal)

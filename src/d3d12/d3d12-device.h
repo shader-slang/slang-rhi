@@ -31,6 +31,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     std::string m_rootParameterShaderAttributeNameBuffer;
     const char* m_rootParameterShaderAttributeName = nullptr;
 
@@ -45,7 +51,9 @@ public:
 
     ComPtr<D3D12MA::Allocator> m_allocator;
 
-    RefPtr<CommandQueueImpl> m_queue;
+    D3D12_RESOURCE_HEAP_TIER m_resourceHeapTier = D3D12_RESOURCE_HEAP_TIER_1;
+
+    InternalRefPtr<CommandQueueImpl> m_queue;
 
     RefPtr<CPUDescriptorHeap> m_cpuCbvSrvUavHeap;
     RefPtr<CPUDescriptorHeap> m_cpuRtvHeap;
@@ -95,6 +103,7 @@ public:
         Size* outAlignment
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
+    virtual SLANG_NO_THROW Result getTextureBufferOffsetAlignment(Format format, Size* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
         const SubresourceData* initData,
@@ -191,6 +200,19 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+
     ~DeviceImpl();
 
     void deferDelete(Resource* resource);
@@ -198,6 +220,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
@@ -208,6 +235,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(
+        const MicromapDesc& desc,
+        IMicromap** outMicromap
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(

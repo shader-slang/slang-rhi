@@ -2,7 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-shader-object-layout.h"
-#include "vk-constant-buffer-pool.h"
+#include "../transient-buffer-heap.h"
 
 #include "core/short_vector.h"
 
@@ -16,7 +16,7 @@ struct BindingDataBuilder
     ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
-    ConstantBufferPool* m_constantBufferPool;
+    TransientBufferArena* m_constantBufferArena;
     DescriptorSetAllocator* m_descriptorSetAllocator;
 
     // TODO remove
@@ -35,7 +35,16 @@ struct BindingDataBuilder
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
         EntryPointLayout* specializedLayout,
-        uint32_t entryPointIndex
+        uint32_t entryPointIndex,
+        const DescriptorSetPlacement* placement
+    );
+
+    /// Bind this object as a `PushConstantBuffer<X>`.
+    Result bindAsPushConstantBuffer(
+        ShaderObject* shaderObject,
+        const BindingOffset& inOffset,
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 
     /// Bind the ordinary data buffer if needed.
@@ -54,7 +63,8 @@ struct BindingDataBuilder
     Result bindAsValue(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
@@ -69,14 +79,16 @@ struct BindingDataBuilder
     Result bindAsParameterBlock(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout
+        ShaderObjectLayoutImpl* specializedLayout,
+        const DescriptorSetPlacement* placement
     );
 };
 

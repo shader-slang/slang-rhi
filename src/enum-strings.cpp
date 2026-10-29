@@ -111,6 +111,29 @@ const char* enumToString(MemoryType value)
     return S_INVALID;
 }
 
+const char* enumToString(ResourceHeapUsage value)
+{
+    switch (value)
+    {
+    case ResourceHeapUsage::None:
+        return S_ResourceHeapUsage_None;
+    case ResourceHeapUsage::Buffers:
+        return S_ResourceHeapUsage_Buffers;
+    case ResourceHeapUsage::NonRtDsTextures:
+        return S_ResourceHeapUsage_NonRtDsTextures;
+    case ResourceHeapUsage::RtDsTextures:
+        return S_ResourceHeapUsage_RtDsTextures;
+    case ResourceHeapUsage::All:
+        return S_ResourceHeapUsage_All;
+    }
+    return S_INVALID;
+}
+
+std::string flagsToString(ResourceHeapUsage value)
+{
+    return flagsToString<ResourceHeapUsage>(value);
+}
+
 const char* enumToString(BufferUsage value)
 {
     switch (value)
@@ -137,6 +160,10 @@ const char* enumToString(BufferUsage value)
         return S_BufferUsage_AccelerationStructure;
     case BufferUsage::AccelerationStructureBuildInput:
         return S_BufferUsage_AccelerationStructureBuildInput;
+    case BufferUsage::MicromapBuildInput:
+        return S_BufferUsage_MicromapBuildInput;
+    case BufferUsage::MicromapStorage:
+        return S_BufferUsage_MicromapStorage;
     case BufferUsage::ShaderTable:
         return S_BufferUsage_ShaderTable;
     case BufferUsage::Shared:
@@ -271,6 +298,12 @@ const char* enumToString(ResourceState value)
         return S_ResourceState_AccelerationStructureWrite;
     case ResourceState::AccelerationStructureBuildInput:
         return S_ResourceState_AccelerationStructureBuildInput;
+    case ResourceState::MicromapBuildInput:
+        return S_ResourceState_MicromapBuildInput;
+    case ResourceState::MicromapRead:
+        return S_ResourceState_MicromapRead;
+    case ResourceState::MicromapWrite:
+        return S_ResourceState_MicromapWrite;
     }
     return S_INVALID;
 }

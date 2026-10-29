@@ -147,7 +147,6 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
 void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, uint32_t index)
 {
     cmdList->EndQuery(m_queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index);
-    cmdList->ResolveQueryData(m_queryHeap, m_queryType, index, 1, m_readBackBuffer, sizeof(uint64_t) * index);
 }
 
 IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
@@ -207,7 +206,7 @@ Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
     );
 
     m_queryType = m_desc.type;
-    m_device = device;
+    SLANG_RHI_ASSERT(m_device == device);
     m_stride = stride;
     m_count = (uint32_t)m_desc.count;
     return SLANG_OK;

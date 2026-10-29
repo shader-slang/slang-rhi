@@ -3,6 +3,8 @@
 #include "texture-test.h"
 #include "resource-desc-utils.h"
 
+#include <numeric>
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -55,8 +57,11 @@ GPU_TEST_CASE("cmd-copy-buffer-to-texture-full", D3D12 | Vulkan | Metal | WGPU |
 
             // Create some new cpu side data we're going to use for the buffer,
             // initialized with random data and a 256B row alignment.
+            Size requiredRowAlignment = 1;
+            REQUIRE_CALL(device->getTextureRowAlignment(data.desc.format, &requiredRowAlignment));
+            Size rowAlignment = std::lcm<Size>(256, requiredRowAlignment);
             TextureData textureData;
-            textureData.init(device, data.desc, TextureInitMode::Random, 123, 256);
+            textureData.init(device, data.desc, TextureInitMode::Random, 123, static_cast<int>(rowAlignment));
 
             // Create a buffer.
             uint64_t totalSize;

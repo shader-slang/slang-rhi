@@ -64,13 +64,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         (void*)(uintptr_t)errorLogSize,
         (void*)(uintptr_t)logVerbose,
     };
-    CUresult result = cuModuleLoadDataEx(
-        &pipeline->m_module,
-        module.code->getBufferPointer(),
-        SLANG_COUNT_OF(options),
-        options,
-        optionValues
-    );
+    CUresult result =
+        cuModuleLoadDataEx(&pipeline->m_module, module.code.c_str(), SLANG_COUNT_OF(options), options, optionValues);
     infoLogSize = *(unsigned int*)(&optionValues[1]);
     errorLogSize = *(unsigned int*)(&optionValues[3]);
     if (infoLogSize > 0)
@@ -83,7 +78,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code.c_str()), this);
 #endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     pipeline->m_entryPointName = module.entryPointName;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
@@ -124,7 +119,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             startTime,
             Timer::now(),
             false,
-            0
+            0,
+            nullptr
         );
     }
 

@@ -18,6 +18,48 @@ static Format translateVkFormat(VkFormat format)
     return reverseMapLookup<Format, VkFormat, Format::Undefined, Format::_Count>(getVkFormat, format);
 }
 
+static VkImageUsageFlags getSwapchainImageUsage(TextureUsage usage)
+{
+    // Present is a surface semantic, not a VkImageUsageFlagBits value. The generic Vulkan
+    // texture-usage translation maps it to TRANSFER_SRC, which is not appropriate here unless
+    // CopySource was explicitly requested.
+    VkImageUsageFlags result = _calcImageUsageFlags(usage & ~TextureUsage::Present);
+    if (result == 0 && is_set(usage, TextureUsage::Present))
+        result = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    return result;
+}
+
+static Result querySwapchainImageUsageSupport(
+    DeviceImpl* device,
+    Format format,
+    VkImageUsageFlags imageUsage,
+    bool* outSupported
+)
+{
+    *outSupported = false;
+    if (imageUsage == 0)
+        return SLANG_OK;
+
+    VkPhysicalDeviceImageFormatInfo2 imageInfo = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2};
+    imageInfo.format = getVkFormat(format);
+    imageInfo.type = VK_IMAGE_TYPE_2D;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = imageUsage;
+
+    VkImageFormatProperties2 imageProperties = {VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2};
+    VkResult result = device->m_api.vkGetPhysicalDeviceImageFormatProperties2(
+        device->m_api.m_physicalDevice,
+        &imageInfo,
+        &imageProperties
+    );
+    if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
+        return SLANG_OK;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(result, device);
+
+    *outSupported = true;
+    return SLANG_OK;
+}
+
 SurfaceImpl::~SurfaceImpl()
 {
     auto& api = m_device->m_api;
@@ -86,12 +128,28 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 #else
     case WindowHandleType::XlibWindow:
     {
+        if (!api.vkCreateXlibSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
         VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
         SLANG_VK_RETURN_ON_FAIL_REPORT(
             api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
+        break;
+    }
+    case WindowHandleType::WaylandSurface:
+    {
+        if (!api.vkCreateWaylandSurfaceKHR)
+            return SLANG_E_NOT_AVAILABLE;
+        VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.display = (wl_display*)windowHandle.handleValues[0];
+        surfaceCreateInfo.surface = (wl_surface*)windowHandle.handleValues[1];
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateWaylandSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
             m_device
         );
         break;
@@ -131,15 +189,23 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     m_info.preferredFormat = preferredFormat;
-    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
-    // Only advertise UnorderedAccess when the preferred format genuinely supports storage,
-    // rather than claiming it unconditionally regardless of the chosen format.
-    FormatSupport preferredFormatSupport = {};
-    m_device->getFormatSupport(preferredFormat, &preferredFormatSupport);
-    if (is_set(preferredFormatSupport, FormatSupport::ShaderUavStore))
-    {
+    // Derive the supported usage from the surface capabilities.
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps),
+        m_device
+    );
+    m_info.supportedUsage = TextureUsage::Present;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+        m_info.supportedUsage |= TextureUsage::RenderTarget;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_STORAGE_BIT)
         m_info.supportedUsage |= TextureUsage::UnorderedAccess;
-    }
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_SAMPLED_BIT)
+        m_info.supportedUsage |= TextureUsage::ShaderResource;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+        m_info.supportedUsage |= TextureUsage::CopySource;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+        m_info.supportedUsage |= TextureUsage::CopyDestination;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
 
@@ -151,7 +217,7 @@ Result SurfaceImpl::createSwapchain()
     auto& api = m_device->m_api;
 
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
-    // issue an error. The reported supportedUsageFlags are also used below to clamp the
+    // issue an error. The reported supportedUsageFlags are also used below to validate the
     // requested image usage.
     VkSurfaceCapabilitiesKHR surfaceCaps = {};
     SLANG_VK_RETURN_ON_FAIL_REPORT(
@@ -259,10 +325,12 @@ Result SurfaceImpl::createSwapchain()
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;
     swapchainDesc.imageArrayLayers = 1;
-    // Clamp the requested usage to what the surface actually supports. supportedUsageFlags is
-    // format-independent, so this is a defense-in-depth backstop; the primary guard against
-    // requesting storage on a format that can't support it is the usage derivation in configure().
-    swapchainDesc.imageUsage = _calcImageUsageFlags(m_config.usage) & surfaceCaps.supportedUsageFlags;
+    swapchainDesc.imageUsage = getSwapchainImageUsage(m_config.usage);
+    if (swapchainDesc.imageUsage != (swapchainDesc.imageUsage & surfaceCaps.supportedUsageFlags))
+    {
+        m_device->printError("Surface does not support the requested usage.");
+        return SLANG_E_INVALID_ARG;
+    }
     swapchainDesc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchainDesc.preTransform = preTransform;
     swapchainDesc.compositeAlpha = compositeAlpha;
@@ -365,48 +433,60 @@ void SurfaceImpl::destroySwapchain()
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
-    setConfig(config);
-
-    if (m_config.width == 0 || m_config.height == 0)
+    SLANG_RETURN_ON_FAIL(validateConfig(config));
+    SurfaceConfig resolvedConfig = config;
+    if (resolvedConfig.format == Format::Undefined)
     {
-        return SLANG_FAIL;
+        resolvedConfig.format = m_info.preferredFormat;
     }
-    if (m_config.format == Format::Undefined)
-    {
-        m_config.format = m_info.preferredFormat;
-    }
-    FormatSupport formatSupport = {};
-    m_device->getFormatSupport(m_config.format, &formatSupport);
-    if (m_config.usage == TextureUsage::None)
+    if (resolvedConfig.usage == TextureUsage::None)
     {
         // Do not auto-add UnorderedAccess here: a format's optimal-tiling features may report
         // storage support while the swapchain still rejects VK_IMAGE_USAGE_STORAGE_BIT for that
         // format (e.g. *_SRGB), tripping VUID-VkSwapchainCreateInfoKHR-imageFormat-01778. Apps
         // that need storage on the swapchain must request it explicitly; configure() then
         // validates it against the format below.
-        m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+        resolvedConfig.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
+                               m_info.supportedUsage;
+
+        // CopyDestination is useful for the compute fallback, but it is not required for a
+        // presentable surface. Drop it when the selected format does not support the complete
+        // optimal-tiling usage combination.
+        bool usageSupported = false;
+        SLANG_RETURN_ON_FAIL(querySwapchainImageUsageSupport(
+            m_device,
+            resolvedConfig.format,
+            getSwapchainImageUsage(resolvedConfig.usage),
+            &usageSupported
+        ));
+        if (!usageSupported)
+        {
+            resolvedConfig.usage &= ~TextureUsage::CopyDestination;
+        }
     }
     else
     {
-        if (!is_set(formatSupport, FormatSupport::RenderTarget) && is_set(m_config.usage, TextureUsage::RenderTarget))
+        if (resolvedConfig.usage != (resolvedConfig.usage & m_info.supportedUsage))
         {
-            m_device->printError("Surface format does not support render target usage.");
-            return SLANG_E_INVALID_ARG;
-        }
-        if (!is_set(formatSupport, FormatSupport::CopyDestination) &&
-            is_set(m_config.usage, TextureUsage::CopyDestination))
-        {
-            m_device->printError("Surface format does not support copy destination usage.");
-            return SLANG_E_INVALID_ARG;
-        }
-        if (!is_set(formatSupport, FormatSupport::ShaderUavStore) &&
-            is_set(m_config.usage, TextureUsage::UnorderedAccess))
-        {
-            m_device->printError("Surface format does not support unordered access usage.");
+            m_device->printError("Surface does not support the requested usage.");
             return SLANG_E_INVALID_ARG;
         }
     }
 
+    bool usageSupported = false;
+    SLANG_RETURN_ON_FAIL(querySwapchainImageUsageSupport(
+        m_device,
+        resolvedConfig.format,
+        getSwapchainImageUsage(resolvedConfig.usage),
+        &usageSupported
+    ));
+    if (!usageSupported)
+    {
+        m_device->printError("Surface format does not support the requested usage.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    setConfig(resolvedConfig);
     m_configured = false;
     destroySwapchain();
     SLANG_RETURN_ON_FAIL(createSwapchain());
@@ -444,8 +524,6 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX),
         m_device
     );
-    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
-
     m_currentTextureIndex = -1;
     VkResult result = api.vkAcquireNextImageKHR(
         api.m_device,
@@ -461,6 +539,10 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
+    // An out-of-date swapchain does not acquire an image or submit work. Keep the fence
+    // signaled in that case so another acquisition before reconfiguration cannot hang.
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
+
     // Setup queue's next submit for synchronization with the swapchain.
     m_device->m_queue->m_surfaceSync.fence = frameData.fence;
     m_device->m_queue->m_surfaceSync.imageAvailableSemaphore = frameData.imageAvailableSemaphore;
@@ -473,7 +555,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     // This is used by the first image barrier to transition the texture from the correct state.
     m_textures[m_currentTextureIndex]->m_isSwapchainInitialState = true;
 
-    returnComPtr(outTexture, m_textures[m_currentTextureIndex]);
+    returnComPtrCopy(outTexture, m_textures[m_currentTextureIndex]);
     return SLANG_OK;
 }
 
@@ -512,6 +594,10 @@ Result SurfaceImpl::present()
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
     VkResult result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    // A window may resize between acquisition and presentation. Drop this frame and let
+    // the application reconfigure the surface when it processes the resize event.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+        return SLANG_OK;
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         reportVulkanError(result, "vkQueuePresentKHR", SLANG_RHI_SOURCE_LOCATION(), m_device);

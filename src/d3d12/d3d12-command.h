@@ -2,7 +2,7 @@
 
 #include "d3d12-base.h"
 #include "d3d12-shader-object.h"
-#include "d3d12-constant-buffer-pool.h"
+#include "../transient-buffer-heap.h"
 
 #include "core/ring-queue.h"
 
@@ -22,8 +22,8 @@ public:
     uint64_t m_lastFinishedID = 0;
 
     std::mutex m_mutex;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
     // Deferred delete queue for GPU resources.
     // Resources are held here until the GPU has finished using them.
@@ -43,6 +43,10 @@ public:
     ~CommandQueueImpl();
 
     Result init(uint32_t queueIndex);
+    // Wait for GPU work and release command buffers before releasing device-owned heaps.
+    void waitAndReleaseCommandBuffers();
+    // Drain deferred deletes and destroy native queue services after command buffers and device-owned heaps are
+    // released.
     void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
@@ -98,7 +102,7 @@ public:
     ComPtr<ID3D12GraphicsCommandList> m_d3dCommandList;
     GPUDescriptorArena m_cbvSrvUavArena;
     GPUDescriptorArena m_samplerArena;
-    ConstantBufferPool m_constantBufferPool;
+    TransientBufferArena m_constantBufferArena;
     BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;
 

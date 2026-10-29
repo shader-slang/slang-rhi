@@ -11,6 +11,7 @@
 #include "d3d12-query.h"
 #include "d3d12-input-layout.h"
 #include "d3d12-utils.h"
+#include "../rhi-shared.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 #include "../format-conversion.h"
@@ -104,6 +105,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -111,6 +113,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -129,6 +132,8 @@ public:
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
+
+    void resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites);
 
     void requireAccelerationStructureQueryResultBuffers(
         uint32_t queryCount,
@@ -174,6 +179,11 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
         }
 
 #undef SLANG_RHI_COMMAND_EXECUTE_X
+    }
+
+    if (commandList.writesTimestamp())
+    {
+        resolveTimestampQueryResults(commandList.getQueryWrites());
     }
 
     // Transition all resources back to their default states.
@@ -1006,6 +1016,8 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         requireBufferState(countBuffer, ResourceState::IndirectArgument);
     }
 
+    commitBarriers();
+
     m_cmdList->ExecuteIndirect(
         m_device->drawIndirectCmdSignature,
         cmd.maxDrawCount,
@@ -1029,6 +1041,8 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     {
         requireBufferState(countBuffer, ResourceState::IndirectArgument);
     }
+
+    commitBarriers();
 
     m_cmdList->ExecuteIndirect(
         m_device->drawIndexedIndirectCmdSignature,
@@ -1270,6 +1284,23 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
                     ResourceState::AccelerationStructureBuildInput
                 );
             }
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(input.triangles.next))
+            {
+                if (ommDesc->link.micromap)
+                {
+                    requireBufferState(
+                        checked_cast<MicromapImpl*>(ommDesc->link.micromap)->m_buffer,
+                        ResourceState::MicromapRead
+                    );
+                }
+                if (ommDesc->link.indexBuffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(ommDesc->link.indexBuffer.buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
             break;
         case AccelerationStructureBuildInputType::ProceduralPrimitives:
             for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
@@ -1342,7 +1373,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     commitBarriers();
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (m_device->m_nvapiEnabled)
+    if (m_device->m_nvapiEnabled && !usesOpacityMicromaps(cmd.desc))
     {
         NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EX desc = {};
         desc.destAccelerationStructureData = dst->getDeviceAddress();
@@ -1384,6 +1415,26 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     }
 
     copyAccelerationStructureQueryResults(cmd.propertyQueryCount, cmd.queryDescs, 1);
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    MicromapImpl* dst = checked_cast<MicromapImpl*>(cmd.dst);
+    BufferImpl* scratch = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
+    requireBufferState(dst->m_buffer, ResourceState::MicromapWrite);
+    requireBufferState(scratch, ResourceState::UnorderedAccess);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.dataBuffer.buffer), ResourceState::MicromapBuildInput);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.descriptorBuffer.buffer), ResourceState::MicromapBuildInput);
+
+    MicromapBuildDescConverter converter;
+    if (SLANG_FAILED(converter.convert(cmd.desc)))
+        return;
+    commitBarriers();
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+    buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
+    buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
+    buildDesc.Inputs = converter.desc;
+    m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1560,6 +1611,62 @@ void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
 void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 {
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    // Flush pending transitions before requesting final transitions for the old aliases;
+    // otherwise D3D12 may see the same subresource twice in one batch.
+    commitBarriers();
+
+    // Restore ALL overlapping resources before activation/discard overwrites their metadata.
+    // A later aliasResources call naming another predecessor must not transition it after
+    // that overwrite. Untracked resources already have their default transition states.
+    m_stateTracking.deactivateAliases({cmd.after, cmd.afterCount}, true);
+    commitBarriers();
+
+    auto getResource = [](IResource* resource) -> ID3D12Resource*
+    {
+        if (Buffer* buffer = asBuffer(resource))
+            return checked_cast<BufferImpl*>(buffer)->m_resource.getResource();
+        else if (Texture* texture = asTexture(resource))
+            return checked_cast<TextureImpl*>(texture)->m_resource.getResource();
+        return nullptr;
+    };
+
+    short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
+    {
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+        barrier.Aliasing.pResourceBefore = nullptr; // Synchronize all overlapping predecessors.
+        barrier.Aliasing.pResourceAfter = getResource(cmd.after[i]);
+        barriers.push_back(barrier);
+    }
+    m_cmdList->ResourceBarrier(UINT(barriers.size()), barriers.data());
+
+    // Preserve any tracked state for `after`: multiple predecessors can activate the
+    // same destination, and an earlier activation may have transitioned it for discard.
+    // An untracked destination starts in its default state, restored on deactivation.
+
+    // Activating an RT/DS alias also requires initializing its compression metadata, even
+    // when the next render pass uses DontCare and overwrites every pixel. Discard after
+    // the aliasing barrier, in the state required by D3D12, and retain that tracked state.
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
+    {
+        Texture* texture = asTexture(cmd.after[i]);
+        if (!texture)
+            continue;
+        const auto flags = checked_cast<TextureImpl*>(texture)->m_resource.getResource()->GetDesc().Flags;
+        if (flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+        {
+            const ResourceState state = (flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) ? ResourceState::DepthWrite
+                                                                                          : ResourceState::RenderTarget;
+            m_stateTracking.setTextureState(texture, kEntireTexture, state);
+            commitBarriers();
+            m_cmdList->DiscardResource(getResource(cmd.after[i]), nullptr);
+        }
+    }
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
@@ -1752,8 +1859,12 @@ void CommandRecorder::commitBarriers()
         }
         else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
                   bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
+                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapWrite) ||
                  ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0))
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
@@ -1807,6 +1918,25 @@ void CommandRecorder::commitBarriers()
     }
 
     m_stateTracking.clearBarriers();
+}
+
+void CommandRecorder::resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites)
+{
+    for (const auto& queryWrite : queryWrites)
+    {
+        if (queryWrite.queryPool->getDesc().type != QueryType::Timestamp)
+            continue;
+
+        auto queryPool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);
+        m_cmdList->ResolveQueryData(
+            queryPool->m_queryHeap,
+            queryPool->m_queryType,
+            queryWrite.index,
+            queryWrite.count,
+            queryPool->m_readBackBuffer,
+            uint64_t(queryWrite.index) * sizeof(uint64_t)
+        );
+    }
 }
 
 void CommandRecorder::requireAccelerationStructureQueryResultBuffers(
@@ -1891,14 +2021,35 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     );
     m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
+
+    TransientBufferHeapDesc constantBufferHeapDesc;
+    constantBufferHeapDesc.initialPageSize = 64 * 1024;
+    constantBufferHeapDesc.maxPageSize = 4 * 1024 * 1024;
+    constantBufferHeapDesc.maxRetainedSize = 4 * 1024 * 1024;
+    constantBufferHeapDesc.memoryType = MemoryType::Upload;
+    constantBufferHeapDesc.usage = BufferUsage::ConstantBuffer;
+    constantBufferHeapDesc.defaultState = ResourceState::ConstantBuffer;
+    constantBufferHeapDesc.alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    constantBufferHeapDesc.allocationGranularity = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    m_constantBufferHeap.initialize(device, constantBufferHeapDesc);
     return SLANG_OK;
+}
+
+void CommandQueueImpl::waitAndReleaseCommandBuffers()
+{
+    waitOnHost();
+    // A failed device wait may leave command buffers in the in-flight list. Destroy them before
+    // releasing the heap so their allocation handles cannot outlive its pages.
+    m_commandBuffersInFlight.clear();
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
 }
 
 void CommandQueueImpl::shutdown()
 {
-    waitOnHost();
-    // Release all command buffers in order to release all resources they may hold.
-    m_commandBuffersPool.clear();
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty() && m_commandBuffersPool.empty());
+    // Release the shared constant-buffer pages while deferred deletion is still available.
+    m_constantBufferHeap.release();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
@@ -1925,7 +2076,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
-        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -1937,25 +2087,28 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_commandBuffersPool.push_back(commandBuffer);
-        commandBuffer->setInternalReferenceCount(1);
     }
 }
 
 void CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
     uint64_t lastFinishedID = updateLastFinishedID();
-    for (const auto& commandBuffer : commandBuffers)
+    while (!commandBuffers.empty())
     {
+        auto current = commandBuffers.begin();
+        CommandBufferImpl* commandBuffer = current->get();
         if (commandBuffer->m_submissionID <= lastFinishedID)
         {
-            retireCommandBuffer(commandBuffer);
+            commandBuffer->reset();
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_commandBuffersPool.splice(m_commandBuffersPool.end(), commandBuffers, current);
         }
         else
         {
-            m_commandBuffersInFlight.push_back(commandBuffer);
+            m_commandBuffersInFlight.splice(m_commandBuffersInFlight.end(), commandBuffers, current);
         }
     }
 
@@ -1981,7 +2134,7 @@ void CommandQueueImpl::executeDeferredDeletes()
     std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
     while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
     {
-        // GPU is done with this resource - delete it.
+        // Destructors must not enqueue deferred deletes; release child resources in deleteThis().
         delete m_deferredDeleteQueue.front().resource;
         m_deferredDeleteQueue.pop();
     }
@@ -2148,7 +2301,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_constantBufferArena = &m_commandBuffer->m_constantBufferArena;
     builder.m_cbvSrvUavArena = &m_commandBuffer->m_cbvSrvUavArena;
     builder.m_samplerArena = &m_commandBuffer->m_samplerArena;
     ShaderObjectLayout* specializedLayout = nullptr;
@@ -2172,7 +2325,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }
@@ -2241,7 +2393,7 @@ Result CommandBufferImpl::init()
     };
     m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 
-    m_constantBufferPool.init(device);
+    m_constantBufferArena.initialize(&m_queue->m_constantBufferHeap);
 
     SLANG_RETURN_ON_FAIL(m_cbvSrvUavArena.init(device->m_gpuCbvSrvUavHeap, 128));
     SLANG_RETURN_ON_FAIL(m_samplerArena.init(device->m_gpuSamplerHeap, 4));
@@ -2262,7 +2414,7 @@ Result CommandBufferImpl::reset()
 
     m_cbvSrvUavArena.reset();
     m_samplerArena.reset();
-    m_constantBufferPool.reset();
+    m_constantBufferArena.reset();
     m_bindingCache.reset();
     return CommandBuffer::reset();
 }

@@ -18,9 +18,6 @@ public:
     // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
-    // ITexture implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
-
 public:
     CUtexObject getTexObject(Format format, const SamplerSettings& samplerSettings, const SubresourceRange& range);
     CUsurfObject getSurfObject(const SubresourceRange& range);
@@ -31,7 +28,6 @@ public:
     void* m_cudaExternalMemory = nullptr;
     CUDA_RESOURCE_VIEW_DESC m_baseResourceViewDesc = {};
     SamplerSettings m_defaultSamplerSettings;
-    RefPtr<TextureViewImpl> m_defaultView;
 
     struct ViewKey
     {
@@ -91,11 +87,7 @@ public:
 class TextureViewImpl : public TextureView
 {
 public:
-    TextureViewImpl(Device* device, const TextureViewDesc& desc);
-
-    // RefObject implementation
-    virtual void makeExternal() override { m_texture.establishStrongReference(); }
-    virtual void makeInternal() override { m_texture.breakStrongReference(); }
+    TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc);
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
@@ -127,7 +119,8 @@ public:
         return m_cudaSurfObj;
     }
 
-    BreakableReference<TextureImpl> m_texture;
+    // Immutable borrowed association; TextureView pairs each consumer reference with a texture reference.
+    TextureImpl* m_texture;
     SamplerSettings m_samplerSettings;
     CUtexObject m_cudaTexObj = 0;
     CUsurfObject m_cudaSurfObj = 0;

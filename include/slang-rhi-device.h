@@ -199,33 +199,50 @@ struct AABB
 };
 
 // ----------------------------------------------------------------------------
+// Micromaps
+// ----------------------------------------------------------------------------
+
+/// GPU-side descriptor for one opacity micromap. This layout is portable across the
+/// supported native APIs.
+struct MicromapTriangleDesc
+{
+    uint32_t dataOffset;
+    uint16_t subdivisionLevel;
+    uint16_t format;
+};
+
+#ifdef __cplusplus
+static_assert(sizeof(MicromapTriangleDesc) == 8, "MicromapTriangleDesc must match the native API layout");
+#endif
+
+// ----------------------------------------------------------------------------
 // Cluster operations
 // ----------------------------------------------------------------------------
 
-static constexpr uint32_t kClusterMaxTriangleCount = 256u;
-static constexpr uint32_t kClusterMaxVertexCount = 256u;
-static constexpr uint32_t kClusterMaxGeometryIndex = 16777215u;
+static const uint32_t kClusterMaxTriangleCount = 256u;
+static const uint32_t kClusterMaxVertexCount = 256u;
+static const uint32_t kClusterMaxGeometryIndex = 16777215u;
 
-static constexpr uint32_t kClusterDefaultHandleStride = 8u;
-static constexpr uint32_t kClusterOutputAlignment = 128u;
+static const uint32_t kClusterDefaultHandleStride = 8u;
+static const uint32_t kClusterOutputAlignment = 128u;
 
 // Cluster flags.
-static constexpr uint32_t kClusterFlagNone = 0u;
-static constexpr uint32_t kClusterFlagAllowDisableOOMs = (1u << 0);
+static const uint32_t kClusterFlagNone = 0u;
+static const uint32_t kClusterFlagAllowDisableOOMs = (1u << 0);
 
 // Cluster index formats.
-static constexpr uint32_t kClusterIndexFormat8bit = 1u;
-static constexpr uint32_t kClusterIndexFormat16bit = 2u;
-static constexpr uint32_t kClusterIndexFormat32bit = 4u;
+static const uint32_t kClusterIndexFormat8bit = 1u;
+static const uint32_t kClusterIndexFormat16bit = 2u;
+static const uint32_t kClusterIndexFormat32bit = 4u;
 
 // Geometry flags.
-static constexpr uint32_t kClusterGeometryFlagNone = 0u;
+static const uint32_t kClusterGeometryFlagNone = 0u;
 /// Disables front and back face culling for affected triangles (same behavior as non-cluster geometry).
-static constexpr uint32_t kClusterGeometryFlagCullDisable = (1u << 29);
+static const uint32_t kClusterGeometryFlagCullDisable = (1u << 29);
 /// Disables any-hit shader invocations for affected triangles (same behavior as non-cluster geometry).
-static constexpr uint32_t kClusterGeometryFlagNoDuplicateAnyHitInvocation = (1u << 30);
+static const uint32_t kClusterGeometryFlagNoDuplicateAnyHitInvocation = (1u << 30);
 /// Treats affected triangles as opaque geometry (same behavior as non-cluster geometry).
-static constexpr uint32_t kClusterGeometryFlagOpaque = (1u << 31);
+static const uint32_t kClusterGeometryFlagOpaque = (1u << 31);
 
 /// Arguments for building a triangle cluster.
 /// Matches layout of:

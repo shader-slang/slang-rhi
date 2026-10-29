@@ -9,11 +9,18 @@ class ShaderProgramImpl : public ShaderProgram
 public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
 
+    struct UsedBinding
+    {
+        uint32_t group;
+        uint32_t binding;
+    };
+
     struct Module
     {
         SlangStage stage;
         std::string entryPointName;
         std::string code;
+        std::vector<UsedBinding> usedBindings;
         WGPUShaderModule module = nullptr;
     };
 
@@ -22,10 +29,9 @@ public:
     ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
     ~ShaderProgramImpl();
 
-    virtual Result createShaderModule(
-        slang::EntryPointReflection* entryPointInfo,
-        ComPtr<ISlangBlob> kernelCode
-    ) override;
+    virtual Result compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime) override;
+
+    virtual Result createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 

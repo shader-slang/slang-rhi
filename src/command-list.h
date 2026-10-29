@@ -39,6 +39,7 @@
     x(SetRayTracingState) \
     x(DispatchRays) \
     x(BuildAccelerationStructure) \
+    x(BuildMicromap) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
     x(ExecuteClusterOperation) \
@@ -46,6 +47,7 @@
     x(SetBufferState) \
     x(SetTextureState) \
     x(GlobalBarrier) \
+    x(AliasResources) \
     x(PushDebugGroup) \
     x(PopDebugGroup) \
     x(InsertDebugMarker) \
@@ -260,6 +262,13 @@ struct BuildAccelerationStructure
     const AccelerationStructureQueryDesc* queryDescs;
 };
 
+struct BuildMicromap
+{
+    MicromapBuildDesc desc;
+    IMicromap* dst;
+    BufferOffsetPair scratchBuffer;
+};
+
 struct CopyAccelerationStructure
 {
     IAccelerationStructure* dst;
@@ -304,6 +313,14 @@ struct SetTextureState
 
 struct GlobalBarrier
 {};
+
+struct AliasResources
+{
+    uint32_t beforeCount;
+    IResource* const* before;
+    uint32_t afterCount;
+    IResource* const* after;
+};
 
 struct PushDebugGroup
 {
@@ -408,7 +425,7 @@ public:
 
     CommandList(
         ArenaAllocator& allocator,
-        std::set<RefPtr<RefObject>>& trackedObjects,
+        std::set<InternalRefPtr<RefObject>>& trackedObjects,
         std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
     );
 
@@ -441,6 +458,7 @@ public:
     void write(commands::SetRayTracingState&& cmd);
     void write(commands::DispatchRays&& cmd);
     void write(commands::BuildAccelerationStructure&& cmd);
+    void write(commands::BuildMicromap&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);
     void write(commands::ExecuteClusterOperation&& cmd);
@@ -448,6 +466,7 @@ public:
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);
     void write(commands::GlobalBarrier&& cmd);
+    void write(commands::AliasResources&& cmd);
     void write(commands::PushDebugGroup&& cmd);
     void write(commands::PopDebugGroup&& cmd);
     void write(commands::InsertDebugMarker&& cmd);
@@ -499,7 +518,7 @@ public:
 
 private:
     ArenaAllocator& m_allocator;
-    std::set<RefPtr<RefObject>>& m_trackedObjects;
+    std::set<InternalRefPtr<RefObject>>& m_trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer>& m_trackedExecuteCallbackObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;

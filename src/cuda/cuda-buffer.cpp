@@ -1,5 +1,6 @@
 #include "cuda-buffer.h"
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-utils.h"
 
 namespace rhi::cuda {
@@ -76,23 +77,53 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 {
     auto desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
-    HeapAllocDesc allocDesc;
-    allocDesc.alignment = 128;
-    allocDesc.size = desc.size;
-    if (desc.memoryType == MemoryType::DeviceLocal)
+    if (desc.heap)
     {
-        SLANG_RETURN_ON_FAIL(m_deviceMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
+        buffer->m_cudaMemory = reinterpret_cast<void*>(heap->m_memory + desc.heapOffset);
+        buffer->setPlacement(heap, desc.heapOffset, requirements.size);
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(m_hostMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        HeapAllocDesc allocDesc;
+        allocDesc.alignment = 128;
+        allocDesc.size = desc.size;
+        if (desc.memoryType == MemoryType::DeviceLocal)
+        {
+            SLANG_RETURN_ON_FAIL(m_deviceMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        }
+        else
+        {
+            SLANG_RETURN_ON_FAIL(m_hostMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        }
+        buffer->m_cudaMemory = buffer->m_alloc.getHostPtr();
     }
-    buffer->m_cudaMemory = buffer->m_alloc.getHostPtr();
 
     if (initData)
     {
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpy(buffer->getDeviceAddress(), (CUdeviceptr)initData, desc.size), this);
     }
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
+{
+    if (handle.type != NativeHandleType::CUdeviceptr || handle.value == 0)
+    {
+        *outBuffer = nullptr;
+        return SLANG_E_INVALID_HANDLE;
+    }
+
+    // The buffer does not own the memory the device pointer refers to. We leave both the heap
+    // allocation and the external memory object unset so the destructor doesn't free anything.
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, fixupBufferDesc(desc));
+    buffer->m_cudaMemory = reinterpret_cast<void*>(handle.value);
+
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
 }

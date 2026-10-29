@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-backend.h"
 #include "cuda-command.h"
 #include "cuda-buffer.h"
@@ -13,8 +14,11 @@
 #include "cuda-shader-table.h"
 #include "cuda-utils.h"
 #include "cuda-heap.h"
+#include "synthetic-resource-bindings.h"
 
 #include "core/platform.h"
+
+#include <filesystem>
 
 namespace rhi::cuda {
 
@@ -26,20 +30,17 @@ struct ComputeCapabilityInfo
 };
 
 // List of compute capabilities. This is in order from lowest to highest.
-// Note: This currently only contains versions exposed as a Slang capability.
+// These are driver-reported hardware tiers and do not imply downstream compiler support.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
 #define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
-    COMPUTE_CAPABILITY(1, 0),
-    COMPUTE_CAPABILITY(2, 0),
-    COMPUTE_CAPABILITY(3, 0),
-    COMPUTE_CAPABILITY(3, 5),
-    COMPUTE_CAPABILITY(4, 0),
-    COMPUTE_CAPABILITY(5, 0),
-    COMPUTE_CAPABILITY(6, 0),
-    COMPUTE_CAPABILITY(7, 0),
-    COMPUTE_CAPABILITY(8, 0),
-    COMPUTE_CAPABILITY(8, 9),
-    COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(1, 0),  COMPUTE_CAPABILITY(1, 1),  COMPUTE_CAPABILITY(1, 2),  COMPUTE_CAPABILITY(1, 3),
+    COMPUTE_CAPABILITY(2, 0),  COMPUTE_CAPABILITY(2, 1),  COMPUTE_CAPABILITY(3, 0),  COMPUTE_CAPABILITY(3, 2),
+    COMPUTE_CAPABILITY(3, 5),  COMPUTE_CAPABILITY(3, 7),  COMPUTE_CAPABILITY(4, 0),  COMPUTE_CAPABILITY(5, 0),
+    COMPUTE_CAPABILITY(5, 2),  COMPUTE_CAPABILITY(5, 3),  COMPUTE_CAPABILITY(6, 0),  COMPUTE_CAPABILITY(6, 1),
+    COMPUTE_CAPABILITY(6, 2),  COMPUTE_CAPABILITY(7, 0),  COMPUTE_CAPABILITY(7, 2),  COMPUTE_CAPABILITY(7, 5),
+    COMPUTE_CAPABILITY(8, 0),  COMPUTE_CAPABILITY(8, 6),  COMPUTE_CAPABILITY(8, 7),  COMPUTE_CAPABILITY(8, 8),
+    COMPUTE_CAPABILITY(8, 9),  COMPUTE_CAPABILITY(9, 0),  COMPUTE_CAPABILITY(10, 0), COMPUTE_CAPABILITY(10, 1),
+    COMPUTE_CAPABILITY(10, 3), COMPUTE_CAPABILITY(11, 0), COMPUTE_CAPABILITY(12, 0), COMPUTE_CAPABILITY(12, 1),
 #undef COMPUTE_CAPABILITY
 };
 
@@ -50,6 +51,12 @@ DeviceImpl::~DeviceImpl()
     if (m_ctx.context)
     {
         SLANG_CUDA_CTX_SCOPE(this);
+
+        // Wait and release command-owned allocations while their heaps and device are still valid.
+        if (m_queue)
+        {
+            m_queue->waitAndReleaseCommandBuffers();
+        }
 
         m_shaderCache.free();
         m_uploadHeap.release();
@@ -203,6 +210,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
+    addFeature(Feature::ResourceHeaps);
+    addFeature(Feature::ResourceAliasing);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
@@ -286,6 +295,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::AccelerationStructure);
         addFeature(Feature::RayTracing);
+        addFeature(Feature::OpacityMicromap);
         uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
         m_info.optixVersion = optixVersion;
         if (optixVersion >= 80100)
@@ -303,9 +313,40 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
-                // addCapability(Capability::optix_coopvec);
+                // Slang's optix_coopvec capability implies _cuda_sm_9_0. Keep exposing the
+                // API feature on every device supported by OptiX, but only enable the native
+                // OptiX shader path when the device also supports the implied architecture.
+                if (hasComputeCapability(9, 0))
+                {
+                    addCapability(Capability::optix_coopvec);
+                }
             }
         }
+    }
+
+    // Configure headers only after the OptiX runtime (including fallback) has been selected.
+    std::string optixIncludeArg;
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
+    if (desc.optixDeviceHeaderRoot && m_info.optixVersion != 0)
+    {
+        uint32_t version = m_info.optixVersion;
+        std::string tag = std::to_string(version / 10000) + "_" + std::to_string((version % 10000) / 100);
+        auto path = std::filesystem::path(desc.optixDeviceHeaderRoot) / tag;
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(path / "optix.h", error))
+        {
+            printError("OptiX %u device header not found: %s", version, (path / "optix.h").string().c_str());
+            return SLANG_E_INVALID_ARG;
+        }
+
+        // DownstreamArgs separates arguments with newlines, so spaces need no shell quoting.
+        optixIncludeArg = "-I" + path.string();
+        slang::CompilerOptionEntry option = {};
+        option.name = slang::CompilerOptionName::DownstreamArgs;
+        option.value.kind = slang::CompilerOptionValueKind::String;
+        option.value.stringValue0 = "nvrtc";
+        option.value.stringValue1 = optixIncludeArg.c_str();
+        compilerOptions.push_back(option);
     }
 
     // Initialize slang context
@@ -314,7 +355,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         SLANG_PTX,
         nullptr,
         getCapabilities(),
-        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}}
+        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}},
+        compilerOptions
     ));
 
     // Initialize format support table
@@ -338,7 +380,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     SLANG_RETURN_ON_FAIL(m_queue->init());
-    m_queue->setInternalReferenceCount(1);
 
     // Create 2 heaps. On CUDA both Upload and ReadBack just use host memory,
     // so we only need one for DeviceLocal and one for Upload/ReadBack.
@@ -349,13 +390,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     heapDesc.label = "Device upload heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_hostMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
-    m_hostMemHeap->breakStrongReferenceToDevice();
 
     heapDesc.memoryType = MemoryType::DeviceLocal;
     heapDesc.label = "Device local heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
-    m_deviceMemHeap->breakStrongReferenceToDevice();
 
     // Register heaps with the base Device class for reporting
     m_globalHeaps.push_back(m_hostMemHeap);
@@ -372,7 +411,6 @@ void DeviceImpl::deferDelete(Resource* resource)
 {
     SLANG_RHI_ASSERT(m_queue != nullptr);
     m_queue->deferDelete(resource);
-    resource->breakStrongReferenceToDevice();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -422,7 +460,7 @@ Result DeviceImpl::createShaderObjectLayout(
 {
     RefPtr<ShaderObjectLayoutImpl> cudaLayout;
     cudaLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
-    returnRefPtrMove(outLayout, cudaLayout);
+    returnRefPtr(outLayout, cudaLayout);
     return SLANG_OK;
 }
 
@@ -454,7 +492,14 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->getSyntheticResourceBindingState(),
+            shaderProgram->m_rootObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
@@ -475,7 +520,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -553,6 +598,13 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    return m_ctx.optixContext->getMicromapSizes(desc, outSizes);
+}
+
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     if (!m_ctx.optixContext)
@@ -576,6 +628,16 @@ Result DeviceImpl::createAccelerationStructure(
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 
@@ -654,6 +716,47 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 {
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
+    ResourceHeapUsage usage = desc.usage;
+    if (usage == ResourceHeapUsage::None)
+    {
+        for (uint32_t i = 0; i < desc.requirementCount; ++i)
+            usage |= desc.requirements[i].usage;
+    }
+    if (!isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, usage))
+        return SLANG_E_NOT_AVAILABLE;
+
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    BufferDesc desc = fixupBufferDesc(desc_);
+    outRequirements->size = desc.size;
+    outRequirements->alignment = 256;
+    outRequirements->heapAlignment = 1;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = ResourceHeapUsage::Buffers;
+    outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    setResourceHeapCompatibility(*outRequirements, this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc_);
+    resetResourceMemoryRequirements(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)

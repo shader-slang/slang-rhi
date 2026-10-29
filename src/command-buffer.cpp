@@ -3,6 +3,7 @@
 #include "rhi-shared.h"
 #include "device.h"
 #include "format-conversion.h"
+#include "pipeline-resolver.h"
 
 namespace rhi {
 
@@ -22,19 +23,16 @@ RenderPassEncoder::RenderPassEncoder(CommandEncoder* commandEncoder)
 {
 }
 
-void RenderPassEncoder::writeRenderState()
+Result RenderPassEncoder::writeRenderState()
 {
     commands::SetRenderState cmd;
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
-    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
-    {
-        m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
-        return;
-    }
+    SLANG_RETURN_ON_FAIL(
+        m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
+    );
     m_commandList->write(std::move(cmd));
+    return SLANG_OK;
 }
 
 IShaderObject* RenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
@@ -77,7 +75,8 @@ void RenderPassEncoder::draw(const DrawArguments& args)
 {
     if (m_commandList)
     {
-        writeRenderState();
+        if (SLANG_FAILED(writeRenderState()))
+            return;
         commands::Draw cmd;
         cmd.args = args;
         m_commandList->write(std::move(cmd));
@@ -88,7 +87,8 @@ void RenderPassEncoder::drawIndexed(const DrawArguments& args)
 {
     if (m_commandList)
     {
-        writeRenderState();
+        if (SLANG_FAILED(writeRenderState()))
+            return;
         commands::DrawIndexed cmd;
         cmd.args = args;
         m_commandList->write(std::move(cmd));
@@ -99,7 +99,8 @@ void RenderPassEncoder::drawIndirect(uint32_t maxDrawCount, BufferOffsetPair arg
 {
     if (m_commandList)
     {
-        writeRenderState();
+        if (SLANG_FAILED(writeRenderState()))
+            return;
         commands::DrawIndirect cmd;
         cmd.maxDrawCount = maxDrawCount;
         cmd.argBuffer = argBuffer;
@@ -116,7 +117,8 @@ void RenderPassEncoder::drawIndexedIndirect(
 {
     if (m_commandList)
     {
-        writeRenderState();
+        if (SLANG_FAILED(writeRenderState()))
+            return;
         commands::DrawIndexedIndirect cmd;
         cmd.maxDrawCount = maxDrawCount;
         cmd.argBuffer = argBuffer;
@@ -129,7 +131,8 @@ void RenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
-        writeRenderState();
+        if (SLANG_FAILED(writeRenderState()))
+            return;
         commands::DrawMeshTasks cmd;
         cmd.x = x;
         cmd.y = y;
@@ -206,18 +209,15 @@ ComputePassEncoder::ComputePassEncoder(CommandEncoder* commandEncoder)
 {
 }
 
-void ComputePassEncoder::writeComputeState()
+Result ComputePassEncoder::writeComputeState()
 {
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
-    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
-    {
-        m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
-        return;
-    }
+    SLANG_RETURN_ON_FAIL(
+        m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
+    );
     m_commandList->write(std::move(cmd));
+    return SLANG_OK;
 }
 
 IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
@@ -246,7 +246,8 @@ void ComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
     if (m_commandList)
     {
-        writeComputeState();
+        if (SLANG_FAILED(writeComputeState()))
+            return;
         commands::DispatchCompute cmd;
         cmd.x = x;
         cmd.y = y;
@@ -259,7 +260,8 @@ void ComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer)
 {
     if (m_commandList)
     {
-        writeComputeState();
+        if (SLANG_FAILED(writeComputeState()))
+            return;
         commands::DispatchComputeIndirect cmd;
         cmd.argBuffer = argBuffer;
         m_commandList->write(std::move(cmd));
@@ -334,20 +336,17 @@ RayTracingPassEncoder::RayTracingPassEncoder(CommandEncoder* commandEncoder)
 {
 }
 
-void RayTracingPassEncoder::writeRayTracingState()
+Result RayTracingPassEncoder::writeRayTracingState()
 {
     commands::SetRayTracingState cmd;
     cmd.pipeline = m_pipeline;
     cmd.shaderTable = m_shaderTable;
-    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
-    {
-        m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
-        return;
-    }
+    SLANG_RETURN_ON_FAIL(
+        m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
+    );
 
     m_commandList->write(std::move(cmd));
+    return SLANG_OK;
 }
 
 IShaderObject* RayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable)
@@ -382,7 +381,8 @@ void RayTracingPassEncoder::dispatchRays(uint32_t rayGenShaderIndex, uint32_t wi
 {
     if (m_commandList)
     {
-        writeRayTracingState();
+        if (SLANG_FAILED(writeRayTracingState()))
+            return;
         commands::DispatchRays cmd;
         cmd.rayGenShaderIndex = rayGenShaderIndex;
         cmd.width = width;
@@ -590,6 +590,10 @@ Result CommandEncoder::uploadTextureData(
     // Get texture
     Texture* textureImpl = checked_cast<Texture*>(dst);
 
+    // Get the buffer offset alignment required for every staged subresource.
+    Size offsetAlignment;
+    SLANG_RETURN_ON_FAIL(getDevice()->getTextureBufferOffsetAlignment(textureImpl->m_desc.format, &offsetAlignment));
+
     // Gather subresource layout for each layer/mip and sum up total required staging buffer size.
     Size totalSize = 0;
     {
@@ -601,6 +605,7 @@ Result CommandEncoder::uploadTextureData(
                 uint32_t mip = subresourceRange.mip + mipOffset;
 
                 textureImpl->getSubresourceRegionLayout(mip, offset, extent, kDefaultAlignment, srLayout);
+                srLayout->sizeInBytes = math::calcAligned(srLayout->sizeInBytes, offsetAlignment);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
@@ -609,7 +614,7 @@ Result CommandEncoder::uploadTextureData(
 
     // Allocate and retain a staging buffer for the upload.
     RefPtr<StagingHeap::Handle> handle;
-    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.allocHandle(totalSize, {}, handle.writeRef()));
+    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.allocHandle(totalSize, offsetAlignment, {}, handle.writeRef()));
     m_commandList->retainResource(handle);
 
     // Copy subresources a row at a time into the staging buffer.
@@ -679,7 +684,8 @@ Result CommandEncoder::uploadTextureData(
 Result CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data)
 {
     RefPtr<StagingHeap::Handle> handle;
-    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.stageHandle(data, size, {}, handle.writeRef()));
+    // Buffer copy offsets must be aligned to four bytes.
+    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.stageHandle(data, size, 4, {}, handle.writeRef()));
 
     m_commandList->retainResource(handle);
 
@@ -801,6 +807,15 @@ void CommandEncoder::buildAccelerationStructure(
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::buildMicromap(const MicromapBuildDesc& desc, IMicromap* dst, BufferOffsetPair scratchBuffer)
+{
+    commands::BuildMicromap cmd;
+    cmd.desc = desc;
+    cmd.dst = dst;
+    cmd.scratchBuffer = scratchBuffer;
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
@@ -871,6 +886,21 @@ void CommandEncoder::globalBarrier()
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::aliasResources(
+    uint32_t beforeCount,
+    IResource* const* before,
+    uint32_t afterCount,
+    IResource* const* after
+)
+{
+    commands::AliasResources cmd;
+    cmd.beforeCount = beforeCount;
+    cmd.before = before;
+    cmd.afterCount = afterCount;
+    cmd.after = after;
+    m_commandList->write(std::move(cmd));
+}
+
 
 void CommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
@@ -915,6 +945,32 @@ Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** ou
     return SLANG_FAIL;
 }
 
+Result CommandEncoder::prepareBindings(
+    IPipeline* pipeline,
+    RootShaderObject* rootObject,
+    ExtendedShaderObjectTypeListObject*& outSpecializationArgs,
+    BindingData*& outBindingData
+)
+{
+    SLANG_RETURN_ON_FAIL(m_recordingResult);
+    m_recordingResult = getPipelineSpecializationArgs(pipeline, rootObject, outSpecializationArgs);
+    if (SLANG_FAILED(m_recordingResult))
+    {
+        m_device->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Failed to get pipeline specialization arguments"
+        );
+        return m_recordingResult;
+    }
+    m_recordingResult = getBindingData(rootObject, outBindingData);
+    if (SLANG_FAILED(m_recordingResult))
+    {
+        m_device->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+    }
+    return m_recordingResult;
+}
+
 Result CommandEncoder::getPipelineSpecializationArgs(
     IPipeline* pipeline,
     IShaderObject* object,
@@ -925,7 +981,7 @@ Result CommandEncoder::getPipelineSpecializationArgs(
     {
         RootShaderObject* rootObject = checked_cast<RootShaderObject*>(object);
         RefPtr<ExtendedShaderObjectTypeListObject> specializationArgs = new ExtendedShaderObjectTypeListObject();
-        rootObject->collectSpecializationArgs(*specializationArgs);
+        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(*specializationArgs));
         m_pipelineSpecializationArgs.push_back(specializationArgs);
         outSpecializationArgs = specializationArgs.get();
     }
@@ -938,43 +994,8 @@ Result CommandEncoder::getPipelineSpecializationArgs(
 
 Result CommandEncoder::resolvePipelines(Device* device)
 {
-    CommandList* commandList = m_commandList;
-    auto command = commandList->getCommands();
-    while (command)
-    {
-        if (command->id == CommandID::SetRenderState)
-        {
-            auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
-            RenderPipeline* pipeline = checked_cast<RenderPipeline*>(cmd.pipeline);
-            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
-            Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
-            cmd.pipeline = static_cast<RenderPipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
-        }
-        else if (command->id == CommandID::SetComputeState)
-        {
-            auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
-            ComputePipeline* pipeline = checked_cast<ComputePipeline*>(cmd.pipeline);
-            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
-            Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
-            cmd.pipeline = static_cast<ComputePipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
-        }
-        else if (command->id == CommandID::SetRayTracingState)
-        {
-            auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
-            RayTracingPipeline* pipeline = checked_cast<RayTracingPipeline*>(cmd.pipeline);
-            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
-            Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
-            cmd.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
-        }
-        command = command->next;
-    }
-    return SLANG_OK;
+    SLANG_RETURN_ON_FAIL(m_recordingResult);
+    return rhi::resolvePipelines(device, m_commandList);
 }
 
 // ----------------------------------------------------------------------------

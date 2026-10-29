@@ -17,7 +17,7 @@
 | `createTextureFromNativeHandle`    | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `createTextureFromSharedHandle`    | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `createBuffer`                     | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
-| `createBufferFromNativeHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createBufferFromNativeHandle`     | :x:     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createBufferFromSharedHandle`     | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `mapBuffer`                        | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `unmapBuffer`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
@@ -37,11 +37,17 @@
 | `readBuffer`                       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createQueryPool`                  | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getAccelerationStructureSizes`    | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getMicromapSizes`                 | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `getClusterOperationSizes`         | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createAccelerationStructure`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `createMicromap`                   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createFence`                      | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `waitForFences`                    | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createHeap`                       | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createResourceHeap`               | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getBufferMemoryRequirements`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getTextureMemoryRequirements`     | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
+| `isResourceHeapCompatible`         | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureAllocationInfo`         | yes     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureRowAlignment`           | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `getCooperativeVectorProperties`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
@@ -121,6 +127,33 @@
 | `finalize`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `isFinalized`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 
+## `ISyntheticShaderProgram` interface
+
+Optional API declared in
+[`synthetic-bindings.md`](synthetic-bindings.md) and
+`<slang-rhi/synthetic-bindings.h>`.
+
+| API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getSyntheticBindingCount`         | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `getSyntheticBindingLocation`      | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `findSyntheticBindingLocationByID` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Shader program synthetic resource descriptors
+
+CUDA and Vulkan currently support only `SyntheticResourceScope::Global`.
+Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creation.
+
+| Descriptor path                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `ShaderProgramSyntheticResourcesDesc` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Synthetic binding helper
+
+| Helper API                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------------------|-----|------|-------|-------|--------|-------|------|
+| `bindSyntheticResource(...)`  | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
 ## `IShaderTable` interface
 
 ## `IPipeline` interface
@@ -182,6 +215,7 @@
 | `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
 | `resolveQuery`                         | yes | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `buildMicromap`                        | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `copyAccelerationStructure`            | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `queryAccelerationStructureProperties` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `executeClusterOperation`              | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
@@ -189,6 +223,7 @@
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setTextureState`                      | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `globalBarrier`                        | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `aliasResources`                       | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `pushDebugGroup`                       | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `popDebugGroup`                        | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `insertDebugMarker`                    | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
@@ -214,9 +249,19 @@
 | `setRenderState`      | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `draw`                | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawIndexed`         | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
-| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
-| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | :x:   | yes  |
+| `drawIndirect`        | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
+| `drawIndexedIndirect` | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `drawMeshTasks`       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+
+WebGPU single indirect draws without a count buffer use the core WebGPU API.
+Other indirect-draw forms currently use Dawn's native multi-draw extension and
+require that optional feature to be enabled; they are unavailable in the Wasm path.
+
+Metal indirect draws issue one native indirect draw per argument record and do not
+support a count buffer.
+
+See [error handling and diagnostics](error-handling.md#webgpu-recording-and-validation)
+for WebGPU recording errors and asynchronous validation.
 
 ## `IComputePassEncoder` interface
 
@@ -281,3 +326,23 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 | `report`           | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `flush`            | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `removeEmptyPages` | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+
+## `IResourceHeap` interface
+
+See [Resource heaps](resource-heaps.md) for placement, aliasing, lifetime, and synchronization guidance.
+
+| API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`         | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `getNativeHandle` | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+
+## OptiX callable stack limits
+
+CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through
+`RayTracingPipelineDesc::next`. The default permits one direct-callable frame from
+ray generation, miss or closest-hit. Set `maxDirectCallableDepthFromState` to the
+maximum simultaneous `CallShader` nesting depth (two for a callable invoking another
+callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls from
+intersection/any-hit and defaults to zero. These limits are independent of
+`maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
+The pipeline copies these options, including when compilation is deferred.

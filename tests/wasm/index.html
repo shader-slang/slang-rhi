@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>slang-rhi WASM Test</title>
+</head>
+<body>
+    <canvas id="canvas" width="1" height="1"></canvas>
+    <pre id="output"></pre>
+    <script>
+        var Module = {
+            preInit: function() {
+                if (typeof WebAssembly === 'undefined' ||
+                    typeof WebAssembly.Suspending !== 'function' ||
+                    typeof WebAssembly.promising !== 'function') {
+                    var message = 'This test requires a browser with WebAssembly JSPI support. Please update your browser.';
+                    Module.printErr(message);
+                    throw new Error(message);
+                }
+            },
+            print: function(text) {
+                var element = document.getElementById('output');
+                if (element) element.textContent += text + "\n";
+                // console.log(text); // Silencing console logs for minimal view
+            },
+            printErr: function(text) {
+                var element = document.getElementById('output');
+                if (element) element.textContent += text + "\n";
+                console.error(text);
+            }
+        };
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>

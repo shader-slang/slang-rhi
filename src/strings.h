@@ -40,6 +40,13 @@
 #define S_MemoryType_Upload "Upload"
 #define S_MemoryType_ReadBack "ReadBack"
 
+// ResourceHeapUsage
+#define S_ResourceHeapUsage_None "None"
+#define S_ResourceHeapUsage_Buffers "Buffers"
+#define S_ResourceHeapUsage_NonRtDsTextures "NonRtDsTextures"
+#define S_ResourceHeapUsage_RtDsTextures "RtDsTextures"
+#define S_ResourceHeapUsage_All "All"
+
 // BufferUsage
 #define S_BufferUsage_None "None"
 #define S_BufferUsage_VertexBuffer "VertexBuffer"
@@ -52,6 +59,8 @@
 #define S_BufferUsage_CopyDestination "CopyDestination"
 #define S_BufferUsage_AccelerationStructure "AccelerationStructure"
 #define S_BufferUsage_AccelerationStructureBuildInput "AccelerationStructureBuildInput"
+#define S_BufferUsage_MicromapBuildInput "MicromapBuildInput"
+#define S_BufferUsage_MicromapStorage "MicromapStorage"
 #define S_BufferUsage_ShaderTable "ShaderTable"
 #define S_BufferUsage_Shared "Shared"
 
@@ -106,6 +115,9 @@
 #define S_ResourceState_AccelerationStructureRead "AccelerationStructureRead"
 #define S_ResourceState_AccelerationStructureWrite "AccelerationStructureWrite"
 #define S_ResourceState_AccelerationStructureBuildInput "AccelerationStructureBuildInput"
+#define S_ResourceState_MicromapBuildInput "MicromapBuildInput"
+#define S_ResourceState_MicromapRead "MicromapRead"
+#define S_ResourceState_MicromapWrite "MicromapWrite"
 
 // TextureFilteringMode
 #define S_TextureFilteringMode_Point "Point"

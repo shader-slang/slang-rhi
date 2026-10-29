@@ -20,6 +20,12 @@ void* CocoaUtil::nextDrawable(void* metalLayer)
     return [layer nextDrawable];
 }
 
+void CocoaUtil::setDisplaySyncEnabled(void* metalLayer, bool enabled)
+{
+    CAMetalLayer* layer = (CAMetalLayer*)metalLayer;
+    layer.displaySyncEnabled = enabled;
+}
+
 void CocoaUtil::destroyMetalLayer(void* metalLayer)
 {
     CAMetalLayer* layer = (CAMetalLayer*)metalLayer;

@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 The Khronos Group Inc.
+# SPDX-License-Identifier: Apache-2.0
+---
+name: REUSE Compliance Check
+on: [push, pull_request]
+concurrency:
+  group: reuse-compliance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  reuse-compliance-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@9a55738c6490d015afe69ad187520395d2b7a1fa # v6.0.0

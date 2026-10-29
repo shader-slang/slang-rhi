@@ -11,6 +11,7 @@
 #include "vk-shader-object.h"
 #include "vk-shader-object-layout.h"
 #include "../command-list.h"
+#include "../rhi-shared.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 
@@ -104,6 +105,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -111,6 +113,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -167,9 +170,42 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
                 {
                     prepareSetRenderState(commandList.getCommand<commands::SetRenderState>(subCmdSlot));
                 }
+                else if (subCmdSlot->id == CommandID::DrawIndirect)
+                {
+                    const auto& draw = commandList.getCommand<commands::DrawIndirect>(subCmdSlot);
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(draw.argBuffer.buffer),
+                        ResourceState::IndirectArgument
+                    );
+                    if (draw.countBuffer)
+                        requireBufferState(
+                            checked_cast<BufferImpl*>(draw.countBuffer.buffer),
+                            ResourceState::IndirectArgument
+                        );
+                }
+                else if (subCmdSlot->id == CommandID::DrawIndexedIndirect)
+                {
+                    const auto& draw = commandList.getCommand<commands::DrawIndexedIndirect>(subCmdSlot);
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(draw.argBuffer.buffer),
+                        ResourceState::IndirectArgument
+                    );
+                    if (draw.countBuffer)
+                        requireBufferState(
+                            checked_cast<BufferImpl*>(draw.countBuffer.buffer),
+                            ResourceState::IndirectArgument
+                        );
+                }
                 else if (subCmdSlot->id == CommandID::EndRenderPass)
                 {
                     break;
+                }
+                else if (subCmdSlot->id == CommandID::WriteTimestamp)
+                {
+                    // Query resets, unlike timestamp writes, are forbidden inside rendering.
+                    const auto& timestamp = commandList.getCommand<commands::WriteTimestamp>(subCmdSlot);
+                    auto pool = checked_cast<QueryPoolImpl*>(timestamp.queryPool);
+                    m_api.vkCmdResetQueryPool(m_cmdBuffer, pool->m_pool, timestamp.queryIndex, 1);
                 }
             }
             commitBarriers();
@@ -625,7 +661,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         colorAttachmentInfos.push_back(attachmentInfo);
     }
 
-    // Transition depth stencil from its initial state to depth write state.
+    // Transition depth/stencil and use the same layout for its rendering attachments.
     if (desc.depthStencilAttachment)
     {
         const auto& attachment = *desc.depthStencilAttachment;
@@ -634,11 +670,10 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         m_depthStencilView = checked_cast<TextureViewImpl*>(desc.depthStencilAttachment->view);
 
         // Transition state
-        requireTextureState(
-            view->m_texture,
-            view->m_desc.subresourceRange,
-            attachment.depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite
-        );
+        ResourceState depthStencilState =
+            attachment.depthReadOnly ? ResourceState::DepthRead : ResourceState::DepthWrite;
+        requireTextureState(view->m_texture, view->m_desc.subresourceRange, depthStencilState);
+        VkImageLayout depthStencilLayout = translateImageLayout(depthStencilState);
 
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
@@ -654,7 +689,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             hasDepthAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
             depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
-            depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthAttachmentInfo.imageLayout = depthStencilLayout;
             depthAttachmentInfo.loadOp = translateLoadOp(dsa.depthLoadOp);
             depthAttachmentInfo.storeOp = translateStoreOp(dsa.depthStoreOp);
             depthAttachmentInfo.clearValue.depthStencil.depth = dsa.depthClearValue;
@@ -664,7 +699,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             hasStencilAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
             stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
-            stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            stencilAttachmentInfo.imageLayout = depthStencilLayout;
             stencilAttachmentInfo.loadOp = translateLoadOp(dsa.stencilLoadOp);
             stencilAttachmentInfo.storeOp = translateStoreOp(dsa.stencilStoreOp);
             stencilAttachmentInfo.clearValue.depthStencil.stencil = dsa.stencilClearValue;
@@ -1100,7 +1135,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             return;
         }
         requireBufferState(m_shaderTablePipelineData->buffer, ResourceState::ShaderResource);
-        DeviceAddress shaderTableAddr = m_shaderTablePipelineData->buffer->getDeviceAddress();
+        DeviceAddress shaderTableAddr =
+            m_shaderTablePipelineData->buffer->getDeviceAddress() + m_shaderTablePipelineData->tableOffset;
 
         // Raygen address, stride, and size are set at dispatch time since each raygen
         // shader can have a different record size.
@@ -1164,7 +1200,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 
             // Use vkCmdUpdateBuffer to copy entry point data to the SBT.
             // The data is written at the raygen's sbtOffset (after the shader group handle).
-            VkDeviceSize dstOffset = raygenInfo.sbtOffset;
+            VkDeviceSize dstOffset = m_shaderTablePipelineData->tableOffset + raygenInfo.sbtOffset;
             VkDeviceSize copySize = std::min(entryPointData.size, raygenInfo.paramsSize);
             m_api.vkCmdUpdateBuffer(
                 m_cmdBuffer,
@@ -1270,6 +1306,19 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
                     ResourceState::AccelerationStructureBuildInput
                 );
             }
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(input.triangles.next))
+            {
+                if (ommDesc->link.micromap)
+                    requireBufferState(
+                        checked_cast<MicromapImpl*>(ommDesc->link.micromap)->m_buffer,
+                        ResourceState::MicromapRead
+                    );
+                if (ommDesc->link.indexBuffer)
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(ommDesc->link.indexBuffer.buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+            }
             break;
         case AccelerationStructureBuildInputType::ProceduralPrimitives:
             for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
@@ -1358,6 +1407,24 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     {
         queryAccelerationStructureProperties(1, &cmd.dst, cmd.propertyQueryCount, cmd.queryDescs);
     }
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    if (!m_device->m_api.vkCmdBuildMicromapsEXT)
+        return;
+    MicromapImpl* dst = checked_cast<MicromapImpl*>(cmd.dst);
+    requireBufferState(dst->m_buffer, ResourceState::MicromapWrite);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer), ResourceState::UnorderedAccess);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.dataBuffer.buffer), ResourceState::MicromapBuildInput);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.descriptorBuffer.buffer), ResourceState::MicromapBuildInput);
+    MicromapBuildDescConverter converter;
+    if (SLANG_FAILED(converter.convert(cmd.desc)))
+        return;
+    commitBarriers();
+    converter.buildInfo.dstMicromap = dst->m_vkHandle;
+    converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+    m_device->m_api.vkCmdBuildMicromapsEXT(m_cmdBuffer, 1, &converter.buildInfo);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1503,6 +1570,38 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
 }
 
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    commitBarriers();
+
+    VkMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+    m_api.vkCmdPipelineBarrier(
+        m_cmdBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VkDependencyFlags(0),
+        1,
+        &memoryBarrier,
+        0,
+        nullptr,
+        0,
+        nullptr
+    );
+
+    m_stateTracking.deactivateAliases({cmd.after, cmd.afterCount}, false);
+    for (uint32_t i = 0; i < cmd.afterCount; ++i)
+    {
+        if (Buffer* buffer = asBuffer(cmd.after[i]))
+            m_stateTracking.resetBufferState(buffer);
+        if (Texture* texture = asTexture(cmd.after[i]))
+            m_stateTracking.resetTextureState(texture);
+    }
+}
+
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
     // On vulkan the global barrier is a memory barrier that:
@@ -1584,7 +1683,9 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     uint32_t queryIndex = (uint32_t)cmd.queryIndex;
-    m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
+    // Render-pass queries are reset by the pre-pass scan, before rendering begins.
+    if (!m_renderPassActive)
+        m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
     m_api.vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool->m_pool, queryIndex);
 }
 
@@ -1863,6 +1964,19 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
     m_queue = queue;
     m_queueFamilyIndex = queueFamilyIndex;
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const Size constantBufferAlignment = m_api.m_deviceProperties.limits.minUniformBufferOffsetAlignment;
+    TransientBufferHeapDesc constantBufferHeapDesc;
+    constantBufferHeapDesc.initialPageSize = 64 * 1024;
+    constantBufferHeapDesc.maxPageSize = 4 * 1024 * 1024;
+    constantBufferHeapDesc.maxRetainedSize = 4 * 1024 * 1024;
+    constantBufferHeapDesc.memoryType = MemoryType::Upload;
+    constantBufferHeapDesc.usage = BufferUsage::ConstantBuffer;
+    constantBufferHeapDesc.defaultState = ResourceState::ConstantBuffer;
+    constantBufferHeapDesc.alignment = constantBufferAlignment;
+    constantBufferHeapDesc.allocationGranularity = constantBufferAlignment;
+    m_constantBufferHeap.initialize(device, constantBufferHeapDesc);
+
     {
         VkSemaphoreTypeCreateInfo timelineCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
         timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
@@ -1872,11 +1986,21 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
     }
 }
 
-void CommandQueueImpl::shutdown()
+void CommandQueueImpl::waitAndReleaseCommandBuffers()
 {
     waitOnHost();
+    // A failed device wait may leave command buffers in the in-flight list. Destroy them before
+    // releasing the heap so their allocation handles cannot outlive its pages.
+    m_commandBuffersInFlight.clear();
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+}
+
+void CommandQueueImpl::shutdown()
+{
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty() && m_commandBuffersPool.empty());
+    // Release the shared constant-buffer pages while deferred deletion is still available.
+    m_constantBufferHeap.release();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
@@ -1903,7 +2027,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
-        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -1915,27 +2038,34 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_commandBuffersPool.push_back(commandBuffer);
-        commandBuffer->setInternalReferenceCount(1);
     }
 }
 
 void CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
     uint64_t lastFinishedID = updateLastFinishedID();
-    for (const auto& commandBuffer : commandBuffers)
+    while (!commandBuffers.empty())
     {
+        auto current = commandBuffers.begin();
+        CommandBufferImpl* commandBuffer = current->get();
         if (commandBuffer->m_submissionID <= lastFinishedID)
         {
-            retireCommandBuffer(commandBuffer);
+            commandBuffer->reset();
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_commandBuffersPool.splice(m_commandBuffersPool.end(), commandBuffers, current);
         }
         else
         {
-            m_commandBuffersInFlight.push_back(commandBuffer);
+            m_commandBuffersInFlight.splice(m_commandBuffersInFlight.end(), commandBuffers, current);
         }
     }
+
+    // The internal device queue shares this VkQueue. Polling it here releases
+    // initialization staging allocations even if no further internal work occurs.
+    getDevice<DeviceImpl>()->m_deviceQueue.retireCompletedResources();
 
     // Delete deferred resources that are no longer in use by the GPU.
     executeDeferredDeletes();
@@ -1959,7 +2089,7 @@ void CommandQueueImpl::executeDeferredDeletes()
     std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
     while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
     {
-        // GPU is done with this resource - delete it.
+        // Destructors must not enqueue deferred deletes; release child resources in deleteThis().
         delete m_deferredDeleteQueue.front().resource;
         m_deferredDeleteQueue.pop();
     }
@@ -1981,21 +2111,14 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    // Increment last submitted ID which is used to track command buffer completion.
-    ++m_lastSubmittedID;
+    // Commit this ID and resource tracking only after the driver accepts the submission.
+    uint64_t submissionID = m_lastSubmittedID + 1;
 
-    // Collect & process command buffers.
+    // Collect command buffers.
     short_vector<VkCommandBuffer> vkCommandBuffers;
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        commandBuffer->m_submissionID = m_lastSubmittedID;
-        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
-        {
-            checked_cast<QueryPool*>(queryWrite.queryPool)
-                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
-        }
-        m_commandBuffersInFlight.push_back(commandBuffer);
         vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
     }
 
@@ -2017,7 +2140,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
     {
         addWaitSemaphore(m_surfaceSync.imageAvailableSemaphore, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-        m_surfaceSync.imageAvailableSemaphore = VK_NULL_HANDLE;
     }
 
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
@@ -2038,10 +2160,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
     {
         addSignalSemaphore(m_surfaceSync.renderFinishedSemaphore, 0);
-        m_surfaceSync.renderFinishedSemaphore = VK_NULL_HANDLE;
     }
 
-    addSignalSemaphore(m_trackingSemaphore, m_lastSubmittedID);
+    addSignalSemaphore(m_trackingSemaphore, submissionID);
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
@@ -2074,7 +2195,19 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     }
 
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
-    m_surfaceSync.fence = VK_NULL_HANDLE;
+    m_lastSubmittedID = submissionID;
+    for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
+    {
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+        commandBuffer->m_submissionID = submissionID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, submissionID);
+        }
+        m_commandBuffersInFlight.push_back(commandBuffer);
+    }
+    m_surfaceSync = {};
 
     retireCommandBuffers();
 
@@ -2165,7 +2298,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_constantBufferArena = &m_commandBuffer->m_constantBufferArena;
     builder.m_descriptorSetAllocator = &m_commandBuffer->m_descriptorSetAllocator;
     ShaderObjectLayout* specializedLayout = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
@@ -2190,11 +2323,9 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
         );
     }
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
-    m_commandBuffer->m_constantBufferPool.finish();
     CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }
@@ -2237,7 +2368,7 @@ CommandBufferImpl::~CommandBufferImpl()
 Result CommandBufferImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    m_constantBufferPool.init(device);
+    m_constantBufferArena.initialize(&m_queue->m_constantBufferHeap);
     m_descriptorSetAllocator.init(&device->m_api);
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
@@ -2265,7 +2396,7 @@ Result CommandBufferImpl::reset()
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
     SLANG_VK_RETURN_ON_FAIL_REPORT(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0), device);
-    m_constantBufferPool.reset();
+    m_constantBufferArena.reset();
     m_descriptorSetAllocator.reset();
     m_bindingCache.reset();
     return CommandBuffer::reset();

@@ -4,11 +4,16 @@
 #include "wgpu-texture.h"
 #include "wgpu-pipeline.h"
 #include "wgpu-shader-object.h"
+#include "wgpu-shader-program.h"
 #include "wgpu-utils.h"
 
 #include "../strings.h"
+#include "../format-conversion.h"
 
 #include "core/deferred.h"
+
+#include <algorithm>
+#include <cstring>
 
 namespace rhi::wgpu {
 
@@ -78,6 +83,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -85,6 +91,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -92,14 +99,21 @@ public:
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
     void endPassEncoder();
+
+    void clearTextureWithRenderPass(
+        TextureImpl* texture,
+        const SubresourceRange& range,
+        const WGPUColor& color,
+        bool clearDepth,
+        float depthValue,
+        bool clearStencil,
+        uint8_t stencilValue
+    );
+    void clearTextureWithCopy(TextureImpl* texture, const SubresourceRange& range, const uint8_t* texel);
 };
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* encoderLabel)
 {
-    auto existingError = m_device->getAndClearLastUncapturedError();
-    if (existingError != WGPUErrorType_NoError)
-        m_device->printWarning("Web GPU device had reported error before command record.");
-
     WGPUCommandEncoderDescriptor encoderDesc = {};
     encoderDesc.label = translateString(encoderLabel);
     m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, &encoderDesc);
@@ -108,9 +122,6 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* enc
     {
         return SLANG_FAIL;
     }
-
-    // Upload constant buffer data
-    commandBuffer->m_constantBufferPool.upload(m_ctx, m_commandEncoder);
 
     const CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
@@ -141,12 +152,6 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* enc
         return SLANG_FAIL;
     }
 
-    auto lastError = m_device->getAndClearLastUncapturedError();
-    if (lastError != WGPUErrorType_NoError)
-    {
-        return SLANG_FAIL;
-    }
-
     return SLANG_OK;
 }
 
@@ -156,6 +161,8 @@ void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
+    if (dst->m_uploadData)
+        dst->m_uploadDataStale = true;
     m_ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
         m_commandEncoder,
         src->m_buffer,
@@ -269,6 +276,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
+    if (dst->m_uploadData)
+        dst->m_uploadDataStale = true;
 
     const TextureDesc& srcDesc = src->getDesc();
     Extent3D textureSize = srcDesc.size;
@@ -334,22 +343,251 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
+    if (buffer->m_uploadData)
+        buffer->m_uploadDataStale = true;
     m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, buffer->m_buffer, cmd.range.offset, cmd.range.size);
 }
 
+/// Returns whether the texture can be cleared as a render attachment. WebGPU has no texture-clear command.
+static bool canClearWithRenderPass(const TextureDesc& desc)
+{
+    return desc.type != TextureType::Texture1D &&
+           (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil));
+}
+
+/// Clears float/normalized textures, clamping normalized copy-clear values before packing texels.
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    NOT_SUPPORTED(ICommandEncoder, clearTextureFloat);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    if (canClearWithRenderPass(texture->m_desc))
+    {
+        WGPUColor color = {cmd.clearValue[0], cmd.clearValue[1], cmd.clearValue[2], cmd.clearValue[3]};
+        clearTextureWithRenderPass(texture, cmd.subresourceRange, color, false, 0.f, false, 0);
+        return;
+    }
+    PackFloatFunc packFloat = getFormatConversionFuncs(texture->m_desc.format).packFloatFunc;
+    if (!packFloat)
+    {
+        NOT_SUPPORTED(ICommandEncoder, clearTextureFloat);
+        return;
+    }
+    float clearValue[4] = {cmd.clearValue[0], cmd.clearValue[1], cmd.clearValue[2], cmd.clearValue[3]};
+    const FormatInfo& formatInfo = getFormatInfo(texture->m_desc.format);
+    if (formatInfo.kind == FormatKind::Normalized)
+    {
+        // The pack functions do not clamp, unlike render attachment clears.
+        float minValue = formatInfo.isSigned ? -1.f : 0.f;
+        for (float& value : clearValue)
+            value = clamp(value, minValue, 1.f);
+    }
+    uint8_t texel[16] = {};
+    packFloat(clearValue, texel);
+    clearTextureWithCopy(texture, cmd.subresourceRange, texel);
 }
 
+/// Clears integer textures, interpreting the recorded bits according to the format's signedness.
 void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    NOT_SUPPORTED(ICommandEncoder, clearTextureUint);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    if (canClearWithRenderPass(texture->m_desc))
+    {
+        // Signed integer clear values are stored as the bits of int32_t.
+        bool isSigned = getFormatInfo(texture->m_desc.format).isSigned;
+        auto toDouble = [&](uint32_t value)
+        {
+            return isSigned ? double(int32_t(value)) : double(value);
+        };
+        WGPUColor color = {
+            toDouble(cmd.clearValue[0]),
+            toDouble(cmd.clearValue[1]),
+            toDouble(cmd.clearValue[2]),
+            toDouble(cmd.clearValue[3]),
+        };
+        clearTextureWithRenderPass(texture, cmd.subresourceRange, color, false, 0.f, false, 0);
+        return;
+    }
+    PackIntFunc packInt = getFormatConversionFuncs(texture->m_desc.format).packIntFunc;
+    if (!packInt)
+    {
+        NOT_SUPPORTED(ICommandEncoder, clearTextureUint);
+        return;
+    }
+    uint8_t texel[16] = {};
+    packInt(cmd.clearValue, texel);
+    clearTextureWithCopy(texture, cmd.subresourceRange, texel);
 }
 
+/// Clears selected depth/stencil aspects of textures created with attachment usage.
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
-    NOT_SUPPORTED(ICommandEncoder, clearTextureDepthStencil);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    if (!canClearWithRenderPass(texture->m_desc))
+    {
+        // Depth and stencil textures can only be cleared as attachments.
+        NOT_SUPPORTED(ICommandEncoder, clearTextureDepthStencil);
+        return;
+    }
+    clearTextureWithRenderPass(
+        texture,
+        cmd.subresourceRange,
+        {},
+        cmd.clearDepth,
+        cmd.depthValue,
+        cmd.clearStencil,
+        cmd.stencilValue
+    );
+}
+
+/// Clears each selected mip/layer and 3D slice with an empty render pass, preserving uncleared aspects.
+void CommandRecorder::clearTextureWithRenderPass(
+    TextureImpl* texture,
+    const SubresourceRange& range,
+    const WGPUColor& color,
+    bool clearDepth,
+    float depthValue,
+    bool clearStencil,
+    uint8_t stencilValue
+)
+{
+    const TextureDesc& desc = texture->m_desc;
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    bool is3D = desc.type == TextureType::Texture3D;
+
+    for (uint32_t mip = range.mip; mip < range.mip + range.mipCount; ++mip)
+    {
+        uint32_t sliceCount = is3D ? calcMipSize(desc.size, mip).depth : 1;
+        for (uint32_t layer = range.layer; layer < range.layer + range.layerCount; ++layer)
+        {
+            WGPUTextureViewDescriptor viewDesc = {};
+            viewDesc.format = translateTextureFormat(desc.format);
+            viewDesc.dimension = is3D ? WGPUTextureViewDimension_3D : WGPUTextureViewDimension_2D;
+            viewDesc.baseMipLevel = mip;
+            viewDesc.mipLevelCount = 1;
+            viewDesc.baseArrayLayer = is3D ? 0 : layer;
+            viewDesc.arrayLayerCount = 1;
+            viewDesc.aspect = WGPUTextureAspect_All;
+            WGPUTextureView view = m_ctx.api.wgpuTextureCreateView(texture->m_texture, &viewDesc);
+            SLANG_RHI_DEFERRED({ m_ctx.api.wgpuTextureViewRelease(view); });
+
+            for (uint32_t slice = 0; slice < sliceCount; ++slice)
+            {
+                WGPURenderPassColorAttachment colorAttachment = {};
+                WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
+                WGPURenderPassDescriptor passDesc = {};
+                if (formatInfo.hasDepth || formatInfo.hasStencil)
+                {
+                    depthStencilAttachment.view = view;
+                    if (formatInfo.hasDepth)
+                    {
+                        depthStencilAttachment.depthLoadOp = clearDepth ? WGPULoadOp_Clear : WGPULoadOp_Load;
+                        depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
+                        depthStencilAttachment.depthClearValue = depthValue;
+                    }
+                    if (formatInfo.hasStencil)
+                    {
+                        depthStencilAttachment.stencilLoadOp = clearStencil ? WGPULoadOp_Clear : WGPULoadOp_Load;
+                        depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
+                        depthStencilAttachment.stencilClearValue = stencilValue;
+                    }
+                    passDesc.depthStencilAttachment = &depthStencilAttachment;
+                }
+                else
+                {
+                    colorAttachment.view = view;
+                    colorAttachment.depthSlice = is3D ? slice : WGPU_DEPTH_SLICE_UNDEFINED;
+                    colorAttachment.loadOp = WGPULoadOp_Clear;
+                    colorAttachment.storeOp = WGPUStoreOp_Store;
+                    colorAttachment.clearValue = color;
+                    passDesc.colorAttachmentCount = 1;
+                    passDesc.colorAttachments = &colorAttachment;
+                }
+                WGPURenderPassEncoder pass = m_ctx.api.wgpuCommandEncoderBeginRenderPass(m_commandEncoder, &passDesc);
+                m_ctx.api.wgpuRenderPassEncoderEnd(pass);
+                m_ctx.api.wgpuRenderPassEncoderRelease(pass);
+            }
+        }
+    }
+}
+
+/// Copies a repeated packed texel into the selected subresources using a staging buffer capped at about 4 MiB.
+/// Requires CopyDestination usage; each 3D slice is copied in row chunks from the same staging buffer.
+void CommandRecorder::clearTextureWithCopy(TextureImpl* texture, const SubresourceRange& range, const uint8_t* texel)
+{
+    const TextureDesc& desc = texture->m_desc;
+    // Like transfer clears on Vulkan, copying into the texture requires copy destination usage.
+    if (!is_set(desc.usage, TextureUsage::CopyDestination))
+    {
+        m_device->printError(
+            "Clearing a texture without RenderTarget or DepthStencil usage requires TextureUsage::CopyDestination\n"
+        );
+        return;
+    }
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    bool is3D = desc.type == TextureType::Texture3D;
+    uint32_t texelSize = formatInfo.blockSizeInBytes;
+
+    // Fill a buffer with rows of the largest mip level in the range, limited to about 4 MB.
+    Extent3D size = calcMipSize(desc.size, range.mip);
+    uint32_t bytesPerRow = math::calcAligned2(size.width * texelSize, 256);
+    uint32_t chunkRows = std::max<uint32_t>(1, std::min<uint32_t>(size.height, (4 * 1024 * 1024) / bytesPerRow));
+
+    WGPUBufferDescriptor bufferDesc = {};
+    bufferDesc.usage = WGPUBufferUsage_CopySrc;
+    bufferDesc.size = uint64_t(bytesPerRow) * chunkRows;
+    bufferDesc.mappedAtCreation = true;
+    WGPUBuffer buffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &bufferDesc);
+    if (!buffer)
+    {
+        m_device->printError("Failed to create staging buffer for texture clear\n");
+        return;
+    }
+    // Releasing the buffer after recording the copies is fine, as the command buffer references it.
+    SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferRelease(buffer); });
+
+    uint8_t* data = static_cast<uint8_t*>(m_ctx.api.wgpuBufferGetMappedRange(buffer, 0, bufferDesc.size));
+    if (!data)
+    {
+        m_device->printError("Failed to get mapped staging buffer for texture clear\n");
+        m_ctx.api.wgpuBufferUnmap(buffer);
+        return;
+    }
+    for (uint32_t row = 0; row < chunkRows; ++row)
+    {
+        for (uint32_t x = 0; x < size.width; ++x)
+        {
+            std::memcpy(data + row * bytesPerRow + x * texelSize, texel, texelSize);
+        }
+    }
+    m_ctx.api.wgpuBufferUnmap(buffer);
+
+    for (uint32_t mip = range.mip; mip < range.mip + range.mipCount; ++mip)
+    {
+        Extent3D mipSize = calcMipSize(desc.size, mip);
+        for (uint32_t layer = range.layer; layer < range.layer + range.layerCount; ++layer)
+        {
+            uint32_t sliceCount = is3D ? mipSize.depth : 1;
+            for (uint32_t slice = 0; slice < sliceCount; ++slice)
+            {
+                for (uint32_t y = 0; y < mipSize.height; y += chunkRows)
+                {
+                    WGPUTexelCopyBufferInfo src = {};
+                    src.buffer = buffer;
+                    src.layout.offset = 0;
+                    src.layout.bytesPerRow = bytesPerRow;
+                    src.layout.rowsPerImage = chunkRows;
+
+                    WGPUTexelCopyTextureInfo dst = {};
+                    dst.texture = texture->m_texture;
+                    dst.mipLevel = mip;
+                    dst.origin = {0, y, is3D ? slice : layer};
+                    dst.aspect = WGPUTextureAspect_All;
+
+                    WGPUExtent3D extent = {mipSize.width, std::min(chunkRows, mipSize.height - y), 1};
+                    m_ctx.api.wgpuCommandEncoderCopyBufferToTexture(m_commandEncoder, &src, &dst, &extent);
+                }
+            }
+        }
+    }
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
@@ -416,8 +654,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         attachment.resolveTarget = attachmentIn.resolveTarget
                                        ? checked_cast<TextureViewImpl*>(attachmentIn.resolveTarget)->m_textureView
                                        : nullptr;
-        attachment.depthSlice = -1;         // TODO not provided
-        attachment.resolveTarget = nullptr; // TODO not provided
+        attachment.depthSlice = -1; // TODO not provided
         attachment.loadOp = translateLoadOp(attachmentIn.loadOp);
         attachment.storeOp = translateStoreOp(attachmentIn.storeOp);
         attachment.clearValue.r = attachmentIn.clearValue[0];
@@ -431,15 +668,24 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     {
         const RenderPassDepthStencilAttachment& attachmentIn = *desc.depthStencilAttachment;
         WGPURenderPassDepthStencilAttachment& attachment = depthStencilAttachment;
-        attachment.view = checked_cast<TextureViewImpl*>(attachmentIn.view)->m_textureView;
-        attachment.depthLoadOp = translateLoadOp(attachmentIn.depthLoadOp);
-        attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
+        TextureViewImpl* view = checked_cast<TextureViewImpl*>(attachmentIn.view);
+        attachment.view = view->m_textureView;
+        Format format = view->m_desc.format == Format::Undefined ? view->m_texture->m_desc.format : view->m_desc.format;
+        // WebGPU requires undefined load/store ops on read-only aspects.
+        if (!attachmentIn.depthReadOnly)
+        {
+            attachment.depthLoadOp = translateLoadOp(attachmentIn.depthLoadOp);
+            attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
+        }
         attachment.depthClearValue = attachmentIn.depthClearValue;
         attachment.depthReadOnly = attachmentIn.depthReadOnly;
-        if (getFormatInfo(attachmentIn.view->getDesc().format).hasStencil)
+        if (getFormatInfo(format).hasStencil)
         {
-            attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
-            attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+            if (!attachmentIn.stencilReadOnly)
+            {
+                attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
+                attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+            }
             attachment.stencilClearValue = attachmentIn.stencilClearValue;
             attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
         }
@@ -618,6 +864,18 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
+    // A single draw uses core WebGPU and does not require Dawn's optional
+    // MultiDrawIndirect feature (which may not be enabled on this device).
+    if (cmd.maxDrawCount == 1 && !cmd.countBuffer)
+    {
+        m_ctx.api.wgpuRenderPassEncoderDrawIndirect(
+            m_renderPassEncoder,
+            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+            cmd.argBuffer.offset
+        );
+        return;
+    }
+
 #if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndirect(
         m_renderPassEncoder,
@@ -637,6 +895,16 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 {
     if (!m_renderStateValid)
         return;
+
+    if (cmd.maxDrawCount == 1 && !cmd.countBuffer)
+    {
+        m_ctx.api.wgpuRenderPassEncoderDrawIndexedIndirect(
+            m_renderPassEncoder,
+            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
+            cmd.argBuffer.offset
+        );
+        return;
+    }
 
 #if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndexedIndirect(
@@ -754,6 +1022,12 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructure);
 }
 
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(ICommandEncoder, buildMicromap);
+}
+
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -789,6 +1063,11 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
 {
     SLANG_UNUSED(cmd);
 }
@@ -980,7 +1259,7 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     {
         return SLANG_E_INVALID_ARG;
     }
-    returnComPtr(outQueue, m_queue);
+    returnComPtrCopy(outQueue, m_queue);
     return SLANG_OK;
 }
 
@@ -1007,24 +1286,39 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    ShaderObjectLayout* specializedLayout = nullptr;
-    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
-    return builder.bindAsRoot(
-        rootObject,
-        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
-        (BindingDataImpl*&)outBindingData
-    );
+    RefPtr<ShaderProgram> program = rootObject->m_shaderProgram;
+    if (program->isSpecializable())
+    {
+        ExtendedShaderObjectTypeList args;
+        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(args));
+        if (args.getCount() > 0)
+        {
+            RefPtr<ShaderProgram> specializedProgram;
+            SLANG_RETURN_ON_FAIL(device->getSpecializedProgram(program, args, specializedProgram.writeRef()));
+            program = specializedProgram;
+        }
+    }
+    // TODO: Binding creation needs compiled resource-usage metadata, so deferred
+    // shaders are currently compiled synchronously during draw/dispatch recording.
+    // To let the pipeline resolver batch compilation at finish(), capture parameter
+    // values during recording and defer native bind-group creation until resolution.
+    SLANG_RETURN_ON_FAIL(program->compileShaders(device));
+    auto specializedLayout = checked_cast<RootShaderObjectLayoutImpl*>(program->getRootShaderObjectLayout());
+    SLANG_RETURN_ON_FAIL(specializedLayout->ensurePipelineLayout(checked_cast<ShaderProgramImpl*>(program.get())));
+    return builder.bindAsRoot(rootObject, specializedLayout, (BindingDataImpl*&)outBindingData);
 }
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     m_commandBuffer->setDesc(desc);
-    SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
+    {
+        PipelineResolutionScope scope;
+        SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
+    }
     m_commandBuffer->m_constantBufferPool.finish();
     CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer, m_desc.label));
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

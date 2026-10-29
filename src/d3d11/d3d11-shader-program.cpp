@@ -23,7 +23,7 @@ ShaderProgramImpl::~ShaderProgramImpl()
 #endif
 }
 
-Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode)
 {
 #if SLANG_RHI_ENABLE_AFTERMATH
     DeviceImpl* device = getDevice<DeviceImpl>();
@@ -37,7 +37,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         );
     }
 #endif
-    m_modules.push_back({entryPointInfo->getStage(), kernelCode});
+    m_modules.push_back({desc.stage, kernelCode});
     return SLANG_OK;
 }
 

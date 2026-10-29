@@ -168,17 +168,35 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
     bufferDesc.defaultState = ResourceState::General;
-    bufferDesc.size = tableSize;
-    if (SLANG_FAILED(device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef())))
+
+    // Vulkan does not guarantee that the buffer's base device address satisfies
+    // shaderGroupBaseAlignment, so reserve enough space to align the SBT within it.
+    const uint64_t tableAlignment = max<uint64_t>(1, rtpProps.shaderGroupBaseAlignment);
+    bufferDesc.size = tableSize + tableAlignment - 1;
+    if (SLANG_FAILED(device->createBuffer(bufferDesc, nullptr, buffer.writeRef())))
     {
         SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
         return nullptr;
     }
 
+    const DeviceAddress bufferAddress = buffer->getDeviceAddress();
+    const DeviceAddress alignedTableAddress =
+        bufferAddress + (tableAlignment - bufferAddress % tableAlignment) % tableAlignment;
+    const uint32_t tableOffset = (uint32_t)(alignedTableAddress - bufferAddress);
+    SLANG_RHI_ASSERT((bufferAddress + tableOffset) % tableAlignment == 0);
+
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer.get());
+    if (SLANG_FAILED(device->uploadBufferInitData(bufferImpl, tableOffset, tableSize, tableData.get())))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to upload shader table data");
+        return nullptr;
+    }
+
     RefPtr<PipelineData> pipelineData = new PipelineData();
 
-    pipelineData->buffer = checked_cast<BufferImpl*>(buffer.get());
+    pipelineData->buffer = bufferImpl;
     pipelineData->raygenInfos = std::move(raygenInfos);
+    pipelineData->tableOffset = tableOffset;
 
     pipelineData->missRecordStride = missRecordSize;
     pipelineData->hitGroupRecordStride = hitGroupRecordSize;

@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <string>
 #include <fstream>
 
@@ -149,9 +150,17 @@ void writeFile(std::string_view path, const void* data, size_t size)
 class CaptureDebugCallback : public IDebugCallback
 {
 public:
-    std::string output;
+    void clear()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_output.clear();
+    }
 
-    void clear() { output.clear(); }
+    std::string getOutput() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_output;
+    }
 
     virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
         DebugMessageType type,
@@ -159,11 +168,16 @@ public:
         const char* message
     ) override
     {
-        output += "[" + std::string(rhi::enumToString(type)) + "] ";
-        output += "[" + std::string(rhi::enumToString(source)) + "] ";
-        output += message;
-        output += "\n";
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_output += "[" + std::string(rhi::enumToString(type)) + "] ";
+        m_output += "[" + std::string(rhi::enumToString(source)) + "] ";
+        m_output += message;
+        m_output += "\n";
     }
+
+private:
+    mutable std::mutex m_mutex;
+    std::string m_output;
 };
 
 static CaptureDebugCallback sCaptureDebugCallback;
@@ -202,6 +216,8 @@ public:
         if (shouldIgnoreMessage(type, source, message))
             return;
 
+        std::lock_guard<std::mutex> lock(m_mutex);
+
         doctest::String msg = "[" + doctest::String(enumToString(type)) + "] ";
         msg += "[" + doctest::String(enumToString(source)) + "] ";
         msg += message;
@@ -228,6 +244,9 @@ public:
             FAIL(msg);
         }
     }
+
+private:
+    std::mutex m_mutex;
 };
 
 static DebugCallback sDebugCallback;
@@ -607,6 +626,7 @@ ComPtr<IDevice> createTestingDevice(
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
+        deviceDesc.pipelineCompilationMode = extraOptions->pipelineCompilationMode;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
         deviceDesc.enableAftermath = extraOptions->enableAftermath;
         deviceDesc.enableRayTracingValidation = extraOptions->enableRayTracingValidation;
@@ -615,7 +635,8 @@ ComPtr<IDevice> createTestingDevice(
     }
 
 #ifdef SLANG_RHI_DEBUG
-    deviceDesc.debugCallback = &sDebugCallback;
+    deviceDesc.debugCallback =
+        extraOptions && extraOptions->debugCallback ? extraOptions->debugCallback : &sDebugCallback;
 #endif
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
@@ -686,14 +707,10 @@ ComPtr<IDevice> createTestingDevice(
 
 #if SLANG_RHI_ENABLE_OPTIX
     // Setup OptiX headers
-    std::string optixIncludeStr;
+    std::string optixHeaderRoot;
     if (deviceType == DeviceType::CUDA)
     {
         deviceDesc.requiredOptixVersion = options().optixVersion;
-        slang::CompilerOptionEntry optixSearchPath;
-        optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
-        optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
-        optixSearchPath.value.stringValue0 = "nvrtc";
 
         // Try to locate OptiX headers from the following locations:
         // - SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR (set at cmake configure time)
@@ -707,7 +724,7 @@ ComPtr<IDevice> createTestingDevice(
                 std::filesystem::current_path() / "optix",
             };
             for (const auto& path : candidatePaths)
-                if (std::filesystem::exists(path / "9_0" / "optix.h"))
+                if (std::filesystem::is_directory(path))
                     return path;
             return {};
         };
@@ -718,24 +735,8 @@ ComPtr<IDevice> createTestingDevice(
             FAIL("OptiX headers not found");
         }
 
-        if (deviceDesc.requiredOptixVersion == 0 || deviceDesc.requiredOptixVersion == 90000)
-        {
-            optixIncludeStr = "-I" + (optixDir / "9_0").string();
-        }
-        else if (deviceDesc.requiredOptixVersion == 80100)
-        {
-            optixIncludeStr = "-I" + (optixDir / "8_1").string();
-        }
-        else if (deviceDesc.requiredOptixVersion == 80000)
-        {
-            optixIncludeStr = "-I" + (optixDir / "8_0").string();
-        }
-        else
-        {
-            FAIL("Unsupported OptiX version");
-        }
-        optixSearchPath.value.stringValue1 = optixIncludeStr.c_str();
-        compilerOptions.push_back(optixSearchPath);
+        optixHeaderRoot = optixDir.string();
+        deviceDesc.optixDeviceHeaderRoot = optixHeaderRoot.c_str();
     }
 #endif
 
@@ -881,7 +882,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     {                                                                                                                  \
         result.available = false;                                                                                      \
         result.error = msg;                                                                                            \
-        result.debugCallbackOutput = sCaptureDebugCallback.output;                                                     \
+        result.debugCallbackOutput = sCaptureDebugCallback.getOutput();                                                \
         result.diagnostics = diagnostics ? (const char*)diagnostics->getBufferPointer() : "";                          \
         return result;                                                                                                 \
     }

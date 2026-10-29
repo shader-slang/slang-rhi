@@ -2,7 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-shader-object.h"
-#include "vk-constant-buffer-pool.h"
+#include "../transient-buffer-heap.h"
 
 #include "core/ring-queue.h"
 
@@ -28,8 +28,8 @@ public:
     uint64_t m_lastFinishedID = 0;
 
     std::mutex m_mutex;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
-    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
     // Deferred delete queue for GPU resources.
     // Resources are held here until the GPU has finished using them.
@@ -45,6 +45,10 @@ public:
     ~CommandQueueImpl();
 
     void init(VkQueue queue, uint32_t queueFamilyIndex);
+    // Wait for GPU work and release command buffers before releasing device-owned heaps.
+    void waitAndReleaseCommandBuffers();
+    // Drain deferred deletes and destroy native queue services after command buffers and device-owned heaps are
+    // released.
     void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
@@ -100,7 +104,7 @@ public:
     CommandQueueImpl* m_queue;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
-    ConstantBufferPool m_constantBufferPool;
+    TransientBufferArena m_constantBufferArena;
     DescriptorSetAllocator m_descriptorSetAllocator;
     BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;

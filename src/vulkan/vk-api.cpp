@@ -143,6 +143,16 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
         vkGetPhysicalDeviceProperties2 =
             (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
     }
+    if (!vkGetPhysicalDeviceFormatProperties2)
+    {
+        vkGetPhysicalDeviceFormatProperties2 = (PFN_vkGetPhysicalDeviceFormatProperties2)
+            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFormatProperties2KHR");
+    }
+    if (!vkGetPhysicalDeviceImageFormatProperties2)
+    {
+        vkGetPhysicalDeviceImageFormatProperties2 = (PFN_vkGetPhysicalDeviceImageFormatProperties2)
+            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceImageFormatProperties2KHR");
+    }
     if (!vkGetPhysicalDeviceCalibrateableTimeDomainsKHR && vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)
         vkGetPhysicalDeviceCalibrateableTimeDomainsKHR = vkGetPhysicalDeviceCalibrateableTimeDomainsEXT;
     if (!vkGetPhysicalDeviceCalibrateableTimeDomainsEXT && vkGetPhysicalDeviceCalibrateableTimeDomainsKHR)
@@ -199,6 +209,17 @@ Result VulkanApi::initDeviceProcs(VkDevice device)
 #define VK_API_GET_DEVICE_PROC(x) x = (PFN_##x)vkGetDeviceProcAddr(device, #x);
 
     VK_API_ALL_DEVICE_PROCS(VK_API_GET_DEVICE_PROC)
+
+    if (!vkGetBufferMemoryRequirements2)
+    {
+        vkGetBufferMemoryRequirements2 =
+            (PFN_vkGetBufferMemoryRequirements2)vkGetDeviceProcAddr(device, "vkGetBufferMemoryRequirements2KHR");
+    }
+    if (!vkGetImageMemoryRequirements2)
+    {
+        vkGetImageMemoryRequirements2 =
+            (PFN_vkGetImageMemoryRequirements2)vkGetDeviceProcAddr(device, "vkGetImageMemoryRequirements2KHR");
+    }
 
     if (!areDefined(ProcType::Device))
     {

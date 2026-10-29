@@ -33,8 +33,10 @@ class CommandBufferImpl;
 class CommandEncoderImpl;
 class CommandQueueImpl;
 class AccelerationStructureImpl;
+class MicromapImpl;
 class ShaderTableImpl;
 class HeapImpl;
+class ResourceHeapImpl;
 struct BindingDataImpl;
 struct BindingCache;
 

@@ -418,12 +418,12 @@ Result BindingDataBuilder::bindAsValue(
                 if (bindingRangeInfo.isRootParameter)
                 {
                     SLANG_RHI_ASSERT(rootParamIndex < m_bindingData->rootParameterCount);
-                    if (buffer)
-                    {
-                        m_bindingData->rootParameters[rootParamIndex] =
-                            isSrv ? createRootSRV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset)
-                                  : createRootUAV(rootParamIndex, buffer->getDeviceAddress() + slot.bufferRange.offset);
-                    }
+                    // Unused root buffers may be unbound. Explicitly clear the address to avoid
+                    // retaining an earlier binding; unlike heap null descriptors, dereferencing
+                    // a zero root buffer address is undefined.
+                    DeviceAddress address = buffer ? buffer->getDeviceAddress() + slot.bufferRange.offset : 0;
+                    m_bindingData->rootParameters[rootParamIndex] =
+                        isSrv ? createRootSRV(rootParamIndex, address) : createRootUAV(rootParamIndex, address);
                     rootParamIndex++;
                 }
                 else
@@ -481,11 +481,8 @@ Result BindingDataBuilder::bindAsValue(
                 if (bindingRangeInfo.isRootParameter)
                 {
                     SLANG_RHI_ASSERT(rootParamIndex < m_bindingData->rootParameterCount);
-                    if (as)
-                    {
-                        m_bindingData->rootParameters[rootParamIndex] =
-                            createRootSRV(rootParamIndex, as->getDeviceAddress());
-                    }
+                    m_bindingData->rootParameters[rootParamIndex] =
+                        createRootSRV(rootParamIndex, as ? as->getDeviceAddress() : 0);
                     rootParamIndex++;
                 }
                 else
@@ -645,8 +642,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // Constant buffer views need to be multiple of 256 bytes.
     uint32_t alignedSize = math::calcAligned2(size, 256);
 
-    ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(alignedSize, allocation));
+    TransientBufferArena::Allocation allocation;
+    SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(alignedSize, &allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
 
     // We also create and store a descriptor for our root constant buffer
@@ -657,7 +654,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     //
     // SLANG_RHI_ASSERT(ioOffset.resource == 0);
     D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = {};
-    viewDesc.BufferLocation = allocation.buffer->getDeviceAddress() + allocation.offset;
+    viewDesc.BufferLocation = checked_cast<BufferImpl*>(allocation.buffer)->getDeviceAddress() + allocation.offset;
     viewDesc.SizeInBytes = alignedSize;
     m_device->m_device->CreateConstantBufferView(&viewDesc, descriptorSet.resources.getCpuHandle(ioOffset.resource));
     ioOffset.resource++;

@@ -21,6 +21,7 @@ class TextureImpl;
 class TextureViewImpl;
 class SamplerImpl;
 class AccelerationStructureImpl;
+class MicromapImpl;
 class RenderPipelineImpl;
 class ComputePipelineImpl;
 class RayTracingPipelineImpl;
@@ -33,6 +34,7 @@ class CommandEncoderImpl;
 class CommandBufferImpl;
 class CommandQueueImpl;
 class QueryPoolImpl;
+class ResourceHeapImpl;
 struct BindingDataImpl;
 struct BindingCache;
 
