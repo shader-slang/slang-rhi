@@ -49,22 +49,22 @@ jobs:
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", required_devices: "vulkan,cuda,wgpu", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", required_devices: "vulkan,cuda,wgpu", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
           # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", required_devices: "metal,cpu,wgpu", runs-on: macos-26 }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", required_devices: "metal,cpu,wgpu", runs-on: macos-26 }
           # Builds running on GitHub hosted runners (build + tests on WARP)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", required_devices: "d3d11,d3d12,cpu", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", required_devices: "d3d11,d3d12,cpu", runs-on: windows-latest }
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", required_devices: "d3d11,d3d12,cpu", runs-on: windows-2025 }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", required_devices: "d3d11,d3d12,cpu", runs-on: windows-2025 }
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", required_devices: "d3d11,d3d12", runs-on: windows-11-arm }
           # Raytracing tests are flakey on aarch64/Debug builds, so tests are currently disabled
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Debug", flags: "", runs-on: windows-11-arm }
           # Builds running on GitHub hosted runners (build + tests on lavapipe)
-          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, flags: "unit-test,lavapipe", required_devices: "vulkan,wgpu", runs-on: ubuntu-latest }
-          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, flags: "unit-test,lavapipe", required_devices: "vulkan,wgpu", runs-on: ubuntu-24.04-arm }
+          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, flags: "unit-test,lavapipe", required_devices: "vulkan,wgpu", runs-on: ubuntu-26.04 }
+          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, flags: "unit-test,lavapipe", required_devices: "vulkan,wgpu", runs-on: ubuntu-26.04-arm }
           # Builds running on GitHub hosted runners (build only)
-          - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
+          - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-26.04-arm }
           # Emscripten builds (build only, no tests)
-          - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Debug", runs-on: ubuntu-latest }
-          - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Release", runs-on: ubuntu-latest }
+          - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Debug", runs-on: ubuntu-26.04 }
+          - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Release", runs-on: ubuntu-26.04 }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -113,7 +113,7 @@ jobs:
 
       - name: Upload browser examples for review
         if: matrix.compiler == 'emscripten' && matrix.config == 'Release' && github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-examples
           path: build/pages
@@ -124,7 +124,7 @@ jobs:
           matrix.compiler == 'emscripten' && matrix.config == 'Release' &&
           github.repository == 'shader-slang/slang-rhi' && github.ref == 'refs/heads/main' &&
           github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: build/pages
 
@@ -152,7 +152,7 @@ jobs:
       - name: Upload coverage artifact
         if: steps.coverage.outcome == 'success'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.platform }}
           path: build/coverage.lcov
@@ -177,7 +177,7 @@ jobs:
     steps:
       - name: Deploy browser examples
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   coverage:
     needs: build
@@ -192,7 +192,7 @@ jobs:
     - uses: actions/checkout@v6
 
     - name: Download coverage artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         pattern: coverage-${{ matrix.flag }}
         path: coverage
