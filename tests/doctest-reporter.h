@@ -18,7 +18,7 @@ struct CustomReporter : public IReporter
 
     int cursorPos = 0;
     int testCaseStartCursorPos = 0;
-    Timer runTimer;
+    detail::Timer runTimer;
 
     const int resultPos = 64;
 
