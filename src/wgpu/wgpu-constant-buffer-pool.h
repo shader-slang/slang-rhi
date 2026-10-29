@@ -17,6 +17,8 @@ public:
         void* mappedData;
     };
 
+    ~ConstantBufferPool();
+
     void init(DeviceImpl* device);
     /// Write the allocated data to the GPU buffers. Called when the command buffer is finished.
     void finish();
@@ -38,7 +40,7 @@ private:
         size_t usedSize = 0;
     };
 
-    DeviceImpl* m_device;
+    DeviceImpl* m_device = nullptr;
 
     std::vector<Page> m_pages;
     std::vector<Page> m_largePages;
@@ -47,6 +49,7 @@ private:
     size_t m_currentOffset = 0;
 
     Result createPage(size_t size, Page& outPage);
+    void destroyPage(Page& page);
 };
 
 } // namespace rhi::wgpu

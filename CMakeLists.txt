@@ -1042,12 +1042,6 @@ set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
-    # MSVC 14.51+ emits C5285 on doctest's vendored std::tuple forward declaration
-    # (external/doctest/doctest.h); without this, a consumer's /WX promotes it to an
-    # error. Attached to doctest so the suppression travels with the header that
-    # causes it. Remove once the vendored doctest carries the upstream C5285 fix
-    # (doctest#1160).
-    target_compile_options(doctest INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/wd5285>)
 
     add_library(slang-rhi-stb INTERFACE)
     target_include_directories(slang-rhi-stb INTERFACE external/stb)
@@ -1132,6 +1126,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-ray-tracing-sphere.cpp
         tests/test-ray-tracing-transform-query.cpp
         tests/test-ray-tracing.cpp
+        tests/test-render-pass-read-only-depth.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
