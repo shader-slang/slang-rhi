@@ -84,7 +84,9 @@ public:
         targetDesc.floatingPointMode = desc.floatingPointMode;
         targetDesc.lineDirectiveMode = desc.lineDirectiveMode;
         targetDesc.flags = desc.targetFlags;
-        targetDesc.forceGLSLScalarBufferLayout = true;
+        // WGSL does not support scalar buffer layout. Forcing it changes
+        // reflection without changing the emitted uniform-buffer layout.
+        targetDesc.forceGLSLScalarBufferLayout = compileTarget != SLANG_WGSL;
 
         slangSessionDesc.targets = &targetDesc;
         slangSessionDesc.targetCount = 1;

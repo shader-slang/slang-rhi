@@ -308,24 +308,32 @@ struct DrawIndexedInstancedTest : BaseDrawTest
 struct DrawIndirectTest : BaseDrawTest
 {
     ComPtr<IBuffer> indirectBuffer;
+    // Number of draws to issue. With more than one draw, each draw renders a single instance.
+    uint32_t drawCount = 1;
 
     struct IndirectArgData
     {
         float padding; // Ensure args and count don't start at 0 offset for testing purposes
-        IndirectDrawArguments args;
+        IndirectDrawArguments args[2];
     };
 
     ComPtr<IBuffer> createIndirectBuffer()
     {
-        static const IndirectArgData kIndirectData = {
-            42.0f,        // padding
-            {6, 2, 0, 0}, // args
+        static const IndirectArgData kSingleDrawData = {
+            42.0f,          // padding
+            {{6, 2, 0, 0}}, // args
         };
+        static const IndirectArgData kMultiDrawData = {
+            42.0f,                        // padding
+            {{6, 1, 0, 0}, {6, 1, 0, 1}}, // args
+        };
+        const IndirectArgData& kIndirectData = drawCount == 1 ? kSingleDrawData : kMultiDrawData;
 
         BufferDesc bufferDesc;
         bufferDesc.size = sizeof(IndirectArgData);
-        bufferDesc.usage = BufferUsage::IndirectArgument;
-        bufferDesc.defaultState = ResourceState::IndirectArgument;
+        // Preserve the indirect flag when the buffer can also be written by compute.
+        bufferDesc.usage = BufferUsage::IndirectArgument | BufferUsage::UnorderedAccess;
+        bufferDesc.defaultState = ResourceState::UnorderedAccess;
         ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndirectData);
         REQUIRE(buffer != nullptr);
         return buffer;
@@ -359,9 +367,8 @@ struct DrawIndirectTest : BaseDrawTest
         state.scissorRectCount = 1;
         passEncoder->setRenderState(state);
 
-        uint32_t maxDrawCount = 1;
         BufferOffsetPair argBuffer = {indirectBuffer, offsetof(IndirectArgData, args)};
-        passEncoder->drawIndirect(maxDrawCount, argBuffer);
+        passEncoder->drawIndirect(drawCount, argBuffer);
         passEncoder->end();
 
         queue->submit(commandEncoder->finish());
@@ -388,24 +395,31 @@ struct DrawIndexedIndirectTest : BaseDrawTest
 {
     ComPtr<IBuffer> indexBuffer;
     ComPtr<IBuffer> indirectBuffer;
+    // Number of draws to issue. With more than one draw, each draw renders a single instance.
+    uint32_t drawCount = 1;
 
     struct IndexedIndirectArgData
     {
         float padding; // Ensure args and count don't start at 0 offset for testing purposes
-        IndirectDrawIndexedArguments args;
+        IndirectDrawIndexedArguments args[2];
     };
 
     ComPtr<IBuffer> createIndirectBuffer()
     {
-        static const IndexedIndirectArgData kIndexedIndirectData = {
-            42.0f,           // padding
-            {6, 2, 0, 0, 0}, // args
+        static const IndexedIndirectArgData kSingleDrawData = {
+            42.0f,             // padding
+            {{6, 2, 0, 0, 0}}, // args
         };
+        static const IndexedIndirectArgData kMultiDrawData = {
+            42.0f,                              // padding
+            {{6, 1, 0, 0, 0}, {6, 1, 0, 0, 1}}, // args
+        };
+        const IndexedIndirectArgData& kIndexedIndirectData = drawCount == 1 ? kSingleDrawData : kMultiDrawData;
 
         BufferDesc bufferDesc;
         bufferDesc.size = sizeof(IndexedIndirectArgData);
-        bufferDesc.usage = BufferUsage::IndirectArgument;
-        bufferDesc.defaultState = ResourceState::IndirectArgument;
+        bufferDesc.usage = BufferUsage::IndirectArgument | BufferUsage::UnorderedAccess;
+        bufferDesc.defaultState = ResourceState::UnorderedAccess;
         ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndexedIndirectData);
         REQUIRE(buffer != nullptr);
         return buffer;
@@ -441,9 +455,8 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         state.scissorRectCount = 1;
         passEncoder->setRenderState(state);
 
-        uint32_t maxDrawCount = 1;
         BufferOffsetPair argBuffer = {indirectBuffer, offsetof(IndexedIndirectArgData, args)};
-        passEncoder->drawIndexedIndirect(maxDrawCount, argBuffer);
+        passEncoder->drawIndexedIndirect(drawCount, argBuffer);
         passEncoder->end();
 
         queue->submit(commandEncoder->finish());
@@ -485,12 +498,189 @@ GPU_TEST_CASE("cmd-draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGP
     testDraw<DrawIndexedInstancedTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     testDraw<DrawIndirectTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
+GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
     testDraw<DrawIndexedIndirectTest>(device);
+}
+
+GPU_TEST_CASE("cmd-draw-indirect-multi", D3D12 | Vulkan | Metal)
+{
+    DrawIndirectTest test;
+    test.init(device);
+    test.drawCount = 2;
+    test.run();
+}
+
+GPU_TEST_CASE("cmd-draw-indexed-indirect-multi", D3D12 | Vulkan | Metal)
+{
+    DrawIndexedIndirectTest test;
+    test.init(device);
+    test.drawCount = 2;
+    test.run();
+}
+
+GPU_TEST_CASE("cmd-draw-change-vertex-buffer", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    BaseDrawTest test;
+    test.init(device);
+    test.createRequiredResources();
+    Vertex mirrored[kVertexCount];
+    std::memcpy(mirrored, kVertexData, sizeof(mirrored));
+    for (auto& vertex : mirrored)
+        vertex.position[1] = -vertex.position[1];
+    auto secondBuffer = device->createBuffer(test.vertexBuffer->getDesc(), mirrored);
+    REQUIRE(secondBuffer);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    RenderPassColorAttachment color = {};
+    color.view = test.colorBufferView;
+    RenderPassDesc passDesc = {};
+    passDesc.colorAttachments = &color;
+    passDesc.colorAttachmentCount = 1;
+    auto pass = encoder->beginRenderPass(passDesc);
+    pass->bindPipeline(test.pipeline);
+    RenderState state = {};
+    state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
+    state.viewportCount = 1;
+    state.scissorRects[0] = ScissorRect::fromSize(kWidth, kHeight);
+    state.scissorRectCount = 1;
+    state.vertexBuffers[0] = test.vertexBuffer;
+    state.vertexBuffers[1] = test.instanceBuffer;
+    state.vertexBufferCount = 2;
+    pass->setRenderState(state);
+    DrawArguments args = {};
+    args.vertexCount = kVertexCount;
+    pass->draw(args);
+    // Keep the same pipeline and instance stream; only the mesh buffer changes.
+    state.vertexBuffers[0] = secondBuffer;
+    pass->setRenderState(state);
+    pass->draw(args);
+    pass->end();
+    ComPtr<ICommandBuffer> commands;
+    REQUIRE_CALL(encoder->finish(commands.writeRef()));
+    REQUIRE_CALL(queue->submit(commands));
+    REQUIRE_CALL(queue->waitOnHost());
+    ComPtr<ISlangBlob> data;
+    SubresourceLayout layout;
+    REQUIRE_CALL(device->readTexture(test.colorBuffer, 0, 0, data.writeRef(), &layout));
+    for (uint32_t y : {96u, 160u})
+    {
+        auto row = static_cast<const uint8_t*>(data->getBufferPointer()) + y * layout.rowPitch;
+        auto pixel = reinterpret_cast<const float*>(row) + 192 * 4;
+        CHECK(pixel[0] == 1);
+        CHECK(pixel[1] == 0);
+        CHECK(pixel[2] == 0);
+        CHECK(pixel[3] == 1);
+    }
+}
+
+// Render to multiple color targets in a single pass and check that each target receives its own output.
+GPU_TEST_CASE("cmd-draw-multiple-render-targets", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    const char* shaderSource = R"(
+        [shader("vertex")]
+        float4 vertexMain(uint vid: SV_VertexID) : SV_Position
+        {
+            float2 uv = float2((vid << 1) & 2, vid & 2);
+            return float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
+        }
+
+        struct FragmentOutput
+        {
+            float4 color0 : SV_Target0;
+            float4 color1 : SV_Target1;
+        };
+
+        [shader("fragment")]
+        FragmentOutput fragmentMain()
+        {
+            FragmentOutput output;
+            output.color0 = float4(1.0, 0.0, 0.0, 1.0);
+            output.color1 = float4(0.0, 0.0, 1.0, 1.0);
+            return output;
+        }
+    )";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(
+        loadRenderProgramFromSource(device, shaderSource, "vertexMain", "fragmentMain", shaderProgram.writeRef())
+    );
+
+    const uint32_t kTargetCount = 2;
+    const uint32_t kSize = 4;
+
+    ColorTargetDesc colorTargets[kTargetCount] = {};
+    ComPtr<ITexture> textures[kTargetCount];
+    RenderPassColorAttachment colorAttachments[kTargetCount] = {};
+    for (uint32_t i = 0; i < kTargetCount; ++i)
+    {
+        colorTargets[i].format = Format::RGBA32Float;
+
+        TextureDesc textureDesc = {};
+        textureDesc.format = Format::RGBA32Float;
+        textureDesc.size = {kSize, kSize, 1};
+        textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
+        textureDesc.defaultState = ResourceState::RenderTarget;
+        REQUIRE_CALL(device->createTexture(textureDesc, nullptr, textures[i].writeRef()));
+
+        colorAttachments[i].view = textures[i]->getDefaultView();
+    }
+
+    RenderPipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    pipelineDesc.targets = colorTargets;
+    pipelineDesc.targetCount = kTargetCount;
+    ComPtr<IRenderPipeline> pipeline;
+    REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    RenderPassDesc renderPass = {};
+    renderPass.colorAttachments = colorAttachments;
+    renderPass.colorAttachmentCount = kTargetCount;
+    auto pass = encoder->beginRenderPass(renderPass);
+    pass->bindPipeline(pipeline);
+    RenderState state = {};
+    state.viewports[0] = Viewport::fromSize(kSize, kSize);
+    state.viewportCount = 1;
+    state.scissorRects[0] = ScissorRect::fromSize(kSize, kSize);
+    state.scissorRectCount = 1;
+    pass->setRenderState(state);
+    DrawArguments args = {};
+    args.vertexCount = 3;
+    pass->draw(args);
+    pass->end();
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+
+    const float kExpected[kTargetCount][4] = {
+        {1.0f, 0.0f, 0.0f, 1.0f},
+        {0.0f, 0.0f, 1.0f, 1.0f},
+    };
+    for (uint32_t i = 0; i < kTargetCount; ++i)
+    {
+        ComPtr<ISlangBlob> data;
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(textures[i], 0, 0, data.writeRef(), &layout));
+        for (uint32_t y = 0; y < kSize; ++y)
+        {
+            auto row = static_cast<const uint8_t*>(data->getBufferPointer()) + y * layout.rowPitch;
+            for (uint32_t x = 0; x < kSize; ++x)
+            {
+                auto pixel = reinterpret_cast<const float*>(row) + x * 4;
+                CAPTURE(i);
+                CAPTURE(x);
+                CAPTURE(y);
+                CHECK(pixel[0] == kExpected[i][0]);
+                CHECK(pixel[1] == kExpected[i][1]);
+                CHECK(pixel[2] == kExpected[i][2]);
+                CHECK(pixel[3] == kExpected[i][3]);
+            }
+        }
+    }
 }

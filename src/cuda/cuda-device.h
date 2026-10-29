@@ -29,11 +29,11 @@ public:
 
     Context m_ctx;
     std::string m_adapterName;
-    RefPtr<CommandQueueImpl> m_queue;
+    InternalRefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
-    RefPtr<HeapImpl> m_deviceMemHeap;
-    RefPtr<HeapImpl> m_hostMemHeap;
+    InternalRefPtr<HeapImpl> m_deviceMemHeap;
+    InternalRefPtr<HeapImpl> m_hostMemHeap;
 
 public:
     using Device::readBuffer;
@@ -222,6 +222,19 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
 
     void customizeShaderObject(ShaderObject* shaderObject) override;
 

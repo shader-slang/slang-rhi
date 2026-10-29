@@ -74,23 +74,23 @@ int main(int argc, const char** argv)
     {
         auto& options = rhi::testing::options();
 
-        if (doctest::parseFlag(argc, argv, "verbose"))
+        if (doctest::detail::parseFlag(argc, argv, "verbose"))
         {
             options.verbose = true;
         }
 
-        if (doctest::parseFlag(argc, argv, "check-devices"))
+        if (doctest::detail::parseFlag(argc, argv, "check-devices"))
         {
             options.checkDevices = true;
         }
 
-        if (doctest::parseFlag(argc, argv, "list-devices"))
+        if (doctest::detail::parseFlag(argc, argv, "list-devices"))
         {
             options.listDevices = true;
         }
 
         std::vector<doctest::String> strings;
-        if (doctest::parseCommaSepArgs(argc, argv, "select-devices=", strings))
+        if (doctest::detail::parseCommaSepArgs(argc, argv, "select-devices=", strings))
         {
             options.deviceSelected.fill(false);
             for (const auto& str : strings)
@@ -118,7 +118,7 @@ int main(int argc, const char** argv)
         }
 
         strings.clear();
-        if (doctest::parseCommaSepArgs(argc, argv, "require-devices=", strings))
+        if (doctest::detail::parseCommaSepArgs(argc, argv, "require-devices=", strings))
         {
             for (const auto& str : strings)
             {
@@ -141,7 +141,7 @@ int main(int argc, const char** argv)
         }
 
         doctest::String d3d12ShaderModel;
-        if (doctest::parseOption(argc, argv, "d3d12-shader-model=", &d3d12ShaderModel))
+        if (doctest::detail::parseOption(argc, argv, "d3d12-shader-model=", &d3d12ShaderModel))
         {
             std::string_view value = d3d12ShaderModel.c_str();
             size_t separator = value.find('.');
@@ -168,21 +168,27 @@ int main(int argc, const char** argv)
             options.d3d12ShaderModel = (major << 4) | minor;
         }
 
-        if (doctest::parseFlag(argc, argv, "d3d12-disable-nvapi"))
+        if (doctest::detail::parseFlag(argc, argv, "d3d12-disable-nvapi"))
         {
             options.d3d12DisableNVAPI = true;
         }
 
-        doctest::parseIntOption(argc, argv, "optix-version=", doctest::option_int, options.optixVersion);
+        doctest::detail::parseIntOption(
+            argc,
+            argv,
+            "optix-version=",
+            doctest::detail::option_int,
+            options.optixVersion
+        );
 
-        if (doctest::parseFlag(argc, argv, "memory-report"))
+        if (doctest::detail::parseFlag(argc, argv, "memory-report"))
         {
             options.memoryReport = true;
             options.printMemoryReport = true;
         }
 
         doctest::String memoryReportFile;
-        if (doctest::parseOption(argc, argv, "memory-report-file=", &memoryReportFile))
+        if (doctest::detail::parseOption(argc, argv, "memory-report-file=", &memoryReportFile))
         {
             options.memoryReport = true;
             options.memoryReportFile = memoryReportFile.c_str();

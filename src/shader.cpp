@@ -2,6 +2,7 @@
 
 #include "core/sha1.h"
 #include "rhi-shared.h"
+#include "synthetic-resource-bindings.h"
 
 namespace rhi {
 
@@ -41,15 +42,19 @@ ShaderProgram::~ShaderProgram()
     }
 }
 
-IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
+void* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
         return static_cast<IShaderProgram*>(this);
+    if (guid == ISyntheticShaderProgram::getTypeGuid() && m_syntheticResources)
+        return static_cast<ISyntheticShaderProgram*>(this);
     return nullptr;
 }
 
 Result ShaderProgram::init()
 {
+    SLANG_RETURN_ON_FAIL(_initSyntheticResourceDescs());
+
     slangGlobalScope = m_desc.slangGlobalScope;
     for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
     {
@@ -185,18 +190,48 @@ Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<C
 
 Result ShaderProgram::compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime)
 {
-    return device->getEntryPointCodeFromShaderCache(
-        this,
-        entryPoint.componentType,
-        entryPoint.name.c_str(),
+    entryPoint.stats = {};
+    entryPoint.stats.startTime = Timer::now();
+    ComPtr<ISlangBlob> code;
+
+    if (device->m_persistentShaderCache)
+    {
+        // Cache keys are prepared before entry points are dispatched to workers.
+        Result cacheResult = device->m_persistentShaderCache->queryCache(entryPoint.cacheKey, code.writeRef());
+        if (cacheResult == SLANG_OK)
+        {
+            entryPoint.stats.endTime = Timer::now();
+            entryPoint.stats.isCached = true;
+            entryPoint.stats.cacheSize = code->getBufferSize();
+            entryPoint.code = code;
+            return SLANG_OK;
+        }
+    }
+
+    // Cached entry not found, generate the code and measure compilation time.
+    double startTotalTime = 0.0, endTotalTime = 0.0;
+    double startDownstreamTime = 0.0, endDownstreamTime = 0.0;
+    auto globalSession = entryPoint.componentType->getSession()->getGlobalSession();
+    if (measureCompilerTime)
+        globalSession->getCompilerElapsedTime(&startTotalTime, &startDownstreamTime);
+    SLANG_RETURN_ON_FAIL(entryPoint.componentType->getEntryPointCode(
         entryPoint.entryPointIndex,
         entryPoint.targetIndex,
-        entryPoint.cacheKey,
-        measureCompilerTime,
-        &entryPoint.stats,
-        entryPoint.code.writeRef(),
+        code.writeRef(),
         entryPoint.diagnostics.writeRef()
-    );
+    ));
+    if (measureCompilerTime)
+        globalSession->getCompilerElapsedTime(&endTotalTime, &endDownstreamTime);
+
+    if (device->m_persistentShaderCache)
+        device->m_persistentShaderCache->writeCache(entryPoint.cacheKey, code);
+
+    entryPoint.stats.endTime = Timer::now();
+    entryPoint.stats.totalTime = measureCompilerTime ? endTotalTime - startTotalTime : 0.0;
+    entryPoint.stats.downstreamTime = measureCompilerTime ? endDownstreamTime - startDownstreamTime : 0.0;
+    entryPoint.stats.cacheSize = code->getBufferSize();
+    entryPoint.code = code;
+    return SLANG_OK;
 }
 
 void ShaderProgram::reportEntryPointCompilation(Device* device, const CompiledEntryPoint& entryPoint)
@@ -270,6 +305,62 @@ bool ShaderProgram::isMeshShaderProgram() const
 const ShaderProgramDesc& ShaderProgram::getDesc()
 {
     return m_desc;
+}
+
+uint32_t ShaderProgram::getSyntheticBindingCount()
+{
+    return m_syntheticResources ? m_syntheticResources->getLocationCount() : 0;
+}
+
+Result ShaderProgram::getSyntheticBindingLocation(uint32_t index, SyntheticBindingLocation* outLocation)
+{
+    if (!m_syntheticResources)
+        return SLANG_E_INVALID_ARG;
+    return m_syntheticResources->getLocation(index, outLocation);
+}
+
+Result ShaderProgram::findSyntheticBindingLocationByID(
+    uint32_t syntheticResourceID,
+    SyntheticBindingLocation* outLocation
+)
+{
+    if (!m_syntheticResources)
+        return SLANG_E_INVALID_ARG;
+    return m_syntheticResources->findLocationByID(syntheticResourceID, outLocation);
+}
+
+uint32_t ShaderProgram::_getEntryPointCount() const
+{
+    if (m_desc.slangEntryPointCount != 0)
+        return m_desc.slangEntryPointCount;
+    if (!m_desc.slangGlobalScope)
+        return 0;
+
+    slang::ProgramLayout* layout = m_desc.slangGlobalScope->getLayout();
+    if (!layout)
+        return 0;
+
+    return (uint32_t)layout->getEntryPointCount();
+}
+
+Result ShaderProgram::_initSyntheticResourceDescs()
+{
+    if (!SyntheticResourceBindingState::findDesc(m_desc))
+        return SLANG_OK;
+
+    std::unique_ptr<SyntheticResourceBindingState> syntheticResources =
+        std::make_unique<SyntheticResourceBindingState>();
+    SLANG_RETURN_ON_FAIL(syntheticResources->init(m_desc, _getEntryPointCount()));
+
+    m_desc.next = nullptr;
+
+    if (syntheticResources->hasResources())
+    {
+        m_desc.next = syntheticResources->getDesc();
+        m_syntheticResources = std::move(syntheticResources);
+    }
+
+    return SLANG_OK;
 }
 
 Result ShaderProgram::getCompilationReport(ISlangBlob** outReportBlob)

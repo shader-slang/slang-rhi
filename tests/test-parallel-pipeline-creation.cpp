@@ -57,14 +57,6 @@ void runDeferredPipelineBatch(
         renderPipelineDesc.targetCount = 1;
         renderPipelineDesc.compilationPolicy = compilationPolicy;
 
-        // WGPU currently requires an input layout even when the vertex shader has no vertex inputs.
-        ComPtr<IInputLayout> inputLayout;
-        if (device->getDeviceType() == DeviceType::WGPU)
-        {
-            InputLayoutDesc inputLayoutDesc = {};
-            REQUIRE_CALL(device->createInputLayout(inputLayoutDesc, inputLayout.writeRef()));
-            renderPipelineDesc.inputLayout = inputLayout;
-        }
         REQUIRE_CALL(device->createRenderPipeline(renderPipelineDesc, renderPipeline.writeRef()));
 
         TextureDesc colorTextureDesc = {};

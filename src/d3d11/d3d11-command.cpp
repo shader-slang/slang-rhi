@@ -93,6 +93,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -302,7 +303,9 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
 
-    ID3D11UnorderedAccessView* uav = buffer->getUAV(Format::R32Uint, cmd.range);
+    // Structured views require UNKNOWN format; typed views are invalid for them.
+    ID3D11UnorderedAccessView* uav =
+        buffer->getUAV(buffer->m_desc.elementSize ? Format::Undefined : Format::R32Uint, cmd.range);
     UINT clearValues[4] = {0, 0, 0, 0};
     m_immediateContext->ClearUnorderedAccessViewUint(uav, clearValues);
 }
@@ -496,12 +499,13 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
     bool updatePipeline = !m_renderStateValid || cmd.pipeline != m_renderPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
     bool updateDepthStencilState = !m_renderStateValid || state.stencilRef != m_renderState.stencilRef;
-    bool updateVertexBuffers = !m_renderStateValid || arraysEqual(
-                                                          state.vertexBufferCount,
-                                                          m_renderState.vertexBufferCount,
-                                                          state.vertexBuffers,
-                                                          m_renderState.vertexBuffers
-                                                      );
+    // A new pipeline can change stream strides even if the buffers are unchanged.
+    bool updateVertexBuffers = updatePipeline || !arraysEqual(
+                                                     state.vertexBufferCount,
+                                                     m_renderState.vertexBufferCount,
+                                                     state.vertexBuffers,
+                                                     m_renderState.vertexBuffers
+                                                 );
     bool updateIndexBuffer = !m_renderStateValid || state.indexFormat != m_renderState.indexFormat ||
                              state.indexBuffer.buffer != m_renderState.indexBuffer.buffer ||
                              state.indexBuffer.offset != m_renderState.indexBuffer.offset;
@@ -874,6 +878,11 @@ void CommandExecutor::cmdSetTextureState(const commands::SetTextureState& cmd)
     SLANG_UNUSED(cmd);
 }
 
+void CommandExecutor::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
 void CommandExecutor::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -1107,7 +1116,6 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
         );
     }
     returnComPtr(outCommandBuffer, m_commandBuffer);
-    m_commandBuffer = nullptr;
     m_commandList = nullptr;
     return SLANG_OK;
 }

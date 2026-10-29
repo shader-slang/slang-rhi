@@ -469,7 +469,7 @@ struct RenderTargetTests : TextureTest
     }
 };
 
-GPU_TEST_CASE("texture-types-shader", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("texture-types-shader", D3D12 | Vulkan | Metal | WGPU)
 {
     TextureType textureTypes[] = {
         TextureType::Texture1D,
@@ -483,6 +483,9 @@ GPU_TEST_CASE("texture-types-shader", D3D12 | Vulkan | Metal)
         for (bool readWrite : {false, true})
         {
             auto format = Format::RGBA8Uint;
+            // WebGPU does not allow read-write storage access for RGBA8Uint.
+            if (readWrite && device->getDeviceType() == DeviceType::WGPU)
+                continue;
             auto validationFormat = getValidationTextureFormat(format);
             REQUIRE(validationFormat != nullptr);
 

@@ -5,7 +5,7 @@ Slang RHI reports errors through two related mechanisms:
 - API calls return `rhi::Result`, which is a typedef of `SlangResult`.
 - Diagnostic text is delivered out of band through `IDebugCallback` and, for some shader APIs, `ISlangBlob` outputs.
 
-For APIs that return `Result`, treat it as the authoritative success or failure signal. Treat diagnostics as explanatory context that helps a user or developer understand why the result was returned.
+For APIs that return `Result`, treat it as the authoritative success or failure signal for the synchronous operation. Diagnostics explain returned failures and may also report asynchronous backend errors after an API call has returned successfully.
 
 ## Client API perspective
 
@@ -61,6 +61,14 @@ if (SLANG_FAILED(result))
 `DeviceDesc::debugCallback` is a raw pointer. Slang RHI does not take ownership of it, so the application must keep the callback alive for at least as long as any device that uses it. If no callback is provided, devices use an internal no-op callback, so most diagnostics are silently ignored.
 
 Callbacks may be invoked from the thread making an RHI call or from a backend/driver callback. Keep callback implementations thread-safe, avoid heavy work inside them, and copy the message text if it must be retained.
+
+## WebGPU recording and validation
+
+WebGPU binding preparation checks required resources and basic texture-format compatibility on the CPU. If binding preparation or shader specialization fails during a draw or dispatch, the command is skipped and the encoder preserves the first failure. `ICommandEncoder::finish()` returns that failure, even if later commands provide valid bindings. This shared command-encoder behavior does not depend on native WebGPU validation completing.
+
+Native WebGPU validation errors are delivered through `IDebugCallback` and may arrive asynchronously. Binding and layout creation do not wait for error-scope callbacks, and an unrelated uncaptured error does not determine the result of a later API call. Successful recording or `finish()` therefore does not guarantee that native validation has completed or that GPU execution will succeed.
+
+Install a thread-safe debug callback to receive these errors. The recording failure described above covers failures detected during state preparation; it does not make every debug-layer diagnostic from a `void` API a deferred `finish()` failure.
 
 ## Message types and sources
 
@@ -163,7 +171,7 @@ When adding or changing backend code:
 - Use the backend native-call macros for D3D, Vulkan, CUDA, and OptiX calls so the call expression, native result name, and source location are captured.
 - Pass the most specific supported object available to reporting macros. CUDA reporting helpers accept both `Device*` and `DeviceChild*` through `getDiagnosticDevice()`; D3D, Vulkan, and OptiX reporting helpers currently expect a `Device*`.
 - Avoid emitting duplicate diagnostics for the same failure. A single clear callback message plus the returned `Result` is usually enough.
-- Do not depend on diagnostics for control flow. The returned `Result` must fully represent success or failure.
+- Do not depend on diagnostic text for control flow. Propagate synchronous failures through `Result`; report asynchronous backend errors through the callback.
 - Use `SLANG_RETURN_ON_FAIL()` to preserve and propagate failures from helper calls.
 - Use `SLANG_RHI_DISABLE_NATIVE_CALL_ERROR_SCOPE()` only around intentional native probes where failure is expected and would otherwise create noisy diagnostics.
 

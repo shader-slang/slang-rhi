@@ -2,6 +2,8 @@
 
 #include <slang-rhi.h>
 
+#include <cstring>
+
 namespace rhi {
 
 inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDescType(DeviceType deviceType)
@@ -53,7 +55,7 @@ inline void convertAccelerationStructureInstanceDesc(
     switch (dstType)
     {
     case AccelerationStructureInstanceDescType::Generic:
-        ::memcpy(dst, src, sizeof(AccelerationStructureInstanceDescGeneric));
+        std::memcpy(dst, src, sizeof(AccelerationStructureInstanceDescGeneric));
         break;
     case AccelerationStructureInstanceDescType::D3D12:
     {
@@ -61,7 +63,7 @@ inline void convertAccelerationStructureInstanceDesc(
             sizeof(AccelerationStructureInstanceDescD3D12) == sizeof(AccelerationStructureInstanceDescGeneric)
         );
         auto dstD3D12 = reinterpret_cast<AccelerationStructureInstanceDescD3D12*>(dst);
-        ::memcpy(dstD3D12, src, sizeof(AccelerationStructureInstanceDescD3D12));
+        std::memcpy(dstD3D12, src, sizeof(AccelerationStructureInstanceDescD3D12));
         break;
     }
     case AccelerationStructureInstanceDescType::Vulkan:
@@ -70,13 +72,13 @@ inline void convertAccelerationStructureInstanceDesc(
             sizeof(AccelerationStructureInstanceDescVulkan) == sizeof(AccelerationStructureInstanceDescGeneric)
         );
         auto dstVulkan = reinterpret_cast<AccelerationStructureInstanceDescVulkan*>(dst);
-        ::memcpy(dstVulkan, src, sizeof(AccelerationStructureInstanceDescVulkan));
+        std::memcpy(dstVulkan, src, sizeof(AccelerationStructureInstanceDescVulkan));
         break;
     }
     case AccelerationStructureInstanceDescType::Optix:
     {
         auto dstOptix = reinterpret_cast<AccelerationStructureInstanceDescOptix*>(dst);
-        ::memcpy(dstOptix->transform, src->transform, 4 * 3 * sizeof(float));
+        std::memcpy(dstOptix->transform, src->transform, 4 * 3 * sizeof(float));
         dstOptix->instanceId = src->instanceID;
         dstOptix->sbtOffset = src->instanceContributionToHitGroupIndex;
         dstOptix->visibilityMask = src->instanceMask;
@@ -130,7 +132,7 @@ inline void convertAccelerationStructureInstanceDescs(
         dstType == AccelerationStructureInstanceDescType::Vulkan)
     {
         // D3D12/Vulkan descriptor are compatible with the generic descriptor.
-        ::memcpy(dst, src, count * sizeof(AccelerationStructureInstanceDescGeneric));
+        std::memcpy(dst, src, count * sizeof(AccelerationStructureInstanceDescGeneric));
         return;
     }
 

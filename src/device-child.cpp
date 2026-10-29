@@ -10,14 +10,9 @@ DeviceChild::DeviceChild(Device* device)
 
 DeviceChild::~DeviceChild() {}
 
-void DeviceChild::breakStrongReferenceToDevice()
+RefObject* DeviceChild::getLifetimeOwner() const noexcept
 {
-    m_device.breakStrongReference();
-}
-
-void DeviceChild::establishStrongReferenceToDevice()
-{
-    m_device.establishStrongReference();
+    return m_device;
 }
 
 } // namespace rhi

@@ -358,8 +358,44 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
     return D3D12_RESOURCE_STATE_COMMON;
 }
 
+D3D12_HEAP_TYPE translateHeapType(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return D3D12_HEAP_TYPE_UPLOAD;
+    case MemoryType::ReadBack:
+        return D3D12_HEAP_TYPE_READBACK;
+    default:
+        return D3D12_HEAP_TYPE_DEFAULT;
+    }
+}
+
+D3D12_HEAP_FLAGS translateHeapFlags(ResourceHeapUsage usage)
+{
+    switch (usage)
+    {
+    case ResourceHeapUsage::Buffers:
+        return D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+    case ResourceHeapUsage::NonRtDsTextures:
+        return D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+    case ResourceHeapUsage::RtDsTextures:
+        return D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+    case ResourceHeapUsage::All:
+    default:
+        return D3D12_HEAP_FLAG_NONE;
+    }
+}
+
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless)
 {
+    // Typeless backing permits compatible typed views; it does not make mutually
+    // exclusive native resource flags compatible. Reject this in the shared path
+    // so requirements queries and both committed/placed creation agree.
+    if (is_set(textureDesc.usage, TextureUsage::DepthStencil) &&
+        is_set(textureDesc.usage, TextureUsage::UnorderedAccess))
+        return SLANG_E_INVALID_ARG;
+
     const DXGI_FORMAT pixelFormat = isTypeless ? getFormatMapping(textureDesc.format).typelessFormat
                                                : getFormatMapping(textureDesc.format).rtvFormat;
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
@@ -408,6 +444,14 @@ void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out)
     out.SampleDesc.Quality = 0;
     out.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     out.Flags = D3D12_RESOURCE_FLAG_NONE;
+}
+
+void initBufferDesc(const BufferDesc& bufferDesc, D3D12_RESOURCE_DESC& out)
+{
+    initBufferDesc(bufferDesc.size, out);
+    // Upload and readback heaps cannot use UAV resource flags, regardless of usage.
+    if (bufferDesc.memoryType == MemoryType::DeviceLocal)
+        out.Flags = calcResourceFlags(bufferDesc.usage);
 }
 
 Result createNullDescriptor(
@@ -466,9 +510,11 @@ Result createNullDescriptor(
     case slang::BindingType::Texture:
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        const bool isDepth = (resourceShape & SLANG_TEXTURE_SHADOW_FLAG) != 0;
+        srvDesc.Format = isDepth ? DXGI_FORMAT_R32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        switch (resourceShape)
+        // Depth textures have the same view dimensions as their color counterparts.
+        switch (resourceShape & ~SLANG_TEXTURE_SHADOW_FLAG)
         {
         case SLANG_TEXTURE_1D:
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
