@@ -1927,6 +1927,13 @@ struct Binding
     // clang-format on
 };
 
+/// Access through the actual shader view, not the buffer's creation flags.
+enum class ShaderAccess
+{
+    Read,
+    ReadWrite,
+};
+
 class IShaderObject : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xb1af6fe7, 0x5e6c, 0x4a11, {0xa9, 0x29, 0x06, 0x8f, 0x0c, 0x0f, 0xbe, 0x4f});
@@ -1940,6 +1947,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
+    /// Registers a buffer accessed through a descriptor handle or device address, without binding a descriptor.
+    /// Access must match the shader view: Read for SRV/read-only access, ReadWrite for UAV/RW views.
+    /// Registrations accumulate and retain buffers for this shader object's lifetime; recording does not clear them.
+    /// Use a fresh shader object for a different set of indirect resources or access requirements.
+    /// Commands capture ownership and access like ordinary bindings, including CUDA's stream-ordered reuse
+    /// of non-placed device-local buffers. Conflicting access declarations within one dispatch are not reconciled,
+    /// just as with ordinary bindings. This method applies the ordinary binding finalization check.
+    /// Null buffers, foreign-device buffers or invalid access return INVALID_ARG without adding a registration.
+    virtual SLANG_NO_THROW Result SLANG_MCALL registerBuffer(IBuffer* buffer, ShaderAccess access) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
         const ShaderOffset& offset,
         const DescriptorHandle& handle

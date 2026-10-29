@@ -215,6 +215,8 @@ Result BindingDataBuilder::bindAsValue(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
+    SLANG_RETURN_ON_FAIL(bindRegisteredBuffers(shaderObject));
+
     // We start by iterating over the "simple" (non-sub-object) binding
     // ranges and writing them to the descriptor sets that are being
     // passed down.
@@ -456,6 +458,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
     BufferImpl*& outArgumentBuffer
 )
 {
+    SLANG_RETURN_ON_FAIL(bindRegisteredBuffers(shaderObject));
+
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
 
     // If the argument buffer has no fields, we don't need to create one, note this is legal because there could be an
@@ -709,6 +713,25 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
             argumentBuffer + argumentBufferField->getOffset(),
             srcData + defaultLayoutField->getOffset()
         ));
+    }
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindRegisteredBuffers(ShaderObject* shaderObject)
+{
+    if (m_device->m_hasResidencySet)
+        return SLANG_OK;
+    for (const auto& registration : shaderObject->m_registeredBuffers)
+    {
+        auto buffer = checked_cast<BufferImpl*>(registration.buffer.get());
+        if (registration.state == ResourceState::UnorderedAccess)
+        {
+            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
+        }
+        else
+        {
+            SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+        }
     }
     return SLANG_OK;
 }

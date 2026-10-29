@@ -118,6 +118,7 @@
 | `getObject`                 | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setObject`                 | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setBinding`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `registerBuffer`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setDescriptorHandle`       | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `reserveData`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setSpecializationArgs`     | yes | yes  | yes   | yes   | yes    | yes   | yes  |

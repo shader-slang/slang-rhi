@@ -233,6 +233,12 @@ public:
     RefPtr<ShaderObjectLayout> m_specializedLayout;
 
     short_vector<ResourceSlot> m_slots;
+    struct RegisteredBuffer
+    {
+        InternalRefPtr<Buffer> buffer;
+        ResourceState state;
+    };
+    std::vector<RegisteredBuffer> m_registeredBuffers;
     short_vector<uint8_t> m_data;
     short_vector<InternalRefPtr<ShaderObject>> m_objects;
     short_vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
@@ -272,6 +278,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL registerBuffer(IBuffer* buffer, ShaderAccess access) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
         const ShaderOffset& offset,
         const DescriptorHandle& handle

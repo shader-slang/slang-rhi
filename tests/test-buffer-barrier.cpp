@@ -35,14 +35,45 @@ ComPtr<IBuffer> createFloatBuffer(
 
 GPU_TEST_CASE("buffer-barrier", ALL)
 {
+    bool indirectWriter = false;
+    bool indirectReader = false;
+    SUBCASE("ordinary") {}
+    const bool pointers = device->getDeviceType() == DeviceType::CUDA;
+    if (pointers || ((device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Vulkan) &&
+                     device->hasFeature(Feature::Bindless)))
+    {
+        SUBCASE("mixed-indirect")
+        {
+            indirectWriter = true;
+        }
+        SUBCASE("indirect")
+        {
+            indirectWriter = true;
+            indirectReader = true;
+        }
+    }
     Shader programA;
     Shader programB;
-    REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-buffer-barrier", "computeA", programA.program.writeRef(), &programA.reflection)
-    );
-    REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-buffer-barrier", "computeB", programB.program.writeRef(), &programB.reflection)
-    );
+    const char* entryPointA = "computeA";
+    const char* entryPointB = "computeB";
+    if (indirectWriter)
+        entryPointA = pointers ? "computeAPointer" : "computeABindless";
+    if (indirectReader)
+        entryPointB = pointers ? "computeBPointer" : "computeBBindless";
+    REQUIRE_CALL(loadAndLinkProgram(
+        device,
+        "test-buffer-barrier",
+        entryPointA,
+        programA.program.writeRef(),
+        &programA.reflection
+    ));
+    REQUIRE_CALL(loadAndLinkProgram(
+        device,
+        "test-buffer-barrier",
+        entryPointB,
+        programB.program.writeRef(),
+        &programB.reflection
+    ));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
     REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
@@ -65,7 +96,25 @@ GPU_TEST_CASE("buffer-barrier", ALL)
             auto rootObject = passEncoder->bindPipeline(programA.pipeline);
             ShaderCursor cursor(rootObject->getEntryPoint(0));
             cursor["inBuffer"].setBinding(inputBuffer);
-            cursor["outBuffer"].setBinding(intermediateBuffer);
+            if (indirectWriter)
+            {
+                if (pointers)
+                    REQUIRE_CALL(cursor["outBuffer"].setData(intermediateBuffer->getDeviceAddress()));
+                else
+                {
+                    DescriptorHandle handle;
+                    REQUIRE_CALL(intermediateBuffer->getDescriptorHandle(
+                        DescriptorHandleAccess::ReadWrite,
+                        Format::Undefined,
+                        kEntireBuffer,
+                        &handle
+                    ));
+                    REQUIRE_CALL(cursor["outBuffer"].setDescriptorHandle(handle));
+                }
+                REQUIRE_CALL(rootObject->registerBuffer(intermediateBuffer, ShaderAccess::ReadWrite));
+            }
+            else
+                cursor["outBuffer"].setBinding(intermediateBuffer);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
         }
@@ -77,7 +126,25 @@ GPU_TEST_CASE("buffer-barrier", ALL)
             auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(programB.pipeline);
             ShaderCursor cursor(rootObject->getEntryPoint(0));
-            cursor["inBuffer"].setBinding(intermediateBuffer);
+            if (indirectReader)
+            {
+                if (pointers)
+                    REQUIRE_CALL(cursor["inBuffer"].setData(intermediateBuffer->getDeviceAddress()));
+                else
+                {
+                    DescriptorHandle handle;
+                    REQUIRE_CALL(intermediateBuffer->getDescriptorHandle(
+                        DescriptorHandleAccess::Read,
+                        Format::Undefined,
+                        kEntireBuffer,
+                        &handle
+                    ));
+                    REQUIRE_CALL(cursor["inBuffer"].setDescriptorHandle(handle));
+                }
+                REQUIRE_CALL(rootObject->registerBuffer(intermediateBuffer, ShaderAccess::Read));
+            }
+            else
+                cursor["inBuffer"].setBinding(intermediateBuffer);
             cursor["outBuffer"].setBinding(outputBuffer);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();

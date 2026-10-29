@@ -282,6 +282,19 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     return SLANG_OK;
 }
 
+Result ShaderObject::registerBuffer(IBuffer* buffer, ShaderAccess access)
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+    auto impl = dynamic_cast<Buffer*>(buffer);
+    if (!impl || impl->getDevice() != m_device || (access != ShaderAccess::Read && access != ShaderAccess::ReadWrite))
+        return SLANG_E_INVALID_ARG;
+    m_registeredBuffers.push_back(
+        {impl, access == ShaderAccess::Read ? ResourceState::ShaderResource : ResourceState::UnorderedAccess}
+    );
+    incrementVersion();
+    return SLANG_OK;
+}
+
 Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
 {
     SLANG_RETURN_ON_FAIL(checkFinalized());
@@ -684,6 +697,8 @@ Result ShaderObject::writeStructuredBuffer(
 
 void ShaderObject::trackResources(std::set<InternalRefPtr<RefObject>>& resources)
 {
+    for (const auto& registration : m_registeredBuffers)
+        resources.insert(registration.buffer);
     for (const auto& slot : m_slots)
     {
         if (slot.resource)

@@ -623,6 +623,12 @@ Result BindingDataBuilder::bindAsValue(
         }
     }
 
+    for (const auto& registration : shaderObject->m_registeredBuffers)
+    {
+        auto buffer = checked_cast<BufferImpl*>(registration.buffer.get());
+        writeBufferState(this, buffer, registration.state);
+    }
+
     return SLANG_OK;
 }
 

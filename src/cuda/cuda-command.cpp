@@ -1375,6 +1375,14 @@ Result CommandEncoderImpl::init()
 /// We still track textures, upload/readback buffers, and other resources.
 static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<InternalRefPtr<RefObject>>& resources)
 {
+    for (const auto& registration : shaderObject->m_registeredBuffers)
+    {
+        auto buffer = registration.buffer.get();
+        if (buffer->m_desc.memoryType == MemoryType::DeviceLocal && !buffer->isPlaced())
+            continue;
+        resources.insert(buffer);
+    }
+
     // Track slot resources, but skip device-local buffers
     for (const auto& slot : shaderObject->m_slots)
     {

@@ -5,8 +5,24 @@ using namespace rhi::testing;
 
 GPU_TEST_CASE("shader-object-resource-tracking", ALL & ~CPU)
 {
+    bool indirect = false;
+    SUBCASE("ordinary") {}
+    const bool pointers = device->getDeviceType() == DeviceType::CUDA;
+    if (pointers || ((device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Vulkan) &&
+                     device->hasFeature(Feature::Bindless)))
+    {
+        SUBCASE("mixed-indirect")
+        {
+            indirect = true;
+        }
+    }
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-shader-object-resource-tracking", "computeMain", shaderProgram.writeRef()));
+    REQUIRE_CALL(loadProgram(
+        device,
+        "test-shader-object-resource-tracking",
+        indirect ? (pointers ? "computePointer" : "computeBindless") : "computeMain",
+        shaderProgram.writeRef()
+    ));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -87,8 +103,24 @@ GPU_TEST_CASE("shader-object-resource-tracking", ALL & ~CPU)
         globalsCursor["globalBuffer"].setBinding(globalBuffer);
         globalsCursor["globalTexture"].setBinding(globalTexture);
         globalsCursor["globalSampler"].setBinding(globalSampler);
-        ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor["buffer"].setBinding(buffer);
+        auto entryPoint = rootObject->getEntryPoint(0);
+        ShaderCursor entryPointCursor(entryPoint);
+        if (indirect)
+        {
+            REQUIRE_CALL(entryPoint->registerBuffer(buffer, ShaderAccess::Read));
+            if (pointers)
+                REQUIRE_CALL(entryPointCursor["buffer"].setData(buffer->getDeviceAddress()));
+            else
+            {
+                DescriptorHandle handle;
+                REQUIRE_CALL(
+                    buffer->getDescriptorHandle(DescriptorHandleAccess::Read, Format::Undefined, kEntireBuffer, &handle)
+                );
+                REQUIRE_CALL(entryPointCursor["buffer"].setDescriptorHandle(handle));
+            }
+        }
+        else
+            entryPointCursor["buffer"].setBinding(buffer);
         entryPointCursor["texture"].setBinding(texture);
         entryPointCursor["sampler"].setBinding(sampler);
         entryPointCursor["resultBuffer"].setBinding(resultBuffer);
@@ -104,6 +136,8 @@ GPU_TEST_CASE("shader-object-resource-tracking", ALL & ~CPU)
         sampler.setNull();
 
         passEncoder->dispatchCompute(1, 1, 1);
+
+        entryPoint.setNull();
         passEncoder->end();
 
         // Finish command encoding and release the command encoder,

@@ -158,6 +158,13 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
     return baseObject->setBinding(offset, binding);
 }
 
+Result DebugShaderObject::registerBuffer(IBuffer* buffer, ShaderAccess access)
+{
+    SLANG_RHI_DEBUG_API(IShaderObject, registerBuffer);
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
+    return baseObject->registerBuffer(buffer, access);
+}
+
 Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setDescriptorHandle);
