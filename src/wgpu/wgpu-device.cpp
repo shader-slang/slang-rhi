@@ -511,28 +511,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
     m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
 
-    // Wait for the command buffer to finish executing
-    {
-        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
-        WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-#if !SLANG_WASM
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-#else
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
-#endif
-        {
-            *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
-        };
-        callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
-
+    // Mapping waits for the submitted copy into the staging buffer; no separate
+    // queue-wide wait is needed.
     // Map the staging buffer
     {
         WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
