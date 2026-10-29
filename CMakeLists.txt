@@ -1141,6 +1141,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-sampler.cpp
         tests/test-sha1.cpp
         tests/test-shader-cache.cpp
+        tests/test-shader-object-finalize.cpp
         tests/test-shader-object-from-type-layout.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
