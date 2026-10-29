@@ -33,12 +33,32 @@ void ConstantBufferPool::finish()
     }
 }
 
+// Pages are pool-owned. Destroy them explicitly instead of only releasing the
+// handle: in the browser a released buffer keeps its GPU memory until garbage
+// collection, and one 4 MiB page per command buffer then accumulates to
+// gigabytes. WebGPU defers the actual free until submitted work completes.
+ConstantBufferPool::~ConstantBufferPool()
+{
+    for (auto& page : m_pages)
+        destroyPage(page);
+    for (auto& page : m_largePages)
+        destroyPage(page);
+}
+
+void ConstantBufferPool::destroyPage(Page& page)
+{
+    if (m_device && page.buffer && page.buffer->m_buffer)
+        m_device->m_ctx.api.wgpuBufferDestroy(page.buffer->m_buffer);
+}
+
 void ConstantBufferPool::reset()
 {
     for (auto& page : m_pages)
     {
         page.usedSize = 0;
     }
+    for (auto& page : m_largePages)
+        destroyPage(page);
     m_largePages.clear();
     m_currentPage = -1;
     m_currentOffset = 0;
