@@ -20,7 +20,7 @@ jobs:
         include:
           - { os: windows, platform: "x86_64", preset: clang, config: "Debug", required_devices: "d3d11,d3d12,vulkan,cpu,cuda,wgpu", runs-on: { labels: [Windows, X64, nvrgfx-kernelvm-bridge] } }
           - { os: linux, platform: "x86_64", preset: clang, config: "Debug", required_devices: "vulkan,cuda,wgpu", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
-          - { os: macos, platform: "aarch64", preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", runs-on: macos-26 }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -70,8 +70,8 @@ jobs:
         include:
           # CUDA uses the GPU runner; Vulkan and WebGPU share one lavapipe process.
           - { os: linux, preset: clang, config: "Debug", required_devices: "cuda", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
-          - { os: linux, preset: clang, config: "Debug", required_devices: "vulkan,wgpu", use_lavapipe: true, runs-on: ubuntu-latest }
-          - { os: macos, preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
+          - { os: linux, preset: clang, config: "Debug", required_devices: "vulkan,wgpu", use_lavapipe: true, runs-on: ubuntu-26.04 }
+          - { os: macos, preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", runs-on: macos-26 }
 
     name: tsan (${{ matrix.os }}, ${{ matrix.required_devices }})
     runs-on: ${{ matrix.runs-on }}
