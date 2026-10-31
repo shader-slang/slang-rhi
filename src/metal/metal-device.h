@@ -198,6 +198,8 @@ public:
 
     bool m_hasArgumentBufferTier2 = false;
     bool m_supportsPlacementHeaps = false;
+    // The device reads a row-major 3x4 BLAS pre-transform (macOS 15 / iOS 18, GPU family Apple9).
+    bool m_hasRowMajorPreTransform = false;
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_hasResidencySet = false;
