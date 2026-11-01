@@ -269,6 +269,40 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         addFeature(Feature::ResidencySet);
     }
 
+    // Timestamp queries are sampled at encoder and render stage boundaries (see CommandRecorder::cmdWriteTimestamp).
+    // Apple GPUs report counter timestamps in nanoseconds, in the same time base as the CPU timestamp of
+    // MTL::Device::sampleTimestamps.
+    if (NS::Array* counterSets = m_device->counterSets())
+    {
+        for (NS::UInteger i = 0; i < counterSets->count() && !m_timestampCounterSet; ++i)
+        {
+            MTL::CounterSet* counterSet = counterSets->object<MTL::CounterSet>(i);
+            if (!counterSet->name()->isEqualToString(MTL::CommonCounterSetTimestamp))
+                continue;
+            NS::Array* counters = counterSet->counters();
+            for (NS::UInteger j = 0; j < counters->count(); ++j)
+            {
+                if (counters->object<MTL::Counter>(j)->name()->isEqualToString(MTL::CommonCounterTimestamp))
+                {
+                    m_timestampCounterSet = NS::RetainPtr(counterSet);
+                    break;
+                }
+            }
+        }
+    }
+    if (m_timestampCounterSet && m_device->supportsFamily(MTL::GPUFamilyApple1) &&
+        m_device->supportsCounterSampling(MTL::CounterSamplingPointAtStageBoundary))
+    {
+        m_timestampFillBuffer = NS::TransferPtr(
+            m_device->newBuffer(4, MTL::ResourceStorageModePrivate | MTL::ResourceHazardTrackingModeUntracked)
+        );
+        if (m_timestampFillBuffer)
+        {
+            addFeature(Feature::TimestampQuery);
+            m_info.timestampFrequency = 1000000000;
+        }
+    }
+
     addCapability(Capability::metal);
     const auto osVersion = NS::ProcessInfo::processInfo()->operatingSystemVersion();
     if (osVersion.majorVersion >= 11)

@@ -1,5 +1,6 @@
 #include "metal-query.h"
 #include "metal-device.h"
+#include "metal-command.h"
 #include "metal-utils.h"
 
 namespace rhi::metal {
@@ -11,37 +12,11 @@ QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
 
 QueryPoolImpl::~QueryPoolImpl() {}
 
-static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
-{
-    if (queryType != QueryType::Timestamp)
-    {
-        return nullptr;
-    }
-
-    for (int i = 0; i < device->counterSets()->count(); ++i)
-    {
-        MTL::CounterSet* counterSet = static_cast<MTL::CounterSet*>(device->counterSets()->object(i));
-        if (!counterSet->name()->isEqualToString(MTL::CommonCounterSetTimestamp))
-        {
-            continue;
-        }
-        for (int j = 0; j < counterSet->counters()->count(); ++j)
-        {
-            MTL::Counter* counter = static_cast<MTL::Counter*>(counterSet->counters()->object(j));
-            if (counter->name()->isEqualToString(MTL::CommonCounterTimestamp))
-            {
-                return counterSet;
-            }
-        }
-    }
-    return nullptr;
-}
-
 Result QueryPoolImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    MTL::CounterSet* counterSet = findCounterSet(device->m_device.get(), m_desc.type);
+    MTL::CounterSet* counterSet = m_desc.type == QueryType::Timestamp ? device->m_timestampCounterSet.get() : nullptr;
     if (!counterSet)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -66,12 +41,73 @@ Result QueryPoolImpl::init()
 
 Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    if (!outState || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    if (count == 0)
+    {
+        *outState = QueryResultState::Resolved;
+        return SLANG_OK;
+    }
+
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state != QueryResultState::Pending)
+    {
+        *outState = queryInfo.state;
+        return SLANG_OK;
+    }
+
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    if (queue->updateLastFinishedID() < queryInfo.submissionID)
+    {
+        *outState = QueryResultState::Pending;
+        return SLANG_OK;
+    }
+
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
+    *outState = QueryResultState::Resolved;
+    return SLANG_OK;
 }
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    AUTORELEASEPOOL
+
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryResultState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    if (queryInfo.state == QueryResultState::Pending && queue->updateLastFinishedID() < queryInfo.submissionID)
+    {
+        SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+    }
+
+    NS::Data* data = m_counterSampleBuffer->resolveCounterRange(NS::Range(queryIndex, count));
+    if (!data || data->length() < count * sizeof(MTL::CounterResultTimestamp))
+    {
+        return SLANG_FAIL;
+    }
+    const MTL::CounterResultTimestamp* samples = static_cast<const MTL::CounterResultTimestamp*>(data->mutableBytes());
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        outData[i] = samples[i].timestamp;
+    }
+
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal

@@ -10,6 +10,7 @@
 #include "metal-utils.h"
 #include "../strings.h"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace rhi::metal {
@@ -93,6 +94,14 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
+    CommandList* m_commandList = nullptr;
+    const CommandList::CommandSlot* m_currentCommand = nullptr;
+
+    /// Query pools with timestamps sampled in the current Metal command buffer.
+    short_vector<QueryPoolImpl*, 4> m_sampledQueryPools;
+    /// Names of the debug groups open in the current Metal command buffer.
+    std::vector<NS::SharedPtr<NS::String>> m_debugGroups;
+
     CommandRecorder(DeviceImpl* device)
         : m_device(device)
     {
@@ -147,6 +156,10 @@ public:
     MTL::AccelerationStructureCommandEncoder* getAccelerationStructureCommandEncoder();
     MTL::BlitCommandEncoder* getBlitCommandEncoder();
     void endCommandEncoder();
+
+    void setRenderPassTimestamps(MTL::RenderPassDescriptor* renderPassDesc);
+    void addSampledQueryPool(QueryPoolImpl* queryPool);
+    Result startNextCommandBuffer();
 };
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
@@ -155,9 +168,11 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
     CommandList& commandList = commandBuffer->m_commandList;
+    m_commandList = &commandList;
     auto command = commandList.getCommands();
     while (command)
     {
+        m_currentCommand = command;
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
         cmd##x(commandList.getCommand<commands::x>(command));                                                          \
@@ -429,6 +444,19 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
     QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
 
+    // A counter sample is written to its sample buffer some time after its encoder ends; neither fences nor later
+    // encoders of the same Metal command buffer wait for it, and a resolve there can read the previous samples.
+    // Samples are complete once their command buffer has completed, so a resolve of samples taken earlier in this
+    // command buffer goes to a new Metal command buffer that waits for the current one to complete.
+    if (std::find(m_sampledQueryPools.begin(), m_sampledQueryPools.end(), queryPool) != m_sampledQueryPools.end())
+    {
+        if (SLANG_FAILED(startNextCommandBuffer()))
+        {
+            m_device->printError("Failed to create a Metal command buffer for a timestamp resolve.");
+            return;
+        }
+    }
+
     auto encoder = getBlitCommandEncoder();
     encoder->resolveCounters(
         queryPool->m_counterSampleBuffer.get(),
@@ -533,6 +561,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     renderPassDesc->setRenderTargetHeight(height);
 
     m_useDepthStencil = desc.depthStencilAttachment != nullptr;
+
+    setRenderPassTimestamps(renderPassDesc.get());
 
     getRenderCommandEncoder(renderPassDesc.get());
 
@@ -1052,11 +1082,14 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     NS::SharedPtr<NS::String> string = createString(cmd.name);
     m_commandBuffer->pushDebugGroup(string.get());
+    m_debugGroups.push_back(string);
 }
 
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
     m_commandBuffer->popDebugGroup();
+    if (!m_debugGroups.empty())
+        m_debugGroups.pop_back();
 }
 
 void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
@@ -1068,13 +1101,150 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
-    SLANG_UNUSED(cmd);
-    // auto encoder = getBlitCommandEncoder();
-    // encoder->sampleCountersInBuffer(
-    //     checked_cast<QueryPoolImpl*>(cmd.queryPool)->m_counterSampleBuffer.get(),
-    //     cmd.queryIndex,
-    //     true
-    // );
+    // Inside a render pass, the pass's timestamps are sampled through its descriptor (setRenderPassTimestamps).
+    if (m_renderPassActive)
+        return;
+
+    // Apple GPUs sample counters only at stage boundaries, not between commands of an encoder. A timestamp is the
+    // end-of-encoder sample of its own blit encoder, which waits on the queue fence like every other encoder and so
+    // follows all the work recorded before it. Metal skips an encoder without commands, and its samples with it, so
+    // the encoder fills 4 bytes of a device-owned buffer.
+    QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+    endCommandEncoder();
+
+    NS::SharedPtr<MTL::BlitPassDescriptor> passDesc = NS::TransferPtr(MTL::BlitPassDescriptor::alloc()->init());
+    MTL::BlitPassSampleBufferAttachmentDescriptor* attachment = passDesc->sampleBufferAttachments()->object(0);
+    attachment->setSampleBuffer(queryPool->m_counterSampleBuffer.get());
+    attachment->setStartOfEncoderSampleIndex(MTL::CounterDontSample);
+    attachment->setEndOfEncoderSampleIndex(cmd.queryIndex);
+
+    m_blitCommandEncoder = NS::RetainPtr(m_commandBuffer->blitCommandEncoder(passDesc.get()));
+    m_blitCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
+    m_blitCommandEncoder->fillBuffer(m_device->m_timestampFillBuffer.get(), NS::Range(0, 4), 0);
+    endCommandEncoder();
+    addSampledQueryPool(queryPool);
+}
+
+void CommandRecorder::addSampledQueryPool(QueryPoolImpl* queryPool)
+{
+    if (std::find(m_sampledQueryPools.begin(), m_sampledQueryPools.end(), queryPool) == m_sampledQueryPools.end())
+        m_sampledQueryPools.push_back(queryPool);
+}
+
+Result CommandRecorder::startNextCommandBuffer()
+{
+    NS::SharedPtr<MTL::CommandBuffer> next =
+        NS::RetainPtr(m_commandBufferImpl->m_queue->m_commandQueue->commandBuffer());
+    NS::SharedPtr<MTL::SharedEvent> completed = NS::TransferPtr(m_device->m_device->newSharedEvent());
+    if (!next || !completed)
+        return SLANG_FAIL;
+
+    endCommandEncoder();
+    for (size_t i = 0; i < m_debugGroups.size(); ++i)
+        m_commandBuffer->popDebugGroup();
+
+    // The completed handler runs once the command buffer has completed, also when it fails, so the next command
+    // buffer never waits forever on a committed predecessor. The event is owned by the command buffer object, which
+    // is released only after its last Metal command buffer, and so this handler, has completed.
+    MTL::SharedEvent* event = completed.get();
+    m_commandBuffer->addCompletedHandler(^(MTL::CommandBuffer*) {
+      event->setSignaledValue(1);
+    });
+    next->encodeWait(event, 1);
+    if (NS::String* label = m_commandBuffer->label())
+        next->setLabel(label);
+    for (const auto& name : m_debugGroups)
+        next->pushDebugGroup(name.get());
+
+    m_commandBufferImpl->m_precedingCommandBuffers.push_back(m_commandBuffer);
+    m_commandBufferImpl->m_completionEvents.push_back(completed);
+    m_commandBufferImpl->m_commandBuffer = next;
+    m_commandBuffer = next;
+    m_sampledQueryPools.clear();
+    return SLANG_OK;
+}
+
+void CommandRecorder::setRenderPassTimestamps(MTL::RenderPassDescriptor* renderPassDesc)
+{
+    // A render encoder cannot be split for a timestamp, and Apple GPUs sample counters only at the boundaries of its
+    // stages. The pass's timestamps are therefore mapped, in recording order, onto its four sample points (start of
+    // vertex, end of vertex, start of fragment, end of fragment): timestamps written before the pass's first draw
+    // take points from the front, the others from the back. The first is then exact at the start of the pass, the
+    // last at its end, and the order of the timestamps is kept.
+    static constexpr uint32_t kSamplePointCount = 4;
+
+    struct PassTimestamp
+    {
+        QueryPoolImpl* queryPool;
+        uint32_t queryIndex;
+    };
+    short_vector<PassTimestamp, kSamplePointCount> timestamps;
+    uint32_t beforeDrawCount = 0;
+    bool hasDrawn = false;
+    bool dropped = false;
+
+    for (auto command = m_currentCommand->next; command && command->id != CommandID::EndRenderPass;
+         command = command->next)
+    {
+        switch (command->id)
+        {
+        case CommandID::Draw:
+        case CommandID::DrawIndexed:
+        case CommandID::DrawIndirect:
+        case CommandID::DrawIndexedIndirect:
+        case CommandID::DrawMeshTasks:
+            hasDrawn = true;
+            break;
+        case CommandID::WriteTimestamp:
+        {
+            const auto& cmd = m_commandList->getCommand<commands::WriteTimestamp>(command);
+            QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
+            // All samples of a pass go to one sample buffer attachment.
+            if (timestamps.size() == kSamplePointCount || (!timestamps.empty() && timestamps[0].queryPool != queryPool))
+            {
+                dropped = true;
+                break;
+            }
+            timestamps.push_back({queryPool, cmd.queryIndex});
+            if (!hasDrawn)
+                beforeDrawCount++;
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    if (dropped)
+    {
+        m_device->printWarning(
+            "Metal samples at most 4 timestamps per render pass, all from one query pool; extra timestamps are not "
+            "written."
+        );
+    }
+    if (timestamps.empty())
+        return;
+
+    NS::UInteger sampleIndices[kSamplePointCount] = {
+        MTL::CounterDontSample,
+        MTL::CounterDontSample,
+        MTL::CounterDontSample,
+        MTL::CounterDontSample,
+    };
+    uint32_t timestampCount = uint32_t(timestamps.size());
+    for (uint32_t i = 0; i < timestampCount; ++i)
+    {
+        uint32_t point = i < beforeDrawCount ? i : kSamplePointCount - (timestampCount - i);
+        sampleIndices[point] = timestamps[i].queryIndex;
+    }
+
+    MTL::RenderPassSampleBufferAttachmentDescriptor* attachment = renderPassDesc->sampleBufferAttachments()->object(0);
+    attachment->setSampleBuffer(timestamps[0].queryPool->m_counterSampleBuffer.get());
+    addSampledQueryPool(timestamps[0].queryPool);
+    attachment->setStartOfVertexSampleIndex(sampleIndices[0]);
+    attachment->setEndOfVertexSampleIndex(sampleIndices[1]);
+    attachment->setStartOfFragmentSampleIndex(sampleIndices[2]);
+    attachment->setEndOfFragmentSampleIndex(sampleIndices[3]);
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -1366,6 +1536,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // Get command buffer, assign updated submission id and store in the in-flight list.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
 
         // Signal fences if this is the last command buffer.
@@ -1381,6 +1556,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->m_commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         }
 
+        for (const auto& preceding : commandBuffer->m_precedingCommandBuffers)
+        {
+            addErrorHandler(preceding.get());
+            preceding->commit();
+        }
         addErrorHandler(commandBuffer->m_commandBuffer.get());
         commandBuffer->m_commandBuffer->commit();
     }
