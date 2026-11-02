@@ -29,10 +29,12 @@ void ConstantBufferPool::upload(CUstream stream)
             // Notify heap pages of actual execution stream for multi-stream tracking
             if (page.deviceMem.pageId)
             {
+                std::lock_guard<std::mutex> lock(m_device->m_deviceMemHeap->m_mutex);
                 static_cast<HeapImpl::PageImpl*>(page.deviceMem.pageId)->notifyUse(stream);
             }
             if (page.hostMem.pageId)
             {
+                std::lock_guard<std::mutex> lock(m_device->m_hostMemHeap->m_mutex);
                 static_cast<HeapImpl::PageImpl*>(page.hostMem.pageId)->notifyUse(stream);
             }
 

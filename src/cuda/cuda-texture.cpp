@@ -188,6 +188,10 @@ CUtexObject TextureImpl::getTexObject(
     const SubresourceRange& range
 )
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->getMutex(Device::Operation::TextureView, this));
+
     ViewKey key = {format, samplerSettings, range};
     CUtexObject& texObject = m_texObjects[key];
     if (texObject)
@@ -241,6 +245,10 @@ CUtexObject TextureImpl::getTexObject(
 
 CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->getMutex(Device::Operation::TextureView, this));
+
     CUsurfObject& surfObject = m_surfObjects[range];
     if (surfObject)
         return surfObject;

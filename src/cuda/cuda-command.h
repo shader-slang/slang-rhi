@@ -35,8 +35,9 @@ public:
     uint64_t m_currentAnchorGeneration = 0;
     uint64_t m_timestampAnchorTimeNs = 0;
 
-    uint64_t m_lastSubmittedID = 0;
-    uint64_t m_lastFinishedID = 0;
+    // Heap allocation/free may read completion state from worker threads.
+    std::atomic<uint64_t> m_lastSubmittedID{0};
+    std::atomic<uint64_t> m_lastFinishedID{0};
     uint64_t m_submitsSinceEvent = 0;
 
     std::mutex m_mutex;

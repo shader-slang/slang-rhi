@@ -2092,6 +2092,12 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
 
 void CommandQueueImpl::retireCommandBuffers()
 {
+    std::lock_guard<std::mutex> lock(m_submissionMutex);
+    retireCommandBuffersLocked();
+}
+
+void CommandQueueImpl::retireCommandBuffersLocked()
+{
     std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
@@ -2142,8 +2148,12 @@ void CommandQueueImpl::executeDeferredDeletes()
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
 {
-    m_lastFinishedID = m_trackingFence->GetCompletedValue();
-    return m_lastFinishedID;
+    uint64_t completed = m_trackingFence->GetCompletedValue();
+    uint64_t previous = m_lastFinishedID.load();
+    while (previous < completed && !m_lastFinishedID.compare_exchange_weak(previous, completed))
+    {
+    }
+    return m_lastFinishedID.load();
 }
 
 Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
@@ -2156,6 +2166,7 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    std::lock_guard<std::mutex> lock(m_submissionMutex);
     // Increment last submitted ID which is used to track command buffer completion.
     ++m_lastSubmittedID;
 
@@ -2194,7 +2205,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
     SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID), m_device);
 
-    retireCommandBuffers();
+    retireCommandBuffersLocked();
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     // Check for device removal. When not using a swapchain, we cannot rely on present calls to detect device removal.
@@ -2212,6 +2223,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    std::lock_guard<std::mutex> lock(m_submissionMutex);
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_lastSubmittedID++;
     SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID), m_device);
@@ -2222,7 +2234,7 @@ Result CommandQueueImpl::waitOnHost()
     );
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
     device->flushValidationMessages();
-    retireCommandBuffers();
+    retireCommandBuffersLocked();
     return SLANG_OK;
 }
 

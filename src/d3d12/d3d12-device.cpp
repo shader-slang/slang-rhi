@@ -1383,9 +1383,11 @@ Result DeviceImpl::createBuffer(
 
         if (memoryType == MemoryType::DeviceLocal)
         {
-            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+            std::lock_guard<std::mutex> immediateLock(m_immediateCommandList.mutex);
+            ID3D12GraphicsCommandList* commandList = nullptr;
+            SLANG_RETURN_ON_FAIL(beginImmediateCommandList(&commandList));
             commandList->CopyBufferRegion(resourceOut, 0, uploadResourceRef, 0, bufferSize);
-            endImmediateCommandList();
+            SLANG_RETURN_ON_FAIL(endImmediateCommandList());
         }
     }
 
@@ -1722,7 +1724,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
                 ::memcpy(dstData, initData, desc.size);
                 uploadResource.getResource()->Unmap(0, nullptr);
 
-                ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+                std::lock_guard<std::mutex> immediateLock(m_immediateCommandList.mutex);
+                ID3D12GraphicsCommandList* commandList = nullptr;
+                SLANG_RETURN_ON_FAIL(beginImmediateCommandList(&commandList));
                 commandList->CopyBufferRegion(buffer->m_resource, 0, uploadResource, 0, desc.size);
                 if (initialState != D3D12_RESOURCE_STATE_COPY_DEST)
                 {
@@ -1734,7 +1738,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
                     barrier.Transition.StateAfter = initialState;
                     commandList->ResourceBarrier(1, &barrier);
                 }
-                endImmediateCommandList();
+                SLANG_RETURN_ON_FAIL(endImmediateCommandList());
             }
             else
             {
@@ -1920,8 +1924,6 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     D3D12Resource stageBuf;
     if (bufferImpl->m_desc.memoryType != MemoryType::ReadBack)
     {
-        ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
-
         // Readback heap
         D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
 
@@ -1940,10 +1942,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         ));
 
         // Do the copy
+        std::lock_guard<std::mutex> immediateLock(m_immediateCommandList.mutex);
+        ID3D12GraphicsCommandList* commandList = nullptr;
+        SLANG_RETURN_ON_FAIL(beginImmediateCommandList(&commandList));
         commandList->CopyBufferRegion(stageBuf, 0, resource, offset, size);
 
         // Wait until complete
-        endImmediateCommandList();
+        SLANG_RETURN_ON_FAIL(endImmediateCommandList());
     }
 
     D3D12Resource& stageBufRef = bufferImpl->m_desc.memoryType != MemoryType::ReadBack ? stageBuf : resource;
@@ -2027,23 +2032,22 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_OK;
 }
 
-ID3D12GraphicsCommandList* DeviceImpl::beginImmediateCommandList()
+Result DeviceImpl::beginImmediateCommandList(ID3D12GraphicsCommandList** outCommandList)
 {
-    m_immediateCommandList.mutex.lock();
     if (!m_immediateCommandList.commandAllocator)
     {
-        SLANG_RETURN_NULL_ON_FAIL(m_device->CreateCommandAllocator(
+        SLANG_RETURN_ON_FAIL(m_device->CreateCommandAllocator(
             D3D12_COMMAND_LIST_TYPE_DIRECT,
             IID_PPV_ARGS(m_immediateCommandList.commandAllocator.writeRef())
         ));
     }
     else
     {
-        m_immediateCommandList.commandAllocator->Reset();
+        SLANG_RETURN_ON_FAIL(m_immediateCommandList.commandAllocator->Reset());
     }
     if (!m_immediateCommandList.commandList)
     {
-        SLANG_RETURN_NULL_ON_FAIL(m_device->CreateCommandList(
+        SLANG_RETURN_ON_FAIL(m_device->CreateCommandList(
             0,
             D3D12_COMMAND_LIST_TYPE_DIRECT,
             m_immediateCommandList.commandAllocator,
@@ -2053,18 +2057,22 @@ ID3D12GraphicsCommandList* DeviceImpl::beginImmediateCommandList()
     }
     else
     {
-        m_immediateCommandList.commandList->Reset(m_immediateCommandList.commandAllocator, nullptr);
+        SLANG_RETURN_ON_FAIL(
+            m_immediateCommandList.commandList->Reset(m_immediateCommandList.commandAllocator, nullptr)
+        );
     }
-    return m_immediateCommandList.commandList;
+    *outCommandList = m_immediateCommandList.commandList;
+    return SLANG_OK;
 }
 
-void DeviceImpl::endImmediateCommandList()
+Result DeviceImpl::endImmediateCommandList()
 {
-    m_immediateCommandList.commandList->Close();
+    SLANG_RETURN_ON_FAIL(m_immediateCommandList.commandList->Close());
     ID3D12CommandList* commandLists[] = {m_immediateCommandList.commandList.get()};
+    // Native D3D12 execution is thread-safe. waitOnHost serializes the tracking
+    // fence and retirement with public submissions and other initialization uploads.
     m_queue->m_d3dQueue->ExecuteCommandLists(1, commandLists);
-    m_queue->waitOnHost();
-    m_immediateCommandList.mutex.unlock();
+    return m_queue->waitOnHost();
 }
 
 void DeviceImpl::flushValidationMessages()
@@ -2344,6 +2352,8 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
 #if SLANG_RHI_ENABLE_NVAPI
     if (!m_nvapiEnabled)
         return SLANG_E_NOT_AVAILABLE;
+
+    std::lock_guard<std::mutex> lock(m_cooperativeVectorPropertiesMutex);
 
     if (m_cooperativeVectorProperties.empty())
     {

@@ -24,8 +24,8 @@ public:
     } m_surfaceSync;
 
     VkSemaphore m_trackingSemaphore;
-    uint64_t m_lastSubmittedID = 0;
-    uint64_t m_lastFinishedID = 0;
+    std::atomic<uint64_t> m_lastSubmittedID{0};
+    std::atomic<uint64_t> m_lastFinishedID{0};
 
     std::mutex m_mutex;
     std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
@@ -55,6 +55,8 @@ public:
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     void retireCommandBuffers();
+    // Requires DeviceImpl::m_queueMutex.
+    void retireCommandBuffersLocked();
     uint64_t updateLastFinishedID();
 
     /// Queue a resource for deferred deletion. The resource will be deleted
@@ -70,6 +72,9 @@ public:
         ICommandEncoder** outEncoder
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
+    // Initialization uploads must not consume the next frame's swapchain synchronization.
+    Result submitInternal(ICommandBuffer* commandBuffer);
+    Result submitImpl(const SubmitDesc& desc, bool useSurfaceSync);
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override;

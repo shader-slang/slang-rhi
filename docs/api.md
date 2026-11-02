@@ -1,5 +1,7 @@
 # API implementation status
 
+See [API thread safety](api-thread-safe.md) for concurrency guarantees.
+
 ## `IDevice` interface
 
 | API                                | CPU     | CUDA | D3D11 | D3D12 | Vulkan | Metal   | WGPU |
@@ -43,7 +45,7 @@
 | `createMicromap`                   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createFence`                      | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `waitForFences`                    | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
-| `createHeap`                       | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createHeap`                       | :x:     | yes  | :x:   | :x:   | yes    | :x:     | :x:  |
 | `createResourceHeap`               | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getBufferMemoryRequirements`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureMemoryRequirements`     | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |

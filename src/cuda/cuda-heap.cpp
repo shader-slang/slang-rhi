@@ -323,6 +323,7 @@ HeapImpl::~HeapImpl()
 
 Result HeapImpl::free(HeapAlloc allocation)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     PageImpl* page = static_cast<PageImpl*>(allocation.pageId);
 
@@ -357,6 +358,7 @@ Result HeapImpl::free(HeapAlloc allocation)
 
 Result HeapImpl::flush()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     for (auto it = m_pendingFrees.begin(); it != m_pendingFrees.end();)
     {

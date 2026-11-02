@@ -24,8 +24,8 @@ public:
     DebugObjectBase(DebugContext* ctx)
         : ctx(ctx)
     {
-        static uint64_t uidCounter = 0;
-        uid = ++uidCounter;
+        static std::atomic<uint64_t> uidCounter{0};
+        uid = uidCounter.fetch_add(1, std::memory_order_relaxed) + 1;
     }
 };
 

@@ -99,8 +99,9 @@ public:
     /// Signaled on the last CB of each submit() with m_lastSubmittedID.
     NS::SharedPtr<MTL::SharedEvent> m_trackingEvent;
     NS::SharedPtr<MTL::SharedEventListener> m_trackingEventListener;
-    uint64_t m_lastSubmittedID;
-    uint64_t m_lastFinishedID;
+    // Resource destruction on worker threads reads the submission snapshot.
+    std::atomic<uint64_t> m_lastSubmittedID{0};
+    std::atomic<uint64_t> m_lastFinishedID{0};
     std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
     // Deferred delete queue for GPU resources.

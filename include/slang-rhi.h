@@ -3294,6 +3294,8 @@ struct HeapReport
     uint64_t numAllocations = 0;
 };
 
+/// Allocator operations may be called concurrently on one heap. The caller must
+/// keep live allocations valid until GPU use has completed and free each once.
 class IHeap : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
@@ -3755,6 +3757,12 @@ public:
 
     /// Create a heap compatible with `desc.requirements`.
     /// Returns `SLANG_E_NOT_AVAILABLE` when the requested resource set is unsupported.
+    /// Resource creation (buffers, textures, views, samplers, and heaps) supports
+    /// concurrent calls on one device, including while another thread submits work.
+    /// Keep input data and referenced objects alive and immutable during each call.
+    /// Concurrent placed resources must use disjoint memory unless the caller
+    /// explicitly synchronizes aliasing. CUDA callers must enter DeviceScope on
+    /// each worker thread. See docs/api-thread-safe.md for the full contract.
     virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
         const ResourceHeapDesc& desc,
         IResourceHeap** outHeap

@@ -82,6 +82,7 @@ HeapImpl::~HeapImpl() {}
 
 Result HeapImpl::free(HeapAlloc allocation)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     CommandQueueImpl* queue = deviceImpl->m_queue;
 
@@ -110,6 +111,8 @@ Result HeapImpl::flush()
 
     // Update the last finished ID to get current GPU completion status
     uint64_t lastFinishedID = queue->updateLastFinishedID();
+
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     // Process pending frees in order
     for (auto it = m_pendingFrees.begin(); it != m_pendingFrees.end();)

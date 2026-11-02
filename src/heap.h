@@ -10,6 +10,7 @@
 #include "rhi-shared-fwd.h"
 
 #include <vector>
+#include <mutex>
 
 namespace rhi {
 
@@ -118,6 +119,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() override;
 
+    // Internal helpers and backend page hooks require m_mutex. Destruction is exclusive.
     Result createPage(const PageDesc& desc, Page** outPage);
     Result destroyPage(Page* page);
 
@@ -135,7 +137,12 @@ public:
     // Device implementation should call this when a freed allocation can be returned to the pool
     Result retire(HeapAlloc allocation);
 
+    Result removeEmptyPagesLocked();
+
 public:
+    // Protects pages, suballocators, and backend caches/pending frees. Heap code
+    // must not acquire queue locks; completion snapshots are published atomically.
+    std::mutex m_mutex;
     HeapDesc m_desc;
     StructHolder m_descHolder;
     uint32_t m_nextPageId = 1;

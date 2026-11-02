@@ -24,6 +24,7 @@ public:
     class PageImpl : public Heap::Page
     {
     public:
+        // Stream/event operations require the owning heap's m_mutex.
         /// Event recorded on a stream to track cross-stream usage.
         /// Only created when stream differs from the page's allocation stream.
         struct StreamEvent

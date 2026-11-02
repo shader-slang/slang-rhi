@@ -8,6 +8,8 @@ namespace rhi::vk {
 
 struct VulkanDeviceQueue
 {
+    // After initialization, callers hold DeviceImpl::m_queueMutex for the entire
+    // recording/retain/flush transaction, including commands recorded through getCommandBuffer().
     enum
     {
         kMaxCommandBuffers = 8,

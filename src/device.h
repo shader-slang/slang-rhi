@@ -171,6 +171,34 @@ struct LiveDeviceTracker
 class Device : public IDevice, public ComObject
 {
 public:
+    // Resource-cache synchronization domains. Operations accessing the same state
+    // share a domain even when they implement different API methods.
+    enum class Operation
+    {
+        BufferHandle,                // Shared handle and device-address publication.
+        BufferView,                  // Native buffer view maps.
+        BufferDescriptor,            // Buffer descriptor-handle maps.
+        TextureSharedHandle,         // Texture shared-handle publication.
+        TextureView,                 // Native texture view maps, including CUDA surfaces.
+        TextureDescriptor,           // Texture-view descriptor publication.
+        SamplerDescriptor,           // Sampler descriptor publication.
+        AccelerationStructureHandle, // AS descriptor and device-address publication.
+        FenceSharedHandle,           // Fence shared-handle publication.
+        _Count,
+    };
+
+    // resource identifies the implementation object owning the protected state:
+    // e.g. a Texture for its view map, or a TextureView for its descriptor cache.
+    // All accesses to that state must pass the same operation and object identity.
+    // The returned mutex remains stable for the device's lifetime. Currently each
+    // domain uses one mutex; resource is reserved for selecting a lock stripe.
+    std::mutex& getMutex(Operation operation, void* resource)
+    {
+        SLANG_RHI_ASSERT(resource && size_t(operation) < size_t(Operation::_Count));
+        SLANG_UNUSED(resource);
+        return m_resourceMutexes[size_t(operation)];
+    }
+
     using IDevice::readTexture;
     using IDevice::readBuffer;
 
@@ -493,6 +521,13 @@ public:
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
 
+private:
+    // Descriptor domains may enter view domains (then native descriptor heaps).
+    // View resolution finishes before entering bindless allocator locks, which
+    // must never enter resource-cache locks. Keep nested domains in separate
+    // mutex/stripe storage so a hash collision cannot cause recursive locking.
+    std::array<std::mutex, size_t(Operation::_Count)> m_resourceMutexes;
+
 protected:
     Result initialize(const DeviceDesc& desc);
 
@@ -507,6 +542,8 @@ protected:
     std::array<bool, size_t(Capability::_Count)> m_capabilitySet;
     std::array<FormatSupport, size_t(Format::_Count)> m_formatSupport;
     std::vector<CooperativeVectorProperties> m_cooperativeVectorProperties;
+    // Protects lazy initialization and reads of m_cooperativeVectorProperties.
+    std::mutex m_cooperativeVectorPropertiesMutex;
 
 public:
     DeviceInfo m_info;

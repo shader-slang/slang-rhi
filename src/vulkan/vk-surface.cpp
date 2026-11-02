@@ -405,7 +405,10 @@ Result SurfaceImpl::createSwapchain()
 void SurfaceImpl::destroySwapchain()
 {
     auto& api = m_device->m_api;
-    api.vkQueueWaitIdle(m_device->m_queue->m_queue);
+    {
+        std::lock_guard<std::mutex> queueLock(m_device->m_queueMutex);
+        api.vkQueueWaitIdle(m_device->m_queue->m_queue);
+    }
     m_textures.clear();
     for (FrameData& frameData : m_frameData)
     {
@@ -544,6 +547,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
 
     // Setup queue's next submit for synchronization with the swapchain.
+    std::lock_guard<std::mutex> queueLock(m_device->m_queueMutex);
     m_device->m_queue->m_surfaceSync.fence = frameData.fence;
     m_device->m_queue->m_surfaceSync.imageAvailableSemaphore = frameData.imageAvailableSemaphore;
     // Present consumes this semaphore outside the submitted command buffer's fence.
@@ -593,7 +597,11 @@ Result SurfaceImpl::present()
     presentInfo.pImageIndices = &m_currentTextureIndex;
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
-    VkResult result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    VkResult result;
+    {
+        std::lock_guard<std::mutex> queueLock(m_device->m_queueMutex);
+        result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    }
     // A window may resize between acquisition and presentation. Drop this frame and let
     // the application reconfigure the surface when it processes the resize event.
     if (result == VK_ERROR_OUT_OF_DATE_KHR)

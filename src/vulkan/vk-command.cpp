@@ -2043,6 +2043,12 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
 
 void CommandQueueImpl::retireCommandBuffers()
 {
+    std::lock_guard<std::mutex> lock(getDevice<DeviceImpl>()->m_queueMutex);
+    retireCommandBuffersLocked();
+}
+
+void CommandQueueImpl::retireCommandBuffersLocked()
+{
     std::list<InternalRefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
@@ -2097,8 +2103,13 @@ void CommandQueueImpl::executeDeferredDeletes()
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
 {
-    m_api.vkGetSemaphoreCounterValue(m_api.m_device, m_trackingSemaphore, &m_lastFinishedID);
-    return m_lastFinishedID;
+    uint64_t completed = 0;
+    m_api.vkGetSemaphoreCounterValue(m_api.m_device, m_trackingSemaphore, &completed);
+    uint64_t previous = m_lastFinishedID.load();
+    while (previous < completed && !m_lastFinishedID.compare_exchange_weak(previous, completed))
+    {
+    }
+    return m_lastFinishedID.load();
 }
 
 Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
@@ -2111,6 +2122,20 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    return submitImpl(desc, true);
+}
+
+Result CommandQueueImpl::submitInternal(ICommandBuffer* commandBuffer)
+{
+    SubmitDesc desc = {};
+    desc.commandBufferCount = 1;
+    desc.commandBuffers = &commandBuffer;
+    return submitImpl(desc, false);
+}
+
+Result CommandQueueImpl::submitImpl(const SubmitDesc& desc, bool useSurfaceSync)
+{
+    std::lock_guard<std::mutex> lock(getDevice<DeviceImpl>()->m_queueMutex);
     // Commit this ID and resource tracking only after the driver accepts the submission.
     uint64_t submissionID = m_lastSubmittedID + 1;
 
@@ -2137,7 +2162,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         waitStages.push_back(stage);
     };
 
-    if (m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
+    if (useSurfaceSync && m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
     {
         addWaitSemaphore(m_surfaceSync.imageAvailableSemaphore, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
     }
@@ -2157,7 +2182,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         signalValues.push_back(value);
     };
 
-    if (m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
+    if (useSurfaceSync && m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
     {
         addSignalSemaphore(m_surfaceSync.renderFinishedSemaphore, 0);
     }
@@ -2194,7 +2219,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
     }
 
-    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkQueueSubmit(m_queue, 1, &submitInfo, useSurfaceSync ? m_surfaceSync.fence : VK_NULL_HANDLE),
+        m_device
+    );
     m_lastSubmittedID = submissionID;
     for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
     {
@@ -2207,19 +2235,21 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
-    m_surfaceSync = {};
+    if (useSurfaceSync)
+        m_surfaceSync = {};
 
-    retireCommandBuffers();
+    retireCommandBuffersLocked();
 
     return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitOnHost()
 {
+    std::lock_guard<std::mutex> lock(getDevice<DeviceImpl>()->m_queueMutex);
     DeviceImpl* device = getDevice<DeviceImpl>();
     auto& api = device->m_api;
     SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkQueueWaitIdle(m_queue), device);
-    retireCommandBuffers();
+    retireCommandBuffersLocked();
     return SLANG_OK;
 }
 

@@ -18,8 +18,12 @@ public:
     HANDLE m_globalWaitHandle;
     uint32_t m_queueIndex = 0;
 
-    uint64_t m_lastSubmittedID = 0;
-    uint64_t m_lastFinishedID = 0;
+    std::atomic<uint64_t> m_lastSubmittedID{0};
+    std::atomic<uint64_t> m_lastFinishedID{0};
+
+    // Serializes submission, host waits, and in-flight retirement. Pool and
+    // deferred-delete locks are acquired inside this lock, never the reverse.
+    std::mutex m_submissionMutex;
 
     std::mutex m_mutex;
     std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
@@ -53,6 +57,8 @@ public:
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     void retireCommandBuffers();
+    // Requires m_submissionMutex.
+    void retireCommandBuffersLocked();
     uint64_t updateLastFinishedID();
 
     /// Queue a resource for deferred deletion. The resource will be deleted

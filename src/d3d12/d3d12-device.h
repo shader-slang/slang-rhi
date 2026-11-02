@@ -286,8 +286,9 @@ public:
         ComPtr<ID3D12GraphicsCommandList> commandList;
     } m_immediateCommandList;
 
-    ID3D12GraphicsCommandList* beginImmediateCommandList();
-    void endImmediateCommandList();
+    // Caller holds m_immediateCommandList.mutex through begin/record/end.
+    Result beginImmediateCommandList(ID3D12GraphicsCommandList** outCommandList);
+    Result endImmediateCommandList();
 
     void flushValidationMessages();
 

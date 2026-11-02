@@ -944,7 +944,7 @@ void CommandQueueImpl::waitAndReleaseCommandBuffers()
     // where lazy events optimization means m_submitEvents is empty.
     // Without this, heap destruction could call cuMemFree while GPU is still using memory!
     SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
-    m_lastFinishedID = m_lastSubmittedID;
+    m_lastFinishedID = m_lastSubmittedID.load();
 
     // Retire finished command buffers, which should be all of them now
     SLANG_RHI_ASSERT(retireCommandBuffers() == SLANG_OK);
@@ -1048,7 +1048,7 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
         if (result == CUDA_SUCCESS)
         {
             // Stream is idle - all submitted work is complete
-            m_lastFinishedID = m_lastSubmittedID;
+            m_lastFinishedID = m_lastSubmittedID.load();
         }
         else if (result != CUDA_ERROR_NOT_READY)
         {
@@ -1326,7 +1326,7 @@ Result CommandQueueImpl::waitOnHost()
 {
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
-    m_lastFinishedID = m_lastSubmittedID;
+    m_lastFinishedID = m_lastSubmittedID.load();
 
     // Retire command buffers that have completed.
     SLANG_RETURN_ON_FAIL(retireCommandBuffers());

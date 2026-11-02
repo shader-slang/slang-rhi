@@ -1964,6 +1964,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
 void DeviceImpl::waitForGpu()
 {
+    std::lock_guard<std::mutex> queueLock(m_queueMutex);
     m_deviceQueue.flushAndWait();
 }
 
@@ -1998,6 +1999,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     ));
 
     // Copy from real buffer to staging buffer
+    std::lock_guard<std::mutex> queueLock(m_queueMutex);
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
     VkBufferMemoryBarrier barrier = {};
@@ -2592,6 +2594,8 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
         !m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV)
         return SLANG_E_NOT_AVAILABLE;
+
+    std::lock_guard<std::mutex> lock(m_cooperativeVectorPropertiesMutex);
 
     if (m_cooperativeVectorProperties.empty())
     {

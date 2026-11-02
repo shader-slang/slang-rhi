@@ -288,6 +288,9 @@ public:
     VulkanApi m_api;
 
     VulkanDeviceQueue m_deviceQueue;
+    // Protects both users of the native queue, internal upload recording/fence
+    // slots, and public queue submission/retirement. Acquire before pool/heap locks.
+    std::mutex m_queueMutex;
     uint32_t m_queueFamilyIndex;
 
     struct CooperativeMatrixFlexibleProperty

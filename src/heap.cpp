@@ -26,6 +26,7 @@ Heap::~Heap()
 
 Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     // Allow device implementation to fix up descriptor
     HeapAllocDesc desc = desc_;
     SLANG_RETURN_ON_FAIL(fixUpAllocDesc(desc));
@@ -78,7 +79,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
     {
         // Out of memory - try cleaning up existing free pages
         // before failing.
-        SLANG_RETURN_ON_FAIL(removeEmptyPages());
+        SLANG_RETURN_ON_FAIL(removeEmptyPagesLocked());
         res = createPage(pageDesc, &newPage);
     }
     SLANG_RETURN_ON_FAIL(res);
@@ -142,6 +143,12 @@ Result Heap::destroyPage(Page* page)
 
 Result Heap::removeEmptyPages()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return removeEmptyPagesLocked();
+}
+
+Result Heap::removeEmptyPagesLocked()
+{
     // Free all pages that are not in use
     for (auto it = m_pages.begin(); it != m_pages.end();)
     {
@@ -163,6 +170,7 @@ Result Heap::removeEmptyPages()
 
 Result Heap::report(HeapReport* outReport)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     HeapReport res;
 
     // Copy the heap's label to the report label field

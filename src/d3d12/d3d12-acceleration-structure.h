@@ -32,7 +32,7 @@ public:
 public:
     InternalRefPtr<BufferImpl> m_buffer;
     CPUDescriptorAllocation m_descriptor;
-    DescriptorHandle m_descriptorHandle;
+    PublishedDescriptorHandle m_descriptorHandle;
 };
 
 class MicromapImpl : public Micromap
