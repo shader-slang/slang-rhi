@@ -398,11 +398,9 @@ Result BindingDataBuilder::bindAsPushConstantBuffer(
         SLANG_RHI_ASSERT(index < m_pushConstantRanges.size());
         m_bindingData->pushConstantRanges[index] = pushConstantRange;
         m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
-        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(
-            m_bindingData->pushConstantData[index],
-            pushConstantRange.size,
-            specializedLayout
-        ));
+        SLANG_RETURN_ON_FAIL(
+            shaderObject->writeOrdinaryData(m_bindingData->pushConstantData[index], pushConstantRange.size)
+        );
     }
 
     // Resources and nested parameter blocks in the push-constant element type still
@@ -427,7 +425,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
 
     TransientBufferArena::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(size, &allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size));
 
     // If we did indeed need/create a buffer, then we must bind it into
     // the given `descriptorSet` and update the base range index for

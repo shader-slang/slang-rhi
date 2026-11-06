@@ -57,8 +57,6 @@ DeviceImpl::~DeviceImpl()
         {
             m_queue->waitAndReleaseCommandBuffers();
         }
-
-        m_shaderCache.free();
         m_uploadHeap.release();
         m_readbackHeap.release();
         m_clearEngine.release();

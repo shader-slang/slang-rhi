@@ -26,7 +26,6 @@ DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
-    m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
     m_queue.setNull();

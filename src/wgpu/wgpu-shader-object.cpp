@@ -477,7 +477,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
 
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(bufferSize, allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, bufferSize, specializedLayout));
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, bufferSize));
 
     writeBufferDescriptor(*this, ioOffset, allocation.buffer, allocation.offset, bufferSize);
     ioOffset.binding++;

@@ -77,7 +77,6 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.uniformOffset = uniformOffset;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
-        bindingRangeInfo.isSpecializable = m_elementTypeLayout->isBindingRangeSpecializable(r);
         m_bindingRanges.push_back(bindingRangeInfo);
     }
 

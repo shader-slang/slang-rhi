@@ -285,7 +285,8 @@ static Result loadProgram(
     std::vector<const char*> entryPointNames,
     bool performLinking,
     IShaderProgram** outShaderProgram,
-    slang::ProgramLayout** outSlangReflection
+    slang::ProgramLayout** outSlangReflection,
+    const char* specializationTypeName = nullptr
 )
 {
     ComPtr<slang::ISession> ownedSlangSession;
@@ -337,6 +338,19 @@ static Result loadProgram(
 
         if (outSlangReflection)
             *outSlangReflection = linkedProgram->getLayout();
+
+        if (specializationTypeName)
+        {
+            auto type = linkedProgram->getLayout()->findTypeByName(specializationTypeName);
+            if (!type)
+                return SLANG_E_INVALID_ARG;
+            auto arg = slang::SpecializationArg::fromType(type);
+            ComPtr<slang::IComponentType> specializedProgram;
+            result = linkedProgram->specialize(&arg, 1, specializedProgram.writeRef(), diagnosticsBlob.writeRef());
+            diagnoseIfNeeded(diagnosticsBlob);
+            SLANG_RETURN_ON_FAIL(result);
+            linkedProgram = specializedProgram;
+        }
 
         shaderProgramDesc.slangGlobalScope = linkedProgram.get();
     }
@@ -464,6 +478,27 @@ Result loadAndLinkProgram(
         std::vector<const char*>{entryPointName},
         outShaderProgram,
         outSlangReflection
+    );
+}
+
+Result loadAndSpecializeProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    const char* specializationTypeName,
+    IShaderProgram** outShaderProgram,
+    slang::ProgramLayout** outSlangReflection
+)
+{
+    return loadProgram(
+        device,
+        nullptr,
+        shaderModuleName,
+        {entryPointName},
+        true,
+        outShaderProgram,
+        outSlangReflection,
+        specializationTypeName
     );
 }
 

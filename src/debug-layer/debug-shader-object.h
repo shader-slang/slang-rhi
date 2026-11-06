@@ -61,11 +61,6 @@ public:
         const ShaderOffset& offset,
         const DescriptorHandle& handle
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
-        const ShaderOffset& offset,
-        const slang::SpecializationArg* args,
-        uint32_t count
-    ) override;
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
     virtual SLANG_NO_THROW size_t SLANG_MCALL getSize() override;
@@ -108,14 +103,6 @@ public:
         : DebugShaderObject(ctx)
     {
     }
-
-public:
-    // IShaderObject implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
-        const ShaderOffset& offset,
-        const slang::SpecializationArg* args,
-        uint32_t count
-    ) override;
 
 public:
     void reset();

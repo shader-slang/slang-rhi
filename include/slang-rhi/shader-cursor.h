@@ -106,11 +106,6 @@ struct ShaderCursor
         return m_baseObject->setDescriptorHandle(m_offset, handle);
     }
 
-    Result setSpecializationArgs(const slang::SpecializationArg* args, uint32_t count) const
-    {
-        return m_baseObject->setSpecializationArgs(m_offset, args, count);
-    }
-
     /// Produce a cursor to the field with the given `name`.
     ///
     /// This is a convenience wrapper around `getField()`.

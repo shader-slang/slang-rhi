@@ -30,9 +30,6 @@ class ShaderObject;
 class RootShaderObject;
 struct ShaderObjectID;
 struct ResourceSlot;
-struct ExtendedShaderObjectType;
-struct ExtendedShaderObjectTypeList;
-class ExtendedShaderObjectTypeListObject;
 class ShaderObjectLayout;
 
 class Pipeline;
@@ -47,6 +44,5 @@ struct SpecializationKey;
 class ShaderProgram;
 class ShaderCompilationReporter;
 
-typedef uint32_t ShaderComponentID;
 
 } // namespace rhi

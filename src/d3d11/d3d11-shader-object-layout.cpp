@@ -94,7 +94,6 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
-        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
 
         // We'd like to extract the information on the D3D11 shader
         // register that this range should bind into.

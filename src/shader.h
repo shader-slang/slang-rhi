@@ -3,7 +3,6 @@
 #include <slang-rhi/synthetic-bindings.h>
 
 #include "core/common.h"
-#include "core/short_vector.h"
 #include "core/timer.h"
 
 #include "rhi-shared-fwd.h"
@@ -11,7 +10,6 @@
 
 #include <string>
 #include <memory>
-#include <unordered_map>
 #include <mutex>
 #include <vector>
 
@@ -51,26 +49,6 @@ struct CompiledEntryPoint
 
 class SyntheticResourceBindingState;
 
-struct SpecializationKey
-{
-    short_vector<ShaderComponentID> componentIDs;
-
-    SpecializationKey(const ExtendedShaderObjectTypeList& args);
-
-    bool operator==(const SpecializationKey& rhs) const { return componentIDs == rhs.componentIDs; }
-
-    struct Hasher
-    {
-        std::size_t operator()(const SpecializationKey& key) const
-        {
-            size_t hash = 0;
-            for (auto& arg : key.componentIDs)
-                hash_combine(hash, arg);
-            return hash;
-        }
-    };
-};
-
 using ShaderProgramID = uint64_t;
 
 class ShaderProgram : public IShaderProgram, public ISyntheticShaderProgram, public DeviceChild
@@ -94,16 +72,10 @@ public:
     // Linked program for each entry point when linkingStyle is SeparateEntryPointCompilation.
     std::vector<ComPtr<slang::IComponentType>> linkedEntryPoints;
 
-    bool m_isSpecializable = false;
-
     bool m_compiledShaders = false;
 
     /// Protects compilation state and backend shader modules.
     std::mutex m_compileMutex;
-
-    std::mutex m_specializedProgramsMutex;
-    std::unordered_map<SpecializationKey, InternalRefPtr<ShaderProgram>, SpecializationKey::Hasher>
-        m_specializedPrograms;
 
     // Optional state for compiler-synthesized resources. Null for ordinary
     // programs so the feature has no per-program vector/string storage cost.
@@ -114,7 +86,6 @@ public:
 
     Result init();
 
-    bool isSpecializable() const { return m_isSpecializable; }
     bool isMeshShaderProgram() const;
 
     Result compileShaders(Device* device);
@@ -157,22 +128,6 @@ public:
 private:
     uint32_t _getEntryPointCount() const;
     Result _initSyntheticResourceDescs();
-
-    bool _isSpecializable()
-    {
-        if (slangGlobalScope->getSpecializationParamCount() != 0)
-        {
-            return true;
-        }
-        for (auto& entryPoint : slangEntryPoints)
-        {
-            if (entryPoint->getSpecializationParamCount() != 0)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 };
 
 class ShaderCompilationReporter : public RefObject

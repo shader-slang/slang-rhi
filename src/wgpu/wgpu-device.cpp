@@ -32,8 +32,6 @@ Context::~Context()
 DeviceImpl::~DeviceImpl()
 {
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
-
-    m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
 

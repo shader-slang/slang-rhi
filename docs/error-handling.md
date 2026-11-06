@@ -64,7 +64,7 @@ Callbacks may be invoked from the thread making an RHI call or from a backend/dr
 
 ## WebGPU recording and validation
 
-WebGPU binding preparation checks required resources and basic texture-format compatibility on the CPU. If binding preparation or shader specialization fails during a draw or dispatch, the command is skipped and the encoder preserves the first failure. `ICommandEncoder::finish()` returns that failure, even if later commands provide valid bindings. This shared command-encoder behavior does not depend on native WebGPU validation completing.
+WebGPU binding preparation checks required resources and basic texture-format compatibility on the CPU. If binding preparation fails during a draw or dispatch, the command is skipped and the encoder preserves the first failure. `ICommandEncoder::finish()` returns that failure, even if later commands provide valid bindings. This shared command-encoder behavior does not depend on native WebGPU validation completing.
 
 Native WebGPU validation errors are delivered through `IDebugCallback` and may arrive asynchronously. Binding and layout creation do not wait for error-scope callbacks, and an unrelated uncaptured error does not determine the result of a later API call. Successful recording or `finish()` therefore does not guarantee that native validation has completed or that GPU execution will succeed.
 
@@ -82,7 +82,7 @@ Each callback message also has a source:
 
 - `DebugMessageSource::Layer`: Slang RHI validation or infrastructure. Examples include null output pointers, invalid descriptors, unsupported validation options, or "debug layer is enabled" status.
 - `DebugMessageSource::Driver`: backend, native graphics API, or downstream API debug layer output. Examples include failed D3D/Vulkan/CUDA/OptiX calls, Vulkan validation messages, D3D12 debug messages, WGPU uncaptured errors, and Metal compiler or runtime errors.
-- `DebugMessageSource::Slang`: Slang compiler diagnostics from shader linking, specialization, or code generation.
+- `DebugMessageSource::Slang`: Slang compiler diagnostics from shader linking or code generation.
 
 Message text is intended for humans. It is not a stable parse format.
 
@@ -131,7 +131,7 @@ if (diagnostics)
 }
 ```
 
-The callback path is still useful because shader compilation can also happen later, for example when creating pipelines or specializing shader programs. In those cases Slang diagnostics are emitted as `DebugMessageSource::Slang` messages.
+The callback path is still useful because shader compilation can also happen later, for example during pipeline creation or deferred compilation. In those cases Slang diagnostics are emitted as `DebugMessageSource::Slang` messages.
 
 `DeviceDesc::enableCompilationReports` is a performance reporting feature, not an error reporting feature. When enabled, `IShaderProgram::getCompilationReport()` and `IDevice::getCompilationReportList()` expose timing and cache-hit data for shader compilation and pipeline creation.
 

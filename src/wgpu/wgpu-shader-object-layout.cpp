@@ -444,7 +444,6 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
-        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
         // We'd like to extract the information on the GLSL/SPIR-V
         // `binding` that this range should bind into (or whatever
         // other specific kind of offset/index is appropriate to it).
@@ -738,10 +737,6 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
     m_device = device;
-
-    // Binding layouts must wait until specialization is complete.
-    if (m_program->getSpecializationParamCount() != 0)
-        return SLANG_OK;
 
     // Collect reflected entries now; native layouts are finalized after shader
     // compilation when the first pipeline is created.

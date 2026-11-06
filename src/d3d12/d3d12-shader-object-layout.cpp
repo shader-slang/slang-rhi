@@ -199,7 +199,6 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         bindingRangeInfo.subObjectIndex = subObjectIndex;
         bindingRangeInfo.bufferElementStride = bufferElementStride;
         bindingRangeInfo.isRootParameter = isRootParameter;
-        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
 
         m_bindingRanges.push_back(bindingRangeInfo);
     }
@@ -989,18 +988,15 @@ Result RootShaderObjectLayoutImpl::create(
     RefPtr<RootShaderObjectLayoutImpl> layout;
     SLANG_RETURN_ON_FAIL(builder.build(layout.writeRef()));
 
-    if (program->getSpecializationParamCount() == 0)
-    {
-        // For root object, we would like know the union of all binding slots
-        // including all sub-objects in the shader-object hierarchy, so at
-        // parameter binding time we can easily know how many GPU descriptor tables
-        // to create without walking through the shader-object hierarchy again.
-        // We build out this array along with root signature construction and store
-        // it in `m_gpuDescriptorSetInfos`.
-        SLANG_RETURN_ON_FAIL(
-            createRootSignatureFromSlang(device, layout, program, layout->m_rootSignature.writeRef(), outError)
-        );
-    }
+    // For root object, we would like know the union of all binding slots
+    // including all sub-objects in the shader-object hierarchy, so at
+    // parameter binding time we can easily know how many GPU descriptor tables
+    // to create without walking through the shader-object hierarchy again.
+    // We build out this array along with root signature construction and store
+    // it in `m_gpuDescriptorSetInfos`.
+    SLANG_RETURN_ON_FAIL(
+        createRootSignatureFromSlang(device, layout, program, layout->m_rootSignature.writeRef(), outError)
+    );
 
     *outLayout = layout.detach();
 

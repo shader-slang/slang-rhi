@@ -303,7 +303,7 @@ enum class LinkingStyle
     // set of root shader arguments.
     SingleProgram,
 
-    // Link and compile each entry-point individually, potentially with different specializations.
+    // Link and compile each entry-point individually.
     SeparateEntryPointCompilation
 };
 
@@ -318,6 +318,8 @@ struct ShaderProgramDesc
     LinkingStyle linkingStyle = LinkingStyle::SingleProgram;
 
     // The global scope or a Slang composite component that represents the entire program.
+    // Components must have no unresolved specialization parameters. RHI does not
+    // specialize programs based on bound shader objects.
     slang::IComponentType* slangGlobalScope = nullptr;
 
     // An array of Slang entry points. The size of the array must be `slangEntryPointCount`.
@@ -1950,15 +1952,6 @@ public:
     /// returned is immediately populated, not retained. Prefer using setData unless absolutely necessary.
     virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
 
-    /// Manually overrides the specialization argument for the sub-object binding at `offset`.
-    /// Specialization arguments are passed to the shader compiler to specialize the type
-    /// of interface-typed shader parameters.
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
-        const ShaderOffset& offset,
-        const slang::SpecializationArg* args,
-        uint32_t count
-    ) = 0;
-
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() = 0;
 
     virtual SLANG_NO_THROW Size SLANG_MCALL getSize() = 0;
@@ -2137,8 +2130,7 @@ enum class PipelineCompilationPolicy
     /// serial pipeline compilation and deferred on devices using parallel pipeline compilation.
     Default,
 
-    /// Compile target code and create the backend pipeline during pipeline creation. Programs that require
-    /// specialization are always deferred.
+    /// Compile target code and create the backend pipeline during pipeline creation.
     Immediate,
 
     /// Defer target code compilation and backend pipeline creation until the pipeline is used by a command encoder.

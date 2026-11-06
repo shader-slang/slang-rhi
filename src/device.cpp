@@ -30,97 +30,6 @@ size_t getShaderObjectLayoutCacheSize(IDevice* device)
 } // namespace testing
 
 // ----------------------------------------------------------------------------
-// ShaderCache
-// ----------------------------------------------------------------------------
-
-ShaderComponentID ShaderCache::getComponentId(slang::TypeReflection* type)
-{
-    ComponentKey key;
-    key.typeName = string::from_cstr(type->getName());
-    switch (type->getKind())
-    {
-    case slang::TypeReflection::Kind::Specialized:
-    {
-        auto baseType = type->getElementType();
-
-        std::string str;
-        str += string::from_cstr(baseType->getName());
-
-        auto rawType = (SlangReflectionType*)type;
-
-        str += '<';
-        SlangInt argCount = spReflectionType_getSpecializedTypeArgCount(rawType);
-        for (SlangInt a = 0; a < argCount; ++a)
-        {
-            if (a != 0)
-                str += ',';
-            if (auto rawArgType = spReflectionType_getSpecializedTypeArgType(rawType, a))
-            {
-                auto argType = (slang::TypeReflection*)rawArgType;
-                str += string::from_cstr(argType->getName());
-            }
-        }
-        str += '>';
-        key.typeName = std::move(str);
-        key.updateHash();
-        return getComponentId(key);
-    }
-        // TODO: collect specialization arguments and append them to `key`.
-        SLANG_RHI_UNIMPLEMENTED("specialized type");
-    default:
-        break;
-    }
-    key.updateHash();
-    return getComponentId(key);
-}
-
-ShaderComponentID ShaderCache::getComponentId(std::string_view name)
-{
-    ComponentKey key;
-    key.typeName = name;
-    key.updateHash();
-    return getComponentId(key);
-}
-
-ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = componentIds.find(key);
-    if (it != componentIds.end())
-        return it->second;
-    ShaderComponentID resultId = static_cast<ShaderComponentID>(componentIds.size());
-    componentIds.emplace(key, resultId);
-    return resultId;
-}
-
-PipelineKey::PipelineKey(Pipeline* pipeline)
-    : pipelineId(pipeline->getSpecializationCacheId())
-{
-}
-
-RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto it = specializedPipelines.find(programKey);
-    if (it != specializedPipelines.end())
-        return it->second;
-    return nullptr;
-}
-
-void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    specializedPipelines[key] = specializedPipeline;
-}
-
-void ShaderCache::free()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    componentIds = decltype(componentIds)();
-    specializedPipelines = decltype(specializedPipelines)();
-}
-
-// ----------------------------------------------------------------------------
 // Device
 // ----------------------------------------------------------------------------
 
@@ -174,159 +83,22 @@ Result Device::createRootShaderObject(ShaderProgram* program, RootShaderObject**
     return RootShaderObject::create(this, program, outObject);
 }
 
-Result Device::getSpecializedProgram(
-    ShaderProgram* program,
-    const ExtendedShaderObjectTypeList& specializationArgs,
-    ShaderProgram** outSpecializedProgram
-)
+Result Device::getConcretePipeline(Pipeline* pipeline, Pipeline*& outPipeline)
 {
-    std::lock_guard<std::mutex> lock(program->m_specializedProgramsMutex);
-    SpecializationKey key(specializationArgs);
-    auto it = program->m_specializedPrograms.find(key);
-    if (it != program->m_specializedPrograms.end())
-    {
-        returnRefPtrCopy(outSpecializedProgram, it->second);
-        return SLANG_OK;
-    }
-    else
-    {
-        RefPtr<ShaderProgram> specializedProgram;
-        SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
-        program->m_specializedPrograms[key] = specializedProgram;
-        returnRefPtr(outSpecializedProgram, specializedProgram);
-        return SLANG_OK;
-    }
-}
-
-
-Result Device::specializeProgram(
-    ShaderProgram* program,
-    const ExtendedShaderObjectTypeList& specializationArgs,
-    ShaderProgram** outSpecializedProgram
-)
-{
-    ComPtr<slang::IComponentType> specializedComponentType;
-    ComPtr<slang::IBlob> diagnosticBlob;
-    Result result = program->linkedProgram->specialize(
-        specializationArgs.components.data(),
-        specializationArgs.getCount(),
-        specializedComponentType.writeRef(),
-        diagnosticBlob.writeRef()
-    );
-    if (diagnosticBlob)
-    {
-        handleMessage(
-            result == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-            DebugMessageSource::Slang,
-            (char*)diagnosticBlob->getBufferPointer()
-        );
-    }
-    SLANG_RETURN_ON_FAIL(result);
-
-    // Now create the specialized shader program using compiled binaries.
-    RefPtr<ShaderProgram> specializedProgram;
-    ShaderProgramDesc programDesc = program->m_desc;
-    programDesc.slangGlobalScope = specializedComponentType;
-
-    if (programDesc.linkingStyle == LinkingStyle::SingleProgram)
-    {
-        // When linking style is SingleProgram, the specialized global scope already contains
-        // entry-points, so we do not need to supply them again when creating the specialized
-        // pipeline.
-        programDesc.slangEntryPointCount = 0;
-    }
-    SLANG_RETURN_ON_FAIL(createShaderProgram(programDesc, (IShaderProgram**)specializedProgram.writeRef()));
-    returnRefPtr(outSpecializedProgram, specializedProgram);
-    return SLANG_OK;
-}
-
-Result Device::getConcretePipeline(
-    Pipeline* pipeline,
-    ExtendedShaderObjectTypeList* specializationArgs,
-    Pipeline*& outPipeline
-)
-{
-    // Virtual pipelines are created due to 2 reasons:
-    //
-    // 1) When the user creates a pipeline with a program that has undefined specialization arguments, there is no way
-    // to compile target code to create the backend pipeline resources during creation time. Therefore, a virtual
-    // pipeline is created which needs to be specialized later (during dispatch time, when specialization arguments are
-    // known).
-    //
-    // 2) The user requests deferred compilation of target code when creating a pipeline, in which case the
-    // backend resources are not created until they are needed (during dispatch time).
-    //
-    // This code handles both these cases. For the specialization case, we query the device's pipeline cache for
-    // a specialized pipeline that matches the specialization arguments provided. If not found, we specialize
-    // the program, compile the target code, create the backend resources and cache the specialized pipeline
-    // For the deferred case, we simply create the backend resources and keep a reference to the concrete pipeline
-    // in the virtual one for later use.
-
-    // If this is already a concrete pipeline, then we are done.
     if (!pipeline->isVirtual())
     {
         outPipeline = pipeline;
         return SLANG_OK;
     }
 
-    // Return early if we previously created a concrete pipeline for this virtual pipeline.
     outPipeline = pipeline->getConcretePipeline();
     if (outPipeline)
-    {
         return SLANG_OK;
-    }
 
-    // Check if program is specializable (if it has specialization arguments).
-    bool isSpecializable = pipeline->m_program->isSpecializable();
-
-    // If the pipeline is specializable, collect specialization arguments from bound shader objects
-    // and lookup the cache.
-    PipelineKey pipelineKey(pipeline);
-    if (isSpecializable)
-    {
-        if (!specializationArgs)
-        {
-            return SLANG_FAIL;
-        }
-        for (const auto& componentID : specializationArgs->componentIDs)
-        {
-            pipelineKey.specializationArgs.push_back(componentID);
-        }
-        pipelineKey.updateHash();
-        outPipeline = m_shaderCache.getSpecializedPipeline(pipelineKey);
-        if (outPipeline)
-        {
-            return SLANG_OK;
-        }
-    }
-
-    // At this point we need to create a new concrete pipeline.
-    RefPtr<ShaderProgram> program = pipeline->m_program;
-    if (isSpecializable)
-    {
-        RefPtr<ShaderProgram> specializedProgram;
-        SLANG_RETURN_ON_FAIL(getSpecializedProgram(program, *specializationArgs, specializedProgram.writeRef()));
-        program = specializedProgram;
-    }
-
-    // Ensure sure shaders are compiled.
-    SLANG_RETURN_ON_FAIL(program->compileShaders(this));
-
-    // Create a new concrete pipeline.
+    SLANG_RETURN_ON_FAIL(pipeline->m_program->compileShaders(this));
     RefPtr<Pipeline> concretePipeline;
-    SLANG_RETURN_ON_FAIL(createConcretePipeline(pipeline, program, concretePipeline));
-
-    if (isSpecializable)
-    {
-        // Cache the specialized pipeline for later use.
-        m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
-    }
-    else
-    {
-        // Store the concrete pipeline in the virtual one.
-        pipeline->setConcretePipeline(concretePipeline);
-    }
-
+    SLANG_RETURN_ON_FAIL(createConcretePipeline(pipeline, pipeline->m_program, concretePipeline));
+    pipeline->setConcretePipeline(concretePipeline);
     outPipeline = concretePipeline;
     return SLANG_OK;
 }
@@ -668,7 +440,7 @@ Result Device::createInputLayout(const InputLayoutDesc& desc, IInputLayout** out
 Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
+    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy);
     if (createVirtual)
     {
         RefPtr<VirtualRenderPipeline> pipeline = new VirtualRenderPipeline(this, desc);
@@ -685,7 +457,7 @@ Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipel
 Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
+    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy);
     if (createVirtual)
     {
         RefPtr<VirtualComputePipeline> pipeline = new VirtualComputePipeline(this, desc);
@@ -702,7 +474,7 @@ Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePi
 Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
+    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy);
     if (createVirtual)
     {
         RefPtr<VirtualRayTracingPipeline> pipeline = new VirtualRayTracingPipeline(this, desc);

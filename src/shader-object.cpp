@@ -24,12 +24,6 @@ void ShaderObjectLayout::initBase(
     m_device = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
-    auto type = m_elementTypeLayout->getType();
-    // Root layouts represent a program's global scope, which may not have a reflected type.
-    if (type)
-        m_componentID = m_device->m_shaderCache.getComponentId(type);
-    else
-        m_componentID = kInvalidComponentID;
 }
 
 // ----------------------------------------------------------------------------
@@ -167,8 +161,6 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
         }
         m_objects[offset.bindingArrayIndex] = subObject;
 
-        ExtendedShaderObjectTypeList specializationArgs;
-
         auto payloadOffset = offset;
 
         // If the element type of the StructuredBuffer field is an existential type,
@@ -177,9 +169,8 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
         if (m_layout->getElementTypeLayout()->getKind() == slang::TypeReflection::Kind::Interface)
         {
             auto existentialType = m_layout->getElementTypeLayout()->getType();
-            ExtendedShaderObjectType concreteType;
-            SLANG_RETURN_ON_FAIL(subObject->getSpecializedShaderObjectType(&concreteType));
-            SLANG_RETURN_ON_FAIL(setExistentialHeader(existentialType, concreteType.slangType, offset));
+            auto concreteType = subObject->getElementTypeLayout()->getType();
+            SLANG_RETURN_ON_FAIL(setExistentialHeader(existentialType, concreteType, offset));
             payloadOffset.uniformOffset += 16;
         }
         SLANG_RETURN_ON_FAIL(setData(payloadOffset, subObject->m_data.data(), subObject->m_data.size()));
@@ -202,9 +193,8 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     case slang::BindingType::ExistentialValue:
     {
         // If the range being assigned into represents an interface/existential-type
-        // leaf field, then we need to consider how the `object` being assigned here
-        // affects specialization. We may also need to assign some data from the
-        // sub-object into the ordinary data buffer for the parent object.
+        // leaf field, copy the sub-object's type information and payload into
+        // the ordinary data buffer for the parent object.
         //
         // A leaf field of interface type is laid out inside of the parent object
         // as a tuple of `(RTTI, WitnessTable, Payload)`. The layout of these fields
@@ -254,9 +244,8 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
             // we can do at this point (beyond saving a reference to the sub-object,
             // which was handled above).
             //
-            // Once all the sub-objects have been set into the parent object, we can
-            // compute a specialized layout for it, and that specialized layout can tell
-            // us where the data for these sub-objects has been laid out.
+            // Binding cannot change the program layout. The concrete value must
+            // fit the interface payload supplied by the compiler.
             return SLANG_E_NOT_IMPLEMENTED;
         }
         break;
@@ -270,9 +259,7 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
         // this implementation also doesn't handle the case where CPU/CUDA backends are allowed
         // to place resources into plain structured buffers (because on these backends they are just pointers)
         ComPtr<IBuffer> buffer;
-        SLANG_RETURN_ON_FAIL(
-            subObject->writeStructuredBuffer(subObject->getElementTypeLayout(), m_layout, buffer.writeRef())
-        );
+        SLANG_RETURN_ON_FAIL(subObject->writeStructuredBuffer(subObject->getElementTypeLayout(), buffer.writeRef()));
         SLANG_RETURN_ON_FAIL(setBinding(offset, buffer));
         break;
     }
@@ -403,44 +390,6 @@ Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const Descr
     return SLANG_OK;
 }
 
-Result ShaderObject::setSpecializationArgs(
-    const ShaderOffset& offset,
-    const slang::SpecializationArg* args,
-    uint32_t count
-)
-{
-    // If the shader object is a container, delegate the processing to
-    // `setSpecializationArgsForContainerElements`.
-    if (m_layout->getContainerType() != ShaderObjectContainerType::None)
-    {
-        ExtendedShaderObjectTypeList argList;
-        SLANG_RETURN_ON_FAIL(getExtendedShaderTypeListFromSpecializationArgs(argList, args, count));
-        setSpecializationArgsForContainerElement(argList);
-        return SLANG_OK;
-    }
-
-    if (offset.bindingRangeIndex >= m_layout->getBindingRangeCount())
-        return SLANG_E_INVALID_ARG;
-
-    auto bindingRangeIndex = offset.bindingRangeIndex;
-    const auto& bindingRange = m_layout->getBindingRange(bindingRangeIndex);
-    uint32_t objectIndex = bindingRange.subObjectIndex + offset.bindingArrayIndex;
-    if (objectIndex >= m_userProvidedSpecializationArgs.size())
-        m_userProvidedSpecializationArgs.resize(objectIndex + 1);
-    if (!m_userProvidedSpecializationArgs[objectIndex])
-    {
-        m_userProvidedSpecializationArgs[objectIndex] = new ExtendedShaderObjectTypeListObject();
-    }
-    else
-    {
-        m_userProvidedSpecializationArgs[objectIndex]->clear();
-    }
-    SLANG_RETURN_ON_FAIL(
-        getExtendedShaderTypeListFromSpecializationArgs(*m_userProvidedSpecializationArgs[objectIndex], args, count)
-    );
-    return SLANG_OK;
-}
-
 const void* ShaderObject::getRawData()
 {
     return m_data.data();
@@ -560,106 +509,7 @@ Result ShaderObject::init(ShaderObjectLayout* layout, ShaderProgram* program)
     return SLANG_OK;
 }
 
-Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& args)
-{
-    if (m_layout->getContainerType() != ShaderObjectContainerType::None)
-    {
-        args.addRange(m_structuredBufferSpecializationArgs);
-        return SLANG_OK;
-    }
-
-    // The following logic is built on the assumption that all fields that involve
-    // existential types (and therefore require specialization) will results in a sub-object
-    // range in the type layout. This allows us to simply scan the sub-object ranges to find
-    // out all specialization arguments.
-    uint32_t subObjectRangeCount = m_layout->getSubObjectRangeCount();
-    for (uint32_t subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; subObjectRangeIndex++)
-    {
-        const auto& subObjectRange = m_layout->getSubObjectRange(subObjectRangeIndex);
-        const auto& bindingRange = m_layout->getBindingRange(subObjectRange.bindingRangeIndex);
-
-        uint32_t oldArgsCount = args.getCount();
-
-        uint32_t count = bindingRange.count;
-
-        for (uint32_t subObjectIndexInRange = 0; subObjectIndexInRange < count; subObjectIndexInRange++)
-        {
-            ExtendedShaderObjectTypeList typeArgs;
-            uint32_t objectIndex = bindingRange.subObjectIndex + subObjectIndexInRange;
-            auto subObject = m_objects[objectIndex];
-
-            if (!subObject)
-                continue;
-
-            if (objectIndex < m_userProvidedSpecializationArgs.size() && m_userProvidedSpecializationArgs[objectIndex])
-            {
-                args.addRange(*m_userProvidedSpecializationArgs[objectIndex]);
-                continue;
-            }
-
-            switch (bindingRange.bindingType)
-            {
-            case slang::BindingType::ExistentialValue:
-            {
-                // A binding type of `ExistentialValue` means the sub-object represents a
-                // interface-typed field. In this case the specialization argument for this
-                // field is the actual specialized type of the bound shader object. If the
-                // shader object's type is an ordinary type without existential fields, then
-                // the type argument will simply be the ordinary type. But if the sub
-                // object's type is itself a specialized type, we need to make sure to use
-                // that type as the specialization argument.
-
-                ExtendedShaderObjectType specializedSubObjType;
-                SLANG_RETURN_ON_FAIL(subObject->getSpecializedShaderObjectType(&specializedSubObjType));
-                typeArgs.add(specializedSubObjType);
-                break;
-            }
-            case slang::BindingType::ParameterBlock:
-            case slang::BindingType::ConstantBuffer:
-                // If the field's type is `ParameterBlock<IFoo>`, we want to pull in the type argument
-                // from the sub object for specialization.
-                if (bindingRange.isSpecializable)
-                {
-                    ExtendedShaderObjectType specializedSubObjType;
-                    SLANG_RETURN_ON_FAIL(subObject->getSpecializedShaderObjectType(&specializedSubObjType));
-                    typeArgs.add(specializedSubObjType);
-                }
-
-                // If field's type is `ParameterBlock<SomeStruct>` or `ConstantBuffer<SomeStruct>`, where
-                // `SomeStruct` is a struct type (not directly an interface type), we need to recursively
-                // collect the specialization arguments from the bound sub object.
-                SLANG_RETURN_ON_FAIL(subObject->collectSpecializationArgs(typeArgs));
-                break;
-            default:
-                break;
-            }
-
-            auto addedTypeArgCountForCurrentRange = args.getCount() - oldArgsCount;
-            if (addedTypeArgCountForCurrentRange == 0)
-            {
-                args.addRange(typeArgs);
-            }
-            else
-            {
-                // If type arguments for each elements in the array is different, use
-                // `__Dynamic` type for the differing argument to disable specialization.
-                SLANG_RHI_ASSERT(addedTypeArgCountForCurrentRange == typeArgs.getCount());
-                for (uint32_t i = 0; i < addedTypeArgCountForCurrentRange; i++)
-                {
-                    if (args[i + oldArgsCount].componentID != typeArgs[i].componentID)
-                    {
-                        auto dynamicType = m_device->m_slangContext.session->getDynamicType();
-                        args.componentIDs[i + oldArgsCount] = m_device->m_shaderCache.getComponentId(dynamicType);
-                        args.components[i + oldArgsCount] = slang::SpecializationArg::fromType(dynamicType);
-                    }
-                }
-            }
-        }
-    }
-    return SLANG_OK;
-}
-
-Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObjectLayout* specializedLayout)
+Result ShaderObject::writeOrdinaryData(void* destData, Size destSize)
 {
     SLANG_RHI_ASSERT(m_data.size() <= destSize);
     if (!m_data.empty())
@@ -667,11 +517,7 @@ Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObje
     return SLANG_OK;
 }
 
-Result ShaderObject::writeStructuredBuffer(
-    slang::TypeLayoutReflection* elementLayout,
-    ShaderObjectLayout* specializedLayout,
-    IBuffer** buffer
-)
+Result ShaderObject::writeStructuredBuffer(slang::TypeLayoutReflection* elementLayout, IBuffer** buffer)
 {
     BufferDesc bufferDesc = {};
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess;
@@ -695,83 +541,6 @@ void ShaderObject::trackResources(std::set<InternalRefPtr<RefObject>>& resources
     {
         if (object)
             object->trackResources(resources);
-    }
-}
-
-Result ShaderObject::getSpecializedShaderObjectType(ExtendedShaderObjectType* outType)
-{
-    if (m_shaderObjectType.slangType)
-        *outType = m_shaderObjectType;
-    ExtendedShaderObjectTypeList specializationArgs;
-    SLANG_RETURN_ON_FAIL(collectSpecializationArgs(specializationArgs));
-    if (specializationArgs.getCount() == 0)
-    {
-        m_shaderObjectType.componentID = m_layout->getComponentID();
-        m_shaderObjectType.slangType = m_layout->getElementTypeLayout()->getType();
-    }
-    else
-    {
-        m_shaderObjectType.slangType = m_device->m_slangContext.session->specializeType(
-            _getElementTypeLayout()->getType(),
-            specializationArgs.components.data(),
-            specializationArgs.getCount()
-        );
-        m_shaderObjectType.componentID = m_device->m_shaderCache.getComponentId(m_shaderObjectType.slangType);
-    }
-    *outType = m_shaderObjectType;
-    return SLANG_OK;
-}
-
-Result ShaderObject::getExtendedShaderTypeListFromSpecializationArgs(
-    ExtendedShaderObjectTypeList& list,
-    const slang::SpecializationArg* args,
-    uint32_t count
-)
-{
-    for (uint32_t i = 0; i < count; i++)
-    {
-        ExtendedShaderObjectType extendedType;
-        switch (args[i].kind)
-        {
-        case slang::SpecializationArg::Kind::Type:
-            extendedType.slangType = args[i].type;
-            extendedType.componentID = m_device->m_shaderCache.getComponentId(args[i].type);
-            break;
-        default:
-            SLANG_RHI_ASSERT_FAILURE("Unexpected specialization argument kind.");
-            return SLANG_FAIL;
-        }
-        list.add(extendedType);
-    }
-    return SLANG_OK;
-}
-
-void ShaderObject::setSpecializationArgsForContainerElement(ExtendedShaderObjectTypeList& specializationArgs)
-{
-    // Compute specialization args for the structured buffer object.
-    // If we haven't filled anything to `m_structuredBufferSpecializationArgs` yet,
-    // use `specializationArgs` directly.
-    if (m_structuredBufferSpecializationArgs.getCount() == 0)
-    {
-        m_structuredBufferSpecializationArgs = _Move(specializationArgs);
-    }
-    else
-    {
-        // If `m_structuredBufferSpecializationArgs` already contains some arguments, we
-        // need to check if they are the same as `specializationArgs`, and replace
-        // anything that is different with `__Dynamic` because we cannot specialize the
-        // buffer type if the element types are not the same.
-        SLANG_RHI_ASSERT(m_structuredBufferSpecializationArgs.getCount() == specializationArgs.getCount());
-        for (uint32_t i = 0; i < m_structuredBufferSpecializationArgs.getCount(); i++)
-        {
-            if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
-            {
-                auto dynamicType = m_device->m_slangContext.session->getDynamicType();
-                m_structuredBufferSpecializationArgs.componentIDs[i] =
-                    m_device->m_shaderCache.getComponentId(dynamicType);
-                m_structuredBufferSpecializationArgs.components[i] = slang::SpecializationArg::fromType(dynamicType);
-            }
-        }
     }
 }
 
@@ -854,86 +623,6 @@ Result RootShaderObject::init(ShaderProgram* program)
         RefPtr<ShaderObject> entryPoint;
         SLANG_RETURN_ON_FAIL(ShaderObject::create(m_device, entryPointLayout, entryPoint.writeRef(), program));
         m_entryPoints.push_back(entryPoint);
-    }
-    return SLANG_OK;
-}
-
-bool RootShaderObject::isSpecializable() const
-{
-    return m_shaderProgram->isSpecializable();
-}
-
-Result RootShaderObject::getSpecializedLayout(
-    const ExtendedShaderObjectTypeList& args,
-    ShaderObjectLayout*& outSpecializedLayout
-)
-{
-    outSpecializedLayout = m_shaderProgram->getRootShaderObjectLayout();
-    if (m_shaderProgram->isSpecializable() && args.getCount() > 0)
-    {
-        RefPtr<ShaderProgram> specializedProgram;
-        SLANG_RETURN_ON_FAIL(m_device->getSpecializedProgram(m_shaderProgram, args, specializedProgram.writeRef()));
-        outSpecializedLayout = specializedProgram->getRootShaderObjectLayout();
-    }
-    return SLANG_OK;
-}
-
-Result RootShaderObject::getSpecializedLayout(ShaderObjectLayout*& outSpecializedLayout)
-{
-    // Note: There is an important policy decision being made here that we need
-    // to approach carefully.
-    //
-    // We are doing two different things that affect the layout of a program:
-    //
-    // 1. We are *composing* one or more pieces of code (notably the shared global/module
-    //    stuff and the per-entry-point stuff).
-    //
-    // 2. We are *specializing* code that includes generic/existential parameters
-    //    to concrete types/values.
-    //
-    // We need to decide the relative *order* of these two steps, because of how it impacts
-    // layout. The layout for `specialize(compose(A,B), X, Y)` is potentially different
-    // form that of `compose(specialize(A,X), specialize(B,Y))`, even when both are
-    // semantically equivalent programs.
-    //
-    // Right now we are using the first option: we are first generating a full composition
-    // of all the code we plan to use (global scope plus all entry points), and then
-    // specializing it to the concatenated specialization arguments for all of that.
-    //
-    // In some cases, though, this model isn't appropriate. For example, when dealing with
-    // ray-tracing shaders and local root signatures, we really want the parameters of each
-    // entry point (actually, each entry-point *group*) to be allocated distinct storage,
-    // which really means we want to compute something like:
-    //
-    //      SpecializedGlobals = specialize(compose(ModuleA, ModuleB, ...), X, Y, ...)
-    //
-    //      SpecializedEP1 = compose(SpecializedGlobals, specialize(EntryPoint1, T, U, ...))
-    //      SpecializedEP2 = compose(SpecializedGlobals, specialize(EntryPoint2, A, B, ...))
-    //
-    // Note how in this case all entry points agree on the layout for the shared/common
-    // parameters, but their layouts are also independent of one another.
-    //
-    // Furthermore, in this example, loading another entry point into the system would not
-    // require re-computing the layouts (or generated kernel code) for any of the entry points
-    // that had already been loaded (in contrast to a compose-then-specialize approach).
-    //
-
-    outSpecializedLayout = m_shaderProgram->getRootShaderObjectLayout();
-    if (m_shaderProgram->isSpecializable())
-    {
-        ExtendedShaderObjectTypeList args;
-        SLANG_RETURN_ON_FAIL(collectSpecializationArgs(args));
-        SLANG_RETURN_ON_FAIL(getSpecializedLayout(args, outSpecializedLayout));
-    }
-    return SLANG_OK;
-}
-
-Result RootShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& args)
-{
-    SLANG_RETURN_ON_FAIL(ShaderObject::collectSpecializationArgs(args));
-    for (auto& entryPoint : m_entryPoints)
-    {
-        SLANG_RETURN_ON_FAIL(entryPoint->collectSpecializationArgs(args));
     }
     return SLANG_OK;
 }

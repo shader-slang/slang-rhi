@@ -5,7 +5,6 @@
 #include "slang-context.h"
 
 #include "core/common.h"
-#include "core/short_vector.h"
 
 #include "staging-heap.h"
 
@@ -15,7 +14,6 @@
 #include <atomic>
 #include <map>
 #include <mutex>
-#include <unordered_map>
 
 namespace rhi {
 
@@ -53,92 +51,6 @@ public:
     bool m_isDefault = false;
 };
 
-struct ComponentKey
-{
-    std::string typeName;
-    short_vector<ShaderComponentID> specializationArgs;
-    size_t hash;
-    void updateHash()
-    {
-        hash = std::hash<std::string_view>()(typeName);
-        for (auto& arg : specializationArgs)
-            hash_combine(hash, arg);
-    }
-    template<typename KeyType>
-    bool operator==(const KeyType& other) const
-    {
-        if (typeName != other.typeName)
-            return false;
-        if (specializationArgs.size() != other.specializationArgs.size())
-            return false;
-        for (size_t i = 0; i < other.specializationArgs.size(); i++)
-        {
-            if (specializationArgs[i] != other.specializationArgs[i])
-                return false;
-        }
-        return true;
-    }
-};
-
-struct PipelineKey
-{
-    // Cache entries can outlive their source pipeline. A recycled address must
-    // not identify a new pipeline as an old one with the same specialization.
-    uint64_t pipelineId = 0;
-    short_vector<ShaderComponentID> specializationArgs;
-    size_t hash = 0;
-    PipelineKey() = default;
-    explicit PipelineKey(Pipeline* pipeline);
-    void updateHash()
-    {
-        hash = std::hash<uint64_t>()(pipelineId);
-        for (auto& arg : specializationArgs)
-            hash_combine(hash, arg);
-    }
-    bool operator==(const PipelineKey& other) const
-    {
-        if (pipelineId != other.pipelineId)
-            return false;
-        if (specializationArgs.size() != other.specializationArgs.size())
-            return false;
-        for (size_t i = 0; i < other.specializationArgs.size(); i++)
-        {
-            if (specializationArgs[i] != other.specializationArgs[i])
-                return false;
-        }
-        return true;
-    }
-};
-
-// A cache from specialization keys to a specialized `ShaderKernel`.
-class ShaderCache : public RefObject
-{
-public:
-    ShaderComponentID getComponentId(slang::TypeReflection* type);
-    ShaderComponentID getComponentId(std::string_view name);
-    ShaderComponentID getComponentId(ComponentKey key);
-
-    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey);
-
-    void addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline);
-
-    void free();
-
-protected:
-    struct ComponentKeyHasher
-    {
-        std::size_t operator()(const ComponentKey& k) const { return k.hash; }
-    };
-    struct PipelineKeyHasher
-    {
-        std::size_t operator()(const PipelineKey& k) const { return k.hash; }
-    };
-
-    std::mutex m_mutex;
-    std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, InternalRefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
-};
-
 class NullDebugCallback : public IDebugCallback
 {
 public:
@@ -167,7 +79,7 @@ struct LiveDeviceTracker
 };
 
 // Device implementation shared by all platforms.
-// Responsible for shader compilation, specialization and caching.
+// Responsible for shader compilation and caching.
 class Device : public IDevice, public ComObject
 {
 public:
@@ -443,23 +355,7 @@ public:
     Result createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject);
     Result createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject);
 
-    Result getSpecializedProgram(
-        ShaderProgram* program,
-        const ExtendedShaderObjectTypeList& specializationArgs,
-        ShaderProgram** outSpecializedProgram
-    );
-
-    Result specializeProgram(
-        ShaderProgram* program,
-        const ExtendedShaderObjectTypeList& specializationArgs,
-        ShaderProgram** outSpecializedProgram
-    );
-
-    Result getConcretePipeline(
-        Pipeline* pipeline,
-        ExtendedShaderObjectTypeList* specializationArgs,
-        Pipeline*& outPipeline
-    );
+    Result getConcretePipeline(Pipeline* pipeline, Pipeline*& outPipeline);
 
     Result createConcretePipeline(Pipeline* pipeline, ShaderProgram* program, RefPtr<Pipeline>& outPipeline);
 
@@ -512,7 +408,6 @@ public:
     DeviceInfo m_info;
 
     SlangContext m_slangContext;
-    ShaderCache m_shaderCache;
 
     std::atomic<uint64_t> m_nextShaderProgramID = 0;
     RefPtr<ShaderCompilationReporter> m_shaderCompilationReporter;
@@ -654,6 +549,5 @@ Result selectAdapter(Device* device, std::span<const T> adapters, const DeviceDe
     }
     return SLANG_OK;
 }
-
 
 } // namespace rhi

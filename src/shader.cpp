@@ -7,15 +7,6 @@
 namespace rhi {
 
 // ----------------------------------------------------------------------------
-// SpecializationKey
-// ----------------------------------------------------------------------------
-
-SpecializationKey::SpecializationKey(const ExtendedShaderObjectTypeList& args)
-    : componentIDs(args.componentIDs)
-{
-}
-
-// ----------------------------------------------------------------------------
 // ShaderProgram
 // ----------------------------------------------------------------------------
 
@@ -108,7 +99,23 @@ Result ShaderProgram::init()
         linkedProgram = m_desc.slangGlobalScope;
     }
 
-    m_isSpecializable = _isSpecializable();
+    // RHI accepts fully specialized programs. Resolve interface/generic parameters
+    // through Slang before creating the program, or use dynamic dispatch.
+    auto validateComponent = [&](slang::IComponentType* component) -> Result
+    {
+        if (component && component->getSpecializationParamCount() != 0)
+        {
+            m_device->printError(
+                "Automatic shader specialization is not supported. Specialize the Slang component "
+                "before creating the shader program, or use dynamic dispatch."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+        return SLANG_OK;
+    };
+    SLANG_RETURN_ON_FAIL(validateComponent(linkedProgram));
+    for (auto& entryPoint : linkedEntryPoints)
+        SLANG_RETURN_ON_FAIL(validateComponent(entryPoint));
 
     return SLANG_OK;
 }

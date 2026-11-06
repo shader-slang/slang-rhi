@@ -96,7 +96,7 @@ Result BindingDataBuilder::writeObjectData(
     objectData.size = size;
     uint8_t* dst = (uint8_t*)objectData.data;
 
-    shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout);
+    shaderObject->writeOrdinaryData(dst, objectData.size);
 
     // Bindings are currently written in shaderObjectSetBinding() because
     // the layout does currently only provide uniformOffset but no uniformStride.

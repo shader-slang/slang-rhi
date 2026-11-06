@@ -12,45 +12,6 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-TEST_CASE("shader-cache-pipeline-address-reuse")
-{
-    ShaderCache cache;
-    ComputePipelineDesc desc = {};
-    // These pipelines only exercise cache identity. Their constructors do not
-    // dereference the device, so no device is needed for this test.
-    std::optional<VirtualComputePipeline> source;
-    source.emplace(nullptr, desc);
-    Pipeline* address = &*source;
-
-    PipelineKey firstKey(&*source);
-    firstKey.specializationArgs.push_back(1);
-    firstKey.updateHash();
-    RefPtr<Pipeline> firstResult = new VirtualComputePipeline(nullptr, desc);
-    cache.addSpecializedPipeline(firstKey, firstResult);
-    CHECK_EQ(cache.getSpecializedPipeline(firstKey).get(), firstResult.get());
-
-    // Reconstruct in the same storage to force allocator address reuse. A new
-    // source pipeline must not inherit the previous lifetime's specialization,
-    // even when the address and specialization arguments are identical.
-    source.reset();
-    source.emplace(nullptr, desc);
-    REQUIRE_EQ(static_cast<Pipeline*>(&*source), address);
-    PipelineKey secondKey(&*source);
-    secondKey.specializationArgs.push_back(1);
-    secondKey.updateHash();
-    CHECK_FALSE(cache.getSpecializedPipeline(secondKey));
-
-    RefPtr<Pipeline> secondResult = new VirtualComputePipeline(nullptr, desc);
-    cache.addSpecializedPipeline(secondKey, secondResult);
-    CHECK_EQ(cache.getSpecializedPipeline(secondKey).get(), secondResult.get());
-    CHECK_EQ(cache.getSpecializedPipeline(firstKey).get(), firstResult.get());
-
-    PipelineKey otherArguments(&*source);
-    otherArguments.specializationArgs.push_back(2);
-    otherArguments.updateHash();
-    CHECK_FALSE(cache.getSpecializedPipeline(otherArguments));
-}
-
 class VirtualShaderCache : public IPersistentCache
 {
 public:
@@ -574,14 +535,15 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 {
     slang::ProgramLayout* slangReflection = nullptr;
 
-    void createComputePipeline()
+    void createComputePipeline(const char* transformerTypeName)
     {
         ComPtr<IShaderProgram> shaderProgram;
 
-        REQUIRE_CALL(loadAndLinkProgram(
+        REQUIRE_CALL(loadAndSpecializeProgram(
             device,
             "test-shader-cache-specialization",
             "computeMain",
+            transformerTypeName,
             shaderProgram.writeRef(),
             &slangReflection
         ));
@@ -623,7 +585,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
     void runComputePipeline(const char* transformerTypeName, const std::vector<float>& expectedOutput)
     {
         createComputeResources();
-        createComputePipeline();
+        createComputePipeline(transformerTypeName);
         dispatchComputePipeline(transformerTypeName);
         CHECK(checkOutput(expectedOutput));
         freeComputeResources();

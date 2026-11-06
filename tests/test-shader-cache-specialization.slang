@@ -13,14 +13,9 @@
 // This functions are implemented as types that conforms to the
 // `ITransformer` interface.
 
-// The main entry point function takes a parameter of `ITransformer`
-// type, and applies the transformation to numbers in the input
-// buffer. By defining the shader parameter using interfaces,
-// we enable the flexiblity to generate either specialized compute
-// kernels that performs specific transformation or a general
-// kernel that can perform any transformations encoded by the
-// parameter at run-time, without changing any shader code or
-// host-application logic for setting and preparing shader parameters.
+// The entry point takes an interface parameter. The host explicitly specializes
+// the Slang program for a concrete transformer type before creating the RHI
+// program, then binds the transformer's ordinary runtime parameters.
 
 // Defines the transformer interface, which implements a single
 // `transform` operation.

@@ -79,7 +79,6 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.uniformOffset = uniformOffset;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
-        bindingRangeInfo.isSpecializable = m_elementTypeLayout->isBindingRangeSpecializable(r);
         m_bindingRanges.push_back(bindingRangeInfo);
     }
 
@@ -211,7 +210,6 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(SyntheticResourceBindi
         bindingRangeInfo.slotIndex = m_slotCount;
         bindingRangeInfo.uniformOffset = static_cast<uint32_t>(uniformOffset);
         bindingRangeInfo.subObjectIndex = 0;
-        bindingRangeInfo.isSpecializable = false;
 
         uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
         m_bindingRanges.push_back(bindingRangeInfo);

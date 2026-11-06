@@ -2304,13 +2304,9 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_constantBufferArena = &m_commandBuffer->m_constantBufferArena;
     builder.m_cbvSrvUavArena = &m_commandBuffer->m_cbvSrvUavArena;
     builder.m_samplerArena = &m_commandBuffer->m_samplerArena;
-    ShaderObjectLayout* specializedLayout = nullptr;
-    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
-    return builder.bindAsRoot(
-        rootObject,
-        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
-        (BindingDataImpl*&)outBindingData
-    );
+    ShaderObjectLayout* layout = rootObject->m_layout;
+    return builder
+        .bindAsRoot(rootObject, checked_cast<RootShaderObjectLayoutImpl*>(layout), (BindingDataImpl*&)outBindingData);
 }
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)

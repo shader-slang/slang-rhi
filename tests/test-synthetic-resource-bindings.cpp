@@ -52,7 +52,8 @@ static Result createComputeProgramWithSyntheticResources(
     const SyntheticResourceBindingDesc* syntheticResourceDescs,
     uint32_t syntheticResourceCount,
     IShaderProgram** outProgram,
-    bool forceSyntheticResourcesDesc = false
+    bool forceSyntheticResourcesDesc = false,
+    const char* specializationTypeName = nullptr
 )
 {
     auto slangSession = device->getSlangSession();
@@ -82,6 +83,20 @@ static Result createComputeProgramWithSyntheticResources(
         diagnosticsBlob.writeRef()
     ));
     diagnoseIfNeeded(diagnosticsBlob);
+
+    if (specializationTypeName)
+    {
+        auto type = linkedProgram->getLayout()->findTypeByName(specializationTypeName);
+        if (!type)
+            return SLANG_E_INVALID_ARG;
+        auto arg = slang::SpecializationArg::fromType(type);
+        ComPtr<slang::IComponentType> specializedProgram;
+        SLANG_RETURN_ON_FAIL(
+            linkedProgram->specialize(&arg, 1, specializedProgram.writeRef(), diagnosticsBlob.writeRef())
+        );
+        diagnoseIfNeeded(diagnosticsBlob);
+        linkedProgram = specializedProgram;
+    }
 
     ShaderProgramSyntheticResourcesDesc syntheticResourcesDesc = {};
     syntheticResourcesDesc.resources = syntheticResourceDescs;
@@ -360,9 +375,16 @@ GPU_TEST_CASE_EX("synthetic-resource-bindings-layout-composition", Vulkan, Debug
     resource.access = SyntheticResourceAccess::ReadWrite;
 
     ComPtr<IShaderProgram> programs[3];
-    REQUIRE_CALL(createComputeProgram(device, source, programs[0].writeRef()));
-    REQUIRE_CALL(createComputeProgramWithEmptySyntheticResourceDesc(device, source, programs[1].writeRef()));
-    REQUIRE_CALL(createComputeProgramWithSyntheticResource(device, source, resource, programs[2].writeRef()));
+    for (uint32_t i = 0; i < 3; ++i)
+        REQUIRE_CALL(createComputeProgramWithSyntheticResources(
+            device,
+            source,
+            i == 2 ? &resource : nullptr,
+            i == 2 ? 1 : 0,
+            programs[i].writeRef(),
+            i == 1,
+            specialize ? "Transform" : nullptr
+        ));
     vk::RootShaderObjectLayoutImpl* layouts[3];
     for (uint32_t i = 0; i < 3; ++i)
         layouts[i] = static_cast<vk::ShaderProgramImpl*>(programs[i].get())->m_rootShaderObjectLayout;

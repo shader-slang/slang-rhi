@@ -108,6 +108,13 @@
 
 ## `IShaderObject` interface
 
+Shader-object bindings do not trigger shader or pipeline specialization. Components passed to
+`createShaderProgram` must have no unresolved specialization parameters; otherwise creation returns
+`SLANG_E_INVALID_ARG`. Applications can resolve concrete types through Slang before creating the RHI
+program, use link-time specialization, or prepare a program for dynamic dispatch. This applies to
+entrypoint parameters, globals, and nested interface fields. Deferred pipeline compilation and native
+specialization constants remain supported.
+
 | API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
 | `getElementTypeLayout`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
@@ -120,7 +127,6 @@
 | `setBinding`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setDescriptorHandle`       | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `reserveData`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `setSpecializationArgs`     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getRawData`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getSize`                   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `setConstantBufferOverride` | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |

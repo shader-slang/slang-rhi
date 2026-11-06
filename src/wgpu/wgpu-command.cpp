@@ -1287,17 +1287,6 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     RefPtr<ShaderProgram> program = rootObject->m_shaderProgram;
-    if (program->isSpecializable())
-    {
-        ExtendedShaderObjectTypeList args;
-        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(args));
-        if (args.getCount() > 0)
-        {
-            RefPtr<ShaderProgram> specializedProgram;
-            SLANG_RETURN_ON_FAIL(device->getSpecializedProgram(program, args, specializedProgram.writeRef()));
-            program = specializedProgram;
-        }
-    }
     // TODO: Binding creation needs compiled resource-usage metadata, so deferred
     // shaders are currently compiled synchronously during draw/dispatch recording.
     // To let the pipeline resolver batch compilation at finish(), capture parameter

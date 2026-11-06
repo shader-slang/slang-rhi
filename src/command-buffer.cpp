@@ -28,9 +28,7 @@ Result RenderPassEncoder::writeRenderState()
     commands::SetRenderState cmd;
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
-    SLANG_RETURN_ON_FAIL(
-        m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
-    );
+    SLANG_RETURN_ON_FAIL(m_commandEncoder->prepareBindings(m_rootObject, cmd.bindingData));
     m_commandList->write(std::move(cmd));
     return SLANG_OK;
 }
@@ -213,9 +211,7 @@ Result ComputePassEncoder::writeComputeState()
 {
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
-    SLANG_RETURN_ON_FAIL(
-        m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
-    );
+    SLANG_RETURN_ON_FAIL(m_commandEncoder->prepareBindings(m_rootObject, cmd.bindingData));
     m_commandList->write(std::move(cmd));
     return SLANG_OK;
 }
@@ -341,9 +337,7 @@ Result RayTracingPassEncoder::writeRayTracingState()
     commands::SetRayTracingState cmd;
     cmd.pipeline = m_pipeline;
     cmd.shaderTable = m_shaderTable;
-    SLANG_RETURN_ON_FAIL(
-        m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
-    );
+    SLANG_RETURN_ON_FAIL(m_commandEncoder->prepareBindings(m_rootObject, cmd.bindingData));
 
     m_commandList->write(std::move(cmd));
     return SLANG_OK;
@@ -941,55 +935,19 @@ void CommandEncoder::executeCallback(const ExecuteCallbackDesc& desc)
 
 Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
-    // iterate over commands and specialize pipelines
+    // Backends resolve deferred pipelines when finishing their command buffers.
     return SLANG_FAIL;
 }
 
-Result CommandEncoder::prepareBindings(
-    IPipeline* pipeline,
-    RootShaderObject* rootObject,
-    ExtendedShaderObjectTypeListObject*& outSpecializationArgs,
-    BindingData*& outBindingData
-)
+Result CommandEncoder::prepareBindings(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     SLANG_RETURN_ON_FAIL(m_recordingResult);
-    m_recordingResult = getPipelineSpecializationArgs(pipeline, rootObject, outSpecializationArgs);
-    if (SLANG_FAILED(m_recordingResult))
-    {
-        m_device->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "Failed to get pipeline specialization arguments"
-        );
-        return m_recordingResult;
-    }
     m_recordingResult = getBindingData(rootObject, outBindingData);
     if (SLANG_FAILED(m_recordingResult))
     {
         m_device->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
     }
     return m_recordingResult;
-}
-
-Result CommandEncoder::getPipelineSpecializationArgs(
-    IPipeline* pipeline,
-    IShaderObject* object,
-    ExtendedShaderObjectTypeListObject*& outSpecializationArgs
-)
-{
-    if (checked_cast<ShaderProgram*>(pipeline->getProgram())->isSpecializable())
-    {
-        RootShaderObject* rootObject = checked_cast<RootShaderObject*>(object);
-        RefPtr<ExtendedShaderObjectTypeListObject> specializationArgs = new ExtendedShaderObjectTypeListObject();
-        SLANG_RETURN_ON_FAIL(rootObject->collectSpecializationArgs(*specializationArgs));
-        m_pipelineSpecializationArgs.push_back(specializationArgs);
-        outSpecializationArgs = specializationArgs.get();
-    }
-    else
-    {
-        outSpecializationArgs = nullptr;
-    }
-    return SLANG_OK;
 }
 
 Result CommandEncoder::resolvePipelines(Device* device)

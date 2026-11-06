@@ -2,19 +2,11 @@
 
 #include "rhi-shared.h"
 
-#include <atomic>
-
 namespace rhi {
-
-namespace {
-std::atomic<uint64_t> s_nextPipelineCacheId{1};
-}
 
 Pipeline::Pipeline(Device* device)
     : DeviceChild(device)
-    , m_specializationCacheId(s_nextPipelineCacheId.fetch_add(1, std::memory_order_relaxed))
 {
-    SLANG_RHI_ASSERT(m_specializationCacheId != 0);
 }
 
 // ----------------------------------------------------------------------------
@@ -106,7 +98,7 @@ RayTracingPipeline::RayTracingPipeline(Device* device, const RayTracingPipelineD
     : Pipeline(device)
     , m_desc(desc)
 {
-    // A deferred or specializable pipeline may compile after the caller's descriptor chain
+    // A deferred pipeline may compile after the caller's descriptor chain
     // has gone out of scope. Own the recognized extension just like the hit groups below.
     // Unrecognized extensions are ignored; never retain a borrowed tail in the owned copy.
     auto optixDesc = findStructInChain<OptixRayTracingPipelineDesc>(desc.next);

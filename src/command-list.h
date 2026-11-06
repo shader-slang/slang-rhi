@@ -59,7 +59,6 @@
 namespace rhi {
 
 struct BindingData;
-class ExtendedShaderObjectTypeListObject;
 
 #define SLANG_RHI_COMMAND_ENUM_X(x) x,
 
@@ -170,7 +169,6 @@ struct SetRenderState
 {
     RenderState state;
     IRenderPipeline* pipeline;
-    ExtendedShaderObjectTypeListObject* specializationArgs;
     BindingData* bindingData;
 };
 
@@ -214,7 +212,6 @@ struct EndComputePass
 struct SetComputeState
 {
     IComputePipeline* pipeline;
-    ExtendedShaderObjectTypeListObject* specializationArgs;
     BindingData* bindingData;
 };
 
@@ -239,7 +236,6 @@ struct EndRayTracingPass
 struct SetRayTracingState
 {
     IRayTracingPipeline* pipeline;
-    ExtendedShaderObjectTypeListObject* specializationArgs;
     IShaderTable* shaderTable;
     BindingData* bindingData;
 };
@@ -398,9 +394,8 @@ struct ExecuteCallbackObjectRetainer
 ///
 /// There are multiple reasons for encoding commands into a host side command list:
 /// - Allow to encode commands in parallel, even if backend doesn't support multi-threading.
-/// - Allow parallel compilation of specialized programs and pipeline creation.
-/// - Allow use of unspecialized programs during command encoding, for which pipelines
-///   are not yet created.
+/// - Allow parallel shader compilation and pipeline creation.
+/// - Allow command encoding with deferred pipelines that have not yet been compiled.
 ///
 /// Commands are written into consecutive memory pages and put into a linked list.
 /// All resources referenced by the commands are retained until the command list is reset.

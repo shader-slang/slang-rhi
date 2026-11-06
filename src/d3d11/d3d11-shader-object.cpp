@@ -273,7 +273,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
 
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size));
 
     SLANG_RHI_ASSERT(ioOffset.cbv < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
     m_bindingData->cbvsBuffer[ioOffset.cbv] = allocation.buffer->m_buffer;

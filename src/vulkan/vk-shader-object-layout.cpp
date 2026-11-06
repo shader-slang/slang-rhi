@@ -399,7 +399,6 @@ Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflec
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
-        bindingRangeInfo.isSpecializable = typeLayout->isBindingRangeSpecializable(r);
         // We'd like to extract the information on the GLSL/SPIR-V
         // `binding` that this range should bind into (or whatever
         // other specific kind of offset/index is appropriate to it).
@@ -748,22 +747,6 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
     m_entryPoints = _Move(builder->m_entryPoints);
     m_device = device;
 
-    // If the program has unbound specialization parameters,
-    // then we will avoid creating a final Vulkan pipeline layout.
-    //
-    // TODO: We should really create the information necessary
-    // for binding as part of a separate object, so that we have
-    // a clean seperation between what is needed for writing into
-    // a shader object vs. what is needed for binding it to the
-    // pipeline. We eventually need to be able to create bindable
-    // state objects from unspecialized programs, in order to
-    // support dynamic dispatch.
-    //
-    if (m_program->getSpecializationParamCount() != 0)
-        return SLANG_OK;
-
-    // Otherwise, we need to create a final (bindable) layout.
-    //
     // We will use a recursive walk to collect all the `VkDescriptorSetLayout`s
     // that are required for the global scope, sub-objects, and entry points.
     //
@@ -937,20 +920,17 @@ Result RootShaderObjectLayoutImpl::addChildPushConstantRangesRec(ShaderObjectLay
 
 Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** outLayout)
 {
-    if (m_program->getSpecializationParamCount() == 0)
+    size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
+    if (m_device->m_bindlessDescriptorSet)
+        totalDescriptorSetCount++;
+    if (totalDescriptorSetCount > kMaxDescriptorSets)
     {
-        size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
-        if (m_device->m_bindlessDescriptorSet)
-            totalDescriptorSetCount++;
-        if (totalDescriptorSetCount > kMaxDescriptorSets)
-        {
-            m_device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Layer,
-                "Descriptor set count exceeds Vulkan layout limit"
-            );
-            return SLANG_E_INVALID_ARG;
-        }
+        m_device->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Descriptor set count exceeds Vulkan layout limit"
+        );
+        return SLANG_E_INVALID_ARG;
     }
 
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();

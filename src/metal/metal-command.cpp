@@ -1434,13 +1434,9 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
-    ShaderObjectLayout* specializedLayout = nullptr;
-    SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
-    return builder.bindAsRoot(
-        rootObject,
-        checked_cast<RootShaderObjectLayoutImpl*>(specializedLayout),
-        (BindingDataImpl*&)outBindingData
-    );
+    ShaderObjectLayout* layout = rootObject->m_layout;
+    return builder
+        .bindAsRoot(rootObject, checked_cast<RootShaderObjectLayoutImpl*>(layout), (BindingDataImpl*&)outBindingData);
 }
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)

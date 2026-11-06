@@ -7,9 +7,14 @@ GPU_TEST_CASE("compute-smoke", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-compute-smoke", "computeMain", shaderProgram.writeRef(), &slangReflection)
-    );
+    REQUIRE_CALL(loadAndSpecializeProgram(
+        device,
+        "test-compute-smoke",
+        "computeMain",
+        "AddTransformer",
+        shaderProgram.writeRef(),
+        &slangReflection
+    ));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -65,4 +70,97 @@ GPU_TEST_CASE("compute-smoke", ALL)
     }
 
     compareComputeResult(device, buffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
+}
+
+GPU_TEST_CASE("automatic-specialization-is-rejected", ALL)
+{
+    struct Callback : IDebugCallback
+    {
+        std::string errors;
+        void SLANG_MCALL handleMessage(DebugMessageType type, DebugMessageSource, const char* message) override
+        {
+            if (type == DebugMessageType::Error)
+                errors += message;
+        }
+    } callback;
+    DeviceExtraOptions extraOptions;
+    extraOptions.debugCallback = &callback;
+    auto testDevice = createTestingDevice(ctx, device->getDeviceType(), false, &extraOptions);
+    REQUIRE(testDevice);
+
+    std::string parameters;
+    std::string globals;
+    std::string expression;
+    SUBCASE("entrypoint interface")
+    {
+        parameters = "uniform ITransform transform";
+        expression = "transform.apply(1)";
+    }
+    SUBCASE("global interface")
+    {
+        globals = "ITransform transform;";
+        expression = "transform.apply(1)";
+    }
+    SUBCASE("nested interface in parameter block")
+    {
+        globals = "struct Params { ITransform transform; }; ParameterBlock<Params> params;";
+        expression = "params.transform.apply(1)";
+    }
+    std::string source =
+        "interface ITransform { uint apply(uint x); };"
+        "struct Transform : ITransform { uint apply(uint x) { return x + 1; } };" +
+        globals +
+        " RWStructuredBuffer<uint> output;"
+        "[shader(\"compute\")][numthreads(1,1,1)] void computeMain(" +
+        parameters + ") { output[0] = " + expression + "; }";
+    auto session = testDevice->getSlangSession();
+    ComPtr<slang::IBlob> diagnostics;
+    auto module = session->loadModuleFromSourceString(
+        "automatic_specialization",
+        "automatic_specialization.slang",
+        source.c_str(),
+        diagnostics.writeRef()
+    );
+    diagnoseIfNeeded(diagnostics);
+    REQUIRE(module);
+    ComPtr<slang::IEntryPoint> entryPoint;
+    REQUIRE_CALL(module->findEntryPointByName("computeMain", entryPoint.writeRef()));
+    slang::IComponentType* components[] = {module, entryPoint};
+    ComPtr<slang::IComponentType> composite;
+    REQUIRE_CALL(session->createCompositeComponentType(components, 2, composite.writeRef()));
+    REQUIRE(composite->getSpecializationParamCount() > 0);
+
+    for (uint32_t mode = 0; mode < 3; ++mode)
+    {
+        CAPTURE(mode);
+        ShaderProgramDesc desc = {};
+        slang::IComponentType* entryPoints[] = {entryPoint};
+        if (mode == 0)
+            desc.slangGlobalScope = composite;
+        else
+        {
+            desc.slangGlobalScope = module;
+            desc.slangEntryPoints = entryPoints;
+            desc.slangEntryPointCount = 1;
+            if (mode == 2)
+                desc.linkingStyle = LinkingStyle::SeparateEntryPointCompilation;
+        }
+        callback.errors.clear();
+        ComPtr<IShaderProgram> program;
+        CHECK_EQ(testDevice->createShaderProgram(desc, program.writeRef()), SLANG_E_INVALID_ARG);
+        CHECK_FALSE(program);
+        CHECK(callback.errors.find("Automatic shader specialization is not supported") != std::string::npos);
+    }
+
+    // The same program is accepted when the application resolves the type through Slang first.
+    auto type = composite->getLayout()->findTypeByName("Transform");
+    REQUIRE(type);
+    auto arg = slang::SpecializationArg::fromType(type);
+    ComPtr<slang::IComponentType> specialized;
+    REQUIRE_CALL(composite->specialize(&arg, 1, specialized.writeRef()));
+    CHECK_EQ(specialized->getSpecializationParamCount(), 0);
+    ShaderProgramDesc desc = {};
+    desc.slangGlobalScope = specialized;
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(testDevice->createShaderProgram(desc, program.writeRef()));
 }

@@ -644,7 +644,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
 
     TransientBufferArena::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(alignedSize, &allocation));
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size));
 
     // We also create and store a descriptor for our root constant buffer
     // into the descriptor table allocation that was reserved for them.

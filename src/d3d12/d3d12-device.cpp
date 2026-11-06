@@ -2478,8 +2478,6 @@ DeviceImpl::~DeviceImpl()
     {
         m_queue->waitAndReleaseCommandBuffers();
     }
-
-    m_shaderCache.free();
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
 
     m_uploadHeap.release();

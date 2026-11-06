@@ -135,7 +135,6 @@ Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
     bindingRangeInfo.count = resource.arraySize;
     bindingRangeInfo.slotIndex = slotIndex;
     bindingRangeInfo.subObjectIndex = 0;
-    bindingRangeInfo.isSpecializable = false;
     bindingRangeInfo.bindingOffset = (uint32_t)resource.binding;
     bindingRangeInfo.setOffset = (uint32_t)resource.space;
 

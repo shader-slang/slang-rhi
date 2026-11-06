@@ -167,25 +167,6 @@ Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const 
     return baseObject->setDescriptorHandle(offset, handle);
 }
 
-Result DebugShaderObject::setSpecializationArgs(
-    const ShaderOffset& offset,
-    const slang::SpecializationArg* args,
-    uint32_t count
-)
-{
-    SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
-
-    SLANG_RETURN_ON_FAIL(checkNotFinalized());
-
-    if (count > 0 && !args)
-    {
-        RHI_VALIDATION_ERROR("'args' must not be null when 'count' > 0.");
-        return SLANG_E_INVALID_ARG;
-    }
-
-    return baseObject->setSpecializationArgs(offset, args, count);
-}
-
 const void* DebugShaderObject::getRawData()
 {
     SLANG_RHI_DEBUG_API(IShaderObject, getRawData);
@@ -262,25 +243,6 @@ Result DebugShaderObject::checkNotFinalized()
 // ----------------------------------------------------------------------------
 // DebugRootShaderObject
 // ----------------------------------------------------------------------------
-
-Result DebugRootShaderObject::setSpecializationArgs(
-    const ShaderOffset& offset,
-    const slang::SpecializationArg* args,
-    uint32_t count
-)
-{
-    SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
-
-    SLANG_RETURN_ON_FAIL(checkNotFinalized());
-
-    if (count > 0 && !args)
-    {
-        RHI_VALIDATION_ERROR("'args' must not be null when 'count' > 0.");
-        return SLANG_E_INVALID_ARG;
-    }
-
-    return baseObject->setSpecializationArgs(offset, args, count);
-}
 
 void DebugRootShaderObject::reset()
 {

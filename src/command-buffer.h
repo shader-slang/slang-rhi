@@ -207,10 +207,6 @@ public:
     ComputePassEncoder m_computePassEncoder;
     RayTracingPassEncoder m_rayTracingPassEncoder;
 
-    // List of persisted pipeline specialization data.
-    // This is populated during command encoding and later used when asynchronously resolving pipelines.
-    std::vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_pipelineSpecializationArgs;
-
     CommandEncoder(Device* device, const CommandEncoderDesc& desc)
         : DeviceChild(device)
         , m_desc(desc)
@@ -223,18 +219,8 @@ public:
 
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) = 0;
 
-    Result prepareBindings(
-        IPipeline* pipeline,
-        RootShaderObject* rootObject,
-        ExtendedShaderObjectTypeListObject*& outSpecializationArgs,
-        BindingData*& outBindingData
-    );
+    Result prepareBindings(RootShaderObject* rootObject, BindingData*& outBindingData);
 
-    Result getPipelineSpecializationArgs(
-        IPipeline* pipeline,
-        IShaderObject* object,
-        ExtendedShaderObjectTypeListObject*& outSpecializationArgs
-    );
     Result resolvePipelines(Device* device);
 
     // ICommandEncoder implementation
@@ -285,7 +271,6 @@ public:
         Size srcRowPitch,
         Extent3D extent
     ) override;
-
 
     virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
         ITexture* dst,

@@ -427,14 +427,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
     auto bufferImpl = checked_cast<BufferImpl*>(buffer.get());
 
-    // Once the buffer is allocated, we can use `_writeOrdinaryData` to fill it in.
-    //
-    // Note that `_writeOrdinaryData` is potentially recursive in the case
-    // where this object contains interface/existential-type fields, so we
-    // don't need or want to inline it into this call site.
-    //
     void* ordinaryData = bufferImpl->m_buffer->contents();
-    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(ordinaryData, size, specializedLayout));
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(ordinaryData, size));
 
     // If we did indeed need/create a buffer, then we must bind it
     // into root binding state.

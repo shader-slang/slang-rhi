@@ -173,6 +173,16 @@ Result loadAndLinkProgram(
     slang::ProgramLayout** outSlangReflection = nullptr
 );
 
+/// Explicitly specialize through Slang before passing the program to RHI.
+Result loadAndSpecializeProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    const char* specializationTypeName,
+    IShaderProgram** outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
+);
+
 Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IShaderProgram** outShaderProgram);
 
 Result loadRenderProgramFromSource(

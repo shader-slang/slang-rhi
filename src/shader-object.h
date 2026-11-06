@@ -38,48 +38,6 @@ struct ResourceSlot
     explicit operator bool() const { return type != BindingType::Undefined && resource; }
 };
 
-const ShaderComponentID kInvalidComponentID = 0xFFFFFFFF;
-
-struct ExtendedShaderObjectType
-{
-    slang::TypeReflection* slangType;
-    ShaderComponentID componentID;
-};
-
-struct ExtendedShaderObjectTypeList
-{
-    short_vector<ShaderComponentID, 16> componentIDs;
-    short_vector<slang::SpecializationArg, 16> components;
-    void add(const ExtendedShaderObjectType& component)
-    {
-        componentIDs.push_back(component.componentID);
-        components.push_back(slang::SpecializationArg{slang::SpecializationArg::Kind::Type, {component.slangType}});
-    }
-    void addRange(const ExtendedShaderObjectTypeList& list)
-    {
-        for (uint32_t i = 0; i < list.getCount(); i++)
-        {
-            add(list[i]);
-        }
-    }
-    ExtendedShaderObjectType operator[](uint32_t index) const
-    {
-        ExtendedShaderObjectType result;
-        result.componentID = componentIDs[index];
-        result.slangType = components[index].type;
-        return result;
-    }
-    void clear()
-    {
-        componentIDs.clear();
-        components.clear();
-    }
-    uint32_t getCount() const { return componentIDs.size(); }
-};
-
-class ExtendedShaderObjectTypeListObject : public ExtendedShaderObjectTypeList, public RefObject
-{};
-
 class ShaderObjectLayout : public RefObject
 {
 public:
@@ -97,9 +55,6 @@ public:
         /// An index into the sub-object array if this binding range is treated
         /// as a sub-object.
         uint32_t subObjectIndex;
-
-        /// Is this binding range specializable, e.g. an existential value or ParameterBlock<IFoo>.
-        bool isSpecializable;
     };
 
     struct SubObjectRangeInfo
@@ -118,7 +73,6 @@ protected:
     // device-owned caches and internal dependencies are cleared during device teardown.
     Device* m_device;
     slang::TypeLayoutReflection* m_elementTypeLayout = nullptr;
-    ShaderComponentID m_componentID = 0;
 
     /// The container type of this shader object. When `m_containerType` is `StructuredBuffer` or
     /// `UnsizedArray`, this shader object represents a collection instead of a single object.
@@ -172,8 +126,6 @@ public:
 
     slang::TypeLayoutReflection* getElementTypeLayout() { return m_elementTypeLayout; }
 
-    ShaderComponentID getComponentID() { return m_componentID; }
-
     virtual uint32_t getSlotCount() const = 0;
     virtual uint32_t getSubObjectCount() const = 0;
 
@@ -203,7 +155,6 @@ public:
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
 
-
 using ShaderObjectSetBindingHook = void (*)(
     ShaderObject* object,
     const ShaderOffset& offset,
@@ -229,17 +180,9 @@ public:
     // The shader object layout used to create this shader object.
     RefPtr<ShaderObjectLayout> m_layout;
 
-    // The cached specialized shader object layout if the shader object has been finalized.
-    RefPtr<ShaderObjectLayout> m_specializedLayout;
-
     short_vector<ResourceSlot> m_slots;
     short_vector<uint8_t> m_data;
     short_vector<InternalRefPtr<ShaderObject>> m_objects;
-    short_vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
-
-    // Specialization args for a StructuredBuffer object.
-    ExtendedShaderObjectTypeList m_structuredBufferSpecializationArgs;
-
     // Unique ID of the shader object (generated on construction).
     uint32_t m_uid;
 
@@ -249,13 +192,7 @@ public:
     // True if the shader object is finalized and no further modifications are allowed.
     bool m_finalized = false;
 
-    // The specialized shader object type.
-    ExtendedShaderObjectType m_shaderObjectType = {nullptr, kInvalidComponentID};
-
     ShaderObjectSetBindingHook m_setBindingHook = nullptr;
-
-public:
-    ShaderComponentID getComponentID() { return m_shaderObjectType.componentID; }
 
 public:
     // IShaderObject implementation
@@ -276,11 +213,6 @@ public:
         const ShaderOffset& offset,
         const DescriptorHandle& handle
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
-        const ShaderOffset& offset,
-        const slang::SpecializationArg* args,
-        uint32_t count
-    ) override;
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
     virtual SLANG_NO_THROW Size SLANG_MCALL getSize() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* outBuffer) override;
@@ -297,17 +229,10 @@ public:
 
     Result init(ShaderObjectLayout* layout, ShaderProgram* program);
 
-    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args);
+    /// Write the uniform/ordinary data of this object into the given buffer.
+    Result writeOrdinaryData(void* destData, Size destSize);
 
-    /// Write the uniform/ordinary data of this object into the given `dest` buffer at the given
-    /// `offset`
-    Result writeOrdinaryData(void* destData, Size destSize, ShaderObjectLayout* specializedLayout);
-
-    Result writeStructuredBuffer(
-        slang::TypeLayoutReflection* elementLayout,
-        ShaderObjectLayout* specializedLayout,
-        IBuffer** buffer
-    );
+    Result writeStructuredBuffer(slang::TypeLayoutReflection* elementLayout, IBuffer** buffer);
 
     void trackResources(std::set<InternalRefPtr<RefObject>>& resources);
 
@@ -315,20 +240,6 @@ protected:
     inline void incrementVersion() { m_version++; }
 
     inline Result checkFinalized() { return m_finalized ? SLANG_FAIL : SLANG_OK; }
-
-    slang::TypeLayoutReflection* _getElementTypeLayout() { return m_layout->getElementTypeLayout(); }
-
-    // Get the final type this shader object represents. If the shader object's type has existential fields,
-    // this function will return a specialized type using the bound sub-objects' type as specialization argument.
-    Result getSpecializedShaderObjectType(ExtendedShaderObjectType* outType);
-
-    Result getExtendedShaderTypeListFromSpecializationArgs(
-        ExtendedShaderObjectTypeList& list,
-        const slang::SpecializationArg* args,
-        uint32_t count
-    );
-
-    void setSpecializationArgsForContainerElement(ExtendedShaderObjectTypeList& specializationArgs);
 
     /// Sets the RTTI ID and RTTI witness table fields of an existential value.
     Result setExistentialHeader(
@@ -357,13 +268,6 @@ public:
 
     Result init(ShaderProgram* program);
 
-    bool isSpecializable() const;
-
-    Result getSpecializedLayout(const ExtendedShaderObjectTypeList& args, ShaderObjectLayout*& outSpecializedLayout);
-    Result getSpecializedLayout(ShaderObjectLayout*& outSpecializedLayout);
-
-    virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
-
     void trackResources(std::set<InternalRefPtr<RefObject>>& resources);
 };
 
@@ -371,6 +275,5 @@ bool _doesValueFitInExistentialPayload(
     slang::TypeLayoutReflection* concreteTypeLayout,
     slang::TypeLayoutReflection* existentialFieldLayout
 );
-
 
 } // namespace rhi

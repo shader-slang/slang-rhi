@@ -44,8 +44,6 @@ DeviceImpl::~DeviceImpl()
     {
         unregisterResource(m_accelerationStructures.dummy.get());
     }
-
-    m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
 

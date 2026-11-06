@@ -306,15 +306,23 @@ GPU_TEST_CASE("texture-partial-parameter-block-bindings", D3D11 | D3D12 | Vulkan
 
 static void runSpecializedBindings(IDevice* device)
 {
-    ComPtr<IShaderProgram> program;
-    slang::ProgramLayout* reflection = nullptr;
-    REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-texture-bindings", "readSpecialized", program.writeRef(), &reflection)
-    );
-    ComputePipelineDesc desc = {};
-    desc.program = program;
-    auto pipeline = device->createComputePipeline(desc);
-    REQUIRE(pipeline);
+    ComPtr<IComputePipeline> pipelines[2];
+    slang::ProgramLayout* reflections[2] = {};
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadAndSpecializeProgram(
+            device,
+            "test-texture-bindings",
+            "readSpecialized",
+            i == 0 ? "TextureReaderA" : "TextureReaderB",
+            program.writeRef(),
+            &reflections[i]
+        ));
+        ComputePipelineDesc desc = {};
+        desc.program = program;
+        REQUIRE_CALL(device->createComputePipeline(desc, pipelines[i].writeRef()));
+    }
     auto textureA = createColorInput(device, {255, 0, 0, 255});
     auto textureB = createColorInput(device, {0, 255, 0, 255});
     auto results = createResults(device, 12);
@@ -322,14 +330,14 @@ static void runSpecializedBindings(IDevice* device)
     auto encoder = queue->createCommandEncoder();
     for (uint32_t i = 0; i < 3; ++i)
     {
-        // A, B, A also checks that cached specializations retain distinct layouts.
+        // A, B, A checks that explicitly specialized programs retain distinct layouts.
         bool useA = i != 1;
-        auto type = reflection->findTypeByName(useA ? "TextureReaderA" : "TextureReaderB");
+        auto type = reflections[useA ? 0 : 1]->findTypeByName(useA ? "TextureReaderA" : "TextureReaderB");
         REQUIRE(type);
         ComPtr<IShaderObject> reader;
         REQUIRE_CALL(device->createShaderObject(type, ShaderObjectContainerType::None, reader.writeRef()));
         auto pass = encoder->beginComputePass();
-        auto root = pass->bindPipeline(pipeline);
+        auto root = pass->bindPipeline(pipelines[useA ? 0 : 1]);
         ShaderCursor cursor(root);
         REQUIRE_CALL(
             cursor[useA ? "specializationInputA" : "specializationInputB"].setBinding(useA ? textureA : textureB)

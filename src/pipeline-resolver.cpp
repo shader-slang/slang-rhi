@@ -49,16 +49,9 @@ private:
     std::vector<ITaskPool::TaskHandle> m_handles;
 };
 
-struct PipelineKeyHasher
-{
-    size_t operator()(const PipelineKey& key) const { return key.hash; }
-};
-
 struct PipelineRequest
 {
-    PipelineKey key = {};
     RefPtr<Pipeline> pipeline;
-    ExtendedShaderObjectTypeListObject* specializationArgs = nullptr;
     std::vector<const CommandList::CommandSlot*> commands;
 
     RefPtr<ShaderProgram> program;
@@ -116,33 +109,28 @@ private:
     static void getCommandPipeline(
         CommandList* commandList,
         const CommandList::CommandSlot* command,
-        Pipeline*& outPipeline,
-        ExtendedShaderObjectTypeListObject*& outSpecializationArgs
+        Pipeline*& outPipeline
     )
     {
         outPipeline = nullptr;
-        outSpecializationArgs = nullptr;
         switch (command->id)
         {
         case CommandID::SetRenderState:
         {
             auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
             outPipeline = checked_cast<RenderPipeline*>(cmd.pipeline);
-            outSpecializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
             break;
         }
         case CommandID::SetComputeState:
         {
             auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
             outPipeline = checked_cast<ComputePipeline*>(cmd.pipeline);
-            outSpecializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
             break;
         }
         case CommandID::SetRayTracingState:
         {
             auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
             outPipeline = checked_cast<RayTracingPipeline*>(cmd.pipeline);
-            outSpecializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
             break;
         }
         default:
@@ -162,21 +150,18 @@ private:
         {
             auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
             cmd.pipeline = checked_cast<RenderPipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
             break;
         }
         case CommandID::SetComputeState:
         {
             auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
             cmd.pipeline = checked_cast<ComputePipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
             break;
         }
         case CommandID::SetRayTracingState:
         {
             auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
             cmd.pipeline = checked_cast<RayTracingPipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
             break;
         }
         default:
@@ -189,13 +174,12 @@ private:
         for (auto command = m_commandList->getCommands(); command; command = command->next)
         {
             Pipeline* pipeline;
-            ExtendedShaderObjectTypeListObject* specializationArgs;
-            getCommandPipeline(m_commandList, command, pipeline, specializationArgs);
+            getCommandPipeline(m_commandList, command, pipeline);
             if (!pipeline)
                 continue;
 
             Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(m_device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
+            SLANG_RETURN_ON_FAIL(m_device->getConcretePipeline(pipeline, concretePipeline));
             patchCommand(m_commandList, command, concretePipeline);
         }
         return SLANG_OK;
@@ -203,13 +187,12 @@ private:
 
     Result collectRequests()
     {
-        std::unordered_map<PipelineKey, size_t, PipelineKeyHasher> requestMap;
+        std::unordered_map<Pipeline*, size_t> requestMap;
 
         for (auto command = m_commandList->getCommands(); command; command = command->next)
         {
             Pipeline* pipeline;
-            ExtendedShaderObjectTypeListObject* specializationArgs;
-            getCommandPipeline(m_commandList, command, pipeline, specializationArgs);
+            getCommandPipeline(m_commandList, command, pipeline);
             if (!pipeline)
                 continue;
 
@@ -219,30 +202,14 @@ private:
                 continue;
             }
 
-            PipelineKey key(pipeline);
-            if (pipeline->m_program->isSpecializable())
-            {
-                if (!specializationArgs)
-                    return SLANG_FAIL;
-                for (ShaderComponentID componentID : specializationArgs->componentIDs)
-                    key.specializationArgs.push_back(componentID);
-            }
-            key.updateHash();
-
-            auto [it, inserted] = requestMap.emplace(key, m_requests.size());
+            auto [it, inserted] = requestMap.emplace(pipeline, m_requests.size());
             if (inserted)
             {
                 PipelineRequest request;
-                request.key = key;
                 request.pipeline = pipeline;
-                request.specializationArgs = specializationArgs;
                 request.commands.push_back(command);
 
-                if (pipeline->m_program->isSpecializable())
-                    request.concretePipeline = m_device->m_shaderCache.getSpecializedPipeline(key);
-                else
-                    request.concretePipeline = pipeline->getConcretePipeline();
-
+                request.concretePipeline = pipeline->getConcretePipeline();
                 m_requests.push_back(std::move(request));
             }
             else
@@ -263,17 +230,6 @@ private:
                 continue;
 
             request.program = request.pipeline->m_program;
-            if (request.program->isSpecializable())
-            {
-                RefPtr<ShaderProgram> specializedProgram;
-                SLANG_RETURN_ON_FAIL(m_device->getSpecializedProgram(
-                    request.program,
-                    *request.specializationArgs,
-                    specializedProgram.writeRef()
-                ));
-                request.program = specializedProgram;
-            }
-
             if (programMap.find(request.program) == programMap.end())
             {
                 size_t index = m_programs.size();
@@ -444,16 +400,7 @@ private:
         for (auto& request : m_requests)
         {
             if (request.created)
-            {
-                if (request.pipeline->m_program->isSpecializable())
-                {
-                    m_device->m_shaderCache.addSpecializedPipeline(request.key, request.concretePipeline);
-                }
-                else
-                {
-                    request.pipeline->setConcretePipeline(request.concretePipeline);
-                }
-            }
+                request.pipeline->setConcretePipeline(request.concretePipeline);
 
             for (const auto* command : request.commands)
                 patchCommand(m_commandList, command, request.concretePipeline);
