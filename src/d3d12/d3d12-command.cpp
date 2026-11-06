@@ -1241,7 +1241,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
 
     requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    if (src)
+    if (src && src->m_buffer != dst->m_buffer)
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
     requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
 
@@ -1414,6 +1414,9 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
         m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
     }
 
+    // Publish BLAS writes for later TLAS builds and traversal, including indirect references.
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
     copyAccelerationStructureQueryResults(cmd.propertyQueryCount, cmd.queryDescs, 1);
 }
 
@@ -1443,7 +1446,8 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 
     requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    if (src->m_buffer != dst->m_buffer)
+        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
     commitBarriers();
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE copyMode;
@@ -1459,6 +1463,8 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
         return;
     }
     m_cmdList4->CopyRaytracingAccelerationStructure(dst->getDeviceAddress(), src->getDeviceAddress(), copyMode);
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
 }
 
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
@@ -1857,10 +1863,9 @@ void CommandRecorder::commitBarriers()
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             barriers.push_back(barrier);
         }
-        else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
+        else if (bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite ||
+                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
                   bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
                  (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
                   bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
                  (bufferBarrier.stateBefore == ResourceState::MicromapRead &&

@@ -792,12 +792,45 @@ Result Device::getClusterOperationSizes(const ClusterOperationParams& params, Cl
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::validateAccelerationStructureDesc(const AccelerationStructureDesc& desc)
+{
+    auto invalid = [&](const char* message)
+    {
+        printError("%s", message);
+        return SLANG_E_INVALID_ARG;
+    };
+    if (!desc.size)
+        return invalid("Acceleration structure size must be greater than zero.");
+    if (!desc.buffer)
+        return desc.offset ? invalid("Acceleration structure offset requires a backing buffer.") : SLANG_OK;
+    Buffer* buffer = dynamic_cast<Buffer*>(desc.buffer);
+    if (!buffer || buffer->getDevice() != this)
+        return invalid("Acceleration structure backing buffer must belong to this device.");
+    const BufferDesc& bufferDesc = buffer->getDesc();
+    if (!is_set(bufferDesc.usage, BufferUsage::AccelerationStructure) ||
+        bufferDesc.memoryType != MemoryType::DeviceLocal)
+        return invalid(
+            "Acceleration structure backing buffer requires AccelerationStructure usage and DeviceLocal memory."
+        );
+    uint64_t alignment = m_info.limits.accelerationStructureAlignment;
+    if (!alignment)
+    {
+        printError("Acceleration structure buffer placement is not supported by this backend.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (desc.offset % alignment || buffer->getDeviceAddress() % alignment)
+        return invalid("Acceleration structure backing buffer offset/address is misaligned.");
+    if (desc.offset > bufferDesc.size || desc.size > bufferDesc.size - desc.offset)
+        return invalid("Acceleration structure storage region exceeds backing buffer bounds.");
+    return SLANG_OK;
+}
+
 Result Device::createAccelerationStructure(
     const AccelerationStructureDesc& desc,
     IAccelerationStructure** outAccelerationStructure
 )
 {
-    SLANG_UNUSED(desc);
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
     SLANG_UNUSED(outAccelerationStructure);
     return SLANG_E_NOT_AVAILABLE;
 }

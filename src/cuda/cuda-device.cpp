@@ -294,6 +294,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (SLANG_SUCCEEDED(optix::createContext(optixContextDesc, m_ctx.optixContext.writeRef())))
     {
         addFeature(Feature::AccelerationStructure);
+        // OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT, identical across supported OptiX versions.
+        m_info.limits.accelerationStructureAlignment = 128;
+        m_info.limits.accelerationStructureScratchAlignment = 128;
         addFeature(Feature::RayTracing);
         addFeature(Feature::OpacityMicromap);
         uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
@@ -619,12 +622,20 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
+
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    if (desc.buffer)
+    {
+        result->m_backingBuffer = checked_cast<BufferImpl*>(desc.buffer);
+        result->m_buffer = desc.buffer->getDeviceAddress() + desc.offset;
+    }
+    else
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);

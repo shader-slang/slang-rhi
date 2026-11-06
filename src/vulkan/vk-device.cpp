@@ -1677,7 +1677,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     VkPhysicalDeviceSubgroupSizeControlProperties subgroupSizeControlProps = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES
     };
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR asProps = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR
+    };
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    EXTEND_DESC_CHAIN(props, asProps);
     EXTEND_DESC_CHAIN(props, idProps);
     EXTEND_DESC_CHAIN(props, subgroupProps);
     if (m_hasSubgroupSizeControl)
@@ -1765,6 +1769,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     for (auto feature : availableFeatures)
     {
         addFeature(feature);
+    }
+
+    if (hasFeature(Feature::AccelerationStructure))
+    {
+        m_info.limits.accelerationStructureAlignment = 256;
+        m_info.limits.accelerationStructureScratchAlignment = asProps.minAccelerationStructureScratchOffsetAlignment;
     }
 
     addCapability(Capability::spirv);
@@ -2128,6 +2138,8 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
+
     if (!m_api.vkCreateAccelerationStructureKHR)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -2139,12 +2151,15 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
     RefPtr<BufferImpl> buffer;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    if (desc.buffer)
+        buffer = checked_cast<BufferImpl*>(desc.buffer);
+    else
+        SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
     result->m_buffer = buffer;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
-    createInfo.offset = 0;
+    createInfo.offset = desc.offset;
     createInfo.size = desc.size;
     createInfo.type = translateAccelerationStructureKind(desc.kind);
     if (is_set(desc.flags, AccelerationStructureBuildFlags::CreateMotion))

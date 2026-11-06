@@ -1261,10 +1261,12 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     converter.buildInfo.dstAccelerationStructure = dst->m_vkHandle;
     if (src)
     {
-        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+        if (src->m_buffer != dst->m_buffer)
+            requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
         converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    // AS scratch accesses use AS build access masks/stages, not shader UAV accesses.
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureWrite);
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
@@ -1402,6 +1404,9 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
     auto rangeInfoPtr = rangeInfos.data();
     m_api.vkCmdBuildAccelerationStructuresKHR(m_cmdBuffer, 1, &converter.buildInfo, &rangeInfoPtr);
+    // Publish BLAS writes for later TLAS builds and traversal, including indirect references.
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
 
     if (cmd.propertyQueryCount)
     {
@@ -1433,7 +1438,8 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 
     requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    if (src->m_buffer != dst->m_buffer)
+        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
     commitBarriers();
 
     VkCopyAccelerationStructureInfoKHR copyInfo = {VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
@@ -1449,6 +1455,8 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
         break;
     }
     m_api.vkCmdCopyAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
 }
 
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)

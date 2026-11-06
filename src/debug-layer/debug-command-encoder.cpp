@@ -1560,6 +1560,13 @@ void DebugCommandEncoder::buildAccelerationStructure(
         RHI_VALIDATION_ERROR("'scratchBuffer.buffer' must not be null.");
         return;
     }
+    Device* device = checked_cast<CommandEncoder*>(baseObject.get())->getDevice();
+    uint64_t scratchAlignment = device->getInfo().limits.accelerationStructureScratchAlignment;
+    if (scratchAlignment && scratchBuffer.getDeviceAddress() % scratchAlignment)
+    {
+        RHI_VALIDATION_ERROR("Acceleration structure scratch device address is misaligned.");
+        return;
+    }
     if (propertyQueryCount > 0 && !queryDescs)
     {
         RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'propertyQueryCount' > 0.");
