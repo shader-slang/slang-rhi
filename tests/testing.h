@@ -24,6 +24,7 @@ struct Options
     bool verbose = false;
     bool checkDevices = false;
     bool listDevices = false;
+    bool parallelWorker = false;
     bool memoryReport = false;
     bool printMemoryReport = false;
     std::string memoryReportFile;
@@ -503,6 +504,13 @@ void reportSkip(const doctest::detail::TestCase* tc, const char* reason);
 const char* getSkipMessage(const doctest::TestCaseData* tc);
 
 void reportGpuTestExecuted(DeviceType deviceType);
+struct GpuTestStatistics
+{
+    int encountered = 0;
+    int executed = 0;
+    bool available = false;
+};
+GpuTestStatistics getGpuTestStatistics(DeviceType deviceType);
 bool checkNoSilentGpuSkips();
 
 } // namespace rhi::testing

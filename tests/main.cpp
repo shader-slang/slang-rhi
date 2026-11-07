@@ -3,12 +3,15 @@
 #include <slang-rhi/agility-sdk.h>
 
 #define DOCTEST_CONFIG_IMPLEMENT
-#include <doctest.h>
+#define DOCTEST_PARALLEL_IMPLEMENT
+#include "doctest-parallel.h"
 
 #include "doctest-reporter.h"
 
 #include <charconv>
 #include <cstdio>
+#include <filesystem>
+#include <sstream>
 #include <string_view>
 
 // Due to current issues in slang we don't enable Agility SDK yet
@@ -53,6 +56,100 @@ bool checkRequiredDevices()
             std::fprintf(stderr, "Slang diagnostics: %s\n", result.diagnostics.c_str());
     }
     return allAvailable;
+}
+
+static std::optional<int> runParallelTests(int argc, const char** argv)
+{
+    if (options().listDevices)
+        return std::nullopt;
+
+    // Snapshots are local to a worker process. Only deltas cross the generic
+    // runner's metadata channel, so replacement workers start naturally at zero.
+    std::array<GpuTestStatistics, kDeviceTypeCount + 1> previous{}, totals{};
+    bool invalidMetadata = false;
+    doctest::parallel::Options config;
+    config.reporters = "custom";
+    config.workerStart = [](const std::string& logPath)
+    {
+        options().parallelWorker = true;
+        if (!options().memoryReportFile.empty())
+            options().memoryReportFile += "." + std::filesystem::path(logPath).stem().string() + ".json";
+        resetMemoryReport();
+        sampleMemoryReport("worker-start");
+        return checkRequiredDevices() ? 0 : 1;
+    };
+    config.workerStop = []()
+    {
+        sampleMemoryReport("worker-tests-end");
+        return 0;
+    };
+    config.isSkipped = [](const doctest::TestCaseData& test)
+    {
+        return getSkipMessage(&test) != nullptr;
+    };
+    config.collectData = [&]()
+    {
+        std::ostringstream stream;
+        for (DeviceType type : kDeviceTypes)
+        {
+            size_t slot = size_t(type);
+            auto stats = getGpuTestStatistics(type);
+            stream << stats.encountered - previous[slot].encountered << ' ' << stats.executed - previous[slot].executed
+                   << ' ' << int(stats.available) << ' ';
+            previous[slot] = stats;
+        }
+        options().checkDevices = false;
+        return stream.str();
+    };
+    config.onResult = [&](const doctest::parallel::Result& result)
+    {
+        if (result.workerFailed)
+            return;
+        std::istringstream stream(result.data);
+        for (DeviceType type : kDeviceTypes)
+        {
+            int encountered = 0, executed = 0, available = 0;
+            if (!(stream >> encountered >> executed >> available))
+            {
+                invalidMetadata = true;
+                return;
+            }
+            auto& total = totals[size_t(type)];
+            total.encountered += encountered;
+            total.executed += executed;
+            total.available = total.available || available != 0;
+        }
+    };
+    config.coordinatorStart = []()
+    {
+        // Workers receive the original command line and report their own memory.
+        options().memoryReport = false;
+        options().printMemoryReport = false;
+        options().memoryReportFile.clear();
+    };
+    config.coordinatorStop = [&]()
+    {
+        bool ok = !invalidMetadata;
+        for (DeviceType type : kDeviceTypes)
+        {
+            auto& total = totals[size_t(type)];
+            if (isDeviceTypeSelected(type) && total.available && total.encountered && !total.executed)
+            {
+                fprintf(
+                    stderr,
+                    "ERROR: Device type '%s' was available but zero tests executed (all silently skipped).\n",
+                    deviceTypeToString(type)
+                );
+                ok = false;
+            }
+        }
+        return ok ? 0 : 1;
+    };
+    config.logDirectory = []()
+    {
+        return getTestTempDirectory();
+    };
+    return doctest::parallel::run(argc, argv, config);
 }
 
 } // namespace rhi::testing
@@ -207,10 +304,13 @@ int main(int argc, const char** argv)
         // Report successful tests
         // context.setOption("success", true);
 
-        if (context.shouldExit() || rhi::testing::options().listDevices || rhi::testing::checkRequiredDevices())
+        auto parallelResult = rhi::testing::runParallelTests(argc, argv);
+        if (parallelResult)
+            result = *parallelResult;
+        else if (context.shouldExit() || rhi::testing::options().listDevices || rhi::testing::checkRequiredDevices())
             result = context.run();
 
-        bool noSilentSkips = rhi::testing::checkNoSilentGpuSkips();
+        bool noSilentSkips = rhi::testing::options().parallelWorker || rhi::testing::checkNoSilentGpuSkips();
         if (result == 0 && !noSilentSkips)
             result = 1;
 

@@ -1043,6 +1043,12 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
 
+    find_package(Threads REQUIRED)
+    add_library(doctest-parallel INTERFACE)
+    target_include_directories(doctest-parallel INTERFACE tests)
+    target_compile_features(doctest-parallel INTERFACE cxx_std_17)
+    target_link_libraries(doctest-parallel INTERFACE doctest Threads::Threads)
+
     add_library(slang-rhi-stb INTERFACE)
     target_include_directories(slang-rhi-stb INTERFACE external/stb)
 
@@ -1180,7 +1186,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
-    target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    target_link_libraries(slang-rhi-tests PRIVATE doctest-parallel slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
     endif()
@@ -1201,6 +1207,14 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/$<CONFIG>/nsystests.bat INPUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/nsystests.bat.ln)
     endif()
+
+    # Standalone fixture for the reusable extension; deliberately links no RHI or Slang code.
+    add_executable(doctest-parallel-tests EXCLUDE_FROM_ALL
+        tests/doctest-parallel-tests.cpp
+        tests/doctest-parallel-tests-extra.cpp
+    )
+    target_link_libraries(doctest-parallel-tests PRIVATE doctest-parallel
+        slang-rhi-warnings slang-rhi-warnings-as-errors)
 endif()
 
 if(SLANG_RHI_BUILD_TESTS AND EMSCRIPTEN)

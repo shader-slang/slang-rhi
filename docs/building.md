@@ -150,5 +150,41 @@ tests, or select a backend explicitly:
 `-require-devices=vulkan` makes the run fail if Vulkan is unavailable. Tests for
 unsupported devices or features may otherwise be skipped.
 
+To distribute tests dynamically among persistent worker processes, use `--jobs`:
+
+```sh
+./slang-rhi-tests --jobs=4 -tc="*.d3d12" -require-devices=d3d12
+./slang-rhi-tests --jobs=2 --test-timeout=120
+```
+
+Each idle worker takes the next test from a shared queue and retains its device
+and compiler caches between assignments. Tests remain sequential inside each
+worker. Existing test filters and `--first`/`--last` ranges are applied before
+scheduling; query options such as `--list-test-cases` do not launch workers.
+Omit `--jobs` for the ordinary sequential runner.
+
+Output is collected per worker and printed after each test finishes. Crashed or
+timed-out tests fail without being retried, and a replacement worker continues
+the queue. `--test-timeout` takes a positive integer in seconds and also limits
+worker startup and cleanup; by default there is no timeout. Worker initialization
+or cleanup failures also fail the overall run. Temporary directories are isolated
+by process. A forcibly terminated worker may leave its temporary files behind.
+
+Start with two or four workers: each worker consumes additional CPU and GPU
+memory, and all workers targeting the same adapter compete for GPU resources.
+Memory reports describe individual workers; `-memory-report-file=report.json`
+writes files such as `report.json.worker-0.json` beside the requested path.
+
+The scheduler's integration checks require Python and a built native test runner,
+but no GPU:
+
+```sh
+python tools/test-parallel-runner.py build/Debug/slang-rhi-tests.exe
+```
+
+The coordinator and worker transport are implemented in a reusable, Slang-independent
+[doctest-parallel.h](../tests/doctest-parallel.h). See
+[Reusing doctest-parallel](doctest-parallel.md) for integration and standalone checks.
+
 The [CI workflow](../.github/workflows/ci.yml) records the compiler, platform,
 and backend combinations exercised by the project.

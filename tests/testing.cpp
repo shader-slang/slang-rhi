@@ -11,6 +11,11 @@
 #include <mutex>
 #include <string>
 #include <fstream>
+#if SLANG_WINDOWS_FAMILY
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 /// Enable dumping intermediate shader files (HLSL, SPIR-V, PTX etc.) to disk for debugging purposes.
 #define DUMP_INTERMEDIATES 0
@@ -92,7 +97,14 @@ std::string getTestTempDirectory()
     if (gTestTempDirectory == "")
     {
         std::string datetime_str = buildCurrentDateString();
-        gTestTempDirectory = std::filesystem::current_path() / ".test_temp" / datetime_str;
+        // Separate processes must never clean up each other's temporary files.
+#if SLANG_WINDOWS_FAMILY
+        auto processId = _getpid();
+#else
+        auto processId = getpid();
+#endif
+        gTestTempDirectory =
+            std::filesystem::current_path() / ".test_temp" / (datetime_str + "-" + std::to_string(processId));
         std::filesystem::create_directories(gTestTempDirectory);
     }
     return gTestTempDirectory.string();
@@ -1254,6 +1266,16 @@ bool checkNoSilentGpuSkips()
         }
     }
     return ok;
+}
+
+GpuTestStatistics getGpuTestStatistics(DeviceType deviceType)
+{
+    auto available = sDeviceTypeAvailable.find(deviceType);
+    return {
+        sGpuTestsEncountered[deviceType],
+        sGpuTestsExecuted[deviceType],
+        available != sDeviceTypeAvailable.end() && available->second
+    };
 }
 
 } // namespace rhi::testing

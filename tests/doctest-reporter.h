@@ -38,6 +38,8 @@ struct CustomReporter : public IReporter
             // clang-format off
             stream << Color::Cyan << "\n[doctest] " << Color::None;
             stream << "Additional slang-rhi specific options. Available:\n\n";
+            stream << " --jobs=<N>                            run tests using N persistent worker processes\n";
+            stream << " --test-timeout=<seconds>              limit each parallel assignment and worker startup\n";
             stream << " -verbose                              print messages from the slang-rhi layer\n";
             stream << " -check-devices                        print information about used GPU devices on startup\n";
             stream << " -list-devices                         print information about available GPU devices and exit\n";
@@ -81,9 +83,12 @@ struct CustomReporter : public IReporter
         }
 
         runTimer.start();
-        rhi::testing::resetMemoryReport();
-        rhi::testing::sampleMemoryReport("test-run-start");
-        consoleReporter.test_run_start();
+        if (!rhi::testing::options().parallelWorker)
+        {
+            rhi::testing::resetMemoryReport();
+            rhi::testing::sampleMemoryReport("test-run-start");
+            consoleReporter.test_run_start();
+        }
 
         if (rhi::testing::options().checkDevices)
         {
@@ -93,6 +98,8 @@ struct CustomReporter : public IReporter
 
     void test_run_end(const TestRunStats& in) override
     {
+        if (rhi::testing::options().parallelWorker)
+            return;
         stream << Color::None;
 
         fill(79, '-');
