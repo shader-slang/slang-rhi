@@ -1,5 +1,10 @@
 #include "testing.h"
 #include "shader-cache.h"
+#include "core/task-pool.h"
+#include "device.h"
+#include "shader.h"
+
+#include <memory>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -8,7 +13,8 @@ namespace {
 
 void runDeferredPipelineBatch(
     IDevice* device,
-    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default,
+    bool mixDeferred = false
 )
 {
     const char* entryPointNames[] = {"computeAdd", "computeMul", "computeSub", "computeNeg"};
@@ -23,7 +29,7 @@ void runDeferredPipelineBatch(
 
         ComputePipelineDesc desc = {};
         desc.program = programs[i];
-        desc.compilationPolicy = compilationPolicy;
+        desc.compilationPolicy = mixDeferred && i % 2 ? PipelineCompilationPolicy::Deferred : compilationPolicy;
         REQUIRE_CALL(device->createComputePipeline(desc, pipelines[i].writeRef()));
 
         NativeHandle nativeHandle = {};
@@ -99,6 +105,41 @@ void runDeferredPipelineBatch(
         auto pass = encoder->beginComputePass();
         auto rootObject = pass->bindPipeline(pipeline);
         ShaderCursor(rootObject)["buffer"].setBinding(buffer);
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+    }
+
+    if (mixDeferred)
+    {
+        // Specialization becomes known only during recording, alongside early and explicitly deferred jobs.
+        ComPtr<IShaderProgram> program;
+        slang::ProgramLayout* reflection = nullptr;
+        REQUIRE_CALL(loadAndLinkProgram(
+            device,
+            "test-shader-cache-specialization",
+            "computeMain",
+            program.writeRef(),
+            &reflection
+        ));
+        ComputePipelineDesc desc = {};
+        desc.program = program;
+        desc.compilationPolicy = PipelineCompilationPolicy::Async;
+        auto pipeline = device->createComputePipeline(desc);
+        REQUIRE(pipeline);
+        ComPtr<IShaderObject> transformer;
+        REQUIRE_CALL(device->createShaderObject(
+            nullptr,
+            reflection->findTypeByName("AddTransformer"),
+            ShaderObjectContainerType::None,
+            transformer.writeRef()
+        ));
+        ShaderCursor(transformer)["c"].setData(0.f);
+        REQUIRE_CALL(transformer->finalize());
+        auto pass = encoder->beginComputePass();
+        auto root = pass->bindPipeline(pipeline);
+        ShaderCursor entryPoint(root->getEntryPoint(0));
+        entryPoint["buffer"].setBinding(buffer);
+        entryPoint["transformer"].setObject(transformer);
         pass->dispatchCompute(1, 1, 1);
         pass->end();
     }
@@ -223,6 +264,97 @@ struct TaskPoolReset
     }
 };
 
+// A deterministic scheduler lets tests inspect submission without racing real compiler work.
+// Handles and the queue own tasks independently, just like the production threaded pool.
+class QueuedTaskPool : public BlockingTaskPool
+{
+public:
+    struct Task
+    {
+        void (*func)(void*);
+        void* payload;
+        void (*deleter)(void*);
+        bool done = false;
+    };
+
+    std::vector<std::shared_ptr<Task>> tasks;
+
+    TaskHandle SLANG_MCALL submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*deleter)(void*),
+        TaskGroupHandle group = nullptr
+    ) override
+    {
+        CHECK(group == nullptr);
+        auto task = std::make_shared<Task>(Task{func, payload, deleter});
+        tasks.push_back(task);
+        return new std::shared_ptr<Task>(task);
+    }
+
+    void SLANG_MCALL releaseTask(TaskHandle handle) override { delete static_cast<std::shared_ptr<Task>*>(handle); }
+
+    static void run(Task& task)
+    {
+        if (task.done)
+            return;
+        task.done = true;
+        task.func(task.payload);
+        if (task.deleter)
+            task.deleter(task.payload);
+    }
+
+    void SLANG_MCALL waitAndReleaseTask(TaskHandle handle) override
+    {
+        auto task = *static_cast<std::shared_ptr<Task>*>(handle);
+        run(*task);
+        releaseTask(handle);
+    }
+
+    void runAll()
+    {
+        for (size_t i = 0; i < tasks.size(); ++i)
+        {
+            auto task = tasks[i];
+            run(*task);
+        }
+    }
+};
+
+struct QueuedTaskPoolReset
+{
+    ComPtr<QueuedTaskPool> pool;
+    ComPtr<IDevice>& device;
+
+    ~QueuedTaskPoolReset()
+    {
+        pool->runAll();
+        device.setNull();
+        CHECK(SLANG_SUCCEEDED(getRHI()->initTaskPool(-1)));
+    }
+};
+
+class FailingShaderProgram : public ShaderProgram
+{
+public:
+    RefPtr<ShaderProgram> source;
+    uint32_t compileCount = 0;
+
+    FailingShaderProgram(Device* device, ShaderProgram* source_)
+        : ShaderProgram(device, source_->m_desc)
+        , source(source_)
+    {
+    }
+
+    ShaderObjectLayout* getRootShaderObjectLayout() override { return source->getRootShaderObjectLayout(); }
+
+    Result compileEntryPoint(Device*, CompiledEntryPoint&, bool) override
+    {
+        ++compileCount;
+        return SLANG_FAIL;
+    }
+};
+
 } // namespace
 
 GPU_TEST_CASE("parallel-pipeline-creation", ALL | DontCreateDevice)
@@ -232,6 +364,135 @@ GPU_TEST_CASE("parallel-pipeline-creation", ALL | DontCreateDevice)
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
     runDeferredPipelineBatch(device);
+}
+
+GPU_TEST_CASE("async-pipeline-creation", ALL | DontCreateDevice)
+{
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Async;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+    runDeferredPipelineBatch(device);
+    runDeferredPipelineBatch(device, PipelineCompilationPolicy::Default, true);
+}
+
+GPU_TEST_CASE("async-pipeline-creation-single-worker", ALL | DontCreateDevice)
+{
+    releaseCachedDevices();
+    REQUIRE_CALL(getRHI()->initTaskPool(1));
+    TaskPoolReset reset{device};
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+    runDeferredPipelineBatch(device, PipelineCompilationPolicy::Async, true);
+}
+
+GPU_TEST_CASE("async-pipeline-creation-blocking-pool", ALL | DontCreateDevice)
+{
+    releaseCachedDevices();
+    REQUIRE_CALL(getRHI()->initTaskPool(0));
+    TaskPoolReset reset{device};
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Serial;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+    runDeferredPipelineBatch(device, PipelineCompilationPolicy::Async);
+}
+
+GPU_TEST_CASE("async-pipeline-creation-sharing-and-lifetime", D3D12 | Vulkan | DontCreateDevice)
+{
+    releaseCachedDevices();
+    ComPtr<QueuedTaskPool> pool(new QueuedTaskPool());
+    REQUIRE_CALL(getRHI()->setTaskPool(pool));
+    QueuedTaskPoolReset reset{pool, device};
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Async;
+    options.enableCompilationReports = true;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-parallel-pipeline-creation", "computeAdd", program.writeRef()));
+    ComputePipelineDesc desc = {};
+    desc.program = program;
+    ComPtr<IComputePipeline> first, second;
+    REQUIRE_CALL(device->createComputePipeline(desc, first.writeRef()));
+    REQUIRE(pool->tasks.size() == 1);
+    CHECK_FALSE(pool->tasks[0]->done);
+    REQUIRE_CALL(device->createComputePipeline(desc, second.writeRef()));
+    CHECK(pool->tasks.size() == 1);
+
+    // Immediate creation joins the pending code generation instead of compiling it again.
+    desc.compilationPolicy = PipelineCompilationPolicy::Immediate;
+    ComPtr<IComputePipeline> immediate;
+    REQUIRE_CALL(device->createComputePipeline(desc, immediate.writeRef()));
+    CHECK(pool->tasks[0]->done);
+    CHECK(pool->tasks.size() == 1);
+    ComPtr<ISlangBlob> reportBlob;
+    REQUIRE_CALL(program->getCompilationReport(reportBlob.writeRef()));
+    CHECK(static_cast<const CompilationReport*>(reportBlob->getBufferPointer())->entryPointReportCount == 1);
+
+    // Dropping an unused pipeline/program/device must leave queued work valid and must not leak a device.
+    immediate.setNull();
+    second.setNull();
+    first.setNull();
+    program.setNull();
+    REQUIRE_CALL(loadProgram(device, "test-parallel-pipeline-creation", "computeMul", program.writeRef()));
+    desc.program = program;
+    desc.compilationPolicy = PipelineCompilationPolicy::Async;
+    REQUIRE_CALL(device->createComputePipeline(desc, first.writeRef()));
+    REQUIRE(pool->tasks.size() == 2);
+    CHECK_FALSE(pool->tasks[1]->done);
+    first.setNull();
+    program.setNull();
+    device.setNull();
+    pool->runAll();
+    CHECK(pool->tasks[1]->done);
+}
+
+GPU_TEST_CASE("async-pipeline-creation-failure", D3D12 | Vulkan | DontCreateDevice)
+{
+    releaseCachedDevices();
+    ComPtr<QueuedTaskPool> pool(new QueuedTaskPool());
+    REQUIRE_CALL(getRHI()->setTaskPool(pool));
+    QueuedTaskPoolReset reset{pool, device};
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Async;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+
+    auto impl = static_cast<Device*>(getUnderlyingDevice(device));
+    ComPtr<IShaderProgram> source;
+    REQUIRE_CALL(loadComputeProgramFromSource(
+        impl,
+        "[shader(\"compute\")] [numthreads(1,1,1)] void computeMain() {}",
+        source.writeRef()
+    ));
+    RefPtr<FailingShaderProgram> program = new FailingShaderProgram(impl, static_cast<ShaderProgram*>(source.get()));
+    REQUIRE_CALL(program->init());
+    ComputePipelineDesc desc = {};
+    desc.program = program;
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(impl->createComputePipeline(desc, pipeline.writeRef()));
+    CHECK(program->compileCount == 0);
+
+    // Both repeated resolution and immediate creation must return the stored failure without retrying codegen.
+    for (int i = 0; i < 2; ++i)
+    {
+        auto encoder = impl->getQueue(QueueType::Graphics)->createCommandEncoder();
+        auto pass = encoder->beginComputePass();
+        pass->bindPipeline(pipeline);
+        pass->dispatchCompute(1, 1, 1);
+        pass->end();
+        ComPtr<ICommandBuffer> commands;
+        CHECK(SLANG_FAILED(encoder->finish(commands.writeRef())));
+        CHECK(program->compileCount == 1);
+    }
+    desc.compilationPolicy = PipelineCompilationPolicy::Immediate;
+    ComPtr<IComputePipeline> immediate;
+    CHECK(SLANG_FAILED(impl->createComputePipeline(desc, immediate.writeRef())));
+    CHECK(program->compileCount == 1);
 }
 
 GPU_TEST_CASE("parallel-pipeline-creation-shared-cache", D3D12 | Vulkan | DontCreateDevice)

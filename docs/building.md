@@ -150,5 +150,14 @@ tests, or select a backend explicitly:
 `-require-devices=vulkan` makes the run fail if Vulkan is unavailable. Tests for
 unsupported devices or features may otherwise be skipped.
 
+Use `-pipeline-compilation=async` to run tests with experimental background shader
+compilation as the default for testing devices. `serial` (the default) and
+`parallel` select immediate compilation and compilation batched at encoder finish,
+respectively. Tests that explicitly select a compilation mode retain that mode.
+
+```sh
+./slang-rhi-tests -pipeline-compilation=async -check-devices
+```
+
 The [CI workflow](../.github/workflows/ci.yml) records the compiler, platform,
 and backend combinations exercised by the project.

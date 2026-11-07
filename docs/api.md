@@ -336,6 +336,31 @@ See [Resource heaps](resource-heaps.md) for placement, aliasing, lifetime, and s
 | `getDesc`         | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `getNativeHandle` | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 
+## Pipeline compilation
+
+`DeviceDesc::pipelineCompilationMode` controls pipelines using the `Default`
+policy. `Serial` compiles at creation; experimental `Parallel` defers work and
+batches compilation at command-encoder `finish()`. Experimental `Async` starts
+shader target-code generation at pipeline creation when no specialization
+parameters remain, then joins it with the parallel batch at `finish()`.
+
+The per-pipeline `compilationPolicy` can override this with `Immediate`,
+`Deferred`, or `Async`. Programs requiring specialization remain deferred.
+Async pipelines sharing a program share its compilation job; an immediate
+pipeline using that program waits for the existing job. Native pipeline creation,
+shader diagnostics, and compilation reports are finalized when the work is joined.
+Async creation success does not guarantee compilation success: `finish()` returns
+any later failure. Virtual pipeline native handles remain unavailable.
+
+Async uses the configured global task pool, including for a single entry point.
+A blocking pool executes code generation inline. CPU pipelines remain deferred;
+other backends use background code generation, with native pipeline creation
+subject to their existing worker-thread support. Pending jobs retain their program
+and device even if the caller releases an unused pipeline. Slang compiler timing
+cannot be attributed to individual background compilations; elapsed wall time is
+still reported. This mode relies on Slang's experimental parallel backend support;
+it does not make application front-end calls on shared Slang sessions thread-safe.
+
 ## OptiX callable stack limits
 
 CUDA ray-tracing pipelines accept `OptixRayTracingPipelineDesc` through

@@ -611,6 +611,7 @@ ComPtr<IDevice> createTestingDevice(
     ComPtr<IDevice> device;
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
+    deviceDesc.pipelineCompilationMode = options().pipelineCompilationMode;
     deviceDesc.adapter = getSelectedDeviceAdapter(deviceType);
 #if ENABLE_SHADER_CACHE
     deviceDesc.persistentShaderCache = &gShaderCache;
@@ -626,7 +627,8 @@ ComPtr<IDevice> createTestingDevice(
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
-        deviceDesc.pipelineCompilationMode = extraOptions->pipelineCompilationMode;
+        if (extraOptions->pipelineCompilationMode)
+            deviceDesc.pipelineCompilationMode = *extraOptions->pipelineCompilationMode;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
         deviceDesc.enableAftermath = extraOptions->enableAftermath;
         deviceDesc.enableRayTracingValidation = extraOptions->enableRayTracingValidation;

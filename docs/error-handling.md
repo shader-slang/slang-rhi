@@ -133,6 +133,12 @@ if (diagnostics)
 
 The callback path is still useful because shader compilation can also happen later, for example when creating pipelines or specializing shader programs. In those cases Slang diagnostics are emitted as `DebugMessageSource::Slang` messages.
 
+With `PipelineCompilationPolicy::Async` (or the device's `Async` default mode),
+pipeline creation can succeed before shader code generation completes. Diagnostics
+are delivered when the compilation is joined, normally by `ICommandEncoder::finish()`,
+which returns any compilation failure. Creating an `Immediate` pipeline sharing
+that program also joins the pending compilation and returns its result.
+
 `DeviceDesc::enableCompilationReports` is a performance reporting feature, not an error reporting feature. When enabled, `IShaderProgram::getCompilationReport()` and `IDevice::getCompilationReportList()` expose timing and cache-hit data for shader compilation and pipeline creation.
 
 ## Native backend diagnostics

@@ -103,6 +103,8 @@ GPU_TEST_CASE("compilation-report", ALL | DontCreateDevice)
 
     DeviceExtraOptions options = {};
     options.enableCompilationReports = true;
+    // This test checks Slang's cumulative timing, which cannot be attributed to parallel compilations.
+    options.pipelineCompilationMode = PipelineCompilationMode::Serial;
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
 

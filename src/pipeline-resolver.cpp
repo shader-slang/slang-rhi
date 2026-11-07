@@ -280,7 +280,7 @@ private:
                 programMap.emplace(request.program, index);
                 m_programs.emplace_back(request.program);
                 ProgramWork& programWork = m_programs.back();
-                if (!programWork.program->m_compiledShaders)
+                if (!programWork.program->m_compiledShaders && !programWork.program->m_asyncCompilation)
                 {
                     SLANG_RETURN_ON_FAIL(
                         programWork.program->prepareEntryPointCompilation(m_device, programWork.entryPoints)
@@ -346,6 +346,13 @@ private:
         Result firstFailure = SLANG_OK;
         for (auto& program : m_programs)
         {
+            // All late work has been submitted before joining any early compilation.
+            if (program.program->m_asyncCompilation)
+            {
+                Result result = program.program->finishAsyncCompilation(m_device);
+                if (SLANG_FAILED(result) && SLANG_SUCCEEDED(firstFailure))
+                    firstFailure = result;
+            }
             for (const auto& entryPoint : program.entryPoints)
             {
                 program.program->reportEntryPointCompilation(m_device, entryPoint);

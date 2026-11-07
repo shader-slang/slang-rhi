@@ -249,6 +249,7 @@ struct ShaderCacheTest
         deviceDesc.slang.searchPaths = searchPaths.data();
         deviceDesc.slang.searchPathCount = searchPaths.size();
         deviceDesc.persistentShaderCache = &shaderCache;
+        deviceDesc.pipelineCompilationMode = options().pipelineCompilationMode;
 
         std::vector<slang::CompilerOptionEntry> entries;
         slang::CompilerOptionEntry emitSpirvDirectlyEntry;
