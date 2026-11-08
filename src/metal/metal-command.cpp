@@ -56,6 +56,11 @@ inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b
 /// render pass have implicit ordering guarantees, Metal encoder transitions
 /// provide no automatic memory visibility for untracked resources -- the
 /// fence wait/update pair is the mechanism that provides it.
+///
+/// Consecutive compute passes are the exception: ending a compute pass keeps
+/// its encoder open, and the next compute work in it starts with a
+/// memoryBarrier (buffers and textures) instead. The fence round trip costs
+/// ~10x more GPU time than the barrier.
 class CommandRecorder
 {
 public:
@@ -85,6 +90,10 @@ public:
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
     bool m_computeEncoderHasDispatched = false;
+    /// The compute pass that used m_computeCommandEncoder has ended, but the encoder is kept open
+    /// for the next compute work. getComputeCommandEncoder() puts a memory barrier in front of
+    /// that work, which is what ending the encoder (fence update + wait) would have given.
+    bool m_computeEncoderPassEnded = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
@@ -807,7 +816,17 @@ void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
 
 void CommandRecorder::cmdEndComputePass(const commands::EndComputePass& cmd)
 {
-    endCommandEncoder();
+    // Keep the compute encoder open: if the next work is a compute pass too, a memory barrier
+    // inside the encoder orders it after this pass, which costs ~2 us of GPU time, while ending
+    // the encoder and waiting on the queue fence in a new one costs ~16-30 us (Apple M4). Any
+    // other encoder type ends it through endCommandEncoder() as before.
+    if (m_computeCommandEncoder)
+    {
+        m_computeEncoderPassEnded = true;
+        // The next pass binds its pipeline and bindings again, as it would on a new encoder.
+        m_computeStateValid = false;
+        m_computePipeline = nullptr;
+    }
     m_computePassActive = false;
 }
 
@@ -1108,6 +1127,14 @@ MTL::ComputeCommandEncoder* CommandRecorder::getComputeCommandEncoder()
         m_computeCommandEncoder = NS::RetainPtr(m_commandBuffer->computeCommandEncoder());
         m_computeCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
+    else if (m_computeEncoderPassEnded)
+    {
+        // Reusing the encoder of an ended compute pass: make that pass's writes visible to what
+        // follows, like the fence would between two encoders.
+        m_computeCommandEncoder->memoryBarrier(MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures));
+        m_computeEncoderHasDispatched = false;
+    }
+    m_computeEncoderPassEnded = false;
     return m_computeCommandEncoder.get();
 }
 
@@ -1158,6 +1185,7 @@ void CommandRecorder::endCommandEncoder()
 
         m_computeStateValid = false;
         m_computeEncoderHasDispatched = false;
+        m_computeEncoderPassEnded = false;
         m_computePipeline = nullptr;
     }
     if (m_accelerationStructureCommandEncoder)
