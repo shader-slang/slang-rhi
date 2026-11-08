@@ -59,3 +59,53 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     // The device must not have retained the caller's type layout.
     CHECK_EQ(getShaderObjectLayoutCacheSize(device), cacheSizeBefore);
 }
+
+// Regression test for shader-slang/slang-rhi#965.
+//
+// A shader object asks its layout's Slang session for type conformance IDs when an
+// interface-typed field is set, and Slang numbers conformances per session. So the layout
+// built by createShaderObjectFromTypeLayout must keep the session that owns the type layout,
+// not the device's session. As above, this checks the invariant (which session the layout
+// keeps) rather than the symptom (a wrong dynamic-dispatch target), which depends on how the
+// two sessions happen to number their conformances.
+GPU_TEST_CASE("shader-object-from-type-layout-session", ALL)
+{
+    // Compile the program in a session of its own.
+    ComPtr<slang::ISession> deviceSession = device->getSlangSession();
+    slang::SessionDesc sessionDesc = {};
+    auto searchPaths = getSlangSearchPaths();
+    sessionDesc.searchPaths = searchPaths.data();
+    sessionDesc.searchPathCount = searchPaths.size();
+    slang::TargetDesc targetDesc = getTargetDesc(device->getDeviceType(), deviceSession->getGlobalSession());
+    sessionDesc.targets = &targetDesc;
+    sessionDesc.targetCount = 1;
+    ComPtr<slang::ISession> programSession;
+    REQUIRE_CALL(deviceSession->getGlobalSession()->createSession(sessionDesc, programSession.writeRef()));
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(
+        device,
+        programSession,
+        "test-shader-object-from-type-layout",
+        "computeMain",
+        shaderProgram.writeRef()
+    ));
+    slang::ProgramLayout* programLayout = shaderProgram->getDesc().slangGlobalScope->getLayout(0);
+    REQUIRE(programLayout != nullptr);
+    slang::TypeLayoutReflection* typeLayout = programLayout->getParameterByIndex(0)->getTypeLayout();
+    REQUIRE(typeLayout != nullptr);
+    if (typeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer ||
+        typeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock)
+    {
+        typeLayout = typeLayout->getElementTypeLayout();
+    }
+
+    ComPtr<IShaderObject> shaderObject;
+    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(programSession, typeLayout, shaderObject.writeRef()));
+    CHECK_EQ(getShaderObjectLayoutSession(shaderObject), programSession.get());
+
+    // Without a session, the layout keeps the device's session, as before.
+    ComPtr<IShaderObject> defaultSessionObject;
+    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, defaultSessionObject.writeRef()));
+    CHECK_EQ(getShaderObjectLayoutSession(defaultSessionObject), deviceSession.get());
+}

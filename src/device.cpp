@@ -5,6 +5,8 @@
 #include "heap.h"
 #include "resource-heap.h"
 #include "debug-layer/debug-device.h"
+#include "debug-layer/debug-shader-object.h"
+#include "shader-object.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -26,6 +28,13 @@ Device* getUnderlyingDevice(IDevice* device)
 size_t getShaderObjectLayoutCacheSize(IDevice* device)
 {
     return getUnderlyingDevice(device)->m_shaderObjectLayoutCache.size();
+}
+
+slang::ISession* getShaderObjectLayoutSession(IShaderObject* object)
+{
+    if (auto debugObject = dynamic_cast<debug::DebugShaderObject*>(object))
+        object = debugObject->baseObject.get();
+    return checked_cast<ShaderObject*>(object)->m_layout->m_slangSession.get();
 }
 } // namespace testing
 
@@ -742,8 +751,18 @@ Result Device::createShaderObject(
     return SLANG_OK;
 }
 
-Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
+Result Device::createShaderObjectFromTypeLayout(
+    slang::ISession* slangSession,
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outObject
+)
 {
+    // The layout keeps `slangSession`, which ShaderObject::setExistentialHeader asks for type
+    // conformance IDs. Those are numbered per session, so it has to be the session that owns
+    // `typeLayout`, not the device's.
+    if (slangSession == nullptr)
+        slangSession = m_slangContext.session.get();
+
     // Build the layout directly rather than caching it.
     //
     // m_shaderObjectLayoutCache requires session-owned keys (see the invariant on its
@@ -752,7 +771,7 @@ Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typ
     // More generally, slang-rhi cannot vouch for the lifetime of a pointer it was handed
     // and so must not retain one past this call.
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
-    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
+    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(slangSession, typeLayout, shaderObjectLayout.writeRef()));
     RefPtr<ShaderObject> shaderObject;
     SLANG_RETURN_ON_FAIL(createShaderObject(shaderObjectLayout, shaderObject.writeRef()));
     returnComPtr(outObject, shaderObject);

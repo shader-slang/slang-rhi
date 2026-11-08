@@ -376,6 +376,8 @@ slang::IGlobalSession* getSlangGlobalSession();
 
 const char* getTestsDir();
 
+/// The Slang target that matches the device type, for creating a separate Slang session.
+slang::TargetDesc getTargetDesc(DeviceType deviceType, slang::IGlobalSession* globalSession);
 std::vector<const char*> getSlangSearchPaths();
 
 void initializeRenderDoc();

@@ -3968,10 +3968,21 @@ public:
         return object;
     }
 
+    /// Create a shader object for `typeLayout`. `slangSession` must be the session that owns
+    /// `typeLayout` (the one its program was compiled in): the object asks it for type
+    /// conformance IDs when an interface-typed field is set, and those IDs are numbered per
+    /// session. Null means the device's own session.
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::ISession* slangSession,
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject
     ) = 0;
+
+    /// Create a shader object for a `typeLayout` that belongs to the device's own session.
+    inline Result createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
+    {
+        return createShaderObjectFromTypeLayout(nullptr, typeLayout, outObject);
+    }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(
         IShaderProgram* program,

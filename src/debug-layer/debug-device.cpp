@@ -973,6 +973,7 @@ Result DebugDevice::createShaderObject(
 }
 
 Result DebugDevice::createShaderObjectFromTypeLayout(
+    slang::ISession* slangSession,
     slang::TypeLayoutReflection* typeLayout,
     IShaderObject** outShaderObject
 )
@@ -986,7 +987,9 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
     }
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(
+        baseObject->createShaderObjectFromTypeLayout(slangSession, typeLayout, outObject->baseObject.writeRef())
+    );
     auto type = typeLayout->getType();
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;

@@ -817,6 +817,45 @@ const char* getTestsDir()
     return (value && value[0] != '\0') ? value : SLANG_RHI_TESTS_DIR;
 }
 
+slang::TargetDesc getTargetDesc(DeviceType deviceType, slang::IGlobalSession* globalSession)
+{
+    slang::TargetDesc targetDesc = {};
+    switch (deviceType)
+    {
+    case DeviceType::D3D11:
+        targetDesc.format = SLANG_DXBC;
+        targetDesc.profile = globalSession->findProfile("sm_5_0");
+        break;
+    case DeviceType::D3D12:
+        targetDesc.format = SLANG_DXIL;
+        targetDesc.profile = globalSession->findProfile("sm_6_1");
+        break;
+    case DeviceType::Vulkan:
+        targetDesc.format = SLANG_SPIRV;
+        targetDesc.profile = globalSession->findProfile("GLSL_460");
+        break;
+    case DeviceType::Metal:
+        targetDesc.format = SLANG_METAL_LIB;
+        targetDesc.profile = globalSession->findProfile("");
+        break;
+    case DeviceType::CPU:
+        targetDesc.format = SLANG_SHADER_HOST_CALLABLE;
+        targetDesc.profile = globalSession->findProfile("sm_5_0");
+        break;
+    case DeviceType::CUDA:
+        targetDesc.format = SLANG_PTX;
+        targetDesc.profile = globalSession->findProfile("sm_5_0");
+        break;
+    case DeviceType::WGPU:
+        targetDesc.format = SLANG_WGSL;
+        targetDesc.profile = globalSession->findProfile("");
+        break;
+    default:
+        FAIL("Unsupported device type");
+    }
+    return targetDesc;
+}
+
 std::vector<const char*> getSlangSearchPaths()
 {
     return std::vector<const char*>{
