@@ -1,5 +1,6 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-device.h"
+#include "cuda-buffer.h"
 #include "cuda-utils.h"
 
 namespace rhi::cuda {
@@ -11,12 +12,16 @@ AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const Accel
 
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
+    if (!m_desc.buffer && m_buffer)
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
+    if (m_propertyBuffer)
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
 }
 
 void AccelerationStructureImpl::deleteThis()
 {
+    // Child resources must be released before entering the deferred deletion queue.
+    m_backingBuffer.setNull();
     getDevice<DeviceImpl>()->deferDelete(this);
 }
 

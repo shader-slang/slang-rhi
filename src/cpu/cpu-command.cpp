@@ -52,7 +52,7 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
-    void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd);
     void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -258,10 +258,10 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     NOT_SUPPORTED(IRayTracingPassEncoder, dispatchRays);
 }
 
-void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
+void CommandExecutor::cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructures);
 }
 
 void CommandExecutor::cmdBuildMicromap(const commands::BuildMicromap& cmd)

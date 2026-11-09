@@ -2596,6 +2596,17 @@ struct AccelerationStructureQueryDesc
     uint32_t firstQueryIndex;
 };
 
+/// One build/update in an independent acceleration structure build batch.
+struct AccelerationStructureBuildEntry
+{
+    AccelerationStructureBuildDesc desc = {};
+    IAccelerationStructure* dst = nullptr;
+    IAccelerationStructure* src = nullptr;
+    BufferOffsetPair scratchBuffer;
+    uint32_t propertyQueryCount = 0;
+    const AccelerationStructureQueryDesc* queryDescs = nullptr;
+};
+
 union DeviceOrHostAddress
 {
     DeviceAddress deviceAddress;
@@ -2956,6 +2967,7 @@ public:
         uint64_t offset
     ) = 0;
 
+    /// Equivalent to buildAccelerationStructures with one entry.
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
         IAccelerationStructure* dst,
@@ -2963,6 +2975,19 @@ public:
         BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
+    ) = 0;
+
+    /// Builds independent acceleration structures, with synchronization before
+    /// and after the batch and no ordering between its entries.
+    /// Destination and scratch regions must not overlap each other or another
+    /// entry's source/input storage. In-place updates within an entry are allowed.
+    /// No entry may depend on another entry's output, including through TLAS
+    /// instance references. Property queries must use distinct output slots.
+    /// Separate batches express dependencies. Cross-queue synchronization remains
+    /// the caller's responsibility. A zero count is a no-op.
+    virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructures(
+        uint32_t count,
+        const AccelerationStructureBuildEntry* entries
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildMicromap(

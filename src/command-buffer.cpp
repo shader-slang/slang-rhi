@@ -797,13 +797,15 @@ void CommandEncoder::buildAccelerationStructure(
     const AccelerationStructureQueryDesc* queryDescs
 )
 {
-    commands::BuildAccelerationStructure cmd;
-    cmd.desc = desc;
-    cmd.dst = dst;
-    cmd.src = src;
-    cmd.scratchBuffer = scratchBuffer;
-    cmd.propertyQueryCount = propertyQueryCount;
-    cmd.queryDescs = queryDescs;
+    AccelerationStructureBuildEntry entry = {desc, dst, src, scratchBuffer, propertyQueryCount, queryDescs};
+    buildAccelerationStructures(1, &entry);
+}
+
+void CommandEncoder::buildAccelerationStructures(uint32_t count, const AccelerationStructureBuildEntry* entries)
+{
+    if (count == 0)
+        return;
+    commands::BuildAccelerationStructures cmd = {count, entries};
     m_commandList->write(std::move(cmd));
 }
 

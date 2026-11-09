@@ -215,6 +215,7 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
 | `resolveQuery`                         | yes | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `buildAccelerationStructures`          | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildMicromap`                        | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `copyAccelerationStructure`            | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `queryAccelerationStructureProperties` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |

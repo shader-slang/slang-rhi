@@ -195,95 +195,103 @@ void CommandList::write(commands::DispatchRays&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::BuildAccelerationStructure&& cmd)
+void CommandList::write(commands::BuildAccelerationStructures&& cmd)
 {
-    if (cmd.desc.inputs && cmd.desc.inputCount > 0)
+    auto entries =
+        (AccelerationStructureBuildEntry*)writeData(cmd.entries, cmd.count * sizeof(AccelerationStructureBuildEntry));
+    cmd.entries = entries;
+    for (uint32_t buildIndex = 0; buildIndex < cmd.count; ++buildIndex)
     {
-        cmd.desc.inputs = (AccelerationStructureBuildInput*)
-            writeData(cmd.desc.inputs, cmd.desc.inputCount * sizeof(AccelerationStructureBuildInput));
-        AccelerationStructureBuildInput* inputs = const_cast<AccelerationStructureBuildInput*>(cmd.desc.inputs);
-        for (uint32_t i = 0; i < cmd.desc.inputCount; ++i)
+        auto& entry = entries[buildIndex];
+
+        if (entry.desc.inputs && entry.desc.inputCount > 0)
         {
-            switch (inputs[i].type)
+            entry.desc.inputs = (AccelerationStructureBuildInput*)
+                writeData(entry.desc.inputs, entry.desc.inputCount * sizeof(AccelerationStructureBuildInput));
+            AccelerationStructureBuildInput* inputs = const_cast<AccelerationStructureBuildInput*>(entry.desc.inputs);
+            for (uint32_t i = 0; i < entry.desc.inputCount; ++i)
             {
-            case AccelerationStructureBuildInputType::Instances:
-            {
-                const AccelerationStructureBuildInputInstances& instances = inputs[i].instances;
-                retainResource<Buffer>(instances.instanceBuffer.buffer);
-                break;
-            }
-            case AccelerationStructureBuildInputType::Triangles:
-            {
-                AccelerationStructureBuildInputTriangles& triangles = inputs[i].triangles;
-                for (uint32_t j = 0; j < triangles.vertexBufferCount; ++j)
-                    retainResource<Buffer>(triangles.vertexBuffers[j].buffer);
-                retainResource<Buffer>(triangles.indexBuffer.buffer);
-                retainResource<Buffer>(triangles.preTransformBuffer.buffer);
-                if (const auto* sourceOpacityDesc =
-                        findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+                switch (inputs[i].type)
                 {
-                    auto* opacityDesc = (AccelerationStructureOpacityMicromapDesc*)
-                        writeData(sourceOpacityDesc, sizeof(AccelerationStructureOpacityMicromapDesc));
-                    triangles.next = opacityDesc;
-                    // Extension chains are copied explicitly as support is added. Do not retain
-                    // a pointer into caller-owned memory for an unrecognized nested extension.
-                    opacityDesc->next = nullptr;
-                    retainResource<Micromap>(opacityDesc->link.micromap);
-                    retainResource<Buffer>(opacityDesc->link.indexBuffer.buffer);
-                    if (opacityDesc->link.usageCounts && opacityDesc->link.usageCount > 0)
+                case AccelerationStructureBuildInputType::Instances:
+                {
+                    const AccelerationStructureBuildInputInstances& instances = inputs[i].instances;
+                    retainResource<Buffer>(instances.instanceBuffer.buffer);
+                    break;
+                }
+                case AccelerationStructureBuildInputType::Triangles:
+                {
+                    AccelerationStructureBuildInputTriangles& triangles = inputs[i].triangles;
+                    for (uint32_t j = 0; j < triangles.vertexBufferCount; ++j)
+                        retainResource<Buffer>(triangles.vertexBuffers[j].buffer);
+                    retainResource<Buffer>(triangles.indexBuffer.buffer);
+                    retainResource<Buffer>(triangles.preTransformBuffer.buffer);
+                    if (const auto* sourceOpacityDesc =
+                            findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
                     {
-                        opacityDesc->link.usageCounts = (MicromapUsageCount*)writeData(
-                            opacityDesc->link.usageCounts,
-                            opacityDesc->link.usageCount * sizeof(MicromapUsageCount)
-                        );
+                        auto* opacityDesc = (AccelerationStructureOpacityMicromapDesc*)
+                            writeData(sourceOpacityDesc, sizeof(AccelerationStructureOpacityMicromapDesc));
+                        triangles.next = opacityDesc;
+                        // Extension chains are copied explicitly as support is added. Do not retain
+                        // a pointer into caller-owned memory for an unrecognized nested extension.
+                        opacityDesc->next = nullptr;
+                        retainResource<Micromap>(opacityDesc->link.micromap);
+                        retainResource<Buffer>(opacityDesc->link.indexBuffer.buffer);
+                        if (opacityDesc->link.usageCounts && opacityDesc->link.usageCount > 0)
+                        {
+                            opacityDesc->link.usageCounts = (MicromapUsageCount*)writeData(
+                                opacityDesc->link.usageCounts,
+                                opacityDesc->link.usageCount * sizeof(MicromapUsageCount)
+                            );
+                        }
                     }
+                    break;
                 }
-                break;
-            }
-            case AccelerationStructureBuildInputType::ProceduralPrimitives:
-            {
-                const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
-                    inputs[i].proceduralPrimitives;
-                for (uint32_t j = 0; j < proceduralPrimitives.aabbBufferCount; ++j)
-                    retainResource<Buffer>(proceduralPrimitives.aabbBuffers[j].buffer);
-                break;
-            }
-            case AccelerationStructureBuildInputType::Spheres:
-            {
-                const AccelerationStructureBuildInputSpheres& spheres = inputs[i].spheres;
-                for (uint32_t j = 0; j < spheres.vertexBufferCount; ++j)
+                case AccelerationStructureBuildInputType::ProceduralPrimitives:
                 {
-                    retainResource<Buffer>(spheres.vertexPositionBuffers[j].buffer);
-                    retainResource<Buffer>(spheres.vertexRadiusBuffers[j].buffer);
+                    const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
+                        inputs[i].proceduralPrimitives;
+                    for (uint32_t j = 0; j < proceduralPrimitives.aabbBufferCount; ++j)
+                        retainResource<Buffer>(proceduralPrimitives.aabbBuffers[j].buffer);
+                    break;
                 }
-                retainResource<Buffer>(spheres.indexBuffer.buffer);
-                break;
-            }
-            case AccelerationStructureBuildInputType::LinearSweptSpheres:
-            {
-                const AccelerationStructureBuildInputLinearSweptSpheres lss = inputs[i].linearSweptSpheres;
-                for (uint32_t j = 0; j < lss.vertexBufferCount; ++j)
+                case AccelerationStructureBuildInputType::Spheres:
                 {
-                    retainResource<Buffer>(lss.vertexPositionBuffers[j].buffer);
-                    retainResource<Buffer>(lss.vertexRadiusBuffers[j].buffer);
+                    const AccelerationStructureBuildInputSpheres& spheres = inputs[i].spheres;
+                    for (uint32_t j = 0; j < spheres.vertexBufferCount; ++j)
+                    {
+                        retainResource<Buffer>(spheres.vertexPositionBuffers[j].buffer);
+                        retainResource<Buffer>(spheres.vertexRadiusBuffers[j].buffer);
+                    }
+                    retainResource<Buffer>(spheres.indexBuffer.buffer);
+                    break;
                 }
-                retainResource<Buffer>(lss.indexBuffer.buffer);
-                break;
-            }
+                case AccelerationStructureBuildInputType::LinearSweptSpheres:
+                {
+                    const AccelerationStructureBuildInputLinearSweptSpheres lss = inputs[i].linearSweptSpheres;
+                    for (uint32_t j = 0; j < lss.vertexBufferCount; ++j)
+                    {
+                        retainResource<Buffer>(lss.vertexPositionBuffers[j].buffer);
+                        retainResource<Buffer>(lss.vertexRadiusBuffers[j].buffer);
+                    }
+                    retainResource<Buffer>(lss.indexBuffer.buffer);
+                    break;
+                }
+                }
             }
         }
-    }
-    retainResource<AccelerationStructure>(cmd.dst);
-    retainResource<AccelerationStructure>(cmd.src);
-    retainResource<Buffer>(cmd.scratchBuffer.buffer);
-    if (cmd.queryDescs && cmd.propertyQueryCount > 0)
-    {
-        cmd.queryDescs = (AccelerationStructureQueryDesc*)
-            writeData(cmd.queryDescs, cmd.propertyQueryCount * sizeof(AccelerationStructureQueryDesc));
-        for (uint32_t i = 0; i < cmd.propertyQueryCount; ++i)
+        retainResource<AccelerationStructure>(entry.dst);
+        retainResource<AccelerationStructure>(entry.src);
+        retainResource<Buffer>(entry.scratchBuffer.buffer);
+        if (entry.queryDescs && entry.propertyQueryCount > 0)
         {
-            retainResource<QueryPool>(cmd.queryDescs[i].queryPool);
-            trackQueryWrite(cmd.queryDescs[i].queryPool, uint32_t(cmd.queryDescs[i].firstQueryIndex), 1);
+            entry.queryDescs = (AccelerationStructureQueryDesc*)
+                writeData(entry.queryDescs, entry.propertyQueryCount * sizeof(AccelerationStructureQueryDesc));
+            for (uint32_t i = 0; i < entry.propertyQueryCount; ++i)
+            {
+                retainResource<QueryPool>(entry.queryDescs[i].queryPool);
+                trackQueryWrite(entry.queryDescs[i].queryPool, uint32_t(entry.queryDescs[i].firstQueryIndex), 1);
+            }
         }
     }
     writeCommand(std::move(cmd));

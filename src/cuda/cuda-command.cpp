@@ -269,7 +269,8 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
-    void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd);
+    void buildAccelerationStructure(const AccelerationStructureBuildEntry& cmd);
     void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -766,7 +767,13 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     );
 }
 
-void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
+void CommandExecutor::cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd)
+{
+    for (uint32_t i = 0; i < cmd.count; ++i)
+        buildAccelerationStructure(cmd.entries[i]);
+}
+
+void CommandExecutor::buildAccelerationStructure(const AccelerationStructureBuildEntry& cmd)
 {
     if (!m_device->m_ctx.optixContext)
         return;

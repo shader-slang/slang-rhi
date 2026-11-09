@@ -38,7 +38,7 @@
     x(EndRayTracingPass) \
     x(SetRayTracingState) \
     x(DispatchRays) \
-    x(BuildAccelerationStructure) \
+    x(BuildAccelerationStructures) \
     x(BuildMicromap) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
@@ -252,14 +252,10 @@ struct DispatchRays
     uint32_t depth;
 };
 
-struct BuildAccelerationStructure
+struct BuildAccelerationStructures
 {
-    AccelerationStructureBuildDesc desc;
-    IAccelerationStructure* dst;
-    IAccelerationStructure* src;
-    BufferOffsetPair scratchBuffer;
-    uint32_t propertyQueryCount;
-    const AccelerationStructureQueryDesc* queryDescs;
+    uint32_t count;
+    const AccelerationStructureBuildEntry* entries;
 };
 
 struct BuildMicromap
@@ -457,7 +453,7 @@ public:
     void write(commands::EndRayTracingPass&& cmd);
     void write(commands::SetRayTracingState&& cmd);
     void write(commands::DispatchRays&& cmd);
-    void write(commands::BuildAccelerationStructure&& cmd);
+    void write(commands::BuildAccelerationStructures&& cmd);
     void write(commands::BuildMicromap&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);
