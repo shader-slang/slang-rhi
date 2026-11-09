@@ -15,6 +15,17 @@ public:
     // Highest alignment requirement in CUDA is 128, for optimal memcpy performance.
     static const Size kAlignment = 128;
 
+    // Keep small allocations in the existing 256 MiB pool. Larger allocations own
+    // their CUDA memory directly, without a page's capacity-sized offset metadata.
+    static constexpr Size kMaxPooledAllocationSize = Size(256) * 1024 * 1024;
+
+    // HeapAlloc's page identity is backend-owned. In CUDA, a valid address without a
+    // page denotes a dedicated allocation; no public layout or buffer ABI changes.
+    static bool isDedicatedAllocation(const HeapAlloc& allocation)
+    {
+        return allocation.isValid() && allocation.pageId == nullptr;
+    }
+
     struct PendingFree
     {
         HeapAlloc allocation;
@@ -105,8 +116,11 @@ public:
     HeapImpl(Device* device, const HeapDesc& desc);
     ~HeapImpl();
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(HeapReport* outReport) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() override;
 
     virtual Result allocatePage(const PageDesc& desc, Page** outPage) override;
     virtual Result freePage(Page* page) override;
@@ -115,6 +129,11 @@ public:
     virtual Result fixUpAllocDesc(HeapAllocDesc& desc) override;
 
     std::list<PendingFree> m_pendingFrees;
+
+    // Includes allocations awaiting GPU completion. Each entry describes one CUDA
+    // allocation, so host bookkeeping does not grow with its byte size.
+    std::list<HeapAlloc> m_dedicatedAllocations;
+    Result releaseDedicatedAllocation(HeapAlloc allocation);
 
     /// Page cache for memory reuse
     PageCache m_pageCache;

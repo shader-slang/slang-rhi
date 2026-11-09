@@ -31,6 +31,7 @@ public:
     /// Set when a recorded copy or clear writes this upload buffer. Mapping then refreshes the
     /// CPU copy from the GPU buffer first.
     std::atomic<bool> m_uploadDataStale{false};
+    bool m_ownsNativeHandle = false;
 };
 
 } // namespace rhi::wgpu

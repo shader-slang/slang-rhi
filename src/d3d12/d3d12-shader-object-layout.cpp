@@ -389,10 +389,23 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     setElementTypeLayout(globalsLayout->getTypeLayout());
 }
 
-void RootShaderObjectLayoutImpl::Builder::addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout)
+void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
+    SlangStage stage,
+    ShaderObjectLayoutImpl* entryPointLayout,
+    bool shaderRecordParameters
+)
 {
     EntryPointInfo info;
     info.layout = entryPointLayout;
+    info.shaderRecordParameters = shaderRecordParameters;
+
+    // Record-local uniforms are supplied independently for every SBT record, so they
+    // consume no slots in the root object's global descriptor tables.
+    if (shaderRecordParameters)
+    {
+        m_entryPoints.push_back(info);
+        return;
+    }
 
     info.offset.resource = m_totalCounts.resource;
     info.offset.sampler = m_totalCounts.sampler;
@@ -863,6 +876,8 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
 
     for (SlangUInt i = 0; i < layout->getEntryPointCount(); i++)
     {
+        if (rootLayout->m_entryPoints[i].shaderRecordParameters)
+            continue;
         // Entry-point parameters should also be added to the default root
         // descriptor set.
         //
@@ -963,6 +978,7 @@ Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
+    bool useShaderRecordParameters,
     RootShaderObjectLayoutImpl** outLayout,
     ID3DBlob** outError
 )
@@ -983,7 +999,29 @@ Result RootShaderObjectLayoutImpl::create(
                 entryPointLayout.writeRef()
             )
         );
-        builder.addEntryPoint(slangEntryPoint->getStage(), entryPointLayout);
+        if (useShaderRecordParameters && (entryPointLayout->getSlotCount() || entryPointLayout->getSubObjectCount()))
+        {
+            device->printError(
+                "Shader-record entry-point uniforms must contain ordinary data only; bind resources globally or use "
+                "DescriptorHandle."
+            );
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        // Reject oversized local constants before native root signature creation can remove
+        // the device. The cap is DWORD-aligned, so it also bounds rounded root constants.
+        if (useShaderRecordParameters && entryPointLayout->getTotalOrdinaryDataSize() > kMaxShaderRecordDataSize)
+        {
+            device->printError(
+                "Shader-record uniforms for '%s' require %u bytes; D3D12 currently limits application data to %u "
+                "bytes (%s).",
+                slangEntryPoint->getNameOverride(),
+                entryPointLayout->getTotalOrdinaryDataSize(),
+                kMaxShaderRecordDataSize,
+                kShaderRecordDataLimitReason
+            );
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        builder.addEntryPoint(slangEntryPoint->getStage(), entryPointLayout, useShaderRecordParameters);
     }
 
     RefPtr<RootShaderObjectLayoutImpl> layout;

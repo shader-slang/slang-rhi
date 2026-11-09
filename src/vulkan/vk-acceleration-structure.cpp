@@ -14,11 +14,6 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    if (m_descriptorHandle)
-    {
-        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
-    }
-
     device->m_api.vkDestroyAccelerationStructureKHR(device->m_device, m_vkHandle, nullptr);
 }
 
@@ -73,27 +68,12 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    if (m_descriptorHandle)
-    {
-        *outHandle = m_descriptorHandle;
-        return SLANG_OK;
-    }
-
-    DeviceImpl* device = getDevice<DeviceImpl>();
-
-    if (!device->m_bindlessDescriptorSet)
-    {
+    // Slang lowers Vulkan acceleration-structure handles through
+    // OpConvertUToAccelerationStructureKHR, whose operand is an address, not a heap index.
+    DeviceAddress address = getAccelerationStructureDeviceAddress();
+    if (!address)
         return SLANG_E_NOT_AVAILABLE;
-    }
-
-    if (!m_descriptorHandle)
-    {
-        SLANG_RETURN_ON_FAIL(
-            device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
-        );
-    }
-
-    *outHandle = m_descriptorHandle;
+    *outHandle = DescriptorHandle{DescriptorHandleType::AccelerationStructure, address};
     return SLANG_OK;
 }
 

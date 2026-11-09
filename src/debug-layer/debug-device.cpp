@@ -147,6 +147,19 @@ Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
     return baseObject->getSlangSession(outSlangSession);
 }
 
+Result DebugDevice::createSlangSession(slang::ISession** outSlangSession)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createSlangSession);
+
+    if (!outSlangSession)
+    {
+        RHI_VALIDATION_ERROR("'outSlangSession' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->createSlangSession(outSlangSession);
+}
+
 static Result validateTextureDesc(DebugContext* ctx, const TextureDesc& desc)
 {
     if (!isValidTextureType(desc.type))
@@ -1762,6 +1775,12 @@ Result DebugDevice::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
     }
 
     return baseObject->reportHeaps(heapReports, heapCount);
+}
+
+Result DebugDevice::trimMemory()
+{
+    SLANG_RHI_DEBUG_API(IDevice, trimMemory);
+    return baseObject->trimMemory();
 }
 
 Result DebugDevice::setCudaContextCurrent()

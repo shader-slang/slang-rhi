@@ -4,6 +4,10 @@
 #include "wgpu-shader-object.h"
 #include "wgpu-constant-buffer-pool.h"
 
+#include <list>
+#include <mutex>
+#include <vector>
+
 namespace rhi::wgpu {
 
 class CommandQueueImpl : public CommandQueue
@@ -11,8 +15,26 @@ class CommandQueueImpl : public CommandQueue
 public:
     WGPUQueue m_queue = nullptr;
 
+    struct PendingSubmission
+    {
+        WGPUFuture future = {};
+        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
+        bool callbackReceived = false;
+        std::vector<InternalRefPtr<CommandBufferImpl>> commandBuffers;
+    };
+
+    std::mutex m_mutex;
+    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
+    // List nodes keep the callback userdata address stable until WebGPU completes the submission.
+    std::list<PendingSubmission> m_submissionsInFlight;
+
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
+
+    Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
+    Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
+    void retireCommandBuffer(CommandBufferImpl* commandBuffer);
+    Result retireCommandBuffers(bool waitForAll);
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(

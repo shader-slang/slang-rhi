@@ -8,6 +8,7 @@
 
 #include "rhi-shared-fwd.h"
 #include "device-child.h"
+#include <map>
 
 namespace rhi {
 
@@ -112,6 +113,14 @@ public:
 class RayTracingPipeline : public IRayTracingPipeline, public Pipeline
 {
 public:
+    using ShaderRecordLayout = RayTracingShaderRecordLayout;
+    using ShaderRecordLayoutMap = std::map<std::string, ShaderRecordLayout>;
+
+    /// Resolve the ordinary parameter layout for each entry point and hit group.
+    /// Each stage retains its reflected local layout inside the shared group record.
+    static Result getShaderRecordLayouts(const RayTracingPipelineDesc& desc, ShaderRecordLayoutMap& layouts);
+    ShaderRecordLayoutMap m_shaderRecordLayouts;
+
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IPipeline* getInterface(const Guid& guid);
 
@@ -125,6 +134,10 @@ public:
 
     // IPipeline interface
     virtual SLANG_NO_THROW const RayTracingPipelineDesc& SLANG_MCALL getDesc() override { return m_desc; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getShaderRecordLayout(
+        const char* exportName,
+        RayTracingShaderRecordLayout* outLayout
+    ) override;
     virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
 };
 

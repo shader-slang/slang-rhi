@@ -93,10 +93,14 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(i);
         if (descriptorRangeCount == 0)
             continue;
+        uint32_t space = offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i);
+        // Slang reflects the compiler-generated heap range at its reserved space, but RHI appends
+        // the device's shared bindless set to the pipeline separately. Treating this range as an
+        // ordinary set would insert an empty layout before the real heap when the heap uses set 0.
+        if (isBindlessSpace(space))
+            continue;
         uint32_t descriptorSetIndex = 0;
-        SLANG_RETURN_ON_FAIL(
-            findOrAddDescriptorSet(offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i), &descriptorSetIndex)
-        );
+        SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet(space, &descriptorSetIndex));
         SLANG_UNUSED(descriptorSetIndex);
     }
 
@@ -134,11 +138,11 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         if (descriptorRangeCount == 0)
             continue;
         auto slangDescriptorSetIndex = typeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
+        uint32_t space = offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(slangDescriptorSetIndex);
+        if (isBindlessSpace(space))
+            continue;
         uint32_t descriptorSetIndex = 0;
-        SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet(
-            offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(slangDescriptorSetIndex),
-            &descriptorSetIndex
-        ));
+        SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet(space, &descriptorSetIndex));
 
         uint32_t firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
         for (uint32_t j = 0; j < descriptorRangeCount; ++j)
@@ -230,8 +234,7 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             BindingOffset elementOffset = subObjectRangeOffset;
             elementOffset += BindingOffset(elementVarLayout);
 
-            SLANG_RETURN_ON_FAIL(
-                _addDescriptorRangesAsConstantBuffer(elementTypeLayout, containerOffset, elementOffset)
+            SLANG_RETURN_ON_FAIL(_addDescriptorRangesAsConstantBuffer(elementTypeLayout, containerOffset, elementOffset)
             );
         }
         break;
@@ -456,14 +459,12 @@ Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflec
             if (auto elementVarLayout = slangLeafTypeLayout->getElementVarLayout())
                 subTypeLayout = elementVarLayout->getTypeLayout();
             SLANG_RHI_ASSERT(subTypeLayout);
-            SLANG_RETURN_ON_FAIL(
-                ShaderObjectLayoutImpl::createForElementType(
-                    m_device,
-                    m_session,
-                    subTypeLayout,
-                    subObjectLayout.writeRef()
-                )
-            );
+            SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(
+                m_device,
+                m_session,
+                subTypeLayout,
+                subObjectLayout.writeRef()
+            ));
         }
         break;
 
@@ -705,11 +706,27 @@ Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
+    const std::vector<uint32_t>& selectedEntryPoints,
+    bool hasAssignedPushConstantLayout,
+    bool useShaderRecordParameters,
     SyntheticResourceBindingState* syntheticResources,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
     RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout, syntheticResources);
+    if (!programLayout)
+        return SLANG_FAIL;
+    bool hasPushConstantConstraints = false;
+    for (uint32_t i = 0; i < programLayout->getEntryPointCount(); ++i)
+        hasPushConstantConstraints |= programLayout->getEntryPointByIndex(i)->getPushConstantOffset() >= 0;
+    if (hasPushConstantConstraints && !hasAssignedPushConstantLayout)
+    {
+        device->printError("A program with entry-point layout constraints requires an explicit group selection.");
+        return SLANG_E_INVALID_ARG;
+    }
+    builder.m_hasAssignedPushConstantLayout = hasAssignedPushConstantLayout;
+    builder.m_useShaderRecordParameters = useShaderRecordParameters;
+    builder.m_bindlessSpaceIndex = programLayout->getBindlessSpaceIndex();
     SLANG_RETURN_ON_FAIL(builder.addGlobalParams(programLayout->getGlobalParamsVarLayout()));
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
@@ -723,7 +740,46 @@ Result RootShaderObjectLayoutImpl::create(
         RefPtr<EntryPointLayout> entryPointLayout;
         SLANG_RETURN_ON_FAIL(entryPointBuilder.build(entryPointLayout.writeRef()));
 
+        if (useShaderRecordParameters && (entryPointLayout->getSlotCount() || entryPointLayout->getSubObjectCount()))
+        {
+            device->printError(
+                "Shader-record entry-point uniforms must contain ordinary data only; bind resources globally or use "
+                "DescriptorHandle."
+            );
+            return SLANG_E_NOT_AVAILABLE;
+        }
+
+        if (useShaderRecordParameters)
+        {
+            // The ray-tracing properties are unavailable when this feature is disabled.
+            if (!device->hasFeature(Feature::RayTracing))
+                return SLANG_E_NOT_AVAILABLE;
+            const auto& properties = device->m_api.m_rayTracingPipelineProperties;
+            uint32_t dataSize = entryPointLayout->getTotalOrdinaryDataSize();
+            // Match the SBT builder's alignment, and use wide arithmetic before checking the
+            // native bound. An oversized reflected layout must fail before table construction.
+            uint64_t stride = math::calcAligned2(
+                uint64_t(properties.shaderGroupHandleSize) + dataSize,
+                properties.shaderGroupBaseAlignment
+            );
+            if (stride > properties.maxShaderGroupStride)
+            {
+                device->printError(
+                    "Shader-record uniforms for '%s' require %u data bytes and an aligned %llu-byte record; "
+                    "Vulkan supports a maximum record stride of %u bytes.",
+                    slangEntryPoint->getNameOverride(),
+                    dataSize,
+                    (unsigned long long)stride,
+                    properties.maxShaderGroupStride
+                );
+                return SLANG_E_NOT_AVAILABLE;
+            }
+        }
+
         SLANG_RETURN_ON_FAIL(builder.addEntryPoint(entryPointLayout));
+        builder.m_entryPoints.back().selected =
+            !hasAssignedPushConstantLayout ||
+            std::find(selectedEntryPoints.begin(), selectedEntryPoints.end(), uint32_t(e)) != selectedEntryPoints.end();
     }
 
     if (syntheticResources)
@@ -746,6 +802,7 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
+    m_hasAssignedPushConstantLayout = builder->m_hasAssignedPushConstantLayout;
     m_device = device;
 
     // If the program has unbound specialization parameters,
@@ -790,10 +847,16 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)m_vkDescriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = m_vkDescriptorSetLayouts.data();
+    // Binding range indices belong to the full reflected program. Only selected ranges
+    // participate in the native pipeline; keep that compact array separate from indexing.
+    std::vector<VkPushConstantRange> nativePushConstantRanges;
+    for (const auto& range : m_allPushConstantRanges)
+        if (!m_hasAssignedPushConstantLayout || (range.size && range.stageFlags))
+            nativePushConstantRanges.push_back(range);
     if (m_allPushConstantRanges.size())
     {
         uint32_t totalPushConstantSize = 0;
-        for (const auto& range : m_allPushConstantRanges)
+        for (const auto& range : nativePushConstantRanges)
         {
             totalPushConstantSize = std::max(totalPushConstantSize, range.offset + range.size);
         }
@@ -806,8 +869,8 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
             );
             return SLANG_FAIL;
         }
-        pipelineLayoutCreateInfo.pushConstantRangeCount = (uint32_t)m_allPushConstantRanges.size();
-        pipelineLayoutCreateInfo.pPushConstantRanges = m_allPushConstantRanges.data();
+        pipelineLayoutCreateInfo.pushConstantRangeCount = (uint32_t)nativePushConstantRanges.size();
+        pipelineLayoutCreateInfo.pPushConstantRanges = nativePushConstantRanges.data();
     }
     SLANG_RETURN_ON_FAIL(
         m_device->m_api
@@ -897,6 +960,37 @@ Result RootShaderObjectLayoutImpl::addAllPushConstantRanges()
         SLANG_RETURN_ON_FAIL(addChildPushConstantRangesRec(entryPoint.layout));
     }
 
+    if (m_hasAssignedPushConstantLayout)
+    {
+        for (auto& range : m_allPushConstantRanges)
+            range.stageFlags = 0;
+        VkShaderStageFlags stages = 0;
+        for (const auto& entryPoint : m_entryPoints)
+        {
+            if (!entryPoint.selected)
+                continue;
+            auto stage = entryPoint.layout->getShaderStageFlag();
+            if (stages & stage)
+            {
+                m_device->printError("Select at most one entry point for each pipeline stage.");
+                return SLANG_E_INVALID_ARG;
+            }
+            stages |= stage;
+            if (!entryPoint.paramsSize)
+                continue;
+            auto base = entryPoint.layout->getSlangLayout()->getPushConstantOffset();
+            if (base < 0 || entryPoint.offset.pushConstantRange >= m_allPushConstantRanges.size())
+            {
+                m_device->printError("The selected entry point has no assigned push-constant payload.");
+                return SLANG_E_INVALID_ARG;
+            }
+            auto& range = m_allPushConstantRanges[entryPoint.offset.pushConstantRange];
+            range.offset = uint32_t(base);
+            range.size = uint32_t(entryPoint.layout->getSlangLayout()->getPushConstantSize());
+            range.stageFlags = stage;
+        }
+    }
+
     return SLANG_OK;
 }
 
@@ -910,8 +1004,11 @@ Result RootShaderObjectLayoutImpl::addAllPushConstantRangesRec(ShaderObjectLayou
 
     for (auto pushConstantRange : layout->getOwnPushConstantRanges())
     {
-        pushConstantRange.offset = m_totalPushConstantSize;
-        m_totalPushConstantSize += pushConstantRange.size;
+        if (!m_hasAssignedPushConstantLayout)
+        {
+            pushConstantRange.offset = m_totalPushConstantSize;
+            m_totalPushConstantSize += pushConstantRange.size;
+        }
 
         m_allPushConstantRanges.push_back(pushConstantRange);
     }
@@ -999,11 +1096,12 @@ Result RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entr
     info.layout = entryPointLayout;
     info.offset = entryPointOffset;
     info.paramsSize = entryPointLayout->getTotalOrdinaryDataSize();
+    info.shaderRecordParameters = m_useShaderRecordParameters;
 
     auto entryPointTypeLayout = entryPointVarLayout->getTypeLayout();
 
-    if (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION &&
-        entryPointTypeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer)
+    if (m_useShaderRecordParameters || (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION &&
+                                        entryPointTypeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer))
     {
         // For raygen entry points, ordinary data is stored in the shader binding table (SBT),
         // not in push constants or a constant buffer.

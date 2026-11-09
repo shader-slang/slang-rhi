@@ -26,6 +26,26 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     uint32_t callableRecordSize =
         max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_callableRecordOverwriteMaxSize);
 
+    raygenRecordSize =
+        max(raygenRecordSize,
+            D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES +
+                max(getMaxRecordDataSize(m_rayGenRecordData),
+                    getMaxRecordParameterSize(pipeline, m_rayGenShaderEntryPointNames)));
+    missRecordSize =
+        max(missRecordSize,
+            D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES +
+                max(getMaxRecordDataSize(m_missRecordData),
+                    getMaxRecordParameterSize(pipeline, m_missShaderEntryPointNames)));
+    hitGroupRecordSize =
+        max(hitGroupRecordSize,
+            D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES +
+                max(getMaxRecordDataSize(m_hitGroupRecordData), getMaxRecordParameterSize(pipeline, m_hitGroupNames)));
+    callableRecordSize =
+        max(callableRecordSize,
+            D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES +
+                max(getMaxRecordDataSize(m_callableRecordData),
+                    getMaxRecordParameterSize(pipeline, m_callableShaderEntryPointNames)));
+
     // Align all record sizes to D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, expect raygen records which must be
     // aligned to D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT.
     raygenRecordSize = (uint32_t)math::calcAligned2(raygenRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
@@ -34,6 +54,24 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         (uint32_t)math::calcAligned2(hitGroupRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
     callableRecordSize =
         (uint32_t)math::calcAligned2(callableRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+
+    if (raygenRecordSize > D3D12_RAYTRACING_MAX_SHADER_RECORD_STRIDE ||
+        missRecordSize > D3D12_RAYTRACING_MAX_SHADER_RECORD_STRIDE ||
+        hitGroupRecordSize > D3D12_RAYTRACING_MAX_SHADER_RECORD_STRIDE ||
+        callableRecordSize > D3D12_RAYTRACING_MAX_SHADER_RECORD_STRIDE)
+    {
+        getDevice()->printError("Shader table record stride exceeds the D3D12 limit.");
+        return nullptr;
+    }
+    uint64_t totalSize = uint64_t(m_rayGenShaderCount) * raygenRecordSize +
+                         uint64_t(m_missShaderCount) * missRecordSize + uint64_t(m_hitGroupCount) * hitGroupRecordSize +
+                         uint64_t(m_callableShaderCount) * callableRecordSize +
+                         3 * D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+    if (totalSize > UINT32_MAX)
+    {
+        getDevice()->printError("Shader table size exceeds the supported 32-bit range.");
+        return nullptr;
+    }
 
     // Calculate table sizes.
     uint32_t raygenTableSize = m_rayGenShaderCount * raygenRecordSize;
@@ -53,13 +91,18 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     uint32_t tableSize = callableTableOffset + callableTableSize;
 
-    auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
+    auto writeTableEntry = [&](void* dest,
+                               const std::string& name,
+                               const ShaderRecordOverwrite* overwrite,
+                               const std::vector<uint8_t>* data)
     {
         auto it = pipeline->m_shaderIdentifierByName.find(name);
         if (it != pipeline->m_shaderIdentifierByName.end())
         {
             memcpy(dest, it->second, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         }
+        if (data && !data->empty())
+            memcpy(static_cast<uint8_t*>(dest) + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, data->data(), data->size());
         if (overwrite && overwrite->size > 0)
         {
             memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
@@ -75,7 +118,8 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         writeTableEntry(
             tablePtr + rayGenTableOffset + i * raygenRecordSize,
             m_rayGenShaderEntryPointNames[i],
-            i < m_rayGenRecordOverwrites.size() ? &m_rayGenRecordOverwrites[i] : nullptr
+            i < m_rayGenRecordOverwrites.size() ? &m_rayGenRecordOverwrites[i] : nullptr,
+            i < m_rayGenRecordData.size() ? &m_rayGenRecordData[i] : nullptr
         );
     }
 
@@ -84,7 +128,8 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         writeTableEntry(
             tablePtr + missTableOffset + i * missRecordSize,
             m_missShaderEntryPointNames[i],
-            i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr
+            i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr,
+            i < m_missRecordData.size() ? &m_missRecordData[i] : nullptr
         );
     }
 
@@ -93,7 +138,8 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         writeTableEntry(
             tablePtr + hitGroupTableOffset + i * hitGroupRecordSize,
             m_hitGroupNames[i],
-            i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr
+            i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr,
+            i < m_hitGroupRecordData.size() ? &m_hitGroupRecordData[i] : nullptr
         );
     }
 
@@ -102,7 +148,8 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         writeTableEntry(
             tablePtr + callableTableOffset + i * callableRecordSize,
             m_callableShaderEntryPointNames[i],
-            i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr
+            i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr,
+            i < m_callableRecordData.size() ? &m_callableRecordData[i] : nullptr
         );
     }
 

@@ -22,7 +22,6 @@ public:
     Result allocTextureHandle(ITextureView* textureView, DescriptorHandleAccess access, DescriptorHandle* outHandle);
     Result allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle);
     Result allocCombinedTextureSamplerHandle(ITextureView* textureView, ISampler* sampler, DescriptorHandle* outHandle);
-    Result allocAccelerationStructureHandle(IAccelerationStructure* accelerationStructure, DescriptorHandle* outHandle);
     Result freeHandle(const DescriptorHandle& handle);
 
 public:
@@ -34,7 +33,6 @@ public:
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
 
     uint32_t m_firstTextureHandle;
-    uint32_t m_firstAccelerationStructureHandle;
 
     struct SlotAllocator
     {
@@ -73,7 +71,6 @@ public:
     SlotAllocator m_textureAllocator;
     SlotAllocator m_samplerAllocator;
     SlotAllocator m_combinedTextureSamplerAllocator;
-    SlotAllocator m_accelerationStructureAllocator;
 };
 
 } // namespace rhi::vk

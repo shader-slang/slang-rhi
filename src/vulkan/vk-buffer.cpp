@@ -113,6 +113,10 @@ Result allocateVkMemory(
         allocateInfo.memoryTypeIndex = requiredMemoryTypeIndex;
         result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
     }
+    // Preserve OOM so higher-level allocation caches can trim and retry without treating a
+    // device failure as memory pressure.
+    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY || result == VK_ERROR_OUT_OF_HOST_MEMORY)
+        return SLANG_E_OUT_OF_MEMORY;
     SLANG_VK_RETURN_ON_FAIL(result);
     if (outMemoryTypeIndex)
         *outMemoryTypeIndex = allocateInfo.memoryTypeIndex;

@@ -3,7 +3,6 @@
 #include "vk-buffer.h"
 #include "vk-texture.h"
 #include "vk-sampler.h"
-#include "vk-acceleration-structure.h"
 #include "vk-utils.h"
 
 #include "core/static_vector.h"
@@ -44,7 +43,6 @@ Result BindlessDescriptorSet::initialize()
     const auto& api = m_device->m_api;
 
     m_firstTextureHandle = m_desc.bufferCount;
-    m_firstAccelerationStructureHandle = m_desc.bufferCount + m_desc.textureCount;
 
     // Create descriptor pool
     {
@@ -52,10 +50,7 @@ Result BindlessDescriptorSet::initialize()
         static_vector<VkDescriptorPoolSize, 16> poolSizes;
         poolSizes.push_back({VK_DESCRIPTOR_TYPE_SAMPLER, m_desc.samplerCount});
         poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_desc.combinedTextureSamplerCount});
-        poolSizes.push_back(
-            {VK_DESCRIPTOR_TYPE_MUTABLE_EXT,
-             m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount}
-        );
+        poolSizes.push_back({VK_DESCRIPTOR_TYPE_MUTABLE_EXT, m_desc.bufferCount + m_desc.textureCount});
         createInfo.maxSets = 1;
         createInfo.poolSizeCount = (uint32_t)poolSizes.size();
         createInfo.pPoolSizes = poolSizes.data();
@@ -81,10 +76,6 @@ Result BindlessDescriptorSet::initialize()
         mutableDescriptorTypes.push_back(VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
         mutableDescriptorTypes.push_back(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         mutableDescriptorTypes.push_back(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        if (api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-        {
-            mutableDescriptorTypes.push_back(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
-        }
 
         // Binding 0 is for samplers
         bindings[0].binding = kSamplerBinding;
@@ -105,7 +96,7 @@ Result BindlessDescriptorSet::initialize()
         // Binding 2 is for resource descriptors
         bindings[2].binding = kResourceBinding;
         bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_MUTABLE_EXT;
-        bindings[2].descriptorCount = m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount;
+        bindings[2].descriptorCount = m_desc.bufferCount + m_desc.textureCount;
         bindings[2].stageFlags = VK_SHADER_STAGE_ALL;
         flags[2] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
         mutableDescriptorTypeLists[2] = {};
@@ -153,7 +144,6 @@ Result BindlessDescriptorSet::initialize()
     m_textureAllocator.capacity = m_desc.textureCount;
     m_samplerAllocator.capacity = m_desc.samplerCount;
     m_combinedTextureSamplerAllocator.capacity = m_desc.combinedTextureSamplerCount;
-    m_accelerationStructureAllocator.capacity = m_desc.accelerationStructureCount;
 
     return SLANG_OK;
 }
@@ -324,39 +314,6 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     return SLANG_OK;
 }
 
-Result BindlessDescriptorSet::allocAccelerationStructureHandle(
-    IAccelerationStructure* accelerationStructure,
-    DescriptorHandle* outHandle
-)
-{
-    uint32_t slot;
-    SLANG_RETURN_ON_FAIL(m_accelerationStructureAllocator.allocate(&slot));
-
-    AccelerationStructureImpl* asImpl = checked_cast<AccelerationStructureImpl*>(accelerationStructure);
-
-    VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    write.dstSet = m_descriptorSet;
-    write.dstBinding = kResourceBinding;
-    write.descriptorCount = 1;
-    write.dstArrayElement = m_firstAccelerationStructureHandle + slot;
-    write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-
-    VkWriteDescriptorSetAccelerationStructureKHR writeAS = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR
-    };
-    writeAS.accelerationStructureCount = 1;
-    writeAS.pAccelerationStructures = &asImpl->m_vkHandle;
-    write.pNext = &writeAS;
-
-    const auto& api = m_device->m_api;
-    api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
-
-    outHandle->type = DescriptorHandleType::AccelerationStructure;
-    outHandle->value = m_firstAccelerationStructureHandle + slot;
-
-    return SLANG_OK;
-}
-
 Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
 {
     switch (handle.type)
@@ -371,8 +328,6 @@ Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
         return m_samplerAllocator.free(handle.value);
     case DescriptorHandleType::CombinedTextureSampler:
         return m_combinedTextureSamplerAllocator.free(handle.value);
-    case DescriptorHandleType::AccelerationStructure:
-        return m_accelerationStructureAllocator.free(handle.value - m_firstAccelerationStructureHandle);
     default:
         return SLANG_E_INVALID_ARG;
     }

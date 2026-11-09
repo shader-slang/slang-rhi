@@ -18,7 +18,12 @@ BufferImpl::~BufferImpl()
 {
     if (m_buffer)
     {
-        getDevice<DeviceImpl>()->m_ctx.api.wgpuBufferRelease(m_buffer);
+        API& api = getDevice<DeviceImpl>()->m_ctx.api;
+        if (m_ownsNativeHandle)
+        {
+            api.wgpuBufferDestroy(m_buffer);
+        }
+        api.wgpuBufferRelease(m_buffer);
     }
 }
 
@@ -77,6 +82,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         *outBuffer = nullptr;
         return SLANG_FAIL;
     }
+    buffer->m_ownsNativeHandle = true;
 
     if (initData)
     {
@@ -139,6 +145,14 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    return mapBufferRange(buffer, mode, 0, bufferImpl->m_desc.size, outData);
+}
+
+Result DeviceImpl::mapBufferRange(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (!outData || offset > bufferImpl->m_desc.size || size > bufferImpl->m_desc.size - offset)
+        return SLANG_E_INVALID_ARG;
 
     if (bufferImpl->m_uploadData)
     {
@@ -149,7 +163,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         {
             SLANG_RETURN_ON_FAIL(readBuffer(bufferImpl, 0, bufferImpl->m_desc.size, bufferImpl->m_uploadData.get()));
         }
-        *outData = bufferImpl->m_uploadData.get();
+        *outData = bufferImpl->m_uploadData.get() + offset;
         return SLANG_OK;
     }
 
@@ -164,9 +178,6 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         break;
     }
 
-    size_t offset = 0;
-    size_t size = math::calcAligned2(bufferImpl->m_desc.size, 4);
-
     WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
     WGPUBufferMapCallbackInfo callbackInfo = {};
     callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
@@ -180,17 +191,26 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     };
     callbackInfo.userdata1 = &status;
     callbackInfo.userdata2 = this;
-    WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(bufferImpl->m_buffer, mapMode, offset, size, callbackInfo);
+    // WebGPU requires the mapped offset to be a multiple of 8 and the size a multiple of 4.
+    // Map the enclosing aligned range and return a pointer to the requested offset.
+    Offset mapOffset = offset & ~Offset(7);
+    Size mapSize = math::calcAligned2(offset + size - mapOffset, 4);
+    WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(bufferImpl->m_buffer, mapMode, mapOffset, mapSize, callbackInfo);
     WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
     if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
     {
         return SLANG_FAIL;
     }
 
+    void* mappedData = nullptr;
     if (mapMode == WGPUMapMode_Read)
-        *outData = const_cast<void*>(m_ctx.api.wgpuBufferGetConstMappedRange(bufferImpl->m_buffer, offset, size));
+        mappedData =
+            const_cast<void*>(m_ctx.api.wgpuBufferGetConstMappedRange(bufferImpl->m_buffer, mapOffset, mapSize));
     else
-        *outData = m_ctx.api.wgpuBufferGetMappedRange(bufferImpl->m_buffer, offset, size);
+        mappedData = m_ctx.api.wgpuBufferGetMappedRange(bufferImpl->m_buffer, mapOffset, mapSize);
+    if (!mappedData)
+        return SLANG_FAIL;
+    *outData = static_cast<uint8_t*>(mappedData) + (offset - mapOffset);
     return SLANG_OK;
 }
 

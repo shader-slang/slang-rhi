@@ -1223,8 +1223,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         {
             addFeature(sm.feature);
             addCapability(sm.capability);
-            profileName = sm.profileName;
-            compileTarget = sm.compileTarget;
+            // Temporarily cap automatic profiles at SM6.8: NVIDIA driver 610.88 misexecutes
+            // native vector loads from constant arrays at SM6.9. Keep device capabilities and
+            // explicitly requested profiles available so the driver fix can be retested.
+            if (sm.shaderModel <= D3D_SHADER_MODEL_6_8)
+            {
+                profileName = sm.profileName;
+                compileTarget = sm.compileTarget;
+            }
         }
         else
         {
@@ -1983,6 +1989,7 @@ Result DeviceImpl::createShaderProgram(
         this,
         shaderProgram->linkedProgram,
         shaderProgram->linkedProgram->getLayout(),
+        desc.useRayTracingShaderRecordParameters,
         shaderProgram->m_rootObjectLayout.writeRef(),
         d3dDiagnosticBlob.writeRef()
     );
@@ -2023,6 +2030,9 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    SLANG_RETURN_ON_FAIL(
+        ShaderTable::validateRecordData(this, desc, kMaxShaderRecordDataSize, kShaderRecordDataLimitReason)
+    );
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;

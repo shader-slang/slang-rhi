@@ -66,13 +66,14 @@ Result BindlessDescriptorSet::allocBufferHandle(
     SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
 
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    uint32_t stride = format == Format::Undefined ? bufferImpl->getDesc().elementSize : 0;
     switch (access)
     {
     case DescriptorHandleAccess::Read:
         m_device->m_device->CopyDescriptorsSimple(
             1,
             m_srvUavAllocation.getCpuHandle(slot),
-            bufferImpl->getSRV(format, 0, range),
+            bufferImpl->getSRV(format, stride, range),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
         outHandle->type = DescriptorHandleType::Buffer;
@@ -81,7 +82,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
         m_device->m_device->CopyDescriptorsSimple(
             1,
             m_srvUavAllocation.getCpuHandle(slot),
-            bufferImpl->getUAV(format, 0, range),
+            bufferImpl->getUAV(format, stride, range),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
         outHandle->type = DescriptorHandleType::RWBuffer;

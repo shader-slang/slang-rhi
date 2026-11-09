@@ -31,13 +31,14 @@ Context::~Context()
 
 DeviceImpl::~DeviceImpl()
 {
-    m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+    // Queue teardown waits for submitted command buffers and releases their staging allocations.
+    // Those allocations must be returned before the device-owned heaps are released.
+    m_queue.setNull();
 
+    m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
-
-    m_queue.setNull();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -265,6 +266,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Subgroups))
     {
         addFeature(Feature::WaveOps);
+        addCapability(Capability::subgroup_basic);
+        addCapability(Capability::subgroup_arithmetic);
     }
 
     addCapability(Capability::wgsl);

@@ -50,6 +50,7 @@ bool releasesCallbackObjectsOnQueueWait(DeviceType deviceType)
     case DeviceType::Vulkan:
     case DeviceType::Metal:
     case DeviceType::CUDA:
+    case DeviceType::WGPU:
         return true;
     default:
         return false;

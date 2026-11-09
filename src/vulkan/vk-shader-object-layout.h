@@ -321,7 +321,17 @@ protected:
 
         uint32_t m_totalOrdinaryDataSize = 0;
 
+        /// The descriptor space reserved by Slang for the bindless resource heap.
+        SlangInt m_bindlessSpaceIndex = -1;
+
+        /// Returns whether an absolute descriptor space belongs to RHI's shared bindless heap.
+        bool isBindlessSpace(uint32_t space) const
+        {
+            return m_bindlessSpaceIndex >= 0 && SlangInt(space) == m_bindlessSpaceIndex;
+        }
+
         Result findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+
         static VkDescriptorType _mapDescriptorType(slang::BindingType slangBindingType);
 
         /// Add any descriptor ranges implied by this object containing a leaf
@@ -416,6 +426,8 @@ public:
 
         /// Size of the entry point parameters (for ray tracing SBT data)
         size_t paramsSize = 0;
+        bool selected = true;
+        bool shaderRecordParameters = false;
     };
 
     struct Builder : Super::Builder
@@ -467,6 +479,8 @@ public:
         std::unique_ptr<DescriptorSetComposition> m_descriptorSetComposition;
         std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
+        bool m_hasAssignedPushConstantLayout = false;
+        bool m_useShaderRecordParameters = false;
     };
 
     uint32_t findEntryPointIndex(VkShaderStageFlags stage);
@@ -477,6 +491,9 @@ public:
         DeviceImpl* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
+        const std::vector<uint32_t>& selectedEntryPoints,
+        bool hasAssignedPushConstantLayout,
+        bool useShaderRecordParameters,
         SyntheticResourceBindingState* syntheticResources,
         RootShaderObjectLayoutImpl** outLayout
     );
@@ -529,6 +546,7 @@ public:
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     std::vector<VkPushConstantRange> m_allPushConstantRanges;
     uint32_t m_totalPushConstantSize = 0;
+    bool m_hasAssignedPushConstantLayout = false;
 
     DeviceImpl* m_device = nullptr;
 };

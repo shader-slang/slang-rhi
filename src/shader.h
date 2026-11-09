@@ -80,6 +80,7 @@ public:
     void* getInterface(const Guid& guid);
 
     ShaderProgramDesc m_desc;
+    std::vector<uint32_t> m_selectedEntryPointIndices;
     StructHolder m_descHolder;
 
     ShaderProgramID m_id;

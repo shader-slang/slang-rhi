@@ -590,6 +590,75 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+/// Build a local root signature from the same reflected CBV register that DXIL reads.
+/// For example, two records of closestHit(uniform uint material) carry independent
+/// root constants at that register while their shared resources stay in the global root.
+static Result createShaderRecordRootSignature(
+    DeviceImpl* device,
+    slang::ProgramLayout* programLayout,
+    const RayTracingPipeline::ShaderRecordLayout& recordLayout,
+    ID3D12RootSignature** outSignature
+)
+{
+    if (recordLayout.size > kMaxShaderRecordDataSize)
+    {
+        device->printError(
+            "Hit-group shader-record data requires %u bytes; limit is %u bytes (%s).",
+            recordLayout.size,
+            kMaxShaderRecordDataSize,
+            kShaderRecordDataLimitReason
+        );
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    D3D12_ROOT_PARAMETER1 parameters[3] = {};
+    uint32_t parameterCount = 0;
+    for (uint32_t i = 0; i < recordLayout.entryPointCount; ++i)
+    {
+        const auto& region = recordLayout.entryPoints[i];
+        if (!region.size)
+            continue;
+        RootShaderObjectLayoutImpl::RootSignatureDescBuilder bindings(device);
+        auto setIndex = bindings.addDescriptorSet();
+        bindings.addAsValue(programLayout->getEntryPointByIndex(region.entryPointIndex)->getVarLayout(), setIndex);
+        const auto& ranges = bindings.m_descriptorSets[setIndex].m_resourceRanges;
+        if (ranges.size() != 1 || ranges[0].RangeType != D3D12_DESCRIPTOR_RANGE_TYPE_CBV ||
+            ranges[0].NumDescriptors != 1)
+        {
+            device->printError("Each shader-record stage requires one reflected ordinary-data constant buffer.");
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        auto& parameter = parameters[parameterCount++];
+        parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        parameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        parameter.Constants.ShaderRegister = ranges[0].BaseShaderRegister;
+        parameter.Constants.RegisterSpace = ranges[0].RegisterSpace;
+        parameter.Constants.Num32BitValues = (region.size + 3) / 4;
+    }
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc = {};
+    desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    desc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+    desc.Desc_1_1.NumParameters = parameterCount;
+    desc.Desc_1_1.pParameters = parameterCount ? parameters : nullptr;
+    ComPtr<ID3DBlob> signature;
+    ComPtr<ID3DBlob> error;
+    if (SLANG_FAILED(device->m_D3D12SerializeVersionedRootSignature(&desc, signature.writeRef(), error.writeRef())))
+    {
+        if (error)
+            device->printError(static_cast<const char*>(error->GetBufferPointer()));
+        return SLANG_FAIL;
+    }
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateRootSignature(
+            0,
+            signature->GetBufferPointer(),
+            signature->GetBufferSize(),
+            IID_PPV_ARGS(outSignature)
+        ),
+        device
+    );
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     if (!m_device5)
@@ -602,13 +671,22 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_shaders.empty());
 
+    RayTracingPipeline::ShaderRecordLayoutMap recordLayouts;
+    SLANG_RETURN_ON_FAIL(RayTracingPipeline::getShaderRecordLayouts(desc, recordLayouts));
+
     ComPtr<ID3D12StateObject> stateObject;
 
     std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+    // Local-root associations point into this array. Reserve the complete upper bound
+    // before storing pointers, including one local signature/association per export.
+    subObjects.reserve(3 + 3 * program->m_shaders.size() + 3 * desc.hitGroupCount);
     stable_vector<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
     stable_vector<D3D12_HIT_GROUP_DESC> hitGroups;
     stable_vector<D3D12_EXPORT_DESC> exports;
     stable_vector<const wchar_t*> strPtrs;
+    stable_vector<D3D12_LOCAL_ROOT_SIGNATURE> localSignatures;
+    stable_vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> localAssociations;
+    std::vector<ComPtr<ID3D12RootSignature>> localSignatureObjects;
     ComPtr<ISlangBlob> diagnostics;
     stable_vector<std::wstring> stringPool;
     auto getWStr = [&](const char* name)
@@ -695,6 +773,39 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     globalSignatureSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
     globalSignatureSubobject.pDesc = &globalSignatureDesc;
     subObjects.push_back(globalSignatureSubobject);
+
+    if (program->m_desc.useRayTracingShaderRecordParameters)
+    {
+        std::vector<std::string> recordExports;
+        for (const ShaderBinary& shader : program->m_shaders)
+        {
+            if (shader.stage == SLANG_STAGE_RAY_GENERATION || shader.stage == SLANG_STAGE_MISS ||
+                shader.stage == SLANG_STAGE_CALLABLE)
+                recordExports.push_back(shader.entryPointName);
+        }
+        for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+            recordExports.push_back(desc.hitGroups[i].hitGroupName);
+        for (const auto& name : recordExports)
+        {
+            auto layout = recordLayouts.find(name);
+            SLANG_RHI_ASSERT(layout != recordLayouts.end());
+            ComPtr<ID3D12RootSignature> signature;
+            SLANG_RETURN_ON_FAIL(createShaderRecordRootSignature(
+                this,
+                program->linkedProgram->getLayout(),
+                layout->second,
+                signature.writeRef()
+            ));
+            localSignatureObjects.push_back(signature);
+            localSignatures.push_back({signature.get()});
+            subObjects.push_back({D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE, &localSignatures.back()});
+            strPtrs.push_back(getWStr(name.c_str()));
+            localAssociations.push_back({&subObjects.back(), 1, &strPtrs.back()});
+            subObjects.push_back(
+                {D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION, &localAssociations.back()}
+            );
+        }
+    }
 
     D3D12_STATE_OBJECT_DESC rtpsoDesc = {};
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
@@ -822,6 +933,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;
+    pipeline->m_shaderRecordLayouts = std::move(recordLayouts);
     pipeline->m_shaderIdentifierByName = std::move(shaderIdentifierByName);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;

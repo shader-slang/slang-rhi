@@ -544,6 +544,7 @@ void BindingCache::reset(DeviceImpl* device)
     {
         data->release(device);
     }
+    bindingData.clear();
 }
 
 } // namespace rhi::wgpu

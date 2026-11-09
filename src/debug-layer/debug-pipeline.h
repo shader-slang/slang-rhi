@@ -48,6 +48,13 @@ public:
     SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugRayTracingPipeline);
 
 public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL getShaderRecordLayout(
+        const char* exportName,
+        RayTracingShaderRecordLayout* outLayout
+    ) override
+    {
+        return baseObject->getShaderRecordLayout(exportName, outLayout);
+    }
     // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

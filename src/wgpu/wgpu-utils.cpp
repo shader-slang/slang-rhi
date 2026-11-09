@@ -41,6 +41,11 @@ Result createWGPUInstance(API& api, WGPUInstance* outInstance)
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
+#else
+    // Emdawn requires this feature before a positive wait can suspend on a WebGPU promise.
+    WGPUInstanceFeatureName requiredFeatures[] = {WGPUInstanceFeatureName_TimedWaitAny};
+    instanceDesc.requiredFeatureCount = SLANG_COUNT_OF(requiredFeatures);
+    instanceDesc.requiredFeatures = requiredFeatures;
 #endif
     WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
     if (!instance)
@@ -703,7 +708,8 @@ WGPULoadOp translateLoadOp(LoadOp op)
     case LoadOp::Clear:
         return WGPULoadOp_Clear;
     case LoadOp::DontCare:
-        return WGPULoadOp_Undefined;
+        // WebGPU requires every attachment load operation to be either load or clear.
+        return WGPULoadOp_Clear;
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid LoadOp value");
     return WGPULoadOp_Undefined;
@@ -716,7 +722,7 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     case StoreOp::Store:
         return WGPUStoreOp_Store;
     case StoreOp::DontCare:
-        return WGPUStoreOp_Undefined;
+        return WGPUStoreOp_Discard;
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
     return WGPUStoreOp_Undefined;
