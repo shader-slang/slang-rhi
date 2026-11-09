@@ -792,6 +792,33 @@ Result Device::getClusterOperationSizes(const ClusterOperationParams& params, Cl
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::validateAccelerationStructureDesc(const AccelerationStructureDesc& desc)
+{
+    if (!desc.size)
+        return SLANG_E_INVALID_ARG;
+    if (!desc.buffer)
+    {
+        if (desc.offset)
+            return SLANG_E_INVALID_ARG;
+        return SLANG_OK;
+    }
+    Buffer* buffer = dynamic_cast<Buffer*>(desc.buffer);
+    if (!buffer || buffer->getDevice() != this)
+        return SLANG_E_INVALID_ARG;
+    const BufferDesc& bufferDesc = buffer->getDesc();
+    if (!is_set(bufferDesc.usage, BufferUsage::AccelerationStructure) ||
+        bufferDesc.memoryType != MemoryType::DeviceLocal)
+        return SLANG_E_INVALID_ARG;
+    uint64_t alignment = m_info.limits.accelerationStructureAlignment;
+    if (!alignment)
+        return SLANG_E_NOT_AVAILABLE;
+    if (desc.offset % alignment || buffer->getDeviceAddress() % alignment)
+        return SLANG_E_INVALID_ARG;
+    if (desc.offset > bufferDesc.size || desc.size > bufferDesc.size - desc.offset)
+        return SLANG_E_INVALID_ARG;
+    return SLANG_OK;
+}
+
 Result Device::createAccelerationStructure(
     const AccelerationStructureDesc& desc,
     IAccelerationStructure** outAccelerationStructure

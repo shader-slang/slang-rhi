@@ -1542,7 +1542,18 @@ struct AccelerationStructureDesc
     const void* next = nullptr;
 
     AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
-    uint64_t size;
+
+    /// Capacity of the acceleration structure storage region in bytes.
+    uint64_t size = 0;
+    /// Optional storage buffer with AccelerationStructure usage on this device.
+    /// The object retains this buffer. Null selects automatic allocation.
+    IBuffer* buffer = nullptr;
+    /// Fixed byte offset into buffer, aligned to DeviceLimits::accelerationStructureAlignment.
+    /// Must be zero when buffer is null. Callers manage non-overlapping suballocations
+    /// and must reserve regions until all GPU uses complete, including TLAS references.
+    /// Referenced BLAS objects must also remain alive for those uses.
+    uint64_t offset = 0;
+
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
 
     AccelerationStructureMotionCreateInfo motionInfo;

@@ -47,6 +47,8 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
+
     AUTORELEASEPOOL
 
     SLANG_RETURN_ON_FAIL(initializeDummyAccelerationStructure());

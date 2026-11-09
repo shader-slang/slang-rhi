@@ -837,6 +837,55 @@ Result DebugDevice::createAccelerationStructure(
         return SLANG_E_INVALID_ARG;
     }
 
+    if (!desc.buffer && desc.offset)
+    {
+        RHI_VALIDATION_ERROR("Acceleration structure offset requires a backing buffer.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.buffer)
+    {
+        Buffer* buffer = dynamic_cast<Buffer*>(desc.buffer);
+        if (!buffer || buffer->getDevice() != baseObject.get())
+        {
+            RHI_VALIDATION_ERROR("Acceleration structure backing buffer must belong to this device.");
+            return SLANG_E_INVALID_ARG;
+        }
+        const BufferDesc& bufferDesc = buffer->getDesc();
+        if (!is_set(bufferDesc.usage, BufferUsage::AccelerationStructure) ||
+            bufferDesc.memoryType != MemoryType::DeviceLocal)
+        {
+            RHI_VALIDATION_ERROR(
+                "Acceleration structure backing buffer requires AccelerationStructure usage and DeviceLocal memory."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+        uint64_t alignment = baseObject->getInfo().limits.accelerationStructureAlignment;
+        if (!alignment)
+        {
+            RHI_VALIDATION_ERROR("Acceleration structure buffer placement is not supported by this backend.");
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        if (desc.offset % alignment || buffer->getDeviceAddress() % alignment)
+        {
+            RHI_VALIDATION_ERROR("Acceleration structure backing buffer offset/address is misaligned.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (desc.offset > bufferDesc.size || desc.size > bufferDesc.size - desc.offset)
+        {
+            RHI_VALIDATION_ERROR("Acceleration structure storage region exceeds backing buffer bounds.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (baseObject->getDeviceType() == DeviceType::D3D12 &&
+            bufferDesc.defaultState != ResourceState::AccelerationStructureRead &&
+            bufferDesc.defaultState != ResourceState::AccelerationStructureWrite)
+        {
+            RHI_VALIDATION_ERROR(
+                "D3D12 acceleration structure backing buffer requires an acceleration structure default state."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
     AccelerationStructureDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)

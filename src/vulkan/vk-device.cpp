@@ -2138,6 +2138,8 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
+
     if (!m_api.vkCreateAccelerationStructureKHR)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -2149,12 +2151,19 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
     RefPtr<BufferImpl> buffer;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    if (desc.buffer)
+    {
+        buffer = checked_cast<BufferImpl*>(desc.buffer);
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    }
     result->m_buffer = buffer;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
-    createInfo.offset = 0;
+    createInfo.offset = desc.offset;
     createInfo.size = desc.size;
     createInfo.type = translateAccelerationStructureKind(desc.kind);
     if (is_set(desc.flags, AccelerationStructureBuildFlags::CreateMotion))

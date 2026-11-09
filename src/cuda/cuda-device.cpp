@@ -622,12 +622,22 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
+
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    if (desc.buffer)
+    {
+        result->m_backingBuffer = checked_cast<BufferImpl*>(desc.buffer);
+        result->m_buffer = desc.buffer->getDeviceAddress() + desc.offset;
+    }
+    else
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);

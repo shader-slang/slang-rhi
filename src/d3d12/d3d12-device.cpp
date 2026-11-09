@@ -2303,6 +2303,13 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureDesc(desc));
+    if (desc.buffer && checked_cast<BufferImpl*>(desc.buffer)->m_defaultState !=
+                           D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     BufferDesc bufferDesc = {};
     bufferDesc.size = desc.size;
@@ -2310,7 +2317,14 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
     RefPtr<BufferImpl> buffer;
-    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    if (desc.buffer)
+    {
+        buffer = checked_cast<BufferImpl*>(desc.buffer);
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
+    }
     result->m_buffer = buffer;
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)
@@ -2319,7 +2333,7 @@ Result DeviceImpl::createAccelerationStructure(
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.RaytracingAccelerationStructure.Location = result->m_buffer->getDeviceAddress();
+    srvDesc.RaytracingAccelerationStructure.Location = result->getDeviceAddress();
     m_device->CreateShaderResourceView(nullptr, &srvDesc, result->m_descriptor.cpuHandle);
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;

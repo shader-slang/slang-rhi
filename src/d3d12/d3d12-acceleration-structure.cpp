@@ -39,12 +39,12 @@ Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 
 AccelerationStructureHandle AccelerationStructureImpl::getHandle()
 {
-    return AccelerationStructureHandle{m_buffer->getDeviceAddress()};
+    return AccelerationStructureHandle{getDeviceAddress()};
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
-    return m_buffer->getDeviceAddress();
+    return m_buffer->getDeviceAddress() + m_desc.offset;
 }
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
