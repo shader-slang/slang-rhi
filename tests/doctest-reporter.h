@@ -8,7 +8,8 @@
 
 namespace doctest {
 
-struct CustomReporter : public IReporter
+// Reports individual test cases without owning the lifetime of a complete test run.
+struct CustomTestCaseReporter : public IReporter
 {
     // caching pointers/references to objects of these types - safe to do
     std::ostream& stream;
@@ -18,12 +19,11 @@ struct CustomReporter : public IReporter
 
     int cursorPos = 0;
     int testCaseStartCursorPos = 0;
-    detail::Timer runTimer;
 
     const int resultPos = 64;
 
     // constructor has to accept the ContextOptions by ref as a single argument
-    CustomReporter(const ContextOptions& in)
+    CustomTestCaseReporter(const ContextOptions& in)
         : stream(*in.cout)
         , opt(in)
         , consoleReporter(in)
@@ -38,6 +38,8 @@ struct CustomReporter : public IReporter
             // clang-format off
             stream << Color::Cyan << "\n[doctest] " << Color::None;
             stream << "Additional slang-rhi specific options. Available:\n\n";
+            stream << " -jobs=<N>                             run tests using N persistent worker processes\n";
+            stream << " -test-timeout=<seconds>               limit each parallel assignment and worker startup\n";
             stream << " -verbose                              print messages from the slang-rhi layer\n";
             stream << " -check-devices                        print information about used GPU devices on startup\n";
             stream << " -list-devices                         print information about available GPU devices and exit\n";
@@ -57,52 +59,14 @@ struct CustomReporter : public IReporter
 
     void test_run_start() override
     {
-        stream << Color::None;
-
-        if (rhi::testing::options().listDevices)
-        {
-            printf("Available devices:\n");
-            for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
-            {
-                for (uint32_t i = 0;; ++i)
-                {
-                    rhi::IAdapter* adapter = rhi::getRHI()->getAdapter(deviceType, i);
-                    if (!adapter)
-                    {
-                        break;
-                    }
-                    char deviceID[16];
-                    snprintf(deviceID, sizeof(deviceID), "%s:%u", rhi::testing::deviceTypeToString(deviceType), i);
-                    const rhi::AdapterInfo& info = adapter->getInfo();
-                    printf("- %-8s \"%s\"\n", deviceID, info.name);
-                }
-            }
-            exit(0);
-        }
-
-        runTimer.start();
-        rhi::testing::resetMemoryReport();
-        rhi::testing::sampleMemoryReport("test-run-start");
-        consoleReporter.test_run_start();
-
         if (rhi::testing::options().checkDevices)
         {
             checkDevices();
+            rhi::testing::options().checkDevices = false;
         }
     }
 
-    void test_run_end(const TestRunStats& in) override
-    {
-        stream << Color::None;
-
-        fill(79, '-');
-        printf("\n");
-        double seconds = runTimer.getElapsedSeconds();
-        printf("Total time: %.2fs\n", seconds);
-        rhi::testing::sampleMemoryReport("test-run-end");
-
-        consoleReporter.test_run_end(in);
-    }
+    void test_run_end(const TestRunStats&) override {}
 
     void test_case_start(const TestCaseData& in) override
     {
@@ -178,7 +142,7 @@ struct CustomReporter : public IReporter
 
     void test_case_skipped(const TestCaseData& /*in*/) override {}
 
-private:
+protected:
     void color(Color::Enum c)
     {
         if (!opt.no_colors)
@@ -316,7 +280,60 @@ private:
     }
 };
 
+// The sequential runner adds run-level reporting to the shared per-test output.
+struct CustomReporter : public CustomTestCaseReporter
+{
+    using CustomTestCaseReporter::CustomTestCaseReporter;
+    detail::Timer runTimer;
+
+    void test_run_start() override
+    {
+        stream << Color::None;
+
+        if (rhi::testing::options().listDevices)
+        {
+            printf("Available devices:\n");
+            for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
+            {
+                for (uint32_t i = 0;; ++i)
+                {
+                    rhi::IAdapter* adapter = rhi::getRHI()->getAdapter(deviceType, i);
+                    if (!adapter)
+                    {
+                        break;
+                    }
+                    char deviceID[16];
+                    snprintf(deviceID, sizeof(deviceID), "%s:%u", rhi::testing::deviceTypeToString(deviceType), i);
+                    const rhi::AdapterInfo& info = adapter->getInfo();
+                    printf("- %-8s \"%s\"\n", deviceID, info.name);
+                }
+            }
+            exit(0);
+        }
+
+        runTimer.start();
+        rhi::testing::resetMemoryReport();
+        rhi::testing::sampleMemoryReport("test-run-start");
+        consoleReporter.test_run_start();
+        CustomTestCaseReporter::test_run_start();
+    }
+
+    void test_run_end(const TestRunStats& in) override
+    {
+        stream << Color::None;
+
+        fill(79, '-');
+        printf("\n");
+        double seconds = runTimer.getElapsedSeconds();
+        printf("Total time: %.2fs\n", seconds);
+        rhi::testing::sampleMemoryReport("test-run-end");
+
+        consoleReporter.test_run_end(in);
+    }
+};
+
 // "1" is the priority - used for ordering when multiple reporters are used
 REGISTER_REPORTER("custom", 1, CustomReporter);
+REGISTER_REPORTER("custom-test-cases", 1, CustomTestCaseReporter);
 
 } // namespace doctest

@@ -3,12 +3,14 @@
 #include <slang-rhi/agility-sdk.h>
 
 #define DOCTEST_CONFIG_IMPLEMENT
-#include <doctest.h>
+#define DOCTEST_PARALLEL_IMPLEMENT
+#include "doctest-parallel.h"
 
 #include "doctest-reporter.h"
 
 #include <charconv>
 #include <cstdio>
+#include <filesystem>
 #include <string_view>
 
 // Due to current issues in slang we don't enable Agility SDK yet
@@ -53,6 +55,44 @@ bool checkRequiredDevices()
             std::fprintf(stderr, "Slang diagnostics: %s\n", result.diagnostics.c_str());
     }
     return allAvailable;
+}
+
+static std::optional<int> runParallelTests(int argc, const char** argv)
+{
+    if (options().listDevices)
+        return std::nullopt;
+
+    doctest::parallel::Options config;
+    config.reporters = "custom-test-cases";
+    config.workerStart = [](const std::string& logPath)
+    {
+        if (!options().memoryReportFile.empty())
+            options().memoryReportFile += "." + std::filesystem::path(logPath).stem().string() + ".json";
+        resetMemoryReport();
+        sampleMemoryReport("worker-start");
+        return checkRequiredDevices() ? 0 : 1;
+    };
+    config.workerStop = []()
+    {
+        sampleMemoryReport("worker-tests-end");
+        return checkNoSilentGpuSkips() ? 0 : 1;
+    };
+    config.isSkipped = [](const doctest::TestCaseData& test)
+    {
+        return getSkipMessage(&test) != nullptr;
+    };
+    config.coordinatorStart = []()
+    {
+        // Workers receive the original command line and report their own memory.
+        options().memoryReport = false;
+        options().printMemoryReport = false;
+        options().memoryReportFile.clear();
+    };
+    config.logDirectory = []()
+    {
+        return getTestTempDirectory();
+    };
+    return doctest::parallel::run(argc, argv, config);
 }
 
 } // namespace rhi::testing
@@ -207,11 +247,14 @@ int main(int argc, const char** argv)
         // Report successful tests
         // context.setOption("success", true);
 
-        if (context.shouldExit() || rhi::testing::options().listDevices || rhi::testing::checkRequiredDevices())
+        auto parallelResult = rhi::testing::runParallelTests(argc, argv);
+        if (parallelResult)
+            result = *parallelResult;
+        else if (context.shouldExit() || rhi::testing::options().listDevices || rhi::testing::checkRequiredDevices())
             result = context.run();
 
-        bool noSilentSkips = rhi::testing::checkNoSilentGpuSkips();
-        if (result == 0 && !noSilentSkips)
+        // Parallel workers perform this check in workerStop; their exit codes propagate failures.
+        if (!parallelResult && !rhi::testing::checkNoSilentGpuSkips() && result == 0)
             result = 1;
 
         rhi::testing::releaseCachedDevices();
