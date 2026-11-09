@@ -255,6 +255,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (m_device->supportsRaytracing())
     {
         addFeature(Feature::AccelerationStructure);
+        // Use a conservative alignment for scratch suballocations even though
+        // external acceleration structure storage placement is unsupported.
+        m_info.limits.accelerationStructureScratchAlignment = 256;
         addFeature(Feature::RayQuery);
     }
 

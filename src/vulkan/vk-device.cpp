@@ -1677,7 +1677,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     VkPhysicalDeviceSubgroupSizeControlProperties subgroupSizeControlProps = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES
     };
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR asProps = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR
+    };
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    EXTEND_DESC_CHAIN(props, asProps);
     EXTEND_DESC_CHAIN(props, idProps);
     EXTEND_DESC_CHAIN(props, subgroupProps);
     if (m_hasSubgroupSizeControl)
@@ -1765,6 +1769,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     for (auto feature : availableFeatures)
     {
         addFeature(feature);
+    }
+
+    if (hasFeature(Feature::AccelerationStructure))
+    {
+        m_info.limits.accelerationStructureAlignment = 256;
+        m_info.limits.accelerationStructureScratchAlignment = asProps.minAccelerationStructureScratchOffsetAlignment;
     }
 
     addCapability(Capability::spirv);

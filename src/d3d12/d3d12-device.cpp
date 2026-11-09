@@ -985,6 +985,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
             {
                 addFeature(Feature::AccelerationStructure);
+                m_info.limits.accelerationStructureAlignment = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT;
+                m_info.limits.accelerationStructureScratchAlignment =
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT;
                 addFeature(Feature::RayTracing);
             }
             // Check ray query support

@@ -3505,6 +3505,11 @@ struct DeviceLimits
 
     /// Maximum samplers visible in a shader stage.
     uint32_t maxShaderVisibleSamplers;
+
+    /// Required backing-buffer offset/address alignment, or zero if buffer placement is unsupported.
+    uint64_t accelerationStructureAlignment = 0;
+    /// Required device-address alignment for acceleration structure build/update scratch storage.
+    uint64_t accelerationStructureScratchAlignment = 0;
 };
 
 struct DeviceInfo

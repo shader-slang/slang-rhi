@@ -294,6 +294,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (SLANG_SUCCEEDED(optix::createContext(optixContextDesc, m_ctx.optixContext.writeRef())))
     {
         addFeature(Feature::AccelerationStructure);
+        // OPTIX_ACCEL_BUFFER_BYTE_ALIGNMENT, identical across supported OptiX versions.
+        m_info.limits.accelerationStructureAlignment = 128;
+        m_info.limits.accelerationStructureScratchAlignment = 128;
         addFeature(Feature::RayTracing);
         addFeature(Feature::OpacityMicromap);
         uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
