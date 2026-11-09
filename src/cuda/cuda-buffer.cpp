@@ -65,10 +65,10 @@ Result BufferImpl::getDescriptorHandle(
         return SLANG_E_INVALID_ARG;
     }
 
-    // Bindless CUDA buffers are currently not supported.
-    // Slang emits code that treats bindless descriptors as pointers to StructuredBuffer<T>, RWStructuredBuffer<T> etc.
-    // To support that we'd have to allocate these buffer structures in CUDA device memory and point to these.
-    // For now we just bail out.
+    // CUDA represents DescriptorHandle<T> as T itself. A host should bind the resource through its
+    // reflected shader cursor so CUDA's shader-object marshaller can write T's target layout. For
+    // example, a structured buffer needs both a device pointer and an element count, which cannot
+    // be returned through RHI's single 64-bit DescriptorHandle value.
     return SLANG_E_NOT_IMPLEMENTED;
 }
 

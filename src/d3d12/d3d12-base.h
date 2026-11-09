@@ -14,6 +14,13 @@
 
 namespace rhi::d3d12 {
 
+// DXR permits 4064 application bytes, but a local root constant parameter above 128 DWORDs
+// causes device removal on the tested RTX 5090 / 610.88 driver. Keep a temporary backend-wide
+// cap until that driver blocker is resolved. This excludes the shader identifier and padding.
+inline constexpr uint32_t kMaxShaderRecordDataSize = 512;
+inline constexpr const char* kShaderRecordDataLimitReason =
+    "D3D12 driver blocker: larger local root constants can cause device removal";
+
 class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;

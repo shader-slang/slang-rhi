@@ -222,8 +222,12 @@ struct DrawInstancedTest : BaseDrawTest
         passEncoder->setRenderState(state);
 
         DrawArguments args;
-        args.vertexCount = kVertexCount;
+        args.vertexCount = 3;
         args.instanceCount = kInstanceCount;
+        passEncoder->draw(args);
+        // The second triangle starts at vertex three. Direct draws must use startVertexLocation,
+        // independently of the index offset used by indexed draws.
+        args.startVertexLocation = 3;
         passEncoder->draw(args);
         passEncoder->end();
 
@@ -493,4 +497,217 @@ GPU_TEST_CASE("cmd-draw-indirect", D3D11 | D3D12 | Vulkan)
 GPU_TEST_CASE("cmd-draw-indexed-indirect", D3D11 | D3D12 | Vulkan)
 {
     testDraw<DrawIndexedIndirectTest>(device);
+}
+
+GPU_TEST_CASE("cmd-draw-no-input-layout", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(
+        device,
+        "test-parallel-pipeline-creation-render",
+        {"vertexMain", "fragmentMain"},
+        program.writeRef()
+    ));
+
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2D;
+    textureDesc.size = {4, 4, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
+    textureDesc.defaultState = ResourceState::RenderTarget;
+    auto texture = device->createTexture(textureDesc, nullptr);
+    REQUIRE(texture);
+    auto view = device->createTextureView(texture, {});
+    REQUIRE(view);
+
+    // A null layout and an explicitly empty layout both describe a shader that
+    // generates its vertices from SV_VertexID without any vertex buffers.
+    for (bool explicitEmptyLayout : {false, true})
+    {
+        CAPTURE(explicitEmptyLayout);
+        ComPtr<IInputLayout> layout;
+        if (explicitEmptyLayout)
+            REQUIRE_CALL(device->createInputLayout({}, layout.writeRef()));
+
+        ColorTargetDesc target = {};
+        target.format = textureDesc.format;
+        RenderPipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        pipelineDesc.inputLayout = layout;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
+        pipelineDesc.depthStencil.depthTestEnable = false;
+        pipelineDesc.depthStencil.depthWriteEnable = false;
+        pipelineDesc.compilationPolicy = PipelineCompilationPolicy::Immediate;
+        auto pipeline = device->createRenderPipeline(pipelineDesc);
+        REQUIRE(pipeline);
+
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto encoder = queue->createCommandEncoder();
+        RenderPassColorAttachment attachment = {};
+        attachment.view = view;
+        attachment.loadOp = LoadOp::Clear;
+        attachment.storeOp = StoreOp::Store;
+        RenderPassDesc passDesc = {};
+        passDesc.colorAttachments = &attachment;
+        passDesc.colorAttachmentCount = 1;
+        auto pass = encoder->beginRenderPass(passDesc);
+        pass->bindPipeline(pipeline);
+        RenderState state = {};
+        state.viewports[0] = Viewport::fromSize(4, 4);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect::fromSize(4, 4);
+        state.scissorRectCount = 1;
+        pass->setRenderState(state);
+        DrawArguments args = {};
+        args.vertexCount = 3;
+        pass->draw(args);
+        pass->end();
+        ComPtr<ICommandBuffer> commands;
+        REQUIRE_CALL(encoder->finish(commands.writeRef()));
+        REQUIRE_CALL(queue->submit(commands));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        std::array<uint8_t, 4 * 4 * 4> expected = {};
+        for (size_t i = 0; i < expected.size(); i += 4)
+        {
+            expected[i] = 255;
+            expected[i + 3] = 255;
+        }
+        compareComputeResult(device, texture, 0, 0, expected);
+    }
+}
+
+GPU_TEST_CASE("cmd-draw-entry-point-layout-groups", Vulkan)
+{
+    auto session = device->getSlangSession();
+    ComPtr<ISlangBlob> diagnostics;
+    auto module = session->loadModuleFromSourceString(
+        "drawLayoutGroups",
+        "drawLayoutGroups.slang",
+        R"(
+        [shader("vertex")]
+        float4 vertexMain(uint id : SV_VertexID, uniform float4x4 transform) : SV_Position
+        {
+            float2 p = id == 0 ? float2(-1, -1) : id == 1 ? float2(3, -1) : float2(-1, 3);
+            return float4(p * transform[0].xy, 0.5, 1);
+        }
+        [shader("fragment")]
+        float4 fragmentA(uniform float4 color) : SV_Target { return color; }
+        [shader("fragment")]
+        float4 fragmentB(uniform float4 color, uniform float4 extra) : SV_Target { return color + extra; }
+    )",
+        diagnostics.writeRef()
+    );
+    REQUIRE(module);
+    ComPtr<slang::IEntryPoint> vertex, fragmentA, fragmentB;
+    REQUIRE_CALL(module->findEntryPointByName("vertexMain", vertex.writeRef()));
+    REQUIRE_CALL(module->findEntryPointByName("fragmentA", fragmentA.writeRef()));
+    REQUIRE_CALL(module->findEntryPointByName("fragmentB", fragmentB.writeRef()));
+    slang::IComponentType* parts[] = {module, vertex, fragmentA, fragmentB};
+    ComPtr<slang::IComponentType> shaders, constraints, batch, linked;
+    REQUIRE_CALL(session->createCompositeComponentType(parts, 4, shaders.writeRef(), diagnostics.writeRef()));
+    ComPtr<slang::IEntryPointUniformLayoutService_Experimental> service;
+    REQUIRE_CALL(shaders->queryInterface(SLANG_IID_PPV_ARGS(service.writeRef())));
+    SlangInt first[] = {0, 1}, second[] = {0, 2};
+    slang::EntryPointUniformLayoutGroup groups[] = {{first, 2}, {second, 2}};
+    REQUIRE_CALL(
+        service->createEntryPointUniformLayoutConstraints(groups, 2, constraints.writeRef(), diagnostics.writeRef())
+    );
+    slang::IComponentType* batchParts[] = {shaders, constraints};
+    REQUIRE_CALL(session->createCompositeComponentType(batchParts, 2, batch.writeRef(), diagnostics.writeRef()));
+    REQUIRE_CALL(batch->link(linked.writeRef(), diagnostics.writeRef()));
+    auto reflection = linked->getLayout();
+    REQUIRE(reflection);
+    CHECK(reflection->getEntryPointByIndex(1)->getPushConstantOffset() == 64);
+    CHECK(reflection->getEntryPointByIndex(2)->getPushConstantOffset() == 64);
+
+    ComPtr<IRenderPipeline> pipelines[2];
+    for (uint32_t group = 0; group < 2; ++group)
+    {
+        ShaderProgramDesc programDesc;
+        programDesc.slangGlobalScope = linked;
+        programDesc.entryPointUniformLayoutGroupIndex = group;
+        uint32_t selected[] = {group + 1, 0};
+        if (group == 1)
+        {
+            programDesc.selectedEntryPointIndices = selected;
+            programDesc.selectedEntryPointCount = 2;
+        }
+        auto program = device->createShaderProgram(programDesc);
+        REQUIRE(program);
+        ColorTargetDesc target;
+        target.format = Format::RGBA32Float;
+        RenderPipelineDesc pipelineDesc;
+        pipelineDesc.program = program;
+        pipelineDesc.targets = &target;
+        pipelineDesc.targetCount = 1;
+        pipelineDesc.depthStencil.depthTestEnable = false;
+        pipelineDesc.depthStencil.depthWriteEnable = false;
+        pipelineDesc.rasterizer.cullMode = CullMode::None;
+        pipelineDesc.rasterizer.scissorEnable = true;
+        pipelineDesc.compilationPolicy = PipelineCompilationPolicy::Immediate;
+        pipelines[group] = device->createRenderPipeline(pipelineDesc);
+        REQUIRE(pipelines[group]);
+    }
+    TextureDesc textureDesc;
+    textureDesc.size = {8, 4, 1};
+    textureDesc.format = Format::RGBA32Float;
+    textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
+    auto texture = device->createTexture(textureDesc);
+    REQUIRE(texture);
+    auto view = device->createTextureView(texture, {});
+    REQUIRE(view);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    RenderPassColorAttachment attachment;
+    attachment.view = view;
+    attachment.loadOp = LoadOp::Clear;
+    RenderPassDesc passDesc;
+    passDesc.colorAttachments = &attachment;
+    passDesc.colorAttachmentCount = 1;
+    auto pass = encoder->beginRenderPass(passDesc);
+    for (uint32_t group = 0; group < 2; ++group)
+    {
+        auto root = pass->bindPipeline(pipelines[group]);
+        float transform[16] = {1, 1};
+        float color[4] = {group == 0 ? 1.f : 0.f, 0, 0, 1};
+        float extra[4] = {0, 1, 0, 0};
+        REQUIRE_CALL(root->getEntryPoint(0)->setData({}, transform, sizeof(transform)));
+        REQUIRE_CALL(root->getEntryPoint(group + 1)->setData({}, color, sizeof(color)));
+        if (group == 1)
+        {
+            ShaderOffset extraOffset;
+            extraOffset.uniformOffset = 16;
+            REQUIRE_CALL(root->getEntryPoint(2)->setData(extraOffset, extra, sizeof(extra)));
+        }
+        RenderState state;
+        state.viewports[0] = Viewport::fromSize(8, 4);
+        state.viewportCount = 1;
+        state.scissorRects[0] = {group * 4, 0, (group + 1) * 4, 4};
+        state.scissorRectCount = 1;
+        pass->setRenderState(state);
+        DrawArguments draw;
+        draw.vertexCount = 3;
+        pass->draw(draw);
+    }
+    pass->end();
+    queue->submit(encoder->finish());
+    queue->waitOnHost();
+    ComPtr<ISlangBlob> pixels;
+    SubresourceLayout pixelLayout;
+    REQUIRE_CALL(device->readTexture(texture, 0, 0, pixels.writeRef(), &pixelLayout));
+    for (uint32_t y = 0; y < 4; ++y)
+    {
+        auto row = reinterpret_cast<const float*>(
+            static_cast<const uint8_t*>(pixels->getBufferPointer()) + y * pixelLayout.rowPitch
+        );
+        for (uint32_t x = 0; x < 8; ++x)
+        {
+            CHECK(row[x * 4] == (x < 4 ? 1.f : 0.f));
+            CHECK(row[x * 4 + 1] == (x < 4 ? 0.f : 1.f));
+            CHECK(row[x * 4 + 2] == 0.f);
+            CHECK(row[x * 4 + 3] == 1.f);
+        }
+    }
 }

@@ -23,10 +23,15 @@ void shaderObjectSetBinding(
     case slang::BindingType::MutableTypedBuffer:
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-        void* dataPtr = (uint8_t*)buffer->m_data + slot.bufferRange.offset;
-        size_t dataSize = slot.bufferRange.size;
-        if (buffer->m_desc.elementSize > 1)
-            dataSize /= buffer->m_desc.elementSize;
+        void* dataPtr = nullptr;
+        size_t dataSize = 0;
+        if (buffer)
+        {
+            dataPtr = (uint8_t*)buffer->m_data + slot.bufferRange.offset;
+            dataSize = slot.bufferRange.size;
+            if (buffer->m_desc.elementSize > 1)
+                dataSize /= buffer->m_desc.elementSize;
+        }
         memcpy(dst + offset.uniformOffset, &dataPtr, sizeof(dataPtr));
         memcpy(dst + offset.uniformOffset + 8, &dataSize, sizeof(dataSize));
         break;

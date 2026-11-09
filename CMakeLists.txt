@@ -1089,6 +1089,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-cooperative-matrix.cpp
         tests/test-cooperative-vector.cpp
         tests/test-cuda-external-devices.cpp
+        tests/test-cuda-dedicated-allocation.cpp
         tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
@@ -1119,6 +1120,8 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-ray-tracing-lss.cpp
         tests/test-opacity-micromap.cpp
         tests/test-ray-tracing-raygen-entrypoint.cpp
+        tests/test-ray-tracing-record-data.cpp
+        tests/test-ray-tracing-large-records.cpp
         tests/test-ray-tracing-reorder.cpp
         tests/test-ray-tracing-shader-table-multi-pipeline.cpp
         tests/test-ray-tracing-sphere.cpp

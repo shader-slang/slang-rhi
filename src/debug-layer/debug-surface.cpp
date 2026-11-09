@@ -52,10 +52,9 @@ Result DebugSurface::configure(const SurfaceConfig& config)
     }
 
     Result result = baseObject->configure(config);
-
+    m_configured = baseObject->getConfig() != nullptr;
     if (SLANG_SUCCEEDED(result))
     {
-        m_configured = true;
         m_state = State::Initial;
     }
 
@@ -104,8 +103,11 @@ Result DebugSurface::acquireNextImage(ITexture** outTexture)
     }
 
     Result result = baseObject->acquireNextImage(outTexture);
-
-    if (SLANG_SUCCEEDED(result))
+    if (result == SLANG_E_NOT_AVAILABLE)
+    {
+        m_configured = false;
+    }
+    else if (SLANG_SUCCEEDED(result))
     {
         m_state = State::ImageAcquired;
     }
@@ -131,7 +133,12 @@ Result DebugSurface::present()
 
     Result result = baseObject->present();
 
-    if (SLANG_SUCCEEDED(result))
+    if (result == SLANG_E_NOT_AVAILABLE)
+    {
+        m_configured = false;
+        m_state = State::ImagePresented;
+    }
+    else if (SLANG_SUCCEEDED(result))
     {
         m_state = State::ImagePresented;
     }

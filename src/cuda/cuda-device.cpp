@@ -442,6 +442,9 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    if (desc.rayGenShaderRecordData || desc.missShaderRecordData || desc.hitGroupRecordData ||
+        desc.callableShaderRecordData)
+        return SLANG_E_NOT_AVAILABLE;
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;

@@ -232,6 +232,7 @@ public:
     {
         RefPtr<ShaderObjectLayoutImpl> layout;
         BindingOffset offset;
+        bool shaderRecordParameters = false;
     };
 
     ComPtr<slang::IComponentType> m_program;
@@ -458,6 +459,7 @@ public:
         DeviceImpl* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
+        bool useShaderRecordParameters,
         RootShaderObjectLayoutImpl** outLayout,
         ID3DBlob** outError
     );
@@ -479,7 +481,7 @@ protected:
 
         void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
 
-        void addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout);
+        void addEntryPoint(SlangStage stage, ShaderObjectLayoutImpl* entryPointLayout, bool shaderRecordParameters);
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;

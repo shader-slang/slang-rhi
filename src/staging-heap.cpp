@@ -177,8 +177,8 @@ Result StagingHeap::map(const Allocation& allocation, void** outAddress)
     Page* page = allocation.getPage();
     Offset offset = allocation.getOffset();
     if (!m_keepPagesMapped)
-        SLANG_RETURN_ON_FAIL(page->map(m_device));
-    *outAddress = page->getMapped() + offset;
+        SLANG_RETURN_ON_FAIL(page->map(m_device, offset, allocation.getSize()));
+    *outAddress = page->getMapped(offset);
     return SLANG_OK;
 }
 
@@ -241,7 +241,7 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
 
     // If always mapped, map page now
     if (m_keepPagesMapped)
-        SLANG_RETURN_ON_FAIL(page->map(m_device));
+        SLANG_RETURN_ON_FAIL(page->map(m_device, 0, page->getCapacity()));
 
     *outPage = page;
     return SLANG_OK;
@@ -411,14 +411,21 @@ void StagingHeap::Page::checkConsistency()
     SLANG_RHI_ASSERT(offset == m_totalCapacity);
 }
 
-Result StagingHeap::Page::map(Device* device)
+Result StagingHeap::Page::map(Device* device, Offset offset, Size size)
 {
     SLANG_RHI_ASSERT(!m_mapped);
-    return device->mapBuffer(
+    SLANG_RHI_ASSERT(offset <= m_totalCapacity);
+    SLANG_RHI_ASSERT(size <= m_totalCapacity - offset);
+    SLANG_RETURN_ON_FAIL(device->mapBufferRange(
         m_buffer,
         m_buffer->m_desc.memoryType == MemoryType::Upload ? CpuAccessMode::Write : CpuAccessMode::Read,
+        offset,
+        size,
         &m_mapped
-    );
+    ));
+    m_mappedOffset = offset;
+    m_mappedSize = size;
+    return SLANG_OK;
 }
 
 Result StagingHeap::Page::unmap(Device* device)
@@ -426,6 +433,8 @@ Result StagingHeap::Page::unmap(Device* device)
     SLANG_RHI_ASSERT(m_mapped);
     SLANG_RETURN_ON_FAIL(device->unmapBuffer(m_buffer));
     m_mapped = nullptr;
+    m_mappedOffset = 0;
+    m_mappedSize = 0;
     return SLANG_OK;
 }
 

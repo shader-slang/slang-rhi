@@ -63,14 +63,20 @@ public:
         // Get total used in the page.
         size_t getUsed() const { return m_totalUsed; }
 
-        // Get mapped address
-        uint8_t* getMapped() const { return (uint8_t*)m_mapped; }
+        // Get the mapped address corresponding to an offset in the page.
+        uint8_t* getMapped(Offset offset) const
+        {
+            SLANG_RHI_ASSERT(m_mapped);
+            SLANG_RHI_ASSERT(offset >= m_mappedOffset);
+            SLANG_RHI_ASSERT(offset - m_mappedOffset <= m_mappedSize);
+            return static_cast<uint8_t*>(m_mapped) + (offset - m_mappedOffset);
+        }
 
         // Get thread id page is locked to (if any)
         std::thread::id getLockedToThread() const { return m_locked_to_thread; }
 
-        // Map page
-        Result map(Device* device);
+        // Map a range of the page.
+        Result map(Device* device, Offset offset, Size size);
 
         // Unmap page
         Result unmap(Device* device);
@@ -85,6 +91,8 @@ public:
         size_t m_totalCapacity = 0;
         size_t m_totalUsed = 0;
         void* m_mapped = nullptr;
+        Offset m_mappedOffset = 0;
+        Size m_mappedSize = 0;
         std::thread::id m_locked_to_thread;
     };
 

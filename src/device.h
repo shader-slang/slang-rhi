@@ -191,6 +191,7 @@ public:
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSlangSession(slang::ISession** outSlangSession) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override;
     IDevice* getInterface(const Guid& guid);
 
@@ -384,6 +385,7 @@ public:
 
     // Provides a default implementation that reports heaps from m_globalHeaps.
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL trimMemory() override;
 
     // Default no-op implementations for CUDA context management (only meaningful for CUDA backend).
     virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override { return SLANG_OK; }
@@ -392,6 +394,10 @@ public:
 
     // Flush all global heaps managed by this device
     Result flushHeaps();
+
+    // Maps a buffer range and returns a pointer to the start of that range. Backends whose native
+    // mapping API only exposes whole buffers may use the default implementation.
+    virtual Result mapBufferRange(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData);
 
     Result getEntryPointCodeFromShaderCache(
         ShaderProgram* program,

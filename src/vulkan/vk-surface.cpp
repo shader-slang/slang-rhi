@@ -224,7 +224,7 @@ Result SurfaceImpl::createSwapchain()
 
     if (imageExtent.width == 0 || imageExtent.height == 0)
     {
-        return SLANG_FAIL;
+        return SLANG_E_NOT_AVAILABLE;
     }
 
     uint32_t imageCount = std::max(m_config.desiredImageCount, surfaceCaps.minImageCount);
@@ -481,11 +481,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::unconfigure()
 {
-    if (!m_configured)
-    {
-        return SLANG_OK;
-    }
-
+    // An invalidated configuration can still own the old swapchain and its synchronization.
     m_configured = false;
     destroySwapchain();
 
@@ -520,6 +516,11 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         (uint32_t*)&m_currentTextureIndex
     );
 
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        m_configured = false;
+        return SLANG_E_NOT_AVAILABLE;
+    }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;
@@ -576,6 +577,14 @@ Result SurfaceImpl::present()
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
     VkResult result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        // A resize or minimize can invalidate an image after acquisition. Presentation still
+        // consumes its semaphore wait, but the caller must reconfigure before acquiring again.
+        m_currentTextureIndex = -1;
+        m_configured = false;
+        return SLANG_E_NOT_AVAILABLE;
+    }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         reportVulkanError(result, "vkQueuePresentKHR", SLANG_RHI_SOURCE_LOCATION(), m_device);

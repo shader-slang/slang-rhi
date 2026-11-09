@@ -361,6 +361,18 @@ public:
 public:
     ShaderTable(Device* device, const ShaderTableDesc& desc);
 
+    /// Validate byte ranges before copying caller-owned record data, explaining the backend's limit.
+    static Result validateRecordData(
+        Device* device,
+        const ShaderTableDesc& desc,
+        uint32_t maxDataSize,
+        const char* limitReason = "native record stride limit"
+    );
+
+    using RecordDataList = std::vector<std::vector<uint8_t>>;
+    static uint32_t getMaxRecordDataSize(const RecordDataList& records);
+    static uint32_t getMaxRecordParameterSize(RayTracingPipeline* pipeline, const std::vector<std::string>& names);
+
 public:
     uint32_t m_rayGenShaderCount;
     uint32_t m_missShaderCount;
@@ -380,6 +392,10 @@ public:
     uint32_t m_missRecordOverwriteMaxSize = 0;
     uint32_t m_hitGroupRecordOverwriteMaxSize = 0;
     uint32_t m_callableRecordOverwriteMaxSize = 0;
+    RecordDataList m_rayGenRecordData;
+    RecordDataList m_missRecordData;
+    RecordDataList m_hitGroupRecordData;
+    RecordDataList m_callableRecordData;
 };
 
 class Surface : public ISurface, public ComObject

@@ -25,6 +25,8 @@ ShaderProgram::ShaderProgram(Device* device, const ShaderProgramDesc& desc)
 {
     m_descHolder.holdString(m_desc.label);
     m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
+    if (m_desc.selectedEntryPointIndices)
+        m_descHolder.holdList(m_desc.selectedEntryPointIndices, m_desc.selectedEntryPointCount);
 
     m_id = device->m_nextShaderProgramID.fetch_add(1);
 
@@ -53,6 +55,15 @@ void* ShaderProgram::getInterface(const Guid& guid)
 
 Result ShaderProgram::init()
 {
+    if (m_desc.useRayTracingShaderRecordParameters)
+    {
+        auto deviceType = m_device->getInfo().deviceType;
+        if ((deviceType != DeviceType::Vulkan && deviceType != DeviceType::D3D12) ||
+            m_desc.linkingStyle != LinkingStyle::SingleProgram ||
+            m_desc.entryPointUniformLayoutGroupIndex != UINT32_MAX)
+            return SLANG_E_INVALID_ARG;
+    }
+
     SLANG_RETURN_ON_FAIL(_initSyntheticResourceDescs());
 
     slangGlobalScope = m_desc.slangGlobalScope;
@@ -109,6 +120,58 @@ Result ShaderProgram::init()
     }
 
     m_isSpecializable = _isSpecializable();
+
+    if (m_desc.useRayTracingShaderRecordParameters)
+    {
+        auto layout = linkedProgram->getLayout();
+        for (SlangUInt i = 0; i < layout->getEntryPointCount(); ++i)
+        {
+            switch (layout->getEntryPointByIndex(i)->getStage())
+            {
+            case SLANG_STAGE_RAY_GENERATION:
+            case SLANG_STAGE_MISS:
+            case SLANG_STAGE_CLOSEST_HIT:
+            case SLANG_STAGE_ANY_HIT:
+            case SLANG_STAGE_INTERSECTION:
+            case SLANG_STAGE_CALLABLE:
+                break;
+            default:
+                m_device->printError("Shader-record parameters require ray-tracing entry points.");
+                return SLANG_E_INVALID_ARG;
+            }
+        }
+    }
+
+    if (m_desc.entryPointUniformLayoutGroupIndex != UINT32_MAX)
+    {
+        if (m_device->getInfo().deviceType != DeviceType::Vulkan ||
+            m_desc.linkingStyle != LinkingStyle::SingleProgram ||
+            (m_desc.selectedEntryPointCount && !m_desc.selectedEntryPointIndices))
+            return SLANG_E_INVALID_ARG;
+        auto layout = linkedProgram->getLayout();
+        auto group = m_desc.entryPointUniformLayoutGroupIndex;
+        if (!layout || group >= layout->getEntryPointUniformLayoutGroupCount())
+            return SLANG_E_INVALID_ARG;
+        std::vector<uint32_t> members;
+        for (uint32_t i = 0; i < layout->getEntryPointUniformLayoutGroupEntryPointCount(group); ++i)
+            members.push_back(uint32_t(layout->getEntryPointUniformLayoutGroupEntryPointIndex(group, i)));
+        if (m_desc.selectedEntryPointCount)
+        {
+            for (uint32_t i = 0; i < m_desc.selectedEntryPointCount; ++i)
+            {
+                auto index = m_desc.selectedEntryPointIndices[i];
+                if (std::find(members.begin(), members.end(), index) == members.end() ||
+                    std::find(m_selectedEntryPointIndices.begin(), m_selectedEntryPointIndices.end(), index) !=
+                        m_selectedEntryPointIndices.end())
+                    return SLANG_E_INVALID_ARG;
+                m_selectedEntryPointIndices.push_back(index);
+            }
+        }
+        else
+            m_selectedEntryPointIndices = std::move(members);
+    }
+    else if (m_desc.selectedEntryPointCount)
+        return SLANG_E_INVALID_ARG;
 
     return SLANG_OK;
 }
@@ -174,6 +237,10 @@ Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<C
             return SLANG_FAIL;
         for (uint32_t i = 0; i < programReflection->getEntryPointCount(); i++)
         {
+            if (m_desc.entryPointUniformLayoutGroupIndex != UINT32_MAX &&
+                std::find(m_selectedEntryPointIndices.begin(), m_selectedEntryPointIndices.end(), i) ==
+                    m_selectedEntryPointIndices.end())
+                continue;
             SLANG_RETURN_ON_FAIL(appendEntryPoint(linkedProgram, i));
         }
     }

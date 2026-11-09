@@ -15,7 +15,12 @@ BufferImpl::~BufferImpl()
 {
     if (m_buffer)
     {
-        getDevice<DeviceImpl>()->m_ctx.api.wgpuBufferRelease(m_buffer);
+        API& api = getDevice<DeviceImpl>()->m_ctx.api;
+        if (m_ownsNativeHandle)
+        {
+            api.wgpuBufferDestroy(m_buffer);
+        }
+        api.wgpuBufferRelease(m_buffer);
     }
 }
 
@@ -68,36 +73,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         *outBuffer = nullptr;
         return SLANG_FAIL;
     }
+    buffer->m_ownsNativeHandle = true;
 
     if (initData)
     {
         WGPUQueue queue = m_ctx.api.wgpuDeviceGetQueue(m_ctx.device);
         m_ctx.api.wgpuQueueWriteBuffer(queue, buffer->m_buffer, 0, initData, desc.size);
         SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
-
-        // Wait for the command buffer to finish executing
-        {
-            WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
-            WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
-            callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-#if !SLANG_WASM
-            callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-#else
-            callbackInfo.callback =
-                [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
-#endif
-            {
-                *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
-            };
-            callbackInfo.userdata1 = &status;
-            WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-            WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-            if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
-            {
-                *outBuffer = nullptr;
-                return SLANG_FAIL;
-            }
-        }
     }
 
     returnComPtr(outBuffer, buffer);
@@ -130,6 +112,14 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    return mapBufferRange(buffer, mode, 0, bufferImpl->m_desc.size, outData);
+}
+
+Result DeviceImpl::mapBufferRange(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
+{
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (!outData || offset > bufferImpl->m_desc.size || size > bufferImpl->m_desc.size - offset)
+        return SLANG_E_INVALID_ARG;
 
     WGPUMapMode mapMode = WGPUMapMode_None;
     switch (mode)
@@ -141,9 +131,6 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         mapMode = WGPUMapMode_Write;
         break;
     }
-
-    size_t offset = 0;
-    size_t size = bufferImpl->m_desc.size;
 
     WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
     WGPUBufferMapCallbackInfo callbackInfo = {};

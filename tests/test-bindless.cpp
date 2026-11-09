@@ -181,6 +181,102 @@ GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
     compareComputeResult(device, rwByteAddressBuffer, std::array{2.f, 3.f});
 }
 
+// A shader whose only resource access is bindless reserves the first descriptor space for its
+// heap. Vulkan must not also create an ordinary empty descriptor set at that reserved space.
+GPU_TEST_CASE("bindless-only-buffer", D3D12 | Vulkan)
+{
+    if (!device->hasFeature(Feature::Bindless))
+    {
+        SKIP("Bindless is not supported");
+    }
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-bindless-only-buffer", "computeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(float);
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    ComPtr<IBuffer> output;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, output.writeRef()));
+
+    DescriptorHandle outputHandle = {};
+    REQUIRE_CALL(
+        output->getDescriptorHandle(DescriptorHandleAccess::ReadWrite, Format::Undefined, kEntireBuffer, &outputHandle)
+    );
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    commandEncoder->setBufferState(output, ResourceState::UnorderedAccess);
+    auto passEncoder = commandEncoder->beginComputePass();
+    IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
+    ShaderCursor(rootObject)["output"].setDescriptorHandle(outputHandle);
+    passEncoder->dispatchCompute(1, 1, 1);
+    passEncoder->end();
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    compareComputeResult(device, output, std::array{42.0f});
+}
+
+// CPU and CUDA lower DescriptorHandle<T> to T itself. Assigning a resource to the reflected
+// handle field must therefore use ordinary resource binding so the backend can marshal T's native
+// representation, including a structured buffer's pointer and element count.
+GPU_TEST_CASE("native-resource-descriptor-handle", CPU | CUDA)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(
+        loadProgram(device, "test-native-resource-descriptor-handle", "computeMain", shaderProgram.writeRef())
+    );
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram;
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    BufferDesc inputDesc = {};
+    inputDesc.size = 3 * sizeof(float);
+    inputDesc.elementSize = sizeof(float);
+    inputDesc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+    inputDesc.defaultState = ResourceState::ShaderResource;
+    const float inputData[] = {1.0f, 2.0f, 3.0f};
+    ComPtr<IBuffer> input;
+    REQUIRE_CALL(device->createBuffer(inputDesc, inputData, input.writeRef()));
+
+    BufferDesc outputDesc = {};
+    outputDesc.size = 6 * sizeof(float);
+    outputDesc.elementSize = sizeof(float);
+    outputDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    outputDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> output;
+    REQUIRE_CALL(device->createBuffer(outputDesc, nullptr, output.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    auto passEncoder = commandEncoder->beginComputePass();
+    IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
+    ShaderCursor cursor(rootObject);
+    REQUIRE_CALL(cursor["arguments"]["before"].setData(10u));
+    REQUIRE_CALL(cursor["arguments"]["inputs"][0].setBinding(input));
+    REQUIRE_CALL(
+        cursor["arguments"]["inputs"][1].setBinding(Binding(input, BufferRange{sizeof(float), 2 * sizeof(float)}))
+    );
+    REQUIRE_CALL(cursor["arguments"]["between"].setData(20u));
+    REQUIRE_CALL(cursor["arguments"]["output"].setBinding(output));
+    REQUIRE_CALL(cursor["arguments"]["empty"].setBinding(Binding((IBuffer*)nullptr)));
+    REQUIRE_CALL(cursor["extra"].setData(1u));
+    passEncoder->dispatchCompute(1, 1, 1);
+    passEncoder->end();
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    compareComputeResult(device, output, std::array{35.0f, 3.0f, 2.0f, 6.0f, 0.0f, 4.0f});
+}
+
 GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::Bindless))

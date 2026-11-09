@@ -126,6 +126,8 @@ Result BindingDataBuilder::bindAsRoot(
     {
         auto entryPoint = shaderObject->m_entryPoints[i];
         const auto& entryPointInfo = specializedLayout->m_entryPoints[i];
+        if (entryPointInfo.shaderRecordParameters)
+            continue;
         ShaderObjectLayoutImpl* entryPointLayout = entryPointInfo.layout;
 
         auto entryPointOffset = rootOffset;

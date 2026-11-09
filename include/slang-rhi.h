@@ -326,6 +326,24 @@ struct ShaderProgramDesc
     uint32_t slangEntryPointCount = 0;
 
     const char* label = nullptr;
+
+    // Select an explicit Slang entry-point uniform layout group for a Vulkan pipeline.
+    // Requires SingleProgram linking. UINT32_MAX preserves legacy program behavior.
+    uint32_t entryPointUniformLayoutGroupIndex = UINT32_MAX;
+
+    // Optional subset of the selected group, using the final Slang program's entry-point
+    // indices. An empty list selects the entire group. Root shader objects retain the
+    // full program's entry-point indices and descriptor layout, including unselected stages.
+    const uint32_t* selectedEntryPointIndices = nullptr;
+    uint32_t selectedEntryPointCount = 0;
+
+    /// Bind ray-tracing entry-point ordinary uniforms from each shader table record.
+    /// Supported on Vulkan and D3D12 with SingleProgram linking. Entry-point uniforms
+    /// must contain ordinary data only; bind resources globally or use DescriptorHandle.
+    /// Supply immutable per-record values through ShaderTableDesc's ShaderRecordData arrays.
+    /// Hit-group stages may have independent uniforms; query getShaderRecordLayout to pack them.
+    /// D3D12 currently caps combined local uniform data at 512 bytes due to a driver blocker.
+    bool useRayTracingShaderRecordParameters = false;
 };
 
 class IShaderProgram : public ISlangUnknown
@@ -2233,6 +2251,19 @@ struct ShaderRecordOverwrite
     uint8_t data[8];
 };
 
+/// Application data to copy into one shader table record after its native shader identifier.
+/// The data is copied by createShaderTable; the caller may release or modify it afterwards.
+/// Record storage is sized from the reflected layout and offset + size, subject to backend
+/// alignment and stride limits. D3D12 temporarily caps application data at 512 bytes due to a
+/// driver blocker; Vulkan uses its full device-dependent limit.
+/// Changing the data or its extent does not require a different pipeline.
+struct ShaderRecordData
+{
+    const void* data = nullptr;
+    uint32_t size = 0;
+    uint32_t offset = 0;
+};
+
 struct ShaderTableDesc
 {
     static constexpr StructType kStructType = StructType::ShaderTableDesc;
@@ -2256,6 +2287,13 @@ struct ShaderTableDesc
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
     IShaderProgram* program = nullptr;
+
+    /// Optional arrays, each with the corresponding shader count. Zero-filled padding
+    /// precedes data whose offset is nonzero. Legacy record overwrites are applied last.
+    const ShaderRecordData* rayGenShaderRecordData = nullptr;
+    const ShaderRecordData* missShaderRecordData = nullptr;
+    const ShaderRecordData* hitGroupRecordData = nullptr;
+    const ShaderRecordData* callableShaderRecordData = nullptr;
 };
 
 class IShaderTable : public ISlangUnknown
@@ -2288,12 +2326,34 @@ public:
     virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
+/// Reflection of application data following the native shader identifier in one SBT record.
+/// Entry-point indices refer to the linked program. A hit group has at most three stages.
+struct RayTracingShaderRecordLayout
+{
+    struct EntryPoint
+    {
+        uint32_t entryPointIndex = UINT32_MAX;
+        uint32_t offset = 0;
+        uint32_t size = 0;
+    };
+    uint32_t size = 0;
+    uint32_t entryPointCount = 0;
+    EntryPoint entryPoints[3] = {};
+};
+
 class IRayTracingPipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0x5047f5d7, 0xc6f6, 0x4482, {0xab, 0x49, 0x08, 0x57, 0x1b, 0xcf, 0xe8, 0xda});
 
 public:
     virtual SLANG_NO_THROW const RayTracingPipelineDesc& SLANG_MCALL getDesc() = 0;
+
+    /// Query the packing layout of an entry point or hit-group export. Requires a concrete
+    /// pipeline with useRayTracingShaderRecordParameters enabled.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getShaderRecordLayout(
+        const char* exportName,
+        RayTracingShaderRecordLayout* outLayout
+    ) = 0;
 };
 
 struct ScissorRect
@@ -3148,9 +3208,16 @@ class ISurface : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() = 0;
     virtual SLANG_NO_THROW const SurfaceConfig* SLANG_MCALL getConfig() = 0;
+    /// May return SLANG_E_NOT_AVAILABLE if the window temporarily has no drawable area.
+    /// In that case getConfig() returns null; try configuring again after a window change.
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() = 0;
+    /// May return SLANG_E_NOT_AVAILABLE with a null image if a window change invalidates
+    /// the swapchain. getConfig() then returns null; reconfigure before acquiring again.
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) = 0;
+    /// Present the acquired image. If a window change invalidates the swapchain, this may
+    /// return SLANG_E_NOT_AVAILABLE: the acquired image is consumed, getConfig() returns null,
+    /// and the caller must release image references and reconfigure before acquiring again.
     virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
 
     ComPtr<ITexture> acquireNextImage()
@@ -3605,10 +3672,20 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) = 0;
 
+    /// Creates a fresh Slang session compatible with the device's shader target and capabilities.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSlangSession(slang::ISession** outSlangSession) = 0;
+
     inline ComPtr<slang::ISession> getSlangSession()
     {
         ComPtr<slang::ISession> result;
         SLANG_RETURN_NULL_ON_FAIL(getSlangSession(result.writeRef()));
+        return result;
+    }
+
+    inline ComPtr<slang::ISession> createSlangSession()
+    {
+        ComPtr<slang::ISession> result;
+        SLANG_RETURN_NULL_ON_FAIL(createSlangSession(result.writeRef()));
         return result;
     }
 
@@ -4018,6 +4095,12 @@ public:
     /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
     /// number of heaps available or written
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
+
+    /// Waits for submitted graphics-queue work, collects deferred resource deletions, and
+    /// releases unused internal heap pages. Live resources and unsubmitted commands are not
+    /// discarded. Intended for memory pressure, not per-frame use; callers must externally
+    /// synchronize access to the device while trimming. This is not a device-memory budget query.
+    virtual SLANG_NO_THROW Result SLANG_MCALL trimMemory() = 0;
 
     /// Set the device's CUDA context as current on this thread.
     /// For non-CUDA devices, this is a no-op.

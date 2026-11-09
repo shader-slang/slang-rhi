@@ -821,3 +821,34 @@ GPU_TEST_CASE("heap-reports", ALL)
         CHECK(heapCount == 0);
     }
 }
+
+GPU_TEST_CASE("device-trim-memory", CUDA | Vulkan)
+{
+    BufferDesc desc = {};
+    desc.size = 16;
+    desc.elementSize = 4;
+    desc.usage = BufferUsage::CopySource | BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::CopyDestination;
+    uint32_t initial[] = {7, 11, 13, 17};
+    ComPtr<IBuffer> live = device->createBuffer(desc, initial);
+    REQUIRE(live);
+    ComPtr<IBuffer> temporary = device->createBuffer(desc);
+    REQUIRE(temporary);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    encoder->copyBuffer(temporary, 0, live, 0, desc.size);
+    encoder->copyBuffer(live, 0, temporary, 0, desc.size);
+    auto commands = encoder->finish();
+    REQUIRE_CALL(queue->submit(commands));
+    commands = nullptr;
+    encoder = nullptr;
+    temporary = nullptr;
+    // Trimming must retire submitted work but cannot discard the still-owned allocation.
+    REQUIRE_CALL(device->trimMemory());
+    uint32_t actual[4] = {};
+    REQUIRE_CALL(device->readBuffer(live, 0, sizeof(actual), actual));
+    CHECK(std::equal(std::begin(initial), std::end(initial), std::begin(actual)));
+    live = nullptr;
+    REQUIRE_CALL(device->trimMemory());
+    REQUIRE_CALL(device->trimMemory()); // Repeated trimming of an empty cache is harmless.
+}

@@ -559,6 +559,102 @@ IShaderTable* ShaderTable::getInterface(const Guid& guid)
     return nullptr;
 }
 
+Result ShaderTable::validateRecordData(
+    Device* device,
+    const ShaderTableDesc& desc,
+    uint32_t maxDataSize,
+    const char* limitReason
+)
+{
+    const ShaderRecordData* arrays[] = {
+        desc.rayGenShaderRecordData,
+        desc.missShaderRecordData,
+        desc.hitGroupRecordData,
+        desc.callableShaderRecordData
+    };
+    const uint32_t counts[] =
+        {desc.rayGenShaderCount, desc.missShaderCount, desc.hitGroupCount, desc.callableShaderCount};
+    const char* const* names[] = {
+        desc.rayGenShaderEntryPointNames,
+        desc.missShaderEntryPointNames,
+        desc.hitGroupNames,
+        desc.callableShaderEntryPointNames
+    };
+    const char* sections[] = {"ray-generation", "miss", "hit-group", "callable"};
+    for (uint32_t section = 0; section < 4; ++section)
+    {
+        if (!arrays[section])
+            continue;
+        for (uint32_t i = 0; i < counts[section]; ++i)
+        {
+            const auto& record = arrays[section][i];
+            const char* name = names[section] && names[section][i] ? names[section][i] : "<unnamed>";
+            if (record.size && !record.data)
+            {
+                device->printError(
+                    "Shader table %s record %u ('%s') has a null data pointer.",
+                    sections[section],
+                    i,
+                    name
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            uint64_t requiredSize = uint64_t(record.offset) + record.size;
+            if (requiredSize > maxDataSize)
+            {
+                device->printError(
+                    "Shader table %s record %u ('%s') requires %llu application bytes including its offset; "
+                    "this backend supports at most %u bytes after the shader identifier (%s).",
+                    sections[section],
+                    i,
+                    name,
+                    (unsigned long long)requiredSize,
+                    maxDataSize,
+                    limitReason
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
+uint32_t ShaderTable::getMaxRecordDataSize(const RecordDataList& records)
+{
+    uint32_t size = 0;
+    for (const auto& record : records)
+        size = std::max(size, uint32_t(record.size()));
+    return size;
+}
+
+uint32_t ShaderTable::getMaxRecordParameterSize(RayTracingPipeline* pipeline, const std::vector<std::string>& names)
+{
+    uint32_t size = 0;
+    for (const auto& name : names)
+    {
+        auto record = pipeline->m_shaderRecordLayouts.find(name);
+        if (record != pipeline->m_shaderRecordLayouts.end())
+            size = std::max(size, record->second.size);
+    }
+    return size;
+}
+
+/// Snapshot record bytes, including leading padding, while the caller's memory is valid.
+static ShaderTable::RecordDataList copyShaderRecordData(const ShaderRecordData* records, uint32_t count)
+{
+    ShaderTable::RecordDataList result;
+    if (!records)
+        return result;
+    result.resize(count);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        result[i].resize(size_t(records[i].offset) + records[i].size);
+        if (records[i].size)
+            memcpy(result[i].data() + records[i].offset, records[i].data, records[i].size);
+    }
+    return result;
+}
+
 ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     : DeviceChild(device)
 {
@@ -626,6 +722,11 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
         );
     }
     m_callableRecordOverwriteMaxSize = getMaxOverrideSize(m_callableRecordOverwrites);
+
+    m_rayGenRecordData = copyShaderRecordData(desc.rayGenShaderRecordData, desc.rayGenShaderCount);
+    m_missRecordData = copyShaderRecordData(desc.missShaderRecordData, desc.missShaderCount);
+    m_hitGroupRecordData = copyShaderRecordData(desc.hitGroupRecordData, desc.hitGroupCount);
+    m_callableRecordData = copyShaderRecordData(desc.callableShaderRecordData, desc.callableShaderCount);
 }
 
 // ----------------------------------------------------------------------------

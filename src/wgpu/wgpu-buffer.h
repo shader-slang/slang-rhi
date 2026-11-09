@@ -19,6 +19,7 @@ public:
 
 public:
     WGPUBuffer m_buffer = nullptr;
+    bool m_ownsNativeHandle = false;
 };
 
 } // namespace rhi::wgpu

@@ -37,6 +37,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createSlangSession(slang::ISession** outSlangSession) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
         const SubresourceData* initData,
@@ -207,6 +208,7 @@ public:
         IShaderTable** outTable
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL trimMemory() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;

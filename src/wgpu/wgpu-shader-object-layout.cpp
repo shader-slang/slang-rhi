@@ -59,6 +59,53 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     return WGPUTextureSampleType_Undefined;
 }
 
+inline WGPUStorageTextureAccess getStorageTextureAccess(SlangResourceAccess access)
+{
+    switch (access)
+    {
+    case SLANG_RESOURCE_ACCESS_READ:
+        return WGPUStorageTextureAccess_ReadOnly;
+    case SLANG_RESOURCE_ACCESS_WRITE:
+        return WGPUStorageTextureAccess_WriteOnly;
+    case SLANG_RESOURCE_ACCESS_READ_WRITE:
+    case SLANG_RESOURCE_ACCESS_RASTER_ORDERED:
+        return WGPUStorageTextureAccess_ReadWrite;
+    default:
+        return WGPUStorageTextureAccess_Undefined;
+    }
+}
+
+inline WGPUTextureFormat getStorageTextureFormat(slang::TypeReflection* type)
+{
+    uint32_t componentCount = 1;
+    slang::TypeReflection::ScalarType scalarType = type->getScalarType();
+    if (type->getKind() == slang::TypeReflection::Kind::Vector)
+    {
+        componentCount = uint32_t(type->getElementCount());
+        scalarType = type->getElementType()->getScalarType();
+    }
+    if (componentCount == 3)
+        componentCount = 4;
+
+    switch (scalarType)
+    {
+    case slang::TypeReflection::ScalarType::Float32:
+        return componentCount == 1   ? WGPUTextureFormat_R32Float
+               : componentCount == 2 ? WGPUTextureFormat_RG32Float
+                                     : WGPUTextureFormat_RGBA32Float;
+    case slang::TypeReflection::ScalarType::Int32:
+        return componentCount == 1   ? WGPUTextureFormat_R32Sint
+               : componentCount == 2 ? WGPUTextureFormat_RG32Sint
+                                     : WGPUTextureFormat_RGBA32Sint;
+    case slang::TypeReflection::ScalarType::UInt32:
+        return componentCount == 1   ? WGPUTextureFormat_R32Uint
+               : componentCount == 2 ? WGPUTextureFormat_RG32Uint
+                                     : WGPUTextureFormat_RGBA32Uint;
+    default:
+        return WGPUTextureFormat_Undefined;
+    }
+}
+
 uint32_t ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space)
 {
     auto it = m_mapSpaceToDescriptorSetIndex.find(space);
@@ -157,10 +204,10 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 
             WGPUBindGroupLayoutEntry entry = {};
             entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
-            entry.binding = offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
-                                                 slangDescriptorSetIndex,
-                                                 descriptorRangeIndex
-                                             );
+            entry.binding =
+                offset.binding +
+                (uint32_t
+                )typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex);
 
             slang::TypeReflection* leafType = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex)->getType();
 
@@ -179,14 +226,10 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                 entry.texture.multisampled = (leafType->getResourceShape() & SLANG_TEXTURE_MULTISAMPLE_FLAG) ? 1 : 0;
                 break;
             case slang::BindingType::MutableTexture:
-                // WGPUStorageTextureAccess_Undefined = 0x00000000,
-                // WGPUStorageTextureAccess_WriteOnly = 0x00000001,
-                // WGPUStorageTextureAccess_ReadOnly = 0x00000002,
-                // WGPUStorageTextureAccess_ReadWrite = 0x00000003,
-                entry.storageTexture.access = WGPUStorageTextureAccess_Undefined;
-                entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-                // WGPUTextureFormat format;
-                entry.storageTexture.viewDimension = getViewDimension(typeLayout->getType()->getResourceShape());
+                entry.visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+                entry.storageTexture.access = getStorageTextureAccess(leafType->getResourceAccess());
+                entry.storageTexture.format = getStorageTextureFormat(leafType->getResourceResultType());
+                entry.storageTexture.viewDimension = getViewDimension(leafType->getResourceShape());
                 break;
             case slang::BindingType::TypedBuffer:
             case slang::BindingType::RawBuffer:

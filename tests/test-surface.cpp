@@ -395,4 +395,46 @@ GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }
+
+GPU_TEST_CASE("surface-present-invalidation", Vulkan)
+{
+    REQUIRE(glfwInit());
+    if (!hasMonitor())
+    {
+        glfwTerminate();
+        SKIP("Surface test requires a monitor");
+    }
+
+    NoRenderSurfaceTest test;
+    test.init(device);
+    int width, height;
+    glfwGetFramebufferSize(test.window, &width, &height);
+    test.configureSurface(width, height);
+    ComPtr<ITexture> texture = test.surface->acquireNextImage();
+    REQUIRE(texture);
+
+    // Minimize between acquisition and presentation, after the caller's last extent check.
+    // A platform may still present successfully, but an out-of-date image is recoverable.
+    glfwIconifyWindow(test.window);
+    glfwPollEvents();
+    Result result = test.surface->present();
+    CHECK((result == SLANG_OK || result == SLANG_E_NOT_AVAILABLE));
+    if (result == SLANG_E_NOT_AVAILABLE)
+        CHECK(test.surface->getConfig() == nullptr);
+    texture = nullptr;
+    REQUIRE_CALL(test.queue->waitOnHost());
+    REQUIRE_CALL(test.surface->unconfigure());
+
+    glfwRestoreWindow(test.window);
+    glfwPollEvents();
+    glfwGetFramebufferSize(test.window, &width, &height);
+    test.configureSurface(width, height);
+    texture = test.surface->acquireNextImage();
+    REQUIRE(texture);
+    REQUIRE_CALL(test.surface->present());
+    texture = nullptr;
+    REQUIRE_CALL(test.queue->waitOnHost());
+    test.shutdown();
+    glfwTerminate();
+}
 #endif // SLANG_RHI_BUILD_TESTS_WITH_GLFW

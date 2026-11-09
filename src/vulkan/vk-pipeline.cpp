@@ -67,9 +67,10 @@ static Result getRayTracingPipelineFallbackKey(
 
     SHA1 sha1;
     static constexpr char kKeyTag[] = "slang-rhi-vulkan-ray-tracing-pipeline";
-    static constexpr uint32_t kKeyVersion = 1;
+    static constexpr uint32_t kKeyVersion = 2;
     sha1.update(kKeyTag, sizeof(kKeyTag));
     sha1.update(kKeyVersion);
+    sha1.update(desc.program->getDesc().useRayTracingShaderRecordParameters);
 
     auto updateNullableString = [&](const char* value)
     {
@@ -930,6 +931,8 @@ inline uint32_t findEntryPointIndexByName(
 
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
+    RayTracingPipeline::ShaderRecordLayoutMap recordLayouts;
+    SLANG_RETURN_ON_FAIL(RayTracingPipeline::getShaderRecordLayouts(desc, recordLayouts));
     TimePoint startTime = Timer::now();
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
@@ -1090,6 +1093,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_entryPointIndexByName = std::move(entryPointIndexByName);
     pipeline->m_shaderGroupIndexByName = std::move(shaderGroupIndexByName);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();
+    pipeline->m_shaderRecordLayouts = std::move(recordLayouts);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }

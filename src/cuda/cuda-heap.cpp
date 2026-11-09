@@ -3,6 +3,9 @@
 #include "cuda-utils.h"
 #include "cuda-command.h"
 
+#include <algorithm>
+#include <limits>
+
 namespace rhi::cuda {
 
 // ============================================================================
@@ -305,14 +308,120 @@ HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
 
 HeapImpl::~HeapImpl()
 {
-    // Release all cached pages
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
+    // A separately created IHeap can be destroyed with outstanding allocations.
+    // In particular, pinned host storage must outlive any asynchronous copies.
+    if (!m_dedicatedAllocations.empty())
+    {
+        SLANG_CUDA_CTX_SCOPE(deviceImpl);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
+        while (!m_dedicatedAllocations.empty())
+        {
+            Result result = releaseDedicatedAllocation(m_dedicatedAllocations.front());
+            SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
+            if (SLANG_FAILED(result))
+                break;
+        }
+    }
+    // Release all cached pages.
     m_pageCache.releaseAll(deviceImpl, m_desc.memoryType);
+}
+
+Result HeapImpl::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
+{
+    *outAllocation = {};
+    HeapAllocDesc desc = desc_;
+    SLANG_RETURN_ON_FAIL(fixUpAllocDesc(desc));
+    if (desc.size > std::numeric_limits<Size>::max() - (desc.alignment - 1))
+        return SLANG_E_INVALID_ARG;
+    Size size = math::calcAligned2(desc.size, desc.alignment);
+    if (size <= kMaxPooledAllocationSize)
+        return Heap::allocate(desc, outAllocation);
+
+    // Do not call createPage here: Heap::Page eagerly reserves an offset record
+    // for every alignment unit. One multi-GiB buffer would need hundreds of MiB
+    // of CPU metadata, and the common page-size calculation also narrows to uint32.
+    // Dedicated allocations retain Size throughout and never enter the page cache.
+    DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
+    SLANG_CUDA_CTX_SCOPE(deviceImpl);
+    CUdeviceptr address = 0;
+    void* hostAddress = nullptr;
+    CUresult result =
+        m_desc.memoryType == MemoryType::DeviceLocal ? cuMemAlloc(&address, size) : cuMemAllocHost(&hostAddress, size);
+    if (result != CUDA_SUCCESS)
+    {
+        reportCUDAError(result, "dedicated heap allocation", SLANG_RHI_SOURCE_LOCATION(), deviceImpl);
+        // Preserve allocation failure information instead of the generic CUDA
+        // error macro's SLANG_FAIL, so callers can distinguish memory pressure.
+        return result == CUDA_ERROR_OUT_OF_MEMORY ? SLANG_E_OUT_OF_MEMORY : SLANG_FAIL;
+    }
+    if (m_desc.memoryType != MemoryType::DeviceLocal)
+        address = reinterpret_cast<CUdeviceptr>(hostAddress);
+
+    HeapAlloc allocation;
+    allocation.size = size;
+    allocation.address = uintptr_t(address);
+    m_dedicatedAllocations.push_back(allocation);
+    *outAllocation = allocation;
+    return SLANG_OK;
+}
+
+Result HeapImpl::releaseDedicatedAllocation(HeapAlloc allocation)
+{
+    auto it = std::find_if(
+        m_dedicatedAllocations.begin(),
+        m_dedicatedAllocations.end(),
+        [&](const HeapAlloc& owned)
+        {
+            return owned.address == allocation.address;
+        }
+    );
+    SLANG_RHI_ASSERT(it != m_dedicatedAllocations.end());
+    if (it == m_dedicatedAllocations.end())
+        return SLANG_E_INVALID_ARG;
+
+    DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
+    SLANG_CUDA_CTX_SCOPE(deviceImpl);
+    if (m_desc.memoryType == MemoryType::DeviceLocal)
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemFree(allocation.getDeviceAddress()), deviceImpl);
+    }
+    else
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemFreeHost(allocation.getHostPtr()), deviceImpl);
+    }
+    m_dedicatedAllocations.erase(it);
+    return SLANG_OK;
+}
+
+Result HeapImpl::report(HeapReport* outReport)
+{
+    SLANG_RETURN_ON_FAIL(Heap::report(outReport));
+    for (const HeapAlloc& allocation : m_dedicatedAllocations)
+    {
+        outReport->totalAllocated += allocation.size;
+        outReport->totalMemUsage += allocation.size;
+        outReport->numAllocations++;
+        // Report each dedicated backing allocation as one page, without creating
+        // a Heap::Page or pretending that its storage is available for pooling.
+        outReport->numPages++;
+    }
+    return SLANG_OK;
 }
 
 Result HeapImpl::free(HeapAlloc allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
+    if (isDedicatedAllocation(allocation))
+    {
+        // Returning a suballocation for same-stream reuse is different from
+        // releasing CUDA memory. Dedicated storage waits for submitted work,
+        // including asynchronous copies using the host heap, before being freed.
+        if (deviceImpl->m_queue->m_lastFinishedID == deviceImpl->m_queue->m_lastSubmittedID)
+            return releaseDedicatedAllocation(allocation);
+        m_pendingFrees.push_back({allocation, deviceImpl->m_queue->m_lastSubmittedID});
+        return SLANG_OK;
+    }
     PageImpl* page = static_cast<PageImpl*>(allocation.pageId);
 
     // Immediate reuse when safe - CUDA stream FIFO ordering guarantees safety
@@ -351,7 +460,14 @@ Result HeapImpl::flush()
     {
         if (it->submitIndex <= deviceImpl->m_queue->m_lastFinishedID)
         {
-            SLANG_RETURN_ON_FAIL(retire(it->allocation));
+            if (isDedicatedAllocation(it->allocation))
+            {
+                SLANG_RETURN_ON_FAIL(releaseDedicatedAllocation(it->allocation));
+            }
+            else
+            {
+                SLANG_RETURN_ON_FAIL(retire(it->allocation));
+            }
             it = m_pendingFrees.erase(it);
         }
         else
@@ -386,13 +502,21 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 
     // No cached page available - allocate new one
     CUdeviceptr cudaMemory = 0;
+    SLANG_CUDA_CTX_SCOPE(deviceImpl);
+    CUresult allocationResult;
     if (m_desc.memoryType == MemoryType::DeviceLocal)
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&cudaMemory, desc.size), deviceImpl);
+        allocationResult = cuMemAlloc(&cudaMemory, desc.size);
     }
     else
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost((void**)&cudaMemory, desc.size), deviceImpl);
+        allocationResult = cuMemAllocHost((void**)&cudaMemory, desc.size);
+    }
+    // The common heap allocator and HGVM both distinguish OOM from other backend errors.
+    if (allocationResult != CUDA_SUCCESS)
+    {
+        reportCUDAError(allocationResult, "heap page allocation", SLANG_RHI_SOURCE_LOCATION(), deviceImpl);
+        return allocationResult == CUDA_ERROR_OUT_OF_MEMORY ? SLANG_E_OUT_OF_MEMORY : SLANG_FAIL;
     }
     SLANG_RHI_ASSERT((cudaMemory & kAlignment) == 0);
 
@@ -434,6 +558,16 @@ Result HeapImpl::freePage(Page* page_)
     }
     delete page;
 
+    return SLANG_OK;
+}
+
+Result HeapImpl::removeEmptyPages()
+{
+    // Heap::removeEmptyPages calls freePage, which ordinarily only moves pages into our cache.
+    // A trim (including the allocator's OOM retry) must actually return that memory to CUDA.
+    SLANG_RETURN_ON_FAIL(flush());
+    SLANG_RETURN_ON_FAIL(Heap::removeEmptyPages());
+    m_pageCache.releaseAll(static_cast<DeviceImpl*>(getDevice()), m_desc.memoryType);
     return SLANG_OK;
 }
 

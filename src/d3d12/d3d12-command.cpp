@@ -981,7 +981,7 @@ void CommandRecorder::cmdDraw(const commands::Draw& cmd)
     m_cmdList->DrawInstanced(
         cmd.args.vertexCount,
         cmd.args.instanceCount,
-        cmd.args.startIndexLocation,
+        cmd.args.startVertexLocation,
         cmd.args.startInstanceLocation
     );
 }

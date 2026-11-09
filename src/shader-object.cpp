@@ -88,7 +88,9 @@ Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size 
     size_t availableSize = m_data.size();
 
     // This should be an error, but slang-test relies on this behavior.
-    if ((dataOffset + dataSize) > availableSize)
+    if (dataOffset > availableSize)
+        return SLANG_E_INVALID_ARG;
+    if (dataSize > availableSize - dataOffset)
     {
         dataSize = availableSize - dataOffset;
     }

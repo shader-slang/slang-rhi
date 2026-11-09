@@ -1364,22 +1364,22 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
-/// Track resources for CUDA backend, skipping device-local buffers.
-/// Device-local buffers rely on CUDA stream FIFO ordering for safe reuse.
-/// We still track textures, upload/readback buffers, and other resources.
+/// Track resources for CUDA backend, keeping the existing pooled-buffer reuse policy.
+/// Dedicated buffers must remain alive from recording through GPU completion:
+/// unlike pooled storage, their CUDA allocation is actually freed on destruction.
 static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<InternalRefPtr<RefObject>>& resources)
 {
-    // Track slot resources, but skip device-local buffers
+    // Track slot resources, except pooled device-local buffers.
     for (const auto& slot : shaderObject->m_slots)
     {
         if (slot.resource)
         {
-            // Check if this is a device-local buffer we can skip
-            if (Buffer* buffer = dynamic_cast<Buffer*>(slot.resource.get()))
+            // Only pooled device-local buffers participate in the existing shortcut.
+            if (BufferImpl* buffer = dynamic_cast<BufferImpl*>(slot.resource.get()))
             {
-                // Only skip DeviceLocal buffers - these benefit from same-stream reuse
-                // Keep tracking Upload/ReadBack buffers as CPU may access them
-                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal)
+                // Retaining dedicated buffers also covers releasing the caller's
+                // references before submission, which deferred deletion cannot see.
+                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal && buffer->m_alloc.pageId)
                 {
                     continue; // Skip tracking - CUDA stream ordering provides safety
                 }
@@ -1417,7 +1417,7 @@ static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<Int
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
+    // Dedicated buffers are retained; pooled device-local buffers keep their existing policy.
     trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
     BindingDataBuilder builder;

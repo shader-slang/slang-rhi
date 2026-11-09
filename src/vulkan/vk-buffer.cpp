@@ -90,8 +90,12 @@ Result allocateVkMemory(
         allocateInfo.pNext = &flagInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory));
-    return SLANG_OK;
+    // Preserve OOM so higher-level allocation caches can trim and retry without treating a
+    // device failure as memory pressure.
+    VkResult result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
+    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY || result == VK_ERROR_OUT_OF_HOST_MEMORY)
+        return SLANG_E_OUT_OF_MEMORY;
+    return result == VK_SUCCESS ? SLANG_OK : SLANG_FAIL;
 }
 
 // Helper function to allocate VkDeviceMemory for a buffer with optional external memory support

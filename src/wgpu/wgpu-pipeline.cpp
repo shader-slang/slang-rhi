@@ -49,8 +49,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     pipelineDesc.vertex.module = vertexModule->module;
     pipelineDesc.vertex.entryPoint = translateString(vertexModule->entryPointName.c_str());
-    pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
-    pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
+    // A shader using only vertex/instance IDs needs no vertex-buffer layout.
+    if (inputLayout)
+    {
+        pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
+        pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
+    }
 
     pipelineDesc.primitive.topology = translatePrimitiveTopology(desc.primitiveTopology);
     // TODO support strip topologies

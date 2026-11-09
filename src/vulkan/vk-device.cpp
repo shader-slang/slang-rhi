@@ -750,6 +750,14 @@ Result DeviceImpl::initVulkanDevice(
         }                                                                                                              \
     }
 
+        // This extension has no feature structure. Enabling the advertised extension is sufficient
+        // to use half2 atomics in SPIR-V.
+        if (extensionNames.count(VK_NV_SHADER_ATOMIC_FLOAT16_VECTOR_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_NV_SHADER_ATOMIC_FLOAT16_VECTOR_EXTENSION_NAME);
+            availableCapabilities.push_back(Capability::_GL_NV_shader_atomic_fp16_vector);
+        }
+
         // VK_KHR_shader_abort lets a shader call abort() (lowered by Slang to OpAbortKHR). Executing
         // it ceases the invocation and loses the device; the abort message is then retrievable only
         // via VK_KHR_device_fault (vkGetDeviceFaultDebugInfoKHR + VkDeviceFaultShaderAbortMessageInfoKHR).
@@ -1659,7 +1667,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
         // Query device limits.
         DeviceLimits limits = {};
-        limits.maxBufferSize = 0x80000000ull; // Assume 2GB
+        // Every buffer exposed through an RHI structured-buffer descriptor must fit within the
+        // device's storage-buffer range. Unlike the previous conservative 2 GiB assumption, this
+        // reports the limit Vulkan actually guarantees for the selected physical device.
+        limits.maxBufferSize = basicProps.limits.maxStorageBufferRange;
         limits.maxTextureDimension1D = basicProps.limits.maxImageDimension1D;
         limits.maxTextureDimension2D = basicProps.limits.maxImageDimension2D;
         limits.maxTextureDimension3D = basicProps.limits.maxImageDimension3D;
@@ -2632,15 +2643,16 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(
-        RootShaderObjectLayoutImpl::create(
-            this,
-            shaderProgram->linkedProgram,
-            shaderProgram->linkedProgram->getLayout(),
-            shaderProgram->getSyntheticResourceBindingState(),
-            shaderProgram->m_rootShaderObjectLayout.writeRef()
-        )
-    );
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_selectedEntryPointIndices,
+        desc.entryPointUniformLayoutGroupIndex != UINT32_MAX,
+        desc.useRayTracingShaderRecordParameters,
+        shaderProgram->getSyntheticResourceBindingState(),
+        shaderProgram->m_rootShaderObjectLayout.writeRef()
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
@@ -2668,6 +2680,17 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    const auto& properties = m_api.m_rayTracingPipelineProperties;
+    // Match the SBT builder, which rounds every record up to shaderGroupBaseAlignment.
+    // Rounding the native stride limit down leaves an extent that still fits after alignment.
+    SLANG_RETURN_ON_FAIL(
+        ShaderTable::validateRecordData(
+            this,
+            desc,
+            (properties.maxShaderGroupStride & ~(properties.shaderGroupBaseAlignment - 1)) -
+                properties.shaderGroupHandleSize
+        )
+    );
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;

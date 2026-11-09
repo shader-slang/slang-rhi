@@ -216,6 +216,8 @@
     x(_GL_EXT_maximal_reconvergence) \
     x(_GL_EXT_shader_quad_control) \
     x(_GL_EXT_device_group) \
+    x(subgroup_basic) \
+    x(subgroup_arithmetic) \
     x(_GL_ARB_derivative_control) \
     x(_GL_ARB_fragment_shader_interlock) \
     x(_GL_ARB_gpu_shader5) \

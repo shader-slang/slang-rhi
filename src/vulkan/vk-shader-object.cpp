@@ -318,6 +318,8 @@ Result BindingDataBuilder::bindAsRoot(
     {
         auto entryPoint = shaderObject->m_entryPoints[i];
         const auto& entryPointInfo = specializedLayout->m_entryPoints[i];
+        if (entryPointInfo.shaderRecordParameters)
+            continue;
         EntryPointLayout* entryPointLayout = entryPointInfo.layout;
 
         // Note: we do *not* need to add the entry point offset
@@ -392,17 +394,21 @@ Result BindingDataBuilder::bindAsPushConstantBuffer(
         const auto pushConstantRangeIndex = offset.pushConstantRange++;
         SLANG_RHI_ASSERT(pushConstantRangeIndex < m_pushConstantRanges.size());
         const auto& pushConstantRange = m_pushConstantRanges[pushConstantRangeIndex];
-        SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
 
-        const uint32_t index = m_bindingData->pushConstantCount++;
-        SLANG_RHI_ASSERT(index < m_pushConstantRanges.size());
-        m_bindingData->pushConstantRanges[index] = pushConstantRange;
-        m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
-        SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(
-            m_bindingData->pushConstantData[index],
-            pushConstantRange.size,
-            specializedLayout
-        ));
+        if (pushConstantRange.stageFlags)
+        {
+            SLANG_RHI_ASSERT(pushConstantRange.size >= shaderObject->m_data.size());
+            const uint32_t index = m_bindingData->pushConstantCount++;
+            SLANG_RHI_ASSERT(index < m_pushConstantRanges.size());
+            m_bindingData->pushConstantRanges[index] = pushConstantRange;
+            m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
+            ::memset(m_bindingData->pushConstantData[index], 0, pushConstantRange.size);
+            SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(
+                m_bindingData->pushConstantData[index],
+                pushConstantRange.size,
+                specializedLayout
+            ));
+        }
     }
 
     // Resources and nested parameter blocks in the push-constant element type still

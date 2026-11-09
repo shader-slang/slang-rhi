@@ -31,13 +31,14 @@ Context::~Context()
 
 DeviceImpl::~DeviceImpl()
 {
-    m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+    // Queue teardown waits for submitted command buffers and releases their staging allocations.
+    // Those allocations must be returned before the device-owned heaps are released.
+    m_queue.setNull();
 
+    m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_shaderCache.free();
     m_uploadHeap.release();
     m_readbackHeap.release();
-
-    m_queue.setNull();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -260,6 +261,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Subgroups))
     {
         addFeature(Feature::WaveOps);
+        addCapability(Capability::subgroup_basic);
+        addCapability(Capability::subgroup_arithmetic);
     }
 
     addCapability(Capability::wgsl);
@@ -500,29 +503,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuQueueRelease(queue); });
     m_ctx.api.wgpuQueueSubmit(queue, 1, &commandBuffer);
 
-    // Wait for the command buffer to finish executing
-    {
-        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
-        WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-#if !SLANG_WASM
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-#else
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
-#endif
-        {
-            *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
-        };
-        callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
-
-    // Map the staging buffer
+    // Mapping waits for the preceding copy submitted to the same queue, so a separate queue-idle
+    // wait would serialize the operation twice.
     {
         WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
         WGPUBufferMapCallbackInfo callbackInfo = {};

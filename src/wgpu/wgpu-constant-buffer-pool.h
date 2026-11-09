@@ -17,8 +17,7 @@ public:
     };
 
     void init(DeviceImpl* device);
-    void finish();
-    void upload(Context& ctx, WGPUCommandEncoder encoder);
+    void upload(Context& ctx, WGPUQueue queue);
     void reset();
 
     Result allocate(size_t size, Allocation& outAllocation);
@@ -30,9 +29,9 @@ private:
     struct Page
     {
         InternalRefPtr<BufferImpl> buffer;
-        InternalRefPtr<BufferImpl> stagingBuffer;
+        // Queue writes copy from CPU memory, so no mapped GPU staging buffer is needed.
+        std::vector<uint8_t> data;
         size_t size = 0;
-        uint8_t* mappedData = nullptr;
         size_t usedSize = 0;
     };
 
@@ -42,11 +41,10 @@ private:
     std::vector<Page> m_largePages;
 
     int m_currentPage = -1;
+    size_t m_currentLargePage = 0;
     size_t m_currentOffset = 0;
 
     Result createPage(size_t size, Page& outPage);
-    Result mapPage(Page& page);
-    Result unmapPage(Page& page);
 };
 
 } // namespace rhi::wgpu

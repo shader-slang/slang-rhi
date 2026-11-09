@@ -688,6 +688,11 @@ Result Device::getSlangSession(slang::ISession** outSlangSession)
     return SLANG_OK;
 }
 
+Result Device::createSlangSession(slang::ISession** outSlangSession)
+{
+    return m_slangContext.createSession(outSlangSession);
+}
+
 Result Device::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
 {
     SLANG_UNUSED(handle);
@@ -914,6 +919,17 @@ Result Device::createHeap(const HeapDesc& desc, IHeap** outHeap)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::mapBufferRange(IBuffer* buffer, CpuAccessMode mode, Offset offset, Size size, void** outData)
+{
+    if (!buffer || !outData || offset > buffer->getDesc().size || size > buffer->getDesc().size - offset)
+        return SLANG_E_INVALID_ARG;
+
+    void* mappedData = nullptr;
+    SLANG_RETURN_ON_FAIL(mapBuffer(buffer, mode, &mappedData));
+    *outData = static_cast<uint8_t*>(mappedData) + offset;
+    return SLANG_OK;
+}
+
 Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,
@@ -1127,6 +1143,21 @@ Result Device::flushHeaps()
     for (Heap* heap : m_globalHeaps)
     {
         SLANG_RETURN_ON_FAIL(heap->flush());
+    }
+    return SLANG_OK;
+}
+
+Result Device::trimMemory()
+{
+    // Queue waits retire command buffers and deferred resource deletions before we inspect
+    // heap occupancy. Dropping IBuffer references alone does not run those destructors.
+    ComPtr<ICommandQueue> queue;
+    SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
+    SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+    SLANG_RETURN_ON_FAIL(flushHeaps());
+    for (Heap* heap : m_globalHeaps)
+    {
+        SLANG_RETURN_ON_FAIL(heap->removeEmptyPages());
     }
     return SLANG_OK;
 }
