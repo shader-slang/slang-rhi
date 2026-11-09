@@ -5,6 +5,9 @@
 #include "../resource-heap.h"
 #include "../command-buffer.h"
 
+#include <algorithm>
+#include <functional>
+#include <set>
 #include <vector>
 
 namespace rhi::debug {
@@ -1545,63 +1548,180 @@ void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureQueryDesc* queryDescs
 )
 {
-    SLANG_RHI_DEBUG_API(ICommandEncoder, buildAccelerationStructure);
+    AccelerationStructureBuildEntry entry = {desc, dst, src, scratchBuffer, propertyQueryCount, queryDescs};
+    buildAccelerationStructures(1, &entry);
+}
 
+void DebugCommandEncoder::buildAccelerationStructures(uint32_t count, const AccelerationStructureBuildEntry* entries)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, buildAccelerationStructures);
     requireOpen();
     requireNoPass();
-
-    if (!dst)
+    if (!count)
+        return;
+    if (!entries)
     {
-        RHI_VALIDATION_ERROR("'dst' must not be null.");
+        RHI_VALIDATION_ERROR("'entries' must not be null when 'count' is nonzero.");
         return;
     }
-    if (!scratchBuffer.buffer)
+    struct StorageAccess
     {
-        RHI_VALIDATION_ERROR("'scratchBuffer.buffer' must not be null.");
-        return;
-    }
-    if (propertyQueryCount > 0 && !queryDescs)
+        IResource* resource;
+        uint64_t begin;
+        uint64_t end;
+        bool write;
+    };
+    std::vector<StorageAccess> accesses;
+    short_vector<AccelerationStructureBuildEntry, 1> innerEntries(entries, entries + count);
+    short_vector<short_vector<AccelerationStructureQueryDesc, 1>, 1> innerQueries(count);
+    std::set<std::pair<IQueryPool*, uint32_t>> querySlots;
+    for (uint32_t buildIndex = 0; buildIndex < count; ++buildIndex)
     {
-        RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'propertyQueryCount' > 0.");
-        return;
-    }
-    if (SLANG_FAILED(validateAccelerationStructureBuildDesc(ctx, desc)))
-    {
-        return;
-    }
-    AccelerationStructureKind dstKind = dst->getDesc().kind;
-    if (desc.inputs[0].type == AccelerationStructureBuildInputType::Instances)
-    {
-        if (dstKind != AccelerationStructureKind::TopLevel && dstKind != AccelerationStructureKind::Unknown)
+        const auto& entry = entries[buildIndex];
+        const auto& desc = entry.desc;
+        auto dst = entry.dst;
+        auto src = entry.src;
+        auto scratchBuffer = entry.scratchBuffer;
+        auto propertyQueryCount = entry.propertyQueryCount;
+        auto queryDescs = entry.queryDescs;
+        if (!dst)
         {
-            RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind TopLevel or Unknown.");
+            RHI_VALIDATION_ERROR("'dst' must not be null.");
             return;
         }
-    }
-    else
-    {
-        if (dstKind != AccelerationStructureKind::BottomLevel && dstKind != AccelerationStructureKind::Unknown)
+        if (!scratchBuffer.buffer)
         {
-            RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind BottomLevel or Unknown.");
+            RHI_VALIDATION_ERROR("'scratchBuffer.buffer' must not be null.");
             return;
         }
-    }
-    if (!validateAccelerationStructureQueryDescs(ctx, propertyQueryCount, queryDescs, 1))
-    {
-        return;
-    }
+        Device* device = checked_cast<CommandEncoder*>(baseObject.get())->getDevice();
+        uint64_t scratchAlignment = device->getInfo().limits.accelerationStructureScratchAlignment;
+        if (scratchAlignment && scratchBuffer.getDeviceAddress() % scratchAlignment)
+        {
+            RHI_VALIDATION_ERROR("Acceleration structure scratch device address is misaligned.");
+            return;
+        }
+        if (propertyQueryCount > 0 && !queryDescs)
+        {
+            RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'propertyQueryCount' > 0.");
+            return;
+        }
+        if (SLANG_FAILED(validateAccelerationStructureBuildDesc(ctx, desc)))
+        {
+            return;
+        }
+        AccelerationStructureKind dstKind = dst->getDesc().kind;
+        if (desc.inputs[0].type == AccelerationStructureBuildInputType::Instances)
+        {
+            if (dstKind != AccelerationStructureKind::TopLevel && dstKind != AccelerationStructureKind::Unknown)
+            {
+                RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind TopLevel or Unknown.");
+                return;
+            }
+        }
+        else
+        {
+            if (dstKind != AccelerationStructureKind::BottomLevel && dstKind != AccelerationStructureKind::Unknown)
+            {
+                RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind BottomLevel or Unknown.");
+                return;
+            }
+        }
+        if (!validateAccelerationStructureQueryDescs(ctx, propertyQueryCount, queryDescs, 1))
+        {
+            return;
+        }
 
-    std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
-    for (uint32_t i = 0; i < propertyQueryCount; ++i)
-    {
-        innerQueryDescs.push_back(queryDescs[i]);
+        if (desc.mode == AccelerationStructureBuildMode::Update && !src)
+        {
+            RHI_VALIDATION_ERROR("An acceleration structure update requires a source.");
+            return;
+        }
+        // Size queries are only needed to validate the independent-region contract
+        // of a multi-build batch. Single builds retain their existing validation cost.
+        if (count > 1)
+        {
+            AccelerationStructureSizes sizes = {};
+            if (SLANG_FAILED(device->getAccelerationStructureSizes(desc, &sizes)))
+            {
+                RHI_VALIDATION_ERROR("Failed to query acceleration structure build sizes.");
+                return;
+            }
+            uint64_t scratchSize =
+                desc.mode == AccelerationStructureBuildMode::Update ? sizes.updateScratchSize : sizes.scratchSize;
+            uint64_t bufferSize = scratchBuffer.buffer->getDesc().size;
+            if (scratchBuffer.offset > bufferSize || scratchSize > bufferSize - scratchBuffer.offset)
+            {
+                RHI_VALIDATION_ERROR("Acceleration structure scratch region exceeds buffer bounds.");
+                return;
+            }
+            if (desc.mode == AccelerationStructureBuildMode::Build &&
+                dst->getDesc().size < sizes.accelerationStructureSize)
+            {
+                RHI_VALIDATION_ERROR("Acceleration structure destination capacity is too small.");
+                return;
+            }
+            auto addAS = [&](IAccelerationStructure* as, bool write)
+            {
+                const auto& storage = as->getDesc();
+                IResource* resource =
+                    storage.buffer ? static_cast<IResource*>(storage.buffer) : static_cast<IResource*>(as);
+                accesses.push_back({resource, storage.offset, storage.offset + storage.size, write});
+            };
+            addAS(dst, true);
+            if (src && src != dst)
+                addAS(src, false);
+            if (scratchSize)
+                accesses.push_back(
+                    {scratchBuffer.buffer, scratchBuffer.offset, scratchBuffer.offset + scratchSize, true}
+                );
+        }
+        auto& queries = innerQueries[buildIndex];
+        for (uint32_t i = 0; i < propertyQueryCount; ++i)
+        {
+            if (!querySlots.insert({queryDescs[i].queryPool, queryDescs[i].firstQueryIndex}).second)
+            {
+                RHI_VALIDATION_ERROR("Acceleration structure batch property queries must use distinct output slots.");
+                return;
+            }
+            queries.push_back(queryDescs[i]);
+            queries.back().queryPool = getInnerObj(queries.back().queryPool);
+        }
+        innerEntries[buildIndex].queryDescs = queries.data();
     }
-    for (auto& innerQueryDesc : innerQueryDescs)
+    // Check visible AS/source/scratch intervals in O(n log n). Input data and
+    // indirect TLAS references remain part of the caller's independence contract.
+    std::sort(
+        accesses.begin(),
+        accesses.end(),
+        [](const auto& a, const auto& b)
+        {
+            return a.resource != b.resource ? std::less<IResource*>()(a.resource, b.resource) : a.begin < b.begin;
+        }
+    );
+    IResource* resource = nullptr;
+    uint64_t readEnd = 0;
+    uint64_t writeEnd = 0;
+    for (const auto& access : accesses)
     {
-        innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
+        if (access.resource != resource)
+        {
+            resource = access.resource;
+            readEnd = writeEnd = 0;
+        }
+        if (access.begin < writeEnd || (access.write && access.begin < readEnd))
+        {
+            RHI_VALIDATION_ERROR(
+                "Acceleration structure batch has overlapping destination, source, or scratch regions."
+            );
+            return;
+        }
+        if (access.write)
+            writeEnd = std::max(writeEnd, access.end);
+        else
+            readEnd = std::max(readEnd, access.end);
     }
-
-    baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
+    baseObject->buildAccelerationStructures(count, innerEntries.data());
 }
 
 void DebugCommandEncoder::buildMicromap(const MicromapBuildDesc& desc, IMicromap* dst, BufferOffsetPair scratchBuffer)

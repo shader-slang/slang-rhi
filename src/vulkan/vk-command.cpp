@@ -104,7 +104,8 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
-    void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd);
+    void prepareAccelerationStructureBuild(const AccelerationStructureBuildEntry& cmd);
     void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -125,6 +126,7 @@ public:
     void setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint);
 
     void requireBindingStates(BindingDataImpl* bindingData);
+    void accelerationStructureBarrier();
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
@@ -1247,26 +1249,49 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
     );
 }
 
-void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
+void CommandRecorder::cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd)
 {
-    AccelerationStructureBuildDescConverter converter;
-    if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
-        return;
-
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
-    BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
-
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    converter.buildInfo.dstAccelerationStructure = dst->m_vkHandle;
-    if (src)
+    // Keep converters alive and stationary: buildInfo points into their geometry arrays.
+    short_vector<AccelerationStructureBuildDescConverter, 1> converters(cmd.count);
+    short_vector<VkAccelerationStructureBuildGeometryInfoKHR, 1> infos(cmd.count);
+    short_vector<short_vector<VkAccelerationStructureBuildRangeInfoKHR, 1>, 1> ranges(cmd.count);
+    short_vector<const VkAccelerationStructureBuildRangeInfoKHR*, 1> rangePointers(cmd.count);
+    for (uint32_t i = 0; i < cmd.count; ++i)
     {
-        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
-        converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
+        const auto& entry = cmd.entries[i];
+        auto& converter = converters[i];
+        if (converter.convert(entry.desc, m_device->m_debugCallback) != SLANG_OK)
+            return;
+        converter.buildInfo.dstAccelerationStructure = checked_cast<AccelerationStructureImpl*>(entry.dst)->m_vkHandle;
+        if (entry.src)
+            converter.buildInfo.srcAccelerationStructure =
+                checked_cast<AccelerationStructureImpl*>(entry.src)->m_vkHandle;
+        converter.buildInfo.scratchData.deviceAddress = entry.scratchBuffer.getDeviceAddress();
+        infos[i] = converter.buildInfo;
+        ranges[i].resize(converter.primitiveCounts.size());
+        for (size_t j = 0; j < converter.primitiveCounts.size(); ++j)
+            ranges[i][j].primitiveCount = converter.primitiveCounts[j];
+        rangePointers[i] = ranges[i].data();
     }
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
-    converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+    for (uint32_t i = 0; i < cmd.count; ++i)
+        prepareAccelerationStructureBuild(cmd.entries[i]);
+    commitBarriers();
+    accelerationStructureBarrier();
+    m_api.vkCmdBuildAccelerationStructuresKHR(m_cmdBuffer, cmd.count, infos.data(), rangePointers.data());
+    accelerationStructureBarrier();
+    for (uint32_t i = 0; i < cmd.count; ++i)
+    {
+        const auto& entry = cmd.entries[i];
+        if (entry.propertyQueryCount)
+            queryAccelerationStructureProperties(1, &entry.dst, entry.propertyQueryCount, entry.queryDescs);
+    }
+}
 
+void CommandRecorder::prepareAccelerationStructureBuild(const AccelerationStructureBuildEntry& cmd)
+{
+    BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
+    // Entries use disjoint scratch regions; the batch boundaries supply ordering.
+    m_stateTracking.setBufferState(scratchBuffer, ResourceState::AccelerationStructureWrite, false);
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
     {
         const AccelerationStructureBuildInput& input = cmd.desc.inputs[inputIndex];
@@ -1386,27 +1411,6 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
             break;
         }
     }
-
-    commitBarriers();
-
-    std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
-    rangeInfos.resize(converter.primitiveCounts.size());
-    for (size_t i = 0; i < converter.primitiveCounts.size(); i++)
-    {
-        auto& rangeInfo = rangeInfos[i];
-        rangeInfo.primitiveCount = converter.primitiveCounts[i];
-        rangeInfo.firstVertex = 0;
-        rangeInfo.primitiveOffset = 0;
-        rangeInfo.transformOffset = 0;
-    }
-
-    auto rangeInfoPtr = rangeInfos.data();
-    m_api.vkCmdBuildAccelerationStructuresKHR(m_cmdBuffer, 1, &converter.buildInfo, &rangeInfoPtr);
-
-    if (cmd.propertyQueryCount)
-    {
-        queryAccelerationStructureProperties(1, &cmd.dst, cmd.propertyQueryCount, cmd.queryDescs);
-    }
 }
 
 void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
@@ -1432,9 +1436,8 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
     commitBarriers();
+    accelerationStructureBarrier();
 
     VkCopyAccelerationStructureInfoKHR copyInfo = {VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
     copyInfo.dst = dst->m_vkHandle;
@@ -1449,6 +1452,7 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
         break;
     }
     m_api.vkCmdCopyAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
+    accelerationStructureBarrier();
 }
 
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
@@ -1489,6 +1493,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     if (sizesBuffer)
         requireBufferState(sizesBuffer, ResourceState::UnorderedAccess);
     commitBarriers();
+    accelerationStructureBarrier();
 
     VkClusterAccelerationStructureClustersBottomLevelInputNV bottomLevelInput;
     VkClusterAccelerationStructureTriangleClusterInputNV triangleClusterInput;
@@ -1523,6 +1528,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     commandsInfo.addressResolutionFlags = VkClusterAccelerationStructureAddressResolutionFlagBitsNV(0);
 
     m_api.vkCmdBuildClusterAccelerationStructureIndirectNV(m_cmdBuffer, &commandsInfo);
+    accelerationStructureBarrier();
 }
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
@@ -1755,6 +1761,27 @@ void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
             textureState.state
         );
     }
+}
+
+void CommandRecorder::accelerationStructureBarrier()
+{
+    // Cover builds, copies, traversal and scratch reuse, including BLAS references
+    // hidden in GPU instance data. No dependency inference is needed within a batch.
+    VkMemoryBarrier barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+    m_api.vkCmdPipelineBarrier(
+        m_cmdBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0,
+        1,
+        &barrier,
+        0,
+        nullptr,
+        0,
+        nullptr
+    );
 }
 
 void CommandRecorder::requireBufferState(BufferImpl* buffer, ResourceState state)

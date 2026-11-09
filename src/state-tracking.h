@@ -41,7 +41,9 @@ struct TextureBarrier
 class StateTracking
 {
 public:
-    void setBufferState(Buffer* buffer, ResourceState state)
+    // Independent operations in a batch can omit same-state write barriers when
+    // synchronization is supplied at the batch boundaries. Transitions still apply.
+    void setBufferState(Buffer* buffer, ResourceState state, bool forceWriteBarrier = true)
     {
         // Cannot change state of upload/readback buffers.
         if (buffer->m_desc.memoryType != MemoryType::DeviceLocal)
@@ -50,7 +52,8 @@ public:
         }
 
         BufferState* bufferState = getBufferState(buffer);
-        if (state != bufferState->state || state == ResourceState::UnorderedAccess)
+        if (state != bufferState->state || (forceWriteBarrier && (state == ResourceState::UnorderedAccess ||
+                                                                  state == ResourceState::AccelerationStructureWrite)))
         {
             m_bufferBarriers.push_back({buffer, bufferState->state, state});
             bufferState->state = state;

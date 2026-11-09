@@ -104,7 +104,9 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
-    void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd);
+    void prepareAccelerationStructureBuild(const AccelerationStructureBuildEntry& cmd);
+    void buildAccelerationStructure(const AccelerationStructureBuildEntry& cmd);
     void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -129,6 +131,7 @@ public:
 
     void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
 
+    void accelerationStructureBarrier();
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
@@ -137,7 +140,8 @@ public:
 
     void requireAccelerationStructureQueryResultBuffers(
         uint32_t queryCount,
-        const AccelerationStructureQueryDesc* queryDescs
+        const AccelerationStructureQueryDesc* queryDescs,
+        bool forceWriteBarrier = true
     );
     void copyAccelerationStructureQueryResults(
         uint32_t queryCount,
@@ -1234,17 +1238,29 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
     m_cmdList4->DispatchRays(&m_dispatchRaysDesc);
 }
 
-void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
+void CommandRecorder::cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd)
 {
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    commitBarriers();
+    accelerationStructureBarrier();
+    for (uint32_t i = 0; i < cmd.count; ++i)
+    {
+        // A buffer can be scratch for one entry and input for another. Apply
+        // whole-resource state transitions at the build that needs them.
+        prepareAccelerationStructureBuild(cmd.entries[i]);
+        commitBarriers();
+        buildAccelerationStructure(cmd.entries[i]);
+    }
+    accelerationStructureBarrier();
+    // Read back post-build properties only after all builds have been emitted.
+    for (uint32_t i = 0; i < cmd.count; ++i)
+        copyAccelerationStructureQueryResults(cmd.entries[i].propertyQueryCount, cmd.entries[i].queryDescs, 1);
+}
+
+void CommandRecorder::prepareAccelerationStructureBuild(const AccelerationStructureBuildEntry& cmd)
+{
     BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
-
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    if (src)
-        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
-
+    // Entries use disjoint scratch regions; the batch boundaries supply ordering.
+    m_stateTracking.setBufferState(scratchBuffer, ResourceState::UnorderedAccess, false);
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
     {
         const AccelerationStructureBuildInput& input = cmd.desc.inputs[inputIndex];
@@ -1369,9 +1385,13 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
         }
     }
 
-    requireAccelerationStructureQueryResultBuffers(cmd.propertyQueryCount, cmd.queryDescs);
-    commitBarriers();
+    requireAccelerationStructureQueryResultBuffers(cmd.propertyQueryCount, cmd.queryDescs, false);
+}
 
+void CommandRecorder::buildAccelerationStructure(const AccelerationStructureBuildEntry& cmd)
+{
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_device->m_nvapiEnabled && !usesOpacityMicromaps(cmd.desc))
     {
@@ -1413,8 +1433,6 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
         m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
     }
-
-    copyAccelerationStructureQueryResults(cmd.propertyQueryCount, cmd.queryDescs, 1);
 }
 
 void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
@@ -1442,9 +1460,8 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
     commitBarriers();
+    accelerationStructureBarrier();
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE copyMode;
     switch (cmd.mode)
@@ -1459,6 +1476,7 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
         return;
     }
     m_cmdList4->CopyRaytracingAccelerationStructure(dst->getDeviceAddress(), src->getDeviceAddress(), copyMode);
+    accelerationStructureBarrier();
 }
 
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
@@ -1467,7 +1485,13 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     std::vector<DeviceAddress> asAddresses;
     asAddresses.resize(cmd.accelerationStructureCount);
     for (uint32_t i = 0; i < cmd.accelerationStructureCount; i++)
+    {
+        requireBufferState(
+            checked_cast<AccelerationStructureImpl*>(cmd.accelerationStructures[i])->m_buffer,
+            ResourceState::AccelerationStructureRead
+        );
         asAddresses[i] = cmd.accelerationStructures[i]->getDeviceAddress();
+    }
     translatePostBuildInfoDescs(cmd.queryCount, cmd.queryDescs, postBuildInfoDescs);
     requireAccelerationStructureQueryResultBuffers(cmd.queryCount, cmd.queryDescs);
     commitBarriers();
@@ -1508,6 +1532,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     if (sizesBuffer)
         requireBufferState(sizesBuffer, ResourceState::UnorderedAccess);
     commitBarriers();
+    accelerationStructureBarrier();
 
     NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC nvapiDesc = {};
     nvapiDesc.inputs = translateClusterOperationParams(desc.params);
@@ -1549,6 +1574,8 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     clusterOpParams.pDesc = &nvapiDesc;
 
     SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(m_cmdList4, &clusterOpParams));
+
+    accelerationStructureBarrier();
 
 #else  // SLANG_RHI_ENABLE_NVAPI
     SLANG_UNUSED(cmd);
@@ -1820,6 +1847,14 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
     }
 }
 
+void CommandRecorder::accelerationStructureBarrier()
+{
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    barrier.UAV.pResource = nullptr;
+    m_cmdList->ResourceBarrier(1, &barrier);
+}
+
 void CommandRecorder::requireBufferState(BufferImpl* buffer, ResourceState state)
 {
     m_stateTracking.setBufferState(buffer, state);
@@ -1857,10 +1892,9 @@ void CommandRecorder::commitBarriers()
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             barriers.push_back(barrier);
         }
-        else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
+        else if (bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite ||
+                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
                   bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
                  (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
                   bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
                  (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
@@ -1941,7 +1975,8 @@ void CommandRecorder::resolveTimestampQueryResults(const CommandList::QueryWrite
 
 void CommandRecorder::requireAccelerationStructureQueryResultBuffers(
     uint32_t queryCount,
-    const AccelerationStructureQueryDesc* queryDescs
+    const AccelerationStructureQueryDesc* queryDescs,
+    bool forceWriteBarrier
 )
 {
     if (!queryDescs)
@@ -1950,7 +1985,7 @@ void CommandRecorder::requireAccelerationStructureQueryResultBuffers(
     for (uint32_t i = 0; i < queryCount; ++i)
     {
         auto queryPool = checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
-        requireBufferState(queryPool->m_buffer, ResourceState::UnorderedAccess);
+        m_stateTracking.setBufferState(queryPool->m_buffer, ResourceState::UnorderedAccess, forceWriteBarrier);
     }
 }
 

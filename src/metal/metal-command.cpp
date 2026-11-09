@@ -126,7 +126,8 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
-    void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd);
+    void buildAccelerationStructure(const AccelerationStructureBuildEntry& cmd);
     void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -934,7 +935,15 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
     NOT_SUPPORTED(IRayTracingPassEncoder, dispatchRays);
 }
 
-void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
+void CommandRecorder::cmdBuildAccelerationStructures(const commands::BuildAccelerationStructures& cmd)
+{
+    endCommandEncoder();
+    for (uint32_t i = 0; i < cmd.count; ++i)
+        buildAccelerationStructure(cmd.entries[i]);
+    endCommandEncoder();
+}
+
+void CommandRecorder::buildAccelerationStructure(const AccelerationStructureBuildEntry& cmd)
 {
     MTL::AccelerationStructureCommandEncoder* encoder = getAccelerationStructureCommandEncoder();
 

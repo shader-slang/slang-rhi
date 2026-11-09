@@ -398,7 +398,10 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::AccelerationStructureRead:
         return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
     case ResourceState::AccelerationStructureWrite:
-        return VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+        // A whole buffer may contain both the source and destination AS regions.
+        return VkAccessFlagBits(
+            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
+        );
     case ResourceState::AccelerationStructureBuildInput:
         return VK_ACCESS_SHADER_READ_BIT;
     case ResourceState::MicromapBuildInput:
