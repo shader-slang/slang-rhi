@@ -370,12 +370,12 @@ GPU_TEST_CASE_EX("synthetic-resource-bindings-independent-sets", Vulkan, DebugLa
     for (uint32_t i = 0; i < 3; ++i)
         layouts[i] = static_cast<vk::ShaderProgramImpl*>(programs[i].get())->m_rootShaderObjectLayout;
 
-    CHECK_FALSE(layouts[0]->m_descriptorSetPlacements);
-    CHECK_FALSE(layouts[1]->m_descriptorSetPlacements);
-    REQUIRE(layouts[2]->m_descriptorSetPlacements);
+    CHECK_EQ(layouts[0]->m_explicitDescriptorSetCount, 0u);
+    CHECK_EQ(layouts[1]->m_explicitDescriptorSetCount, 0u);
+    REQUIRE_EQ(layouts[2]->m_explicitDescriptorSetCount, 5u);
     CHECK_EQ(layouts[0]->getOwnDescriptorSetCount(), layouts[1]->getOwnDescriptorSetCount());
     CHECK_EQ(layouts[0]->getTotalDescriptorSetCount(), layouts[1]->getTotalDescriptorSetCount());
-    CHECK_EQ(layouts[0]->getOwnDescriptorSetCount() + 1, layouts[2]->getOwnDescriptorSetCount());
+    CHECK_EQ(layouts[2]->getOwnDescriptorSetCount() + layouts[2]->getChildDescriptorSetCount(), 5u);
     CHECK_EQ(layouts[0]->getChildDescriptorSetCount(), layouts[2]->getChildDescriptorSetCount());
     CHECK_EQ(layouts[2]->getTotalDescriptorSetCount(), 5u);
     if (!specialize)
@@ -385,11 +385,11 @@ GPU_TEST_CASE_EX("synthetic-resource-bindings-independent-sets", Vulkan, DebugLa
             const auto& range = layouts[2]->getBindingRange(subObject.bindingRangeIndex);
             if (range.bindingType != slang::BindingType::ParameterBlock)
                 continue;
-            const auto& placement = layouts[2]->m_descriptorSetPlacements->root.subObjects[range.subObjectIndex];
+            uint64_t firstSet = layouts[2]->m_globalSpace + subObject.offset.space;
             for (const auto& set : subObject.layout->getOwnDescriptorSets())
             {
-                REQUIRE_LT(placement.firstSet + set.space, layouts[2]->m_vkDescriptorSetLayouts.size());
-                CHECK_EQ(layouts[2]->m_vkDescriptorSetLayouts[placement.firstSet + set.space], set.descriptorSetLayout);
+                REQUIRE_LT(firstSet + set.space, layouts[2]->m_vkDescriptorSetLayouts.size());
+                CHECK_EQ(layouts[2]->m_vkDescriptorSetLayouts[firstSet + set.space], set.descriptorSetLayout);
             }
         }
     }
@@ -978,11 +978,12 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
         // Check placement before creating a pipeline: a wrong set would make
         // the pipeline invalid, so it must never reach dispatch in this test.
         auto* layout = static_cast<vk::ShaderProgramImpl*>(shaderProgram.get())->m_rootShaderObjectLayout.get();
-        REQUIRE(layout->m_descriptorSetPlacements);
-        const auto& placement = entryPointParameter ? layout->m_descriptorSetPlacements->entryPoints[0]
-                                                    : layout->m_descriptorSetPlacements->root;
-        REQUIRE_GT(placement.subObjects.size(), 0u);
-        REQUIRE_EQ(placement.subObjects[0].firstSet, expectedChildSet);
+        REQUIRE_GT(layout->m_explicitDescriptorSetCount, 0u);
+        const auto& subObjects =
+            entryPointParameter ? layout->m_entryPoints[0].layout->getSubObjectRanges() : layout->getSubObjectRanges();
+        uint64_t space = entryPointParameter ? layout->m_entryPoints[0].offset.space : layout->m_globalSpace;
+        REQUIRE_GT(subObjects.size(), 0u);
+        REQUIRE_EQ(space + subObjects[0].offset.space, expectedChildSet);
     }
 #endif
 

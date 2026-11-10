@@ -1,10 +1,6 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-descriptor-set-placement.h"
-
-#include <memory>
-
 #include "core/static_vector.h"
 
 #include <map>
@@ -42,6 +38,9 @@ struct SimpleBindingOffset
     /// The descriptor `set` that the `binding` field should be understood as an index into
     uint32_t bindingSet = 0;
 
+    /// Register-space offset for nested parameter blocks, independent of descriptor bindings.
+    uint64_t space = 0;
+
     /// The offset in push-constant ranges (not bytes)
     uint32_t pushConstantRange = 0;
 
@@ -53,6 +52,7 @@ struct SimpleBindingOffset
     {
         if (varLayout)
         {
+            space = varLayout->getOffset(SLANG_PARAMETER_CATEGORY_SUB_ELEMENT_REGISTER_SPACE);
             bindingSet = (uint32_t)varLayout->getBindingSpace(SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT);
             binding = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT);
             pushConstantRange = (uint32_t)varLayout->getOffset(SLANG_PARAMETER_CATEGORY_PUSH_CONSTANT_BUFFER);
@@ -62,6 +62,7 @@ struct SimpleBindingOffset
     /// Add any values in the given `offset`
     void operator+=(const SimpleBindingOffset& offset)
     {
+        space += offset.space;
         binding += offset.binding;
         bindingSet += offset.bindingSet;
         pushConstantRange += offset.pushConstantRange;
@@ -150,7 +151,10 @@ public:
     {
         SubObjectRangeStride() {}
 
-        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout) {}
+        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
+        {
+            space = typeLayout->getSize(SLANG_PARAMETER_CATEGORY_SUB_ELEMENT_REGISTER_SPACE);
+        }
     };
 
     /// Information about a logical binding range as reported by Slang reflection
@@ -164,6 +168,9 @@ public:
 
         /// Stride between consecutive objects in this range
         SubObjectRangeStride stride;
+
+        /// Spaces reserved by the container before nested blocks in its element.
+        uint64_t elementSpace = 0;
     };
 
     struct DescriptorSetInfo
@@ -439,31 +446,24 @@ public:
 
         Result addEntryPoint(EntryPointLayout* entryPointLayout);
         Result addSyntheticResources();
-        /// Locate reflected sets without changing their ownership or layouts.
-        Result collectDescriptorSetPlacements();
-        Result addSyntheticDescriptorSetBinding(
-            uint32_t descriptorSetIndex,
-            const VkDescriptorSetLayoutBinding& binding
+        Result collectChildDescriptorSets(
+            const std::vector<SubObjectRangeInfo>& subObjects,
+            const std::vector<BindingRangeInfo>& ranges,
+            uint64_t space
         );
         Result _addSyntheticResource(const SyntheticResourceBindingRecord& resource);
         Result _validateSyntheticResource(
             const SyntheticResourceBindingRecord& resource,
             VkDescriptorType* outDescriptorType
         );
-        Result _addSyntheticDescriptorRange(
-            const SyntheticResourceBindingRecord& resource,
-            VkDescriptorType descriptorType,
-            uint32_t* outBindingRangeIndex
-        );
-        void _recordSyntheticBindingLocation(
-            const SyntheticResourceBindingRecord& resource,
-            uint32_t bindingRangeIndex
-        );
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         SyntheticResourceBindingState* m_syntheticResources = nullptr;
-        std::unique_ptr<DescriptorSetPlacements> m_descriptorSetPlacements;
+        // Borrowed child layouts at their absolute set numbers. Null entries
+        // are filled by root-owned reflected, synthetic, or empty sets.
+        std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
+        uint64_t m_globalSpace = 0;
         std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
     };
@@ -490,8 +490,7 @@ public:
 
     uint32_t getTotalDescriptorSetCount()
     {
-        return m_descriptorSetPlacements ? uint32_t(m_descriptorSetPlacements->layouts.size())
-                                         : Super::getTotalDescriptorSetCount();
+        return m_explicitDescriptorSetCount ? m_explicitDescriptorSetCount : Super::getTotalDescriptorSetCount();
     }
 
     // ShaderObjectLayout interface
@@ -528,9 +527,9 @@ public:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
-    // Only needed for explicit synthetic sets; all objects retain their own layouts.
-    std::unique_ptr<DescriptorSetPlacements> m_descriptorSetPlacements;
-    VkDescriptorSetLayout m_emptyDescriptorSetLayout = VK_NULL_HANDLE;
+    // Nonzero for synthetic-resource programs that use explicit set numbers.
+    uint32_t m_explicitDescriptorSetCount = 0;
+    uint64_t m_globalSpace = 0;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     std::vector<VkPushConstantRange> m_allPushConstantRanges;

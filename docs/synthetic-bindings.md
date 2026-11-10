@@ -112,13 +112,12 @@ set 0 remains at set 0 when a reflected root buffer occupies set 3 and coverage
 occupies set 4. A synthetic resource can also occupy a gap that no reflected
 object owns.
 
-`src/vulkan/vk-descriptor-set-placement.*` records each object's placement without
-merging descriptor layouts. The pipeline layout borrows each parameter block's
-native set layouts, and parameter blocks allocate their own descriptor sets.
-The root owns its reflected and synthetic sets; empty layouts fill pipeline gaps.
-Placements are indexed by reflected subobject slots and account for nested
-container and entry-point offsets, so sibling traversal order does not change
-binding locations.
+The pipeline layout borrows each parameter block's native set layouts, and
+parameter blocks allocate their own descriptor sets. The root owns its reflected
+and synthetic sets, including empty sets that fill gaps through the normal
+allocation path. Existing subobject layout records carry relative register-space
+offsets, including nested container and entry-point offsets, so sibling traversal
+order does not change binding locations.
 
 `src/vulkan/vk-synthetic-bindings.cpp` validates set ownership and adds root-owned
 resource ranges for the synthetic sets. Descriptor writes and resource tracking

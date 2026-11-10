@@ -281,6 +281,6 @@ record which backend checks require other platforms or CI.
 - [Shared shader objects](../src/shader-object.cpp)
 - [Command binding preparation](../src/command-buffer.cpp)
 - [Vulkan parameter-block builder](../src/vulkan/vk-shader-object.cpp)
-- [Vulkan descriptor-set placement](../src/vulkan/vk-descriptor-set-placement.cpp)
+- [Vulkan shader-object layouts](../src/vulkan/vk-shader-object-layout.cpp)
 - [D3D12 parameter-block builder](../src/d3d12/d3d12-shader-object.cpp)
 - [Synthetic resource bindings](synthetic-bindings.md)

@@ -18,7 +18,7 @@ struct BindingDataBuilder
     BindingDataImpl* m_bindingData;
     TransientBufferArena* m_constantBufferArena;
     DescriptorSetAllocator* m_descriptorSetAllocator;
-    bool m_useDescriptorSetPlacements = false;
+    bool m_useExplicitDescriptorSets = false;
 
     // TODO remove
     std::span<const VkPushConstantRange> m_pushConstantRanges;
@@ -36,16 +36,14 @@ struct BindingDataBuilder
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
         EntryPointLayout* specializedLayout,
-        uint32_t entryPointIndex,
-        const DescriptorSetPlacement* placement
+        uint32_t entryPointIndex
     );
 
     /// Bind this object as a `PushConstantBuffer<X>`.
     Result bindAsPushConstantBuffer(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout,
-        const DescriptorSetPlacement* placement
+        ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Bind the ordinary data buffer if needed.
@@ -64,8 +62,7 @@ struct BindingDataBuilder
     Result bindAsValue(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
-        ShaderObjectLayoutImpl* specializedLayout,
-        const DescriptorSetPlacement* placement
+        ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Allocate the descriptor sets needed for binding this object (but not nested parameter
@@ -80,16 +77,14 @@ struct BindingDataBuilder
     Result bindAsParameterBlock(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout,
-        const DescriptorSetPlacement* placement
+        ShaderObjectLayoutImpl* specializedLayout
     );
 
     /// Bind this object as a `ConstantBuffer<X>`.
     Result bindAsConstantBuffer(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        ShaderObjectLayoutImpl* specializedLayout,
-        const DescriptorSetPlacement* placement
+        ShaderObjectLayoutImpl* specializedLayout
     );
 };
 
