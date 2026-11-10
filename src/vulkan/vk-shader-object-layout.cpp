@@ -687,6 +687,8 @@ RootShaderObjectLayoutImpl::~RootShaderObjectLayoutImpl()
     {
         m_device->m_api.vkDestroyPipelineLayout(m_device->m_api.m_device, m_pipelineLayout, nullptr);
     }
+    if (m_emptyDescriptorSetLayout)
+        m_device->m_api.vkDestroyDescriptorSetLayout(m_device->m_api.m_device, m_emptyDescriptorSetLayout, nullptr);
 }
 
 uint32_t RootShaderObjectLayoutImpl::findEntryPointIndex(VkShaderStageFlags stage)
@@ -742,7 +744,7 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
-    m_descriptorSetComposition = std::move(builder->m_descriptorSetComposition);
+    m_descriptorSetPlacements = std::move(builder->m_descriptorSetPlacements);
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
@@ -820,10 +822,30 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 {
-    if (m_descriptorSetComposition)
+    if (m_descriptorSetPlacements)
     {
+        // Borrow child layouts unchanged, then insert root-owned reflected and
+        // synthetic sets. Only gaps need additional (empty) native layouts.
+        for (auto layout : m_descriptorSetPlacements->layouts)
+            m_vkDescriptorSetLayouts.push_back(layout);
         for (const auto& set : getOwnDescriptorSets())
-            m_vkDescriptorSetLayouts.push_back(set.descriptorSetLayout);
+            m_vkDescriptorSetLayouts[set.space] = set.descriptorSetLayout;
+        for (auto& layout : m_vkDescriptorSetLayouts)
+        {
+            if (layout)
+                continue;
+            if (!m_emptyDescriptorSetLayout)
+            {
+                VkDescriptorSetLayoutCreateInfo desc = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+                SLANG_RETURN_ON_FAIL(m_device->m_api.vkCreateDescriptorSetLayout(
+                    m_device->m_api.m_device,
+                    &desc,
+                    nullptr,
+                    &m_emptyDescriptorSetLayout
+                ));
+            }
+            layout = m_emptyDescriptorSetLayout;
+        }
         return SLANG_OK;
     }
 
@@ -939,7 +961,9 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 {
     if (m_program->getSpecializationParamCount() == 0)
     {
-        size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
+        size_t totalDescriptorSetCount = m_descriptorSetPlacements
+                                             ? m_descriptorSetPlacements->layouts.size()
+                                             : m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
         if (m_device->m_bindlessDescriptorSet)
             totalDescriptorSetCount++;
         if (totalDescriptorSetCount > kMaxDescriptorSets)

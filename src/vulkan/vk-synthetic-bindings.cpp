@@ -1,6 +1,6 @@
 // Adapts explicit extra-resource descriptors to ordinary Vulkan binding ranges.
-// Descriptor-set composition owns object placement; runtime binding consumes the
-// same resource slots and offsets as reflected bindings and has no synthetic IDs.
+// Synthetic resources own separate sets. Runtime binding consumes the same
+// resource slots and offsets as reflected bindings and has no synthetic IDs.
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "synthetic-resource-bindings.h"
@@ -22,7 +22,7 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticDescriptorSetBinding(
             m_device->handleMessage(
                 DebugMessageType::Error,
                 DebugMessageSource::Layer,
-                "Duplicate Vulkan descriptor binding between reflected and synthetic resources"
+                "Duplicate Vulkan descriptor binding between synthetic resources"
             );
             return SLANG_E_INVALID_ARG;
         }
@@ -37,11 +37,36 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
     if (!m_syntheticResources)
         return SLANG_OK;
 
-    // Collect reflected child sets before inserting synthetic resources or gaps.
-    // Composition records each object occurrence's placement. Added bindings
-    // can share these sets without moving reflected bindings or requiring the
-    // runtime to repeat the layout builder's allocation order.
-    SLANG_RETURN_ON_FAIL(composeDescriptorSets());
+    SLANG_RETURN_ON_FAIL(collectDescriptorSetPlacements());
+
+    // Validate all requested sets before adding any synthetic ranges. Several
+    // synthetic resources may share a set, but none may extend a reflected set.
+    for (const auto& resource : m_syntheticResources->getInputs())
+    {
+        if (resource.space < 0 || resource.space >= kMaxDescriptorSets)
+        {
+            m_device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Descriptor set space exceeds Vulkan layout limit"
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+        const auto& childLayouts = m_descriptorSetPlacements->layouts;
+        bool reflectedSet = m_mapSpaceToDescriptorSetIndex.find(resource.space) != m_mapSpaceToDescriptorSetIndex.end();
+        reflectedSet |=
+            uint32_t(resource.space) < childLayouts.size() && childLayouts[resource.space] != VK_NULL_HANDLE;
+        if (reflectedSet)
+        {
+            m_device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Layer,
+                "Synthetic resources must use a separate Vulkan descriptor set. "
+                "Choose a set not occupied by reflected resources and recompile the shader."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+    }
 
     for (const auto& resource : m_syntheticResources->getInputs())
     {
@@ -116,7 +141,10 @@ Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
         return SLANG_E_INVALID_ARG;
 
     uint32_t descriptorSetIndex = 0;
-    SLANG_RETURN_ON_FAIL(findOrAddComposedDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
+    SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
+    auto& layouts = m_descriptorSetPlacements->layouts;
+    if (layouts.size() <= uint32_t(resource.space))
+        layouts.resize(uint32_t(resource.space) + 1);
 
     VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
     vkBindingRangeDesc.binding = (uint32_t)resource.binding;

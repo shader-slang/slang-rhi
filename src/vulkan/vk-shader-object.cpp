@@ -9,6 +9,7 @@
 
 #include "../state-tracking.h"
 
+#include <algorithm>
 #include <string>
 
 namespace rhi::vk {
@@ -262,7 +263,11 @@ Result BindingDataBuilder::bindAsRoot(
         totalDescriptorSetCount++;
     }
     m_bindingData->descriptorSets = m_allocator->allocate<VkDescriptorSet>(totalDescriptorSetCount);
-    m_bindingData->descriptorSetCount = 0;
+    const auto* placements = specializedLayout->m_descriptorSetPlacements.get();
+    m_useDescriptorSetPlacements = placements != nullptr;
+    m_bindingData->descriptorSetCount = placements ? specializedLayout->getTotalDescriptorSetCount() : 0;
+    if (placements)
+        std::fill_n(m_bindingData->descriptorSets, totalDescriptorSetCount, VK_NULL_HANDLE);
 
     m_pushConstantRanges = specializedLayout->getAllPushConstantRanges();
 
@@ -287,8 +292,6 @@ Result BindingDataBuilder::bindAsRoot(
         m_bindingData->entryPointData = nullptr;
     }
 
-    const auto* composition = specializedLayout->m_descriptorSetComposition.get();
-
     BindingOffset offset = {};
 
     // Note: the operations here are quite similar to what `bindAsParameterBlock` does.
@@ -311,7 +314,7 @@ Result BindingDataBuilder::bindAsRoot(
     SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(shaderObject, ordinaryDataBufferOffset, specializedLayout));
 
     SLANG_RETURN_ON_FAIL(
-        bindAsValue(shaderObject, offset, specializedLayout, composition ? &composition->root : nullptr)
+        bindAsValue(shaderObject, offset, specializedLayout, placements ? &placements->root : nullptr)
     );
 
     for (size_t i = 0; i < entryPointCount; ++i)
@@ -330,8 +333,23 @@ Result BindingDataBuilder::bindAsRoot(
             entryPointInfo.offset,
             entryPointLayout,
             (uint32_t)i,
-            composition ? &composition->entryPoints[i] : nullptr
+            placements ? &placements->entryPoints[i] : nullptr
         ));
+    }
+
+    // Allocate empty sets for gaps only after each object has allocated its own
+    // sets. No parameter-block descriptors are allocated or populated by the root.
+    if (placements)
+    {
+        for (uint32_t i = 0; i < m_bindingData->descriptorSetCount; ++i)
+        {
+            if (!m_bindingData->descriptorSets[i])
+            {
+                SLANG_RHI_ASSERT(specializedLayout->m_emptyDescriptorSetLayout != VK_NULL_HANDLE);
+                m_bindingData->descriptorSets[i] =
+                    m_descriptorSetAllocator->allocate(specializedLayout->m_emptyDescriptorSetLayout).handle;
+            }
+        }
     }
 
     // Assign bindless descriptor set to the last slot if available.
@@ -744,7 +762,10 @@ Result BindingDataBuilder::allocateDescriptorSets(
         // we can bind all the descriptor sets to the pipeline when the
         // time comes.
         //
-        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = descriptorSetHandle;
+        uint32_t setIndex = m_useDescriptorSetPlacements ? offset.bindingSet + uint32_t(descriptorSetInfo.space)
+                                                         : m_bindingData->descriptorSetCount++;
+        SLANG_RHI_ASSERT(setIndex < m_bindingData->descriptorSetCount);
+        m_bindingData->descriptorSets[setIndex] = descriptorSetHandle;
     }
 
     return SLANG_OK;
@@ -769,11 +790,9 @@ Result BindingDataBuilder::bindAsParameterBlock(
     // Note: Interface-type binding handling has been simplified
     // now that pending data layout APIs have been removed.
 
-    // A composed layout has already allocated these sets at the root. The
-    // occurrence's placement is explicit, so sibling binding order is irrelevant.
-    // Ordinary layouts continue allocating each parameter block's sets here.
-    if (!placement)
-        SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
+    // Each parameter block owns and allocates its sets, even when its absolute
+    // placement is explicit. Synthetic sets never contribute bindings to them.
+    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
 
     SLANG_RHI_ASSERT(offset.bindingSet <= m_bindingData->descriptorSetCount);
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, offset, specializedLayout, placement));

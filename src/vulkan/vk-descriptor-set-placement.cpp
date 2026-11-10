@@ -1,4 +1,3 @@
-#include "vk-descriptor-set-composition.h"
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 
@@ -7,8 +6,6 @@
 namespace rhi::vk {
 
 namespace {
-
-using DescriptorSetInfo = ShaderObjectLayoutImpl::DescriptorSetInfo;
 
 // Return the register-space base of the unwrapped global or entry-point value.
 // A compiler-generated constant-buffer wrapper can reserve a set before its
@@ -30,13 +27,13 @@ uint64_t getElementSpace(slang::VariableLayoutReflection* variable, slang::TypeL
 // The builder retains Slang's subobject-range order, so each range's reflected
 // offset applies to the corresponding RHI range. Child element offsets account
 // for sets reserved by the container before its nested parameter blocks.
-Result composeChildren(
+Result placeChildren(
     DeviceImpl* device,
     slang::TypeLayoutReflection* typeLayout,
     uint64_t firstSpace,
     const std::vector<ShaderObjectLayoutImpl::SubObjectRangeInfo>& subObjects,
     const std::vector<ShaderObjectLayoutImpl::BindingRangeInfo>& ranges,
-    std::vector<DescriptorSetInfo>& sets,
+    std::vector<VkDescriptorSetLayout>& sets,
     DescriptorSetPlacement& placement
 )
 {
@@ -65,7 +62,7 @@ Result composeChildren(
             {
                 if (childSpace >= kMaxDescriptorSets)
                 {
-                    device->printError("Composed descriptor set space exceeds Vulkan layout limit");
+                    device->printError("Descriptor set space exceeds Vulkan layout limit");
                     return SLANG_E_INVALID_ARG;
                 }
                 child.firstSet = uint32_t(childSpace);
@@ -74,17 +71,16 @@ Result composeChildren(
                     const uint64_t space = childSpace + uint32_t(set.space);
                     if (set.space < 0 || space >= kMaxDescriptorSets)
                     {
-                        device->printError("Composed descriptor set space exceeds Vulkan layout limit");
+                        device->printError("Descriptor set space exceeds Vulkan layout limit");
                         return SLANG_E_INVALID_ARG;
                     }
-                    // The composed root owns its Vulkan handles. Do not borrow the
-                    // child layout's handle: added bindings may change this set.
+                    // Keep the child's native layout intact. The root only
+                    // borrows its handle for the pipeline layout.
                     sets.resize(std::max<size_t>(sets.size(), size_t(space) + 1));
-                    auto& bindings = sets[size_t(space)].vkBindings;
-                    bindings.insert(bindings.end(), set.vkBindings.begin(), set.vkBindings.end());
+                    sets[size_t(space)] = set.descriptorSetLayout;
                 }
             }
-            SLANG_RETURN_ON_FAIL(composeChildren(
+            SLANG_RETURN_ON_FAIL(placeChildren(
                 device,
                 subObject.layout->getElementTypeLayout(),
                 childSpace + element->getOffset(SLANG_PARAMETER_CATEGORY_SUB_ELEMENT_REGISTER_SPACE),
@@ -100,43 +96,14 @@ Result composeChildren(
 
 } // namespace
 
-Result RootShaderObjectLayoutImpl::Builder::findOrAddComposedDescriptorSet(
-    uint32_t space,
-    uint32_t* outDescriptorSetIndex
-)
-{
-    if (space >= kMaxDescriptorSets)
-    {
-        m_device->handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "Descriptor set space exceeds Vulkan layout limit"
-        );
-        return SLANG_E_INVALID_ARG;
-    }
-
-    const uint32_t neededCount = space + 1;
-    if (m_descriptorSetBuildInfos.size() < neededCount)
-    {
-        const uint32_t oldCount = (uint32_t)m_descriptorSetBuildInfos.size();
-        m_descriptorSetBuildInfos.resize(neededCount);
-        for (uint32_t i = oldCount; i < neededCount; ++i)
-        {
-            m_descriptorSetBuildInfos[i].space = (int32_t)i;
-        }
-    }
-
-    *outDescriptorSetIndex = space;
-    return SLANG_OK;
-}
-
-Result RootShaderObjectLayoutImpl::Builder::composeDescriptorSets()
+Result RootShaderObjectLayoutImpl::Builder::collectDescriptorSetPlacements()
 {
     // Consider a ParameterBlock at set 0 and a root buffer explicitly at set 3.
     // Expanding the root to four sets does not move the child to set 4: Slang's
-    // sub-element register-space offsets still place it at set 0. Compose child
+    // sub-element register-space offsets still place it at set 0. Place child
     // sets at those reflected locations, including inside root-set gaps.
-    std::vector<DescriptorSetInfo> sets;
+    auto placements = std::make_unique<DescriptorSetPlacements>();
+    auto& sets = placements->layouts;
     for (const auto& set : m_descriptorSetBuildInfos)
     {
         if (set.space < 0 || uint32_t(set.space) >= kMaxDescriptorSets)
@@ -145,40 +112,34 @@ Result RootShaderObjectLayoutImpl::Builder::composeDescriptorSets()
             return SLANG_E_INVALID_ARG;
         }
         sets.resize(std::max<size_t>(sets.size(), size_t(set.space) + 1));
-        sets[set.space].vkBindings = set.vkBindings;
     }
-    auto composition = std::make_unique<DescriptorSetComposition>();
     const uint64_t globalSpace = getElementSpace(m_programLayout->getGlobalParamsVarLayout(), m_elementTypeLayout);
-    SLANG_RETURN_ON_FAIL(composeChildren(
+    SLANG_RETURN_ON_FAIL(placeChildren(
         m_device,
         m_elementTypeLayout,
         globalSpace,
         m_subObjectRanges,
         m_bindingRanges,
         sets,
-        composition->root
+        placements->root
     ));
-    composition->entryPoints.resize(m_entryPoints.size());
+    placements->entryPoints.resize(m_entryPoints.size());
     for (size_t i = 0; i < m_entryPoints.size(); ++i)
     {
         auto* layout = m_entryPoints[i].layout.get();
         const uint64_t entryPointSpace =
             getElementSpace(layout->getSlangLayout()->getVarLayout(), layout->getElementTypeLayout());
-        SLANG_RETURN_ON_FAIL(composeChildren(
+        SLANG_RETURN_ON_FAIL(placeChildren(
             m_device,
             layout->getElementTypeLayout(),
             entryPointSpace,
             layout->getSubObjectRanges(),
             layout->getBindingRanges(),
             sets,
-            composition->entryPoints[i]
+            placements->entryPoints[i]
         ));
     }
-    for (uint32_t i = 0; i < sets.size(); ++i)
-        sets[i].space = int32_t(i);
-    m_descriptorSetBuildInfos = std::move(sets);
-    m_descriptorSetComposition = std::move(composition);
-    m_childDescriptorSetCount = 0;
+    m_descriptorSetPlacements = std::move(placements);
     return SLANG_OK;
 }
 
