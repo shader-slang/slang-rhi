@@ -1966,8 +1966,11 @@ public:
     /// Use the provided constant buffer instead of the internally created one.
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* constantBuffer) = 0;
 
-    /// Finalizes the shader object. No further modifications are allowed after this.
-    /// Optimizes shader objects for use in multiple passes.
+    /// Freezes this object's data, bindings, specialization arguments, and all descendants,
+    /// including a root's entry points. Shared descendants are frozen for all references.
+    /// Referenced resource contents remain mutable and require normal synchronization.
+    /// Finalized parameter blocks can reuse backend preparation within a command-buffer
+    /// recording when their effective layouts are compatible. Preparation is lazy.
     virtual SLANG_NO_THROW Result SLANG_MCALL finalize() = 0;
 
     /// Returns true if the shader object has been finalized.

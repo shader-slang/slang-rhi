@@ -96,9 +96,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     m_bindingData = m_allocator->allocate<BindingDataImpl>();
 
     // Write global parameters
@@ -152,7 +150,9 @@ Result BindingDataBuilder::writeObjectData(
     objectData.device = allocation.deviceData;
     uint8_t* dst = (uint8_t*)objectData.host;
 
-    shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout);
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout));
+    if (memType == ConstantBufferMemType::Global && testing::gParameterBlockCacheStats)
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += objectData.size;
 
     // Bindings are currently written in shaderObjectSetBinding() because
     // the layout does currently only provide uniformOffset but no uniformStride.
@@ -240,7 +240,26 @@ Result BindingDataBuilder::writeObjectData(
                 // Sub-objects are always written to global memory, even if the parent represents an entry-point.
                 // This is because entry-point data reference global memory for their sub-objects (parameter blocks).
                 ObjectData data;
-                SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, ConstantBufferMemType::Global, data));
+                if (bindingRange.isParameterBlock && subObject->isFinalized())
+                {
+                    auto& cache = m_bindingCache->parameterBlocks;
+                    auto key = cache.key(subObject, subObjectLayout);
+                    if (auto prepared = cache.find(key))
+                        data = *prepared;
+                    else
+                    {
+                        SLANG_RETURN_ON_FAIL(
+                            writeObjectData(subObject, subObjectLayout, ConstantBufferMemType::Global, data)
+                        );
+                        cache.insert(key, data);
+                    }
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(
+                        writeObjectData(subObject, subObjectLayout, ConstantBufferMemType::Global, data)
+                    );
+                }
                 ::memcpy(dst + uniformOffset, &data.device, sizeof(void*));
                 uniformOffset += sizeof(void*);
             }
@@ -256,6 +275,9 @@ Result BindingDataBuilder::writeObjectData(
     return SLANG_OK;
 }
 
-void BindingCache::reset() {}
+void BindingCache::reset()
+{
+    parameterBlocks.reset();
+}
 
 } // namespace rhi::cuda

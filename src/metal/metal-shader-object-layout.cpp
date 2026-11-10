@@ -1,3 +1,4 @@
+#include "../parameter-block-cache.h"
 #include "metal-shader-object-layout.h"
 #include "metal-device.h"
 
@@ -136,8 +137,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             break;
         }
 
-        BindingRangeInfo bindingRangeInfo;
+        BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.isParameterBlock =
+            slangLeafTypeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
@@ -364,6 +367,36 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     m_slangSession = m_program->getSession();
 
     return SLANG_OK;
+}
+
+void ShaderObjectLayoutImpl::appendParameterBlockLayoutKey(std::vector<uint64_t>& key)
+{
+    key.push_back(m_totalOrdinaryDataSize);
+    for (const auto& range : m_bindingRanges)
+        key.push_back(range.registerOffset);
+    key.insert(key.end(), {m_resourceCount.buffer, m_resourceCount.texture, m_resourceCount.sampler});
+    key.insert(key.end(), {m_totalResourceCount.buffer, m_totalResourceCount.texture, m_totalResourceCount.sampler});
+    for (const auto& range : m_subObjectRanges)
+    {
+        key.insert(key.end(), {range.offset.buffer, range.offset.texture, range.offset.sampler});
+        key.insert(key.end(), {range.stride.buffer, range.stride.texture, range.stride.sampler});
+    }
+    appendOrdinaryLayoutKey(key, getParameterBlockTypeLayout());
+    auto argumentLayout = getParameterBlockTypeLayout();
+    key.push_back(argumentLayout->getDescriptorSetCount());
+    for (SlangInt set = 0; set < argumentLayout->getDescriptorSetCount(); ++set)
+    {
+        key.push_back(argumentLayout->getDescriptorSetDescriptorRangeCount(set));
+        for (SlangInt range = 0; range < argumentLayout->getDescriptorSetDescriptorRangeCount(set); ++range)
+        {
+            key.push_back(argumentLayout->getDescriptorSetDescriptorRangeIndexOffset(set, range));
+            key.push_back(argumentLayout->getDescriptorSetDescriptorRangeDescriptorCount(set, range));
+            key.push_back(uint64_t(argumentLayout->getDescriptorSetDescriptorRangeType(set, range)));
+        }
+    }
+    key.push_back(m_pointerFields.size());
+    for (const auto& field : m_pointerFields)
+        key.push_back(field.uniformOffset);
 }
 
 } // namespace rhi::metal

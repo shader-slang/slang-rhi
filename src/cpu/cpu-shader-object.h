@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "cpu-base.h"
 #include "cpu-shader-object-layout.h"
 #include "cpu-buffer.h"
@@ -49,6 +51,7 @@ struct BindingDataImpl : BindingData
 
 struct BindingCache
 {
+    ParameterBlockCache<BindingDataBuilder::ObjectData> parameterBlocks;
     void reset();
 };
 

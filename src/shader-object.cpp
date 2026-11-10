@@ -409,6 +409,7 @@ Result ShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
+    SLANG_RETURN_ON_FAIL(checkFinalized());
     // If the shader object is a container, delegate the processing to
     // `setSpecializationArgsForContainerElements`.
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
@@ -453,6 +454,7 @@ Size ShaderObject::getSize()
 
 Result ShaderObject::setConstantBufferOverride(IBuffer* outBuffer)
 {
+    SLANG_RETURN_ON_FAIL(checkFinalized());
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -467,7 +469,21 @@ Result ShaderObject::finalize()
             SLANG_RETURN_ON_FAIL(object->finalize());
     }
 
+    m_finalizedSpecializationArgs.clear();
+    SLANG_RETURN_ON_FAIL(ShaderObject::collectSpecializationArgs(m_finalizedSpecializationArgs));
+    m_finalized = true;
     return SLANG_OK;
+}
+
+Result RootShaderObject::finalize()
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+    for (auto& entryPoint : m_entryPoints)
+    {
+        if (!entryPoint->isFinalized())
+            SLANG_RETURN_ON_FAIL(entryPoint->finalize());
+    }
+    return ShaderObject::finalize();
 }
 
 bool ShaderObject::isFinalized()
@@ -562,6 +578,11 @@ Result ShaderObject::init(ShaderObjectLayout* layout, ShaderProgram* program)
 
 Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& args)
 {
+    if (m_finalized)
+    {
+        args.addRange(m_finalizedSpecializationArgs);
+        return SLANG_OK;
+    }
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
     {
         args.addRange(m_structuredBufferSpecializationArgs);
@@ -661,6 +682,16 @@ Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& arg
 
 Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObjectLayout* specializedLayout)
 {
+    if (testing::gParameterBlockCacheStats)
+    {
+        ++testing::gParameterBlockCacheStats->ordinaryDataWrites;
+        testing::gParameterBlockCacheStats->ordinaryDataBytes += destSize;
+    }
+    if (m_finalized && testing::gParameterBlockCacheStats)
+    {
+        ++testing::gParameterBlockCacheStats->frozenOrdinaryDataWrites;
+        testing::gParameterBlockCacheStats->frozenOrdinaryDataBytes += destSize;
+    }
     SLANG_RHI_ASSERT(m_data.size() <= destSize);
     if (!m_data.empty())
         std::memcpy(destData, m_data.data(), m_data.size());
@@ -684,6 +715,11 @@ Result ShaderObject::writeStructuredBuffer(
 
 void ShaderObject::trackResources(std::set<InternalRefPtr<RefObject>>& resources)
 {
+    // Retaining the frozen graph also prevents identity reuse during this recording.
+    if (m_finalized && !resources.insert(this).second)
+        return;
+    if (m_finalized && testing::gParameterBlockCacheStats)
+        ++testing::gParameterBlockCacheStats->frozenResourceTraversals;
     for (const auto& slot : m_slots)
     {
         if (slot.resource)

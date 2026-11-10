@@ -750,8 +750,8 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
     if (updateBindings)
     {
         m_preparedRenderBindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_preparedRenderBindingData);
     }
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
 
     if (updateVertexBuffers)
     {
@@ -1058,9 +1058,9 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_bindingData);
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
 
     commitBarriers();
 
@@ -1121,9 +1121,9 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_bindingData);
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
 
     if (updateShaderTable)
     {
@@ -1741,6 +1741,8 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPo
 
 void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
 {
+    for (auto link = bindingData->preparedBlocks; link; link = link->next)
+        requireBindingStates(link->data);
     for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
     {
         const auto& bufferState = bindingData->bufferStates[i];

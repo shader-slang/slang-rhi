@@ -1105,6 +1105,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-metal-buffer-address-map.cpp
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
+        tests/test-parameter-block-cache.cpp
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
         tests/test-nvapi.cpp

@@ -11,6 +11,15 @@ namespace rhi {
 class ArenaAllocator
 {
 public:
+    struct AllocationStats
+    {
+        size_t count = 0;
+        size_t bytes = 0;
+        size_t pageBytes = 0;
+    };
+    // Optional recording/benchmark instrumentation, local to the recording thread.
+    inline static thread_local AllocationStats* allocationStats = nullptr;
+
     /// Default page size is 1MB.
     static constexpr size_t kDefaultPageSize = 1024 * 1024;
 
@@ -32,6 +41,11 @@ public:
     /// Alignment must be a power of 2.
     void* allocate(size_t size, size_t alignment = 16)
     {
+        if (allocationStats)
+        {
+            ++allocationStats->count;
+            allocationStats->bytes += size;
+        }
         m_pos = (m_pos + alignment - 1) & ~(alignment - 1);
         if (!m_page || m_pos + size > m_page->end())
         {
@@ -89,6 +103,8 @@ private:
     /// Allocate a page of the given total size (including the page header).
     Page* allocatePage(size_t totalSize)
     {
+        if (allocationStats)
+            allocationStats->pageBytes += totalSize;
         uint8_t* data = reinterpret_cast<uint8_t*>(std::malloc(totalSize));
         Page* page = reinterpret_cast<Page*>(data);
         page->next = nullptr;

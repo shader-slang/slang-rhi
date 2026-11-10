@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "wgpu-base.h"
 #include "wgpu-shader-object-layout.h"
 #include "wgpu-constant-buffer-pool.h"
@@ -24,6 +26,7 @@ struct BindingDataBuilder
 
     /// The bind group entries for every descriptor set
     std::vector<std::vector<WGPUBindGroupEntry>> m_entries;
+    std::vector<WGPUBindGroup> m_preparedGroups;
 
     /// Bind this object as a root shader object
     Result bindAsRoot(
@@ -41,6 +44,12 @@ struct BindingDataBuilder
     );
 
     Result createBindGroups();
+    Result createBindGroup(size_t index);
+    Result prepareParameterBlock(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
 
     /// Bind this shader object as a "value"
     ///
@@ -87,13 +96,14 @@ struct BindingDataImpl : BindingData
 {
     size_t bindGroupCount;
     WGPUBindGroup* bindGroups;
-
-    void release(DeviceImpl* device);
 };
 
 struct BindingCache
 {
-    std::vector<BindingDataImpl*> bindingData;
+    ParameterBlockCache<std::vector<WGPUBindGroup>> parameterBlocks;
+    std::map<std::tuple<const RootShaderObjectLayoutImpl*, size_t, size_t>, size_t> variants;
+    std::vector<RefPtr<ShaderObjectLayout>> variantLayouts;
+    std::vector<WGPUBindGroup> ownedBindGroups;
 
     void reset(DeviceImpl* device);
 };

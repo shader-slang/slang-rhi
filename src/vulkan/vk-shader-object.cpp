@@ -197,14 +197,17 @@ inline void writeBufferState(BindingDataBuilder* builder, BufferImpl* buffer, Re
     BindingDataImpl* bindingData = builder->m_bindingData;
     if (bindingData->bufferStateCount >= bindingData->bufferStateCapacity)
     {
-        bindingData->bufferStateCapacity *= 2;
+        bindingData->bufferStateCapacity = max(8u, bindingData->bufferStateCapacity * 2);
         BindingDataImpl::BufferState* newBufferStates =
             builder->m_allocator->allocate<BindingDataImpl::BufferState>(bindingData->bufferStateCapacity);
-        std::memcpy(
-            newBufferStates,
-            bindingData->bufferStates,
-            bindingData->bufferStateCount * sizeof(BindingDataImpl::BufferState)
-        );
+        if (bindingData->bufferStateCount)
+        {
+            std::memcpy(
+                newBufferStates,
+                bindingData->bufferStates,
+                bindingData->bufferStateCount * sizeof(BindingDataImpl::BufferState)
+            );
+        }
         bindingData->bufferStates = newBufferStates;
     }
     bindingData->bufferStates[bindingData->bufferStateCount++] = {buffer, state};
@@ -215,14 +218,17 @@ inline void writeTextureState(BindingDataBuilder* builder, TextureViewImpl* text
     BindingDataImpl* bindingData = builder->m_bindingData;
     if (bindingData->textureStateCount >= bindingData->textureStateCapacity)
     {
-        bindingData->textureStateCapacity *= 2;
+        bindingData->textureStateCapacity = max(8u, bindingData->textureStateCapacity * 2);
         BindingDataImpl::TextureState* newTextureStates =
             builder->m_allocator->allocate<BindingDataImpl::TextureState>(bindingData->textureStateCapacity);
-        std::memcpy(
-            newTextureStates,
-            bindingData->textureStates,
-            bindingData->textureStateCount * sizeof(BindingDataImpl::TextureState)
-        );
+        if (bindingData->textureStateCount)
+        {
+            std::memcpy(
+                newTextureStates,
+                bindingData->textureStates,
+                bindingData->textureStateCount * sizeof(BindingDataImpl::TextureState)
+            );
+        }
         bindingData->textureStates = newTextureStates;
     }
     bindingData->textureStates[bindingData->textureStateCount++] = {textureView, state};
@@ -235,19 +241,18 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     m_bindingData = m_allocator->allocate<BindingDataImpl>();
-    m_bindingCache->bindingData.push_back(m_bindingData);
+
+    m_bindingData->preparedBlocks = nullptr;
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
     // For now we use a fixed starting capacity and grow as needed.
-    m_bindingData->bufferStateCapacity = 1024;
+    m_bindingData->bufferStateCapacity = 8;
     m_bindingData->bufferStates =
         m_allocator->allocate<BindingDataImpl::BufferState>(m_bindingData->bufferStateCapacity);
     m_bindingData->bufferStateCount = 0;
-    m_bindingData->textureStateCapacity = 1024;
+    m_bindingData->textureStateCapacity = 8;
     m_bindingData->textureStates =
         m_allocator->allocate<BindingDataImpl::TextureState>(m_bindingData->textureStateCapacity);
     m_bindingData->textureStateCount = 0;
@@ -269,6 +274,7 @@ Result BindingDataBuilder::bindAsRoot(
 
     m_bindingData->pushConstantRanges = m_allocator->allocate<VkPushConstantRange>(m_pushConstantRanges.size());
     m_bindingData->pushConstantData = m_allocator->allocate<void*>(m_pushConstantRanges.size());
+    m_bindingData->pushConstantIndices = m_allocator->allocate<uint32_t>(m_pushConstantRanges.size());
     m_bindingData->pushConstantCount = 0;
 
     // Allocate entry point data storage for ray tracing SBT.
@@ -386,6 +392,7 @@ Result BindingDataBuilder::bindAsPushConstantBuffer(
 
         const uint32_t index = m_bindingData->pushConstantCount++;
         SLANG_RHI_ASSERT(index < m_pushConstantRanges.size());
+        m_bindingData->pushConstantIndices[index] = pushConstantRangeIndex;
         m_bindingData->pushConstantRanges[index] = pushConstantRange;
         m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
         SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(
@@ -418,6 +425,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     TransientBufferArena::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(size, &allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    if (testing::gParameterBlockCacheStats)
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += size;
 
     // If we did indeed need/create a buffer, then we must bind it into
     // the given `descriptorSet` and update the base range index for
@@ -635,7 +644,14 @@ Result BindingDataBuilder::bindAsValue(
                 // bindings it recursively contains.
                 //
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                if (bindingRangeInfo.isParameterBlock && subObjectLayout->getOwnDescriptorSetCount() == 0)
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsParameterBlock(subObject, objOffset, subObjectLayout));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                }
 
                 // When dealing with arrays of sub-objects, we need to make
                 // sure to increment the offset for each subsequent object
@@ -718,6 +734,9 @@ Result BindingDataBuilder::allocateDescriptorSets(
     {
         auto descriptorSetHandle = m_descriptorSetAllocator->allocate(descriptorSetInfo.descriptorSetLayout).handle;
 
+        if (!descriptorSetHandle)
+            return SLANG_E_OUT_OF_MEMORY;
+
         // For each set, we need to write it into the set of descriptor sets
         // being used for binding. This is done both so that other steps
         // in binding can find the set to fill it in, but also so that
@@ -733,7 +752,116 @@ Result BindingDataBuilder::allocateDescriptorSets(
     return SLANG_OK;
 }
 
+// Build the occurrence mapping once from layout metadata. Descriptor storage uses
+// a compact order regardless of whether the consuming root has sparse explicit sets.
+static void collectParameterBlockSetPlacements(
+    ShaderObjectLayoutImpl* layout,
+    const BindingOffset& offset,
+    bool parameterBlock,
+    std::vector<uint32_t>& placements
+)
+{
+    if (parameterBlock)
+        for (const auto& set : layout->getOwnDescriptorSets())
+            placements.push_back(offset.bindingSet + uint32_t(set.space));
+    for (const auto& range : layout->m_subObjectRanges)
+    {
+        const auto& binding = layout->m_bindingRanges[range.bindingRangeIndex];
+        if (!range.layout || (binding.bindingType != slang::BindingType::ParameterBlock &&
+                              binding.bindingType != slang::BindingType::ConstantBuffer &&
+                              binding.bindingType != slang::BindingType::PushConstant))
+            continue;
+        BindingOffset child = offset;
+        child += range.offset;
+        uint64_t blockSpace = child.space;
+        child.space += range.elementSpace;
+        for (uint32_t i = 0; i < binding.count; ++i)
+        {
+            bool isBlock = binding.bindingType == slang::BindingType::ParameterBlock;
+            if (isBlock)
+                child.bindingSet = uint32_t(blockSpace + i * range.stride.space);
+            collectParameterBlockSetPlacements(range.layout, child, isBlock, placements);
+            child += range.stride;
+        }
+    }
+}
+
 Result BindingDataBuilder::bindAsParameterBlock(
+    ShaderObject* shaderObject,
+    const BindingOffset& inOffset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (!shaderObject->isFinalized())
+        return prepareParameterBlock(shaderObject, inOffset, specializedLayout);
+
+    auto& cache = m_bindingCache->parameterBlocks;
+    const uint32_t baseSet = m_useExplicitDescriptorSets ? inOffset.bindingSet : m_bindingData->descriptorSetCount;
+    // Explicit placement has a separate base for the block's nested register spaces.
+    const uint64_t nestedSpace = m_useExplicitDescriptorSets ? inOffset.space - baseSet : 0;
+    auto key = cache.key(shaderObject, specializedLayout);
+    BindingDataImpl* prepared;
+    if (auto found = cache.find(key))
+        prepared = *found;
+    else
+    {
+        prepared = m_allocator->allocate<BindingDataImpl>();
+        *prepared = {};
+        prepared->descriptorSets =
+            m_allocator->allocate<VkDescriptorSet>(specializedLayout->getTotalDescriptorSetCount());
+        prepared->pushConstantRanges = m_allocator->allocate<VkPushConstantRange>(m_pushConstantRanges.size());
+        prepared->pushConstantData = m_allocator->allocate<void*>(m_pushConstantRanges.size());
+        prepared->pushConstantIndices = m_allocator->allocate<uint32_t>(m_pushConstantRanges.size());
+        auto builder = *this;
+        builder.m_bindingData = prepared;
+        builder.m_useExplicitDescriptorSets = false;
+        BindingOffset offset;
+        offset.pushConstantRange = inOffset.pushConstantRange;
+        SLANG_RETURN_ON_FAIL(builder.prepareParameterBlock(shaderObject, offset, specializedLayout));
+        for (uint32_t i = 0; i < prepared->pushConstantCount; ++i)
+            prepared->pushConstantIndices[i] -= inOffset.pushConstantRange;
+        cache.insert(key, prepared);
+    }
+
+    const std::vector<uint32_t>* placements = nullptr;
+    if (m_useExplicitDescriptorSets)
+    {
+        auto placementKey = std::make_pair(specializedLayout, nestedSpace);
+        auto found = m_bindingCache->setPlacements.find(placementKey);
+        if (found == m_bindingCache->setPlacements.end())
+        {
+            std::vector<uint32_t> mapping;
+            BindingOffset localOffset;
+            localOffset.space = nestedSpace;
+            collectParameterBlockSetPlacements(specializedLayout, localOffset, true, mapping);
+            found = m_bindingCache->setPlacements.emplace(placementKey, std::move(mapping)).first;
+        }
+        placements = &found->second;
+        SLANG_RHI_ASSERT(placements->size() == prepared->descriptorSetCount);
+    }
+    for (uint32_t i = 0; i < prepared->descriptorSetCount; ++i)
+    {
+        uint32_t set = baseSet + (placements ? (*placements)[i] : i);
+        SLANG_RHI_ASSERT(set < (m_useExplicitDescriptorSets ? m_bindingData->descriptorSetCount : kMaxDescriptorSets));
+        m_bindingData->descriptorSets[set] = prepared->descriptorSets[i];
+    }
+    if (!m_useExplicitDescriptorSets)
+        m_bindingData->descriptorSetCount += prepared->descriptorSetCount;
+    for (uint32_t i = 0; i < prepared->pushConstantCount; ++i)
+    {
+        uint32_t index = m_bindingData->pushConstantCount++;
+        uint32_t rangeIndex = inOffset.pushConstantRange + prepared->pushConstantIndices[i];
+        m_bindingData->pushConstantIndices[index] = rangeIndex;
+        m_bindingData->pushConstantRanges[index] = m_pushConstantRanges[rangeIndex];
+        m_bindingData->pushConstantData[index] = prepared->pushConstantData[i];
+    }
+    auto link = m_allocator->allocate<PreparedBindingLink<BindingDataImpl>>();
+    *link = {prepared, m_bindingData->preparedBlocks};
+    m_bindingData->preparedBlocks = link;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareParameterBlock(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout

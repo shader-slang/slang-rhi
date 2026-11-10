@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "metal-base.h"
 #include "metal-shader-object-layout.h"
 
@@ -59,6 +61,12 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout
     );
 
+    Result prepareArgumentBuffer(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        BufferImpl*& outArgumentBuffer
+    );
+
     Result writeArgumentBuffer(
         ShaderObject* shaderObject,
         ShaderObjectLayoutImpl* specializedLayout,
@@ -77,6 +85,9 @@ struct BindingDataBuilder
 
 struct BindingDataImpl : BindingData
 {
+    PreparedBindingLink<BindingDataImpl>* preparedBlocks;
+    ArenaAllocator* allocator;
+
     MTL::Buffer** buffers;
     NS::UInteger* bufferOffsets;
     uint32_t bufferCount;
@@ -103,11 +114,22 @@ struct BindingDataImpl : BindingData
     uint32_t rootAccelerationStructureCapacity;
 };
 
+struct PreparedArgumentBuffer
+{
+    BufferImpl* buffer;
+    BindingDataImpl* resources;
+};
+
 struct BindingCache
 {
+    ParameterBlockCache<PreparedArgumentBuffer> parameterBlocks;
     std::vector<InternalRefPtr<BufferImpl>> buffers;
 
-    void reset() { buffers.clear(); }
+    void reset()
+    {
+        parameterBlocks.reset();
+        buffers.clear();
+    }
 };
 
 } // namespace rhi::metal

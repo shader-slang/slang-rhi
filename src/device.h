@@ -24,6 +24,33 @@ class Device;
 class Heap;
 
 namespace testing {
+struct ParameterBlockCacheStats
+{
+    size_t hits = 0;
+    size_t preparations = 0;
+    size_t layoutDescriptions = 0;
+    size_t frozenResourceTraversals = 0;
+    size_t frozenOrdinaryDataWrites = 0;
+    size_t frozenOrdinaryDataBytes = 0;
+    size_t ordinaryDataWrites = 0;
+    size_t ordinaryDataBytes = 0;
+    // Logical bytes written to GPU-visible constant/argument storage, excluding padding.
+    size_t uploadBytesPrepared = 0;
+};
+// Optional per-thread instrumentation; no atomics or shared recording state.
+extern thread_local ParameterBlockCacheStats* gParameterBlockCacheStats;
+
+struct ScopedParameterBlockCacheStats
+{
+    ParameterBlockCacheStats* previous;
+    explicit ScopedParameterBlockCacheStats(ParameterBlockCacheStats& stats)
+        : previous(gParameterBlockCacheStats)
+    {
+        gParameterBlockCacheStats = &stats;
+    }
+    ~ScopedParameterBlockCacheStats() { gParameterBlockCacheStats = previous; }
+};
+
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
 extern bool gDebugDisableStateTracking;
 // Counter for tracking active Resource instances (for testing deferred delete)

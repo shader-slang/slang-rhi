@@ -270,6 +270,8 @@ public:
 
     slang::TypeReflection* getType() { return m_elementTypeLayout->getType(); }
 
+    void appendParameterBlockLayoutKey(std::vector<uint64_t>& key) override;
+
     // ShaderObjectLayout interface
     virtual uint32_t getSlotCount() const override { return m_slotCount; }
     virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; }

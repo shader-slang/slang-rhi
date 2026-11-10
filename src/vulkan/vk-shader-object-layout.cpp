@@ -1,3 +1,4 @@
+#include "../parameter-block-cache.h"
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
@@ -406,6 +407,8 @@ Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflec
 
         BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.isParameterBlock =
+            slangLeafTypeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
@@ -1060,6 +1063,38 @@ Result RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entr
 
     m_childDescriptorSetCount += entryPointLayout->getTotalDescriptorSetCount();
     return SLANG_OK;
+}
+
+void ShaderObjectLayoutImpl::appendParameterBlockLayoutKey(std::vector<uint64_t>& key)
+{
+    key.insert(key.end(), {m_totalOrdinaryDataSize, m_childDescriptorSetCount, m_totalBindingCount});
+    for (const auto& range : m_bindingRanges)
+        key.insert(key.end(), {range.bindingOffset, range.setOffset});
+    for (const auto& range : m_subObjectRanges)
+    {
+        key.insert(
+            key.end(),
+            {range.offset.binding, range.offset.bindingSet, range.offset.space, range.offset.pushConstantRange}
+        );
+        key.insert(
+            key.end(),
+            {range.stride.binding, range.stride.bindingSet, range.stride.space, range.stride.pushConstantRange}
+        );
+        key.push_back(range.elementSpace);
+    }
+    key.push_back(m_descriptorSetInfos.size());
+    for (const auto& set : m_descriptorSetInfos)
+    {
+        key.insert(key.end(), {uint64_t(set.space), set.vkBindings.size()});
+        for (const auto& binding : set.vkBindings)
+            key.insert(
+                key.end(),
+                {binding.binding, uint64_t(binding.descriptorType), binding.descriptorCount, binding.stageFlags}
+            );
+    }
+    key.push_back(m_ownPushConstantRanges.size());
+    for (const auto& range : m_ownPushConstantRanges)
+        key.insert(key.end(), {range.stageFlags, range.offset, range.size});
 }
 
 } // namespace rhi::vk

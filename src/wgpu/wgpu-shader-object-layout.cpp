@@ -1,3 +1,4 @@
+#include "../parameter-block-cache.h"
 #include "wgpu-shader-object-layout.h"
 #include "wgpu-device.h"
 #include "wgpu-shader-program.h"
@@ -439,8 +440,10 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             break;
         }
 
-        BindingRangeInfo bindingRangeInfo;
+        BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.isParameterBlock =
+            slangLeafTypeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
@@ -983,6 +986,18 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     _addDescriptorRangesAsValue(entryPointVarLayout->getTypeLayout(), entryPointOffset);
 
     m_entryPoints.push_back(info);
+}
+
+void ShaderObjectLayoutImpl::appendParameterBlockLayoutKey(std::vector<uint64_t>& key)
+{
+    key.insert(key.end(), {m_totalOrdinaryDataSize, m_childDescriptorSetCount, m_totalBindingCount});
+    for (const auto& range : m_bindingRanges)
+        key.insert(key.end(), {range.bindingOffset, range.setOffset});
+    for (const auto& range : m_subObjectRanges)
+    {
+        key.insert(key.end(), {range.offset.binding, range.offset.bindingSet});
+        key.insert(key.end(), {range.stride.binding, range.stride.bindingSet});
+    }
 }
 
 } // namespace rhi::wgpu

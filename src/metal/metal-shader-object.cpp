@@ -35,7 +35,11 @@ inline Result addUsedResource(BindingDataImpl* bindingData, MTL::Resource* resou
 {
     if (bindingData->usedResourceCount >= bindingData->usedResourceCapacity)
     {
-        return SLANG_FAIL;
+        bindingData->usedResourceCapacity = max(8u, bindingData->usedResourceCapacity * 2);
+        auto resources = bindingData->allocator->allocate<MTL::Resource*>(bindingData->usedResourceCapacity);
+        if (bindingData->usedResourceCount)
+            memcpy(resources, bindingData->usedResources, bindingData->usedResourceCount * sizeof(MTL::Resource*));
+        bindingData->usedResources = resources;
     }
     bindingData->usedResources[bindingData->usedResourceCount++] = resource;
     return SLANG_OK;
@@ -45,7 +49,11 @@ inline Result addUsedRWResource(BindingDataImpl* bindingData, MTL::Resource* res
 {
     if (bindingData->usedRWResourceCount >= bindingData->usedRWResourceCapacity)
     {
-        return SLANG_FAIL;
+        bindingData->usedRWResourceCapacity = max(8u, bindingData->usedRWResourceCapacity * 2);
+        auto resources = bindingData->allocator->allocate<MTL::Resource*>(bindingData->usedRWResourceCapacity);
+        if (bindingData->usedRWResourceCount)
+            memcpy(resources, bindingData->usedRWResources, bindingData->usedRWResourceCount * sizeof(MTL::Resource*));
+        bindingData->usedRWResources = resources;
     }
     bindingData->usedRWResources[bindingData->usedRWResourceCount++] = resource;
     return SLANG_OK;
@@ -57,11 +65,11 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingData = bindingData;
+    m_bindingData->preparedBlocks = nullptr;
+    m_bindingData->allocator = m_allocator;
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
     // then we could switch to asserts instead of error checks when writing binding data
@@ -435,6 +443,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     //
     void* ordinaryData = bufferImpl->m_buffer->contents();
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(ordinaryData, size, specializedLayout));
+    if (testing::gParameterBlockCacheStats)
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += size;
 
     // If we did indeed need/create a buffer, then we must bind it
     // into root binding state.
@@ -456,7 +466,48 @@ Result BindingDataBuilder::writeArgumentBuffer(
     BufferImpl*& outArgumentBuffer
 )
 {
+    if (!shaderObject->isFinalized())
+        return prepareArgumentBuffer(shaderObject, specializedLayout, outArgumentBuffer);
+    auto& cache = m_bindingCache->parameterBlocks;
+    auto key = cache.key(shaderObject, specializedLayout);
+    PreparedArgumentBuffer prepared;
+    if (auto found = cache.find(key))
+        prepared = *found;
+    else
+    {
+        prepared.resources = m_allocator->allocate<BindingDataImpl>();
+        *prepared.resources = {};
+        prepared.resources->allocator = m_allocator;
+        auto builder = *this;
+        builder.m_bindingData = prepared.resources;
+        SLANG_RETURN_ON_FAIL(builder.prepareArgumentBuffer(shaderObject, specializedLayout, prepared.buffer));
+        cache.insert(key, prepared);
+    }
+    auto link = m_allocator->allocate<PreparedBindingLink<BindingDataImpl>>();
+    *link = {prepared.resources, m_bindingData->preparedBlocks};
+    m_bindingData->preparedBlocks = link;
+    outArgumentBuffer = prepared.buffer;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareArgumentBuffer(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout,
+    BufferImpl*& outArgumentBuffer
+)
+{
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
+    if (testing::gParameterBlockCacheStats)
+    {
+        ++testing::gParameterBlockCacheStats->ordinaryDataWrites;
+        testing::gParameterBlockCacheStats->ordinaryDataBytes += argumentBufferTypeLayout->getSize();
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += argumentBufferTypeLayout->getSize();
+    }
+    if (shaderObject->isFinalized() && testing::gParameterBlockCacheStats)
+    {
+        ++testing::gParameterBlockCacheStats->frozenOrdinaryDataWrites;
+        testing::gParameterBlockCacheStats->frozenOrdinaryDataBytes += argumentBufferTypeLayout->getSize();
+    }
 
     // If the argument buffer has no fields, we don't need to create one, note this is legal because there could be an
     // empty struct type in AST. We need to handle this correctly.
@@ -631,10 +682,17 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 auto subObject = shaderObject->m_objects[subObjectIndex + i];
                 BufferImpl* subArgumentBuffer = nullptr;
-                SLANG_RETURN_ON_FAIL(writeArgumentBuffer(subObject, subObjectLayout, subArgumentBuffer));
-                DeviceAddress bufferPtr = subArgumentBuffer->m_buffer->gpuAddress();
+                if (bindingRange.bindingType == slang::BindingType::ParameterBlock)
+                {
+                    SLANG_RETURN_ON_FAIL(writeArgumentBuffer(subObject, subObjectLayout, subArgumentBuffer));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(prepareArgumentBuffer(subObject, subObjectLayout, subArgumentBuffer));
+                }
+                DeviceAddress bufferPtr = subArgumentBuffer ? subArgumentBuffer->m_buffer->gpuAddress() : 0;
                 memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
-                if (!m_device->m_hasResidencySet)
+                if (subArgumentBuffer && !m_device->m_hasResidencySet)
                 {
                     SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, subArgumentBuffer->m_buffer.get()));
                 }

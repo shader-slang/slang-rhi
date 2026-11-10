@@ -50,9 +50,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     m_bindingData = m_allocator->allocate<BindingDataImpl>();
 
     // Write global parameters
@@ -96,7 +94,7 @@ Result BindingDataBuilder::writeObjectData(
     objectData.size = size;
     uint8_t* dst = (uint8_t*)objectData.data;
 
-    shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout);
+    SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(dst, objectData.size, specializedLayout));
 
     // Bindings are currently written in shaderObjectSetBinding() because
     // the layout does currently only provide uniformOffset but no uniformStride.
@@ -165,7 +163,22 @@ Result BindingDataBuilder::writeObjectData(
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
 
                 ObjectData data;
-                SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, data));
+                if (bindingRange.isParameterBlock && subObject->isFinalized())
+                {
+                    auto& cache = m_bindingCache->parameterBlocks;
+                    auto key = cache.key(subObject, subObjectLayout);
+                    if (auto prepared = cache.find(key))
+                        data = *prepared;
+                    else
+                    {
+                        SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, data));
+                        cache.insert(key, data);
+                    }
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, data));
+                }
                 ::memcpy(dst + uniformOffset, &data.data, sizeof(void*));
                 uniformOffset += sizeof(void*);
             }
@@ -181,6 +194,9 @@ Result BindingDataBuilder::writeObjectData(
     return SLANG_OK;
 }
 
-void BindingCache::reset() {}
+void BindingCache::reset()
+{
+    parameterBlocks.reset();
+}
 
 } // namespace rhi::cpu

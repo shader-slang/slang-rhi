@@ -12,9 +12,7 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingData = bindingData;
     ::memset(bindingData, 0, sizeof(BindingDataImpl));
@@ -67,6 +65,69 @@ Result BindingDataBuilder::bindAsRoot(
 
     outBindingData = bindingData;
 
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::bindAsParameterBlock(
+    ShaderObject* shaderObject,
+    const BindingOffset& offset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (!shaderObject->isFinalized())
+        return bindAsConstantBuffer(shaderObject, offset, specializedLayout);
+    auto& cache = m_bindingCache->parameterBlocks;
+    auto key = cache.key(shaderObject, specializedLayout);
+    BindingDataImpl* prepared;
+    if (auto found = cache.find(key))
+        prepared = *found;
+    else
+    {
+        prepared = m_allocator->allocate<BindingDataImpl>();
+        *prepared = {};
+        auto builder = *this;
+        builder.m_bindingData = prepared;
+        SLANG_RETURN_ON_FAIL(builder.bindAsConstantBuffer(shaderObject, BindingOffset{}, specializedLayout));
+        cache.insert(key, prepared);
+    }
+    if (prepared->cbvCount)
+    {
+        SLANG_RHI_ASSERT(offset.cbv + prepared->cbvCount <= SLANG_COUNT_OF(m_bindingData->cbvsBuffer));
+        for (uint32_t i = 0; i < prepared->cbvCount; ++i)
+        {
+            m_bindingData->cbvsBuffer[offset.cbv + i] = prepared->cbvsBuffer[i];
+            m_bindingData->cbvsFirst[offset.cbv + i] = prepared->cbvsFirst[i];
+            m_bindingData->cbvsCount[offset.cbv + i] = prepared->cbvsCount[i];
+        }
+        m_bindingData->cbvCount = max(m_bindingData->cbvCount, offset.cbv + prepared->cbvCount);
+    }
+    if (prepared->srvCount)
+    {
+        SLANG_RHI_ASSERT(offset.srv + prepared->srvCount <= SLANG_COUNT_OF(m_bindingData->srvs));
+        for (uint32_t i = 0; i < prepared->srvCount; ++i)
+        {
+            m_bindingData->srvs[offset.srv + i] = prepared->srvs[i];
+        }
+        m_bindingData->srvCount = max(m_bindingData->srvCount, offset.srv + prepared->srvCount);
+    }
+    if (prepared->uavCount)
+    {
+        SLANG_RHI_ASSERT(offset.uav + prepared->uavCount <= SLANG_COUNT_OF(m_bindingData->uavs));
+        for (uint32_t i = 0; i < prepared->uavCount; ++i)
+        {
+            m_bindingData->uavs[offset.uav + i] = prepared->uavs[i];
+        }
+        m_bindingData->uavCount = max(m_bindingData->uavCount, offset.uav + prepared->uavCount);
+    }
+    if (prepared->samplerCount)
+    {
+        SLANG_RHI_ASSERT(offset.sampler + prepared->samplerCount <= SLANG_COUNT_OF(m_bindingData->samplers));
+        for (uint32_t i = 0; i < prepared->samplerCount; ++i)
+        {
+            m_bindingData->samplers[offset.sampler + i] = prepared->samplers[i];
+        }
+        m_bindingData->samplerCount = max(m_bindingData->samplerCount, offset.sampler + prepared->samplerCount);
+    }
     return SLANG_OK;
 }
 
@@ -246,7 +307,14 @@ Result BindingDataBuilder::bindAsValue(
                 // Unsurprisingly, we bind each object in the range as
                 // a constant buffer.
                 //
-                SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                if (bindingRange.isParameterBlock)
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsParameterBlock(subObject, objOffset, subObjectLayout));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                }
 
                 objOffset += rangeStride;
             }
@@ -274,17 +342,23 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    if (testing::gParameterBlockCacheStats)
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += size;
 
     SLANG_RHI_ASSERT(ioOffset.cbv < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT);
     m_bindingData->cbvsBuffer[ioOffset.cbv] = allocation.buffer->m_buffer;
     m_bindingData->cbvsFirst[ioOffset.cbv] = allocation.offset / 16;
-    m_bindingData->cbvsCount[ioOffset.cbv] = ((size + 15) / 16) * 16;
+    // SetConstantBuffers1 counts 16-byte constants, in multiples of 16 constants.
+    m_bindingData->cbvsCount[ioOffset.cbv] = ((size + 255) / 256) * 16;
     m_bindingData->cbvCount = max(m_bindingData->cbvCount, ioOffset.cbv + 1);
     ioOffset.cbv++;
 
     return SLANG_OK;
 }
 
-void BindingCache::reset() {}
+void BindingCache::reset()
+{
+    parameterBlocks.reset();
+}
 
 } // namespace rhi::d3d11

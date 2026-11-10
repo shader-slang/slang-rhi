@@ -41,14 +41,17 @@ inline void writeBufferState(BindingDataBuilder* builder, BufferImpl* buffer, Re
     BindingDataImpl* bindingData = builder->m_bindingData;
     if (bindingData->bufferStateCount >= bindingData->bufferStateCapacity)
     {
-        bindingData->bufferStateCapacity *= 2;
+        bindingData->bufferStateCapacity = max(8u, bindingData->bufferStateCapacity * 2);
         BindingDataImpl::BufferState* newBufferStates =
             builder->m_allocator->allocate<BindingDataImpl::BufferState>(bindingData->bufferStateCapacity);
-        std::memcpy(
-            newBufferStates,
-            bindingData->bufferStates,
-            bindingData->bufferStateCount * sizeof(BindingDataImpl::BufferState)
-        );
+        if (bindingData->bufferStateCount)
+        {
+            std::memcpy(
+                newBufferStates,
+                bindingData->bufferStates,
+                bindingData->bufferStateCount * sizeof(BindingDataImpl::BufferState)
+            );
+        }
         bindingData->bufferStates = newBufferStates;
     }
     bindingData->bufferStates[bindingData->bufferStateCount++] = {buffer, state};
@@ -59,14 +62,17 @@ inline void writeTextureState(BindingDataBuilder* builder, TextureViewImpl* text
     BindingDataImpl* bindingData = builder->m_bindingData;
     if (bindingData->textureStateCount >= bindingData->textureStateCapacity)
     {
-        bindingData->textureStateCapacity *= 2;
+        bindingData->textureStateCapacity = max(8u, bindingData->textureStateCapacity * 2);
         BindingDataImpl::TextureState* newTextureStates =
             builder->m_allocator->allocate<BindingDataImpl::TextureState>(bindingData->textureStateCapacity);
-        std::memcpy(
-            newTextureStates,
-            bindingData->textureStates,
-            bindingData->textureStateCount * sizeof(BindingDataImpl::TextureState)
-        );
+        if (bindingData->textureStateCount)
+        {
+            std::memcpy(
+                newTextureStates,
+                bindingData->textureStates,
+                bindingData->textureStateCount * sizeof(BindingDataImpl::TextureState)
+            );
+        }
         bindingData->textureStates = newTextureStates;
     }
     bindingData->textureStates[bindingData->textureStateCount++] = {textureView, state};
@@ -78,19 +84,19 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     m_bindingData = bindingData;
 
+    m_bindingData->preparedBlocks = nullptr;
+
     // TODO(shaderobject): allocate actual number of buffer/texture resources
     // For now we use a fixed starting capacity and grow as needed.
-    m_bindingData->bufferStateCapacity = 1024;
+    m_bindingData->bufferStateCapacity = 8;
     m_bindingData->bufferStates =
         m_allocator->allocate<BindingDataImpl::BufferState>(m_bindingData->bufferStateCapacity);
     m_bindingData->bufferStateCount = 0;
-    m_bindingData->textureStateCapacity = 1024;
+    m_bindingData->textureStateCapacity = 8;
     m_bindingData->textureStates =
         m_allocator->allocate<BindingDataImpl::TextureState>(m_bindingData->textureStateCapacity);
     m_bindingData->textureStateCount = 0;
@@ -240,7 +246,68 @@ Result BindingDataBuilder::bindAsConstantBuffer(
 }
 
 /// Bind this object as a `ParameterBlock<X>`
+static uint32_t countUserRootParameters(ShaderObjectLayoutImpl* layout)
+{
+    uint32_t count = layout->getOwnUserRootParameterCount();
+    for (const auto& range : layout->m_subObjectRanges)
+    {
+        if (range.layout)
+            count += layout->m_bindingRanges[range.bindingRangeIndex].count * countUserRootParameters(range.layout);
+    }
+    return count;
+}
+
 Result BindingDataBuilder::bindAsParameterBlock(
+    ShaderObject* shaderObject,
+    const BindingOffset& offset,
+    uint32_t& rootParamIndex,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (!shaderObject->isFinalized())
+        return prepareParameterBlock(shaderObject, offset, rootParamIndex, specializedLayout);
+
+    auto& cache = m_bindingCache->parameterBlocks;
+    auto key = cache.key(shaderObject, specializedLayout);
+    BindingDataImpl* prepared;
+    if (auto found = cache.find(key))
+        prepared = *found;
+    else
+    {
+        prepared = m_allocator->allocate<BindingDataImpl>();
+        *prepared = {};
+        prepared->userRootParameterCount = countUserRootParameters(specializedLayout);
+        prepared->rootParameterCount =
+            prepared->userRootParameterCount + specializedLayout->getTotalRootTableParameterCount();
+        prepared->rootParameters = m_allocator->allocate<BindingDataImpl::RootParameter>(prepared->rootParameterCount);
+        auto builder = *this;
+        builder.m_bindingData = prepared;
+        BindingOffset localOffset;
+        localOffset.rootParam = prepared->userRootParameterCount;
+        uint32_t localRootIndex = 0;
+        SLANG_RETURN_ON_FAIL(
+            builder.prepareParameterBlock(shaderObject, localOffset, localRootIndex, specializedLayout)
+        );
+        cache.insert(key, prepared);
+    }
+
+    for (uint32_t i = 0; i < prepared->rootParameterCount; ++i)
+    {
+        uint32_t index = i < prepared->userRootParameterCount ? rootParamIndex + i
+                                                              : offset.rootParam + i - prepared->userRootParameterCount;
+        SLANG_RHI_ASSERT(index < m_bindingData->rootParameterCount);
+        auto param = prepared->rootParameters[i];
+        param.index = index;
+        m_bindingData->rootParameters[index] = param;
+    }
+    rootParamIndex += prepared->userRootParameterCount;
+    auto link = m_allocator->allocate<PreparedBindingLink<BindingDataImpl>>();
+    *link = {prepared, m_bindingData->preparedBlocks};
+    m_bindingData->preparedBlocks = link;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareParameterBlock(
     ShaderObject* shaderObject,
     const BindingOffset& offset,
     uint32_t& rootParamIndex,
@@ -557,9 +624,17 @@ Result BindingDataBuilder::bindAsValue(
                 // bindings it recursively contains.
                 //
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                SLANG_RETURN_ON_FAIL(
-                    bindAsConstantBuffer(subObject, descriptorSet, objOffset, rootParamIndex, subObjectLayout)
-                );
+                if (bindingRangeInfo.isParameterBlock && subObjectLayout->getTotalResourceDescriptorCount() == 0 &&
+                    subObjectLayout->getTotalSamplerDescriptorCount() == 0)
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsParameterBlock(subObject, objOffset, rootParamIndex, subObjectLayout));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(
+                        bindAsConstantBuffer(subObject, descriptorSet, objOffset, rootParamIndex, subObjectLayout)
+                    );
+                }
 
                 // When dealing with arrays of sub-objects, we need to make
                 // sure to increment the offset for each subsequent object
@@ -645,6 +720,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     TransientBufferArena::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(alignedSize, &allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
+    if (testing::gParameterBlockCacheStats)
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += size;
 
     // We also create and store a descriptor for our root constant buffer
     // into the descriptor table allocation that was reserved for them.

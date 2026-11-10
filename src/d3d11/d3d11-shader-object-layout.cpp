@@ -1,3 +1,4 @@
+#include "../parameter-block-cache.h"
 #include "d3d11-shader-object-layout.h"
 
 namespace rhi::d3d11 {
@@ -89,8 +90,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             break;
         }
 
-        BindingRangeInfo bindingRangeInfo;
+        BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.isParameterBlock =
+            slangLeafTypeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.subObjectIndex = subObjectIndex;
@@ -303,6 +306,23 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     m_slangSession = m_program->getSession();
 
     return SLANG_OK;
+}
+
+void ShaderObjectLayoutImpl::appendParameterBlockLayoutKey(std::vector<uint64_t>& key)
+{
+    key.push_back(m_totalOrdinaryDataSize);
+    for (const auto& range : m_bindingRanges)
+        key.push_back(range.registerOffset);
+    key.insert(key.end(), {m_resourceCount.cbv, m_resourceCount.srv, m_resourceCount.uav, m_resourceCount.sampler});
+    key.insert(
+        key.end(),
+        {m_totalResourceCount.cbv, m_totalResourceCount.srv, m_totalResourceCount.uav, m_totalResourceCount.sampler}
+    );
+    for (const auto& range : m_subObjectRanges)
+    {
+        key.insert(key.end(), {range.offset.cbv, range.offset.srv, range.offset.uav, range.offset.sampler});
+        key.insert(key.end(), {range.stride.cbv, range.stride.srv, range.stride.uav, range.stride.sampler});
+    }
 }
 
 } // namespace rhi::d3d11

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "cuda-base.h"
 #include "cuda-buffer.h"
 #include "cuda-texture.h"
@@ -64,6 +66,7 @@ struct BindingDataImpl : BindingData
 
 struct BindingCache
 {
+    ParameterBlockCache<BindingDataBuilder::ObjectData> parameterBlocks;
     void reset();
 };
 

@@ -128,6 +128,7 @@ public:
     };
 
     void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
+    void requireBindingStates(BindingDataImpl* bindingData);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -867,6 +868,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_cmdList->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
     }
 
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
+
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
@@ -1087,6 +1090,8 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         m_cmdList->SetPipelineState(m_computePipeline->m_pipelineState);
     }
 
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
+
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
@@ -1154,6 +1159,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         m_cmdList->SetComputeRootSignature(m_rayTracingPipeline->m_rootObjectLayout->m_rootSignature);
         m_cmdList4->SetPipelineState1(m_rayTracingPipeline->m_stateObject);
     }
+
+    requireBindingStates(static_cast<BindingDataImpl*>(cmd.bindingData));
 
     if (updateBindings)
     {
@@ -1752,8 +1759,10 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     m_bindingData = nullptr;
 }
 
-void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
 {
+    for (auto link = bindingData->preparedBlocks; link; link = link->next)
+        requireBindingStates(link->data);
     // First, we transition all resources to the required states.
     for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
     {
@@ -1769,7 +1778,10 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
             textureState.state
         );
     }
+}
 
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+{
     // We need barriers to be committed before setting root parameters.
     commitBarriers();
 

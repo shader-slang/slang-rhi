@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "d3d12-base.h"
 #include "d3d12-shader-object-layout.h"
 #include "../transient-buffer-heap.h"
@@ -63,6 +65,13 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout
     );
 
+    Result prepareParameterBlock(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        uint32_t& rootParamIndex,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+
     /// Bind this object as a `ParameterBlock<X>`
     Result bindAsParameterBlock(
         ShaderObject* shaderObject,
@@ -119,6 +128,8 @@ public:
         };
     };
 
+    PreparedBindingLink<BindingDataImpl>* preparedBlocks;
+
     /// Required buffer states.
     BufferState* bufferStates;
     uint32_t bufferStateCapacity;
@@ -127,6 +138,8 @@ public:
     TextureState* textureStates;
     uint32_t textureStateCapacity;
     uint32_t textureStateCount;
+    uint32_t userRootParameterCount;
+
     /// Root parameters.
     RootParameter* rootParameters;
     uint32_t rootParameterCount;
@@ -134,7 +147,8 @@ public:
 
 struct BindingCache
 {
-    void reset() {}
+    ParameterBlockCache<BindingDataImpl*> parameterBlocks;
+    void reset() { parameterBlocks.reset(); }
 };
 
 } // namespace rhi::d3d12

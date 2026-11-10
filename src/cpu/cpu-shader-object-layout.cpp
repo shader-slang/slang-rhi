@@ -1,3 +1,4 @@
+#include "../parameter-block-cache.h"
 #include "cpu-shader-object-layout.h"
 
 namespace rhi::cpu {
@@ -73,6 +74,8 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
 
         BindingRangeInfo bindingRangeInfo;
         bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.isParameterBlock =
+            slangLeafTypeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
         bindingRangeInfo.uniformOffset = uniformOffset;
@@ -147,6 +150,12 @@ void RootShaderObjectLayoutImpl::getKernelThreadGroupSize(int kernelIndex, uint3
     threadGroupSizes[0] = (uint32_t)sizes[0];
     threadGroupSizes[1] = (uint32_t)sizes[1];
     threadGroupSizes[2] = (uint32_t)sizes[2];
+}
+
+void ShaderObjectLayoutImpl::appendParameterBlockLayoutKey(std::vector<uint64_t>& key)
+{
+    for (const auto& range : m_bindingRanges)
+        key.push_back(range.uniformOffset);
 }
 
 } // namespace rhi::cpu

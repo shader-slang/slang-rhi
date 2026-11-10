@@ -1,3 +1,4 @@
+#include "../parameter-block-cache.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-device.h"
 
@@ -192,6 +193,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
 
         BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
+        bindingRangeInfo.isParameterBlock =
+            slangLeafTypeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock;
         bindingRangeInfo.resourceShape = slangLeafTypeLayout->getResourceShape();
         bindingRangeInfo.count = count;
         bindingRangeInfo.baseIndex = baseIndex;
@@ -1015,6 +1018,39 @@ Result RootShaderObjectLayoutImpl::init(Builder* builder)
     m_programLayout = builder->m_programLayout;
     m_entryPoints = builder->m_entryPoints;
     return SLANG_OK;
+}
+
+void ShaderObjectLayoutImpl::appendParameterBlockLayoutKey(std::vector<uint64_t>& key)
+{
+    key.insert(
+        key.end(),
+        {m_totalOrdinaryDataSize,
+         m_childRootParameterCount,
+         m_ownCounts.rootParam,
+         m_ownCounts.resource,
+         m_ownCounts.sampler,
+         m_totalCounts.rootParam,
+         m_totalCounts.resource,
+         m_totalCounts.sampler}
+    );
+    for (const auto& range : m_bindingRanges)
+        key.insert(
+            key.end(),
+            {range.baseIndex, uint64_t(range.resourceShape), range.bufferElementStride, uint64_t(range.isRootParameter)}
+        );
+    for (const auto& range : m_subObjectRanges)
+        key.insert(
+            key.end(),
+            {range.offset.rootParam,
+             range.offset.resource,
+             range.offset.sampler,
+             range.stride.rootParam,
+             range.stride.resource,
+             range.stride.sampler}
+        );
+    key.push_back(m_rootParamsInfo.size());
+    for (const auto& param : m_rootParamsInfo)
+        key.push_back(param.isUAV);
 }
 
 } // namespace rhi::d3d12

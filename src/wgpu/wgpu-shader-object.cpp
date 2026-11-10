@@ -166,13 +166,10 @@ Result BindingDataBuilder::bindAsRoot(
     BindingDataImpl*& outBindingData
 )
 {
-    // Create a new set of binding data to populate.
-    // TODO: In the future we should lookup the cache for existing
-    // binding data and reuse that if possible.
+    // Root bindings remain transient; finalized parameter blocks are prepared separately.
     BindingDataImpl* bindingData = m_allocator->allocate<BindingDataImpl>();
     *bindingData = {};
     m_bindingData = bindingData;
-    m_bindingCache->bindingData.push_back(bindingData);
 
     m_bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
     m_rootLayout = specializedLayout;
@@ -234,33 +231,37 @@ Result BindingDataBuilder::allocateDescriptorSets(
     for (size_t i = 0; i < descriptorSets.size(); ++i)
     {
         m_entries.push_back(std::vector<WGPUBindGroupEntry>());
+        m_preparedGroups.push_back(nullptr);
         auto& newEntries = m_entries.back();
         newEntries.reserve(descriptorSets[i].entries.size());
     }
     return SLANG_OK;
 }
 
+Result BindingDataBuilder::createBindGroup(size_t index)
+{
+    if (m_preparedGroups[index])
+        return SLANG_OK;
+    WGPUBindGroupDescriptor desc = {};
+    desc.layout = m_bindGroupLayouts[index];
+    desc.entries = m_entries[index].data();
+    desc.entryCount = m_entries[index].size();
+    auto group = m_device->m_ctx.api.wgpuDeviceCreateBindGroup(m_device->m_ctx.device, &desc);
+    if (!group)
+        return SLANG_FAIL;
+    m_bindingCache->ownedBindGroups.push_back(group);
+    m_preparedGroups[index] = group;
+    return SLANG_OK;
+}
+
 Result BindingDataBuilder::createBindGroups()
 {
-    m_bindingData->bindGroupCount = 0;
+    m_bindingData->bindGroupCount = m_entries.size();
     m_bindingData->bindGroups = m_allocator->allocate<WGPUBindGroup>(m_entries.size());
-
     for (size_t i = 0; i < m_entries.size(); ++i)
     {
-        WGPUBindGroupDescriptor desc = {};
-        desc.layout = m_bindGroupLayouts[i];
-        desc.entries = m_entries[i].data();
-        desc.entryCount = (uint32_t)m_entries[i].size();
-        WGPUBindGroup bindGroup = m_device->m_ctx.api.wgpuDeviceCreateBindGroup(m_device->m_ctx.device, &desc);
-        if (bindGroup)
-        {
-            m_bindingData->bindGroups[i] = bindGroup;
-            ++m_bindingData->bindGroupCount;
-        }
-        if (!bindGroup)
-        {
-            return SLANG_FAIL;
-        }
+        SLANG_RETURN_ON_FAIL(createBindGroup(i));
+        m_bindingData->bindGroups[i] = m_preparedGroups[i];
     }
     return SLANG_OK;
 }
@@ -359,7 +360,14 @@ Result BindingDataBuilder::bindAsValue(
                 // bindings it recursively contains.
                 //
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                if (bindingRangeInfo.isParameterBlock && subObjectLayout->getOwnDescriptorSetCount() == 0)
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsParameterBlock(subObject, objOffset, subObjectLayout));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(subObject, objOffset, subObjectLayout));
+                }
 
                 // When dealing with arrays of sub-objects, we need to make
                 // sure to increment the offset for each subsequent object
@@ -432,6 +440,68 @@ Result BindingDataBuilder::bindAsValue(
 
 Result BindingDataBuilder::bindAsParameterBlock(
     ShaderObject* shaderObject,
+    const BindingOffset& offset,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (!shaderObject->isFinalized())
+        return prepareParameterBlock(shaderObject, offset, specializedLayout);
+
+    auto& cache = m_bindingCache->parameterBlocks;
+    size_t first = m_entries.size();
+    size_t count = specializedLayout->getTotalDescriptorSetCount();
+    // Compiled usage and visibility can differ even for the same reflected block.
+    // Intern the actual native group schemas once for each consuming occurrence.
+    auto occurrence = std::make_tuple(m_rootLayout, first, count);
+    auto variant = m_bindingCache->variants.find(occurrence);
+    if (variant == m_bindingCache->variants.end())
+    {
+        ParameterBlockLayoutKey schema;
+        schema.push_back(count);
+        for (size_t i = first; i < first + count; ++i)
+        {
+            const auto& entries = m_rootLayout->m_bindGroupLayoutEntries[i];
+            schema.push_back(entries.size());
+            for (const auto& entry : entries)
+            {
+                schema.insert(
+                    schema.end(),
+                    {entry.binding,
+                     entry.visibility,
+                     uint64_t(entry.buffer.type),
+                     uint64_t(entry.buffer.hasDynamicOffset),
+                     entry.buffer.minBindingSize,
+                     uint64_t(entry.sampler.type),
+                     uint64_t(entry.texture.sampleType),
+                     uint64_t(entry.texture.viewDimension),
+                     uint64_t(entry.texture.multisampled),
+                     uint64_t(entry.storageTexture.access),
+                     uint64_t(entry.storageTexture.format),
+                     uint64_t(entry.storageTexture.viewDimension)}
+                );
+            }
+        }
+        size_t identity = cache.layouts.intern(std::move(schema));
+        variant = m_bindingCache->variants.emplace(occurrence, identity).first;
+        m_bindingCache->variantLayouts.push_back(const_cast<RootShaderObjectLayoutImpl*>(m_rootLayout));
+    }
+    auto key = cache.key(shaderObject, specializedLayout, variant->second);
+    if (auto prepared = cache.find(key))
+    {
+        m_entries.resize(first + count);
+        m_preparedGroups.insert(m_preparedGroups.end(), prepared->begin(), prepared->end());
+        return SLANG_OK;
+    }
+    SLANG_RETURN_ON_FAIL(prepareParameterBlock(shaderObject, offset, specializedLayout));
+    SLANG_RHI_ASSERT(m_entries.size() == first + count);
+    for (size_t i = first; i < first + count; ++i)
+        SLANG_RETURN_ON_FAIL(createBindGroup(i));
+    cache.insert(key, std::vector<WGPUBindGroup>(m_preparedGroups.begin() + first, m_preparedGroups.end()));
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::prepareParameterBlock(
+    ShaderObject* shaderObject,
     const BindingOffset& inOffset,
     ShaderObjectLayoutImpl* specializedLayout
 )
@@ -453,7 +523,7 @@ Result BindingDataBuilder::bindAsParameterBlock(
     //
     SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, offset, specializedLayout));
 
-    SLANG_RHI_ASSERT(offset.bindingSet < (uint32_t)m_entries.size());
+    SLANG_RHI_ASSERT(offset.bindingSet <= (uint32_t)m_entries.size());
     SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, offset, specializedLayout));
 
     return SLANG_OK;
@@ -478,6 +548,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(bufferSize, allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, bufferSize, specializedLayout));
+    if (testing::gParameterBlockCacheStats)
+        testing::gParameterBlockCacheStats->uploadBytesPrepared += bufferSize;
 
     writeBufferDescriptor(*this, ioOffset, allocation.buffer, allocation.offset, bufferSize);
     ioOffset.binding++;
@@ -530,20 +602,14 @@ Result BindingDataBuilder::bindAsEntryPoint(
     return SLANG_OK;
 }
 
-void BindingDataImpl::release(DeviceImpl* device)
-{
-    for (size_t i = 0; i < bindGroupCount; ++i)
-    {
-        device->m_ctx.api.wgpuBindGroupRelease(bindGroups[i]);
-    }
-}
-
 void BindingCache::reset(DeviceImpl* device)
 {
-    for (auto data : bindingData)
-    {
-        data->release(device);
-    }
+    for (auto group : ownedBindGroups)
+        device->m_ctx.api.wgpuBindGroupRelease(group);
+    ownedBindGroups.clear();
+    parameterBlocks.reset();
+    variants.clear();
+    variantLayouts.clear();
 }
 
 } // namespace rhi::wgpu

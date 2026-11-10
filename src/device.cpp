@@ -14,6 +14,7 @@ namespace rhi {
 
 namespace testing {
 bool gDebugDisableStateTracking = false;
+thread_local ParameterBlockCacheStats* gParameterBlockCacheStats = nullptr;
 std::atomic<uint64_t> gResourceCount{0};
 
 Device* getUnderlyingDevice(IDevice* device)

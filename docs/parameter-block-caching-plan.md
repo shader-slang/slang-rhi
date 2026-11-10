@@ -1,8 +1,9 @@
 # Finalized parameter-block caching plan
 
-Status: proposed implementation plan. This document describes intended behavior,
-not an implemented feature. The prerequisite Vulkan synthetic-resource policy is decided: extra bindings
-must occupy separately owned sets, implemented in a separate change before caching.
+Status: implemented; see [implementation and validation notes](parameter-block-caching.md).
+This document records the design and acceptance criteria. The prerequisite Vulkan
+synthetic-resource ownership change is present: extra bindings occupy separately
+owned sets. Compiler and platform validation limits are recorded in the implementation notes.
 
 ## Objective
 

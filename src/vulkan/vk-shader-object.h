@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "vk-base.h"
 #include "vk-shader-object-layout.h"
 #include "../transient-buffer-heap.h"
@@ -73,6 +75,12 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout
     );
 
+    Result prepareParameterBlock(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+
     /// Bind this object as a `ParameterBlock<X>`.
     Result bindAsParameterBlock(
         ShaderObject* shaderObject,
@@ -110,6 +118,8 @@ public:
         size_t size;
     };
 
+    PreparedBindingLink<BindingDataImpl>* preparedBlocks;
+
     /// Required buffer states.
     BufferState* bufferStates;
     uint32_t bufferStateCapacity;
@@ -129,6 +139,7 @@ public:
     /// Push constants.
     VkPushConstantRange* pushConstantRanges;
     void** pushConstantData;
+    uint32_t* pushConstantIndices;
     uint32_t pushConstantCount;
 
     /// Entry point data (for ray tracing SBT).
@@ -138,9 +149,14 @@ public:
 
 struct BindingCache
 {
-    std::vector<BindingDataImpl*> bindingData;
+    ParameterBlockCache<BindingDataImpl*> parameterBlocks;
+    std::map<std::pair<ShaderObjectLayoutImpl*, uint64_t>, std::vector<uint32_t>> setPlacements;
 
-    void reset() { bindingData.clear(); }
+    void reset()
+    {
+        parameterBlocks.reset();
+        setPlacements.clear();
+    }
 };
 
 } // namespace rhi::vk

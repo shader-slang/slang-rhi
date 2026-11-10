@@ -100,6 +100,10 @@ public:
 
         /// Is this binding range specializable, e.g. an existential value or ParameterBlock<IFoo>.
         bool isSpecializable;
+
+        // Slang may report ConstantBuffer for a declared ParameterBlock with no
+        // own descriptor set. Keep the semantic boundary for subtree caching.
+        bool isParameterBlock = false;
     };
 
     struct SubObjectRangeInfo
@@ -201,6 +205,9 @@ public:
     virtual slang::TypeLayoutReflection* getParameterBlockTypeLayout() { return m_elementTypeLayout; }
 
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
+
+    // Structural description of the backend representation, excluding its placement in a root.
+    virtual void appendParameterBlockLayoutKey(std::vector<uint64_t>& key) = 0;
 };
 
 
@@ -248,6 +255,8 @@ public:
 
     // True if the shader object is finalized and no further modifications are allowed.
     bool m_finalized = false;
+
+    ExtendedShaderObjectTypeList m_finalizedSpecializationArgs;
 
     // The specialized shader object type.
     ExtendedShaderObjectType m_shaderObjectType = {nullptr, kInvalidComponentID};
@@ -351,6 +360,7 @@ public:
     // IShaderObject implementation
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override;
 
 public:
     static Result create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject);

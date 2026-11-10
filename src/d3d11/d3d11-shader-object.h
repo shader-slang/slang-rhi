@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../parameter-block-cache.h"
+
 #include "d3d11-base.h"
 #include "d3d11-shader-object-layout.h"
 #include "d3d11-constant-buffer-pool.h"
@@ -23,6 +25,12 @@ struct BindingDataBuilder
 
     /// Bind this object as if it was declared as a `ConstantBuffer<T>` in Slang
     Result bindAsConstantBuffer(
+        ShaderObject* shaderObject,
+        const BindingOffset& offset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+
+    Result bindAsParameterBlock(
         ShaderObject* shaderObject,
         const BindingOffset& offset,
         ShaderObjectLayoutImpl* specializedLayout
@@ -70,6 +78,7 @@ public:
 
 struct BindingCache : public RefObject
 {
+    ParameterBlockCache<BindingDataImpl*> parameterBlocks;
     void reset();
 };
 

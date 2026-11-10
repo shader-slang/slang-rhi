@@ -50,6 +50,12 @@ public:
 
     CommandBufferImpl(Device* device);
 
+    Result reset() override
+    {
+        m_bindingCache.reset();
+        return CommandBuffer::reset();
+    }
+
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };

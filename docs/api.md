@@ -127,6 +127,13 @@
 | `finalize`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `isFinalized`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 
+`finalize()` freezes the transitive shader-object graph, including root entry
+points and specialization arguments. Resource contents remain mutable. Finalized
+`ParameterBlock<T>` objects reuse prepared bindings within one command-buffer
+recording across compatible layouts and programs; mutable roots remain supported.
+See [parameter-block caching](parameter-block-caching.md) for ownership, layout
+compatibility, backend behavior, and validation coverage.
+
 ## `ISyntheticShaderProgram` interface
 
 Optional API declared in

@@ -14,6 +14,26 @@
 
 namespace rhi::metal {
 
+template<typename Encoder>
+static void declareBindingResources(Encoder* encoder, BindingDataImpl* data)
+{
+    for (auto link = data->preparedBlocks; link; link = link->next)
+        declareBindingResources(encoder, link->data);
+    if (data->usedResourceCount)
+        encoder->useResources(
+            (const MTL::Resource* const*)data->usedResources,
+            data->usedResourceCount,
+            MTL::ResourceUsageRead
+        );
+    if (data->usedRWResourceCount)
+        encoder->useResources(
+            (const MTL::Resource* const*)data->usedRWResources,
+            data->usedRWResourceCount,
+            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+        );
+}
+
+
 static void addErrorHandler(MTL::CommandBuffer* commandBuffer)
 {
     commandBuffer->addCompletedHandler(^(MTL::CommandBuffer* cb) {
@@ -601,24 +621,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         encoder->setFragmentSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
 
         if (!m_device->m_hasResidencySet)
-        {
-            if (m_bindingData->usedResourceCount > 0)
-            {
-                encoder->useResources(
-                    (const MTL::Resource* const*)m_bindingData->usedResources,
-                    m_bindingData->usedResourceCount,
-                    MTL::ResourceUsageRead
-                );
-            }
-            if (m_bindingData->usedRWResourceCount > 0)
-            {
-                encoder->useResources(
-                    (const MTL::Resource* const*)m_bindingData->usedRWResources,
-                    m_bindingData->usedRWResourceCount,
-                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
-                );
-            }
-        }
+            declareBindingResources(encoder, m_bindingData);
     }
 
     if (updateVertexBuffers)
@@ -839,22 +842,7 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
 
         if (!m_device->m_hasResidencySet)
         {
-            if (m_bindingData->usedResourceCount > 0)
-            {
-                encoder->useResources(
-                    (const MTL::Resource* const*)m_bindingData->usedResources,
-                    m_bindingData->usedResourceCount,
-                    MTL::ResourceUsageRead
-                );
-            }
-            if (m_bindingData->usedRWResourceCount > 0)
-            {
-                encoder->useResources(
-                    (const MTL::Resource* const*)m_bindingData->usedRWResources,
-                    m_bindingData->usedRWResourceCount,
-                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
-                );
-            }
+            declareBindingResources(encoder, m_bindingData);
 
             auto accelerationStructureResources = m_device->getAccelerationStructureResources();
             if (!accelerationStructureResources.empty())
