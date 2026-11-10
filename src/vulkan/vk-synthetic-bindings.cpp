@@ -9,26 +9,46 @@
 
 namespace rhi::vk {
 
-Result RootShaderObjectLayoutImpl::Builder::addSyntheticDescriptorSetBinding(
-    uint32_t descriptorSetIndex,
-    const VkDescriptorSetLayoutBinding& bindingDesc
+// Collect borrowed child layouts using the same relative offsets as runtime
+// binding. No per-program placement tree or merged child layout is needed.
+Result RootShaderObjectLayoutImpl::Builder::collectChildDescriptorSets(
+    const std::vector<SubObjectRangeInfo>& subObjects,
+    const std::vector<BindingRangeInfo>& ranges,
+    uint64_t space
 )
 {
-    auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
-    for (const auto& existingBinding : descriptorSetInfo.vkBindings)
+    for (const auto& subObject : subObjects)
     {
-        if (existingBinding.binding == bindingDesc.binding)
+        const auto& range = ranges[subObject.bindingRangeIndex];
+        if (!subObject.layout || (range.bindingType != slang::BindingType::ParameterBlock &&
+                                  range.bindingType != slang::BindingType::ConstantBuffer &&
+                                  range.bindingType != slang::BindingType::PushConstant))
+            continue;
+        for (uint32_t i = 0; i < range.count; ++i)
         {
-            m_device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Layer,
-                "Duplicate Vulkan descriptor binding between synthetic resources"
-            );
-            return SLANG_E_INVALID_ARG;
+            uint64_t childSpace = space + subObject.offset.space + i * subObject.stride.space;
+            if (range.bindingType == slang::BindingType::ParameterBlock)
+            {
+                for (const auto& set : subObject.layout->getOwnDescriptorSets())
+                {
+                    uint64_t setIndex = childSpace + uint32_t(set.space);
+                    if (set.space < 0 || setIndex >= kMaxDescriptorSets)
+                    {
+                        m_device->printError("Descriptor set space exceeds Vulkan layout limit");
+                        return SLANG_E_INVALID_ARG;
+                    }
+                    if (m_descriptorSetLayouts.size() <= setIndex)
+                        m_descriptorSetLayouts.resize(size_t(setIndex) + 1);
+                    m_descriptorSetLayouts[size_t(setIndex)] = set.descriptorSetLayout;
+                }
+            }
+            SLANG_RETURN_ON_FAIL(collectChildDescriptorSets(
+                subObject.layout->getSubObjectRanges(),
+                subObject.layout->getBindingRanges(),
+                childSpace + subObject.elementSpace
+            ));
         }
     }
-
-    descriptorSetInfo.vkBindings.push_back(bindingDesc);
     return SLANG_OK;
 }
 
@@ -37,7 +57,13 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
     if (!m_syntheticResources)
         return SLANG_OK;
 
-    SLANG_RETURN_ON_FAIL(collectDescriptorSetPlacements());
+    SLANG_RETURN_ON_FAIL(collectChildDescriptorSets(m_subObjectRanges, m_bindingRanges, m_globalSpace));
+    for (const auto& entryPoint : m_entryPoints)
+        SLANG_RETURN_ON_FAIL(collectChildDescriptorSets(
+            entryPoint.layout->getSubObjectRanges(),
+            entryPoint.layout->getBindingRanges(),
+            entryPoint.offset.space
+        ));
 
     // Validate all requested sets before adding any synthetic ranges. Several
     // synthetic resources may share a set, but none may extend a reflected set.
@@ -52,7 +78,7 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
             );
             return SLANG_E_INVALID_ARG;
         }
-        const auto& childLayouts = m_descriptorSetPlacements->layouts;
+        const auto& childLayouts = m_descriptorSetLayouts;
         bool reflectedSet = m_mapSpaceToDescriptorSetIndex.find(resource.space) != m_mapSpaceToDescriptorSetIndex.end();
         reflectedSet |=
             uint32_t(resource.space) < childLayouts.size() && childLayouts[resource.space] != VK_NULL_HANDLE;
@@ -73,17 +99,22 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
         SLANG_RETURN_ON_FAIL(_addSyntheticResource(resource));
     }
 
-    return SLANG_OK;
-}
+    // Root-owned empty sets fill gaps through the normal layout/allocation
+    // path. Child-owned sets are left intact.
+    for (const auto& set : m_descriptorSetBuildInfos)
+    {
+        if (set.space < 0 || uint32_t(set.space) >= kMaxDescriptorSets)
+            return SLANG_E_INVALID_ARG;
+        if (m_descriptorSetLayouts.size() <= uint32_t(set.space))
+            m_descriptorSetLayouts.resize(uint32_t(set.space) + 1);
+    }
+    for (uint32_t space = 0; space < m_descriptorSetLayouts.size(); ++space)
+    {
+        uint32_t unused;
+        if (!m_descriptorSetLayouts[space])
+            SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet(space, &unused));
+    }
 
-Result RootShaderObjectLayoutImpl::Builder::_addSyntheticResource(const SyntheticResourceBindingRecord& resource)
-{
-    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
-    SLANG_RETURN_ON_FAIL(_validateSyntheticResource(resource, &descriptorType));
-
-    uint32_t bindingRangeIndex = 0;
-    SLANG_RETURN_ON_FAIL(_addSyntheticDescriptorRange(resource, descriptorType, &bindingRangeIndex));
-    _recordSyntheticBindingLocation(resource, bindingRangeIndex);
     return SLANG_OK;
 }
 
@@ -131,27 +162,29 @@ Result RootShaderObjectLayoutImpl::Builder::_validateSyntheticResource(
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
-    const SyntheticResourceBindingRecord& resource,
-    VkDescriptorType descriptorType,
-    uint32_t* outBindingRangeIndex
-)
+Result RootShaderObjectLayoutImpl::Builder::_addSyntheticResource(const SyntheticResourceBindingRecord& resource)
 {
-    if (!outBindingRangeIndex)
-        return SLANG_E_INVALID_ARG;
+    VkDescriptorType descriptorType;
+    SLANG_RETURN_ON_FAIL(_validateSyntheticResource(resource, &descriptorType));
 
     uint32_t descriptorSetIndex = 0;
     SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
-    auto& layouts = m_descriptorSetPlacements->layouts;
-    if (layouts.size() <= uint32_t(resource.space))
-        layouts.resize(uint32_t(resource.space) + 1);
+    auto& bindings = m_descriptorSetBuildInfos[descriptorSetIndex].vkBindings;
+    for (const auto& existing : bindings)
+    {
+        if (existing.binding == uint32_t(resource.binding))
+        {
+            m_device->printError("Duplicate Vulkan descriptor binding between synthetic resources");
+            return SLANG_E_INVALID_ARG;
+        }
+    }
 
     VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
     vkBindingRangeDesc.binding = (uint32_t)resource.binding;
     vkBindingRangeDesc.descriptorCount = resource.arraySize;
     vkBindingRangeDesc.descriptorType = descriptorType;
     vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-    SLANG_RETURN_ON_FAIL(addSyntheticDescriptorSetBinding(descriptorSetIndex, vkBindingRangeDesc));
+    bindings.push_back(vkBindingRangeDesc);
 
     if (resource.arraySize > std::numeric_limits<uint32_t>::max() - m_slotCount)
         return SLANG_E_INVALID_ARG;
@@ -167,16 +200,8 @@ Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
     bindingRangeInfo.bindingOffset = (uint32_t)resource.binding;
     bindingRangeInfo.setOffset = (uint32_t)resource.space;
 
-    *outBindingRangeIndex = (uint32_t)m_bindingRanges.size();
+    uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
     m_bindingRanges.push_back(bindingRangeInfo);
-    return SLANG_OK;
-}
-
-void RootShaderObjectLayoutImpl::Builder::_recordSyntheticBindingLocation(
-    const SyntheticResourceBindingRecord& resource,
-    uint32_t bindingRangeIndex
-)
-{
     SyntheticBindingLocation location = {};
     location.syntheticResourceID = resource.id;
     location.bindingType = resource.bindingType;
@@ -187,6 +212,7 @@ void RootShaderObjectLayoutImpl::Builder::_recordSyntheticBindingLocation(
     location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 
     m_syntheticLocations.push_back(location);
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk
