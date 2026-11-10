@@ -18,6 +18,7 @@ struct BindingDataBuilder
     BindingDataImpl* m_bindingData;
     TransientBufferArena* m_constantBufferArena;
     DescriptorSetAllocator* m_descriptorSetAllocator;
+    bool m_useDescriptorSetPlacements = false;
 
     // TODO remove
     std::span<const VkPushConstantRange> m_pushConstantRanges;

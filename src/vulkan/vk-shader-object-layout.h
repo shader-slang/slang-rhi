@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
-#include "vk-descriptor-set-composition.h"
+#include "vk-descriptor-set-placement.h"
 
 #include <memory>
 
@@ -439,9 +439,8 @@ public:
 
         Result addEntryPoint(EntryPointLayout* entryPointLayout);
         Result addSyntheticResources();
-        /// Compose reflected object occurrences into explicit descriptor-set placements.
-        Result composeDescriptorSets();
-        Result findOrAddComposedDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        /// Locate reflected sets without changing their ownership or layouts.
+        Result collectDescriptorSetPlacements();
         Result addSyntheticDescriptorSetBinding(
             uint32_t descriptorSetIndex,
             const VkDescriptorSetLayoutBinding& binding
@@ -464,7 +463,7 @@ public:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         SyntheticResourceBindingState* m_syntheticResources = nullptr;
-        std::unique_ptr<DescriptorSetComposition> m_descriptorSetComposition;
+        std::unique_ptr<DescriptorSetPlacements> m_descriptorSetPlacements;
         std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
     };
@@ -488,6 +487,12 @@ public:
     /// Get all of the push constant ranges that will be bound for this object and all
     /// (transitive) sub-objects
     const std::vector<VkPushConstantRange>& getAllPushConstantRanges() { return m_allPushConstantRanges; }
+
+    uint32_t getTotalDescriptorSetCount()
+    {
+        return m_descriptorSetPlacements ? uint32_t(m_descriptorSetPlacements->layouts.size())
+                                         : Super::getTotalDescriptorSetCount();
+    }
 
     // ShaderObjectLayout interface
     virtual uint32_t getEntryPointCount() const override { return m_entryPoints.size(); }
@@ -523,8 +528,9 @@ public:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
-    // Absent for ordinary layouts, which retain per-object descriptor allocation.
-    std::unique_ptr<DescriptorSetComposition> m_descriptorSetComposition;
+    // Only needed for explicit synthetic sets; all objects retain their own layouts.
+    std::unique_ptr<DescriptorSetPlacements> m_descriptorSetPlacements;
+    VkDescriptorSetLayout m_emptyDescriptorSetLayout = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     std::vector<VkPushConstantRange> m_allPushConstantRanges;

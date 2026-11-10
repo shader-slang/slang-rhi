@@ -142,6 +142,8 @@ Optional API declared in
 ## Shader program synthetic resource descriptors
 
 CUDA and Vulkan currently support only `SyntheticResourceScope::Global`.
+Vulkan requires synthetic-only descriptor sets; sharing a set with reflected
+resources (including parameter blocks) returns `SLANG_E_INVALID_ARG`.
 Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creation.
 
 | Descriptor path                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |

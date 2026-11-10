@@ -326,7 +326,7 @@ static void compareReflectedBindingLocations(vk::ShaderObjectLayoutImpl* a, vk::
     }
 }
 
-GPU_TEST_CASE_EX("synthetic-resource-bindings-layout-composition", Vulkan, DebugLayerOptions{})
+GPU_TEST_CASE_EX("synthetic-resource-bindings-independent-sets", Vulkan, DebugLayerOptions{})
 {
     bool array = false;
     bool specialize = false;
@@ -355,24 +355,44 @@ GPU_TEST_CASE_EX("synthetic-resource-bindings-layout-composition", Vulkan, Debug
     resource.id = 1;
     resource.bindingType = slang::BindingType::MutableRawBuffer;
     resource.arraySize = 1;
-    resource.space = 1;
+    resource.space = 4;
     resource.binding = 11;
     resource.access = SyntheticResourceAccess::ReadWrite;
 
     ComPtr<IShaderProgram> programs[3];
     REQUIRE_CALL(createComputeProgram(device, source, programs[0].writeRef()));
     REQUIRE_CALL(createComputeProgramWithEmptySyntheticResourceDesc(device, source, programs[1].writeRef()));
-    REQUIRE_CALL(createComputeProgramWithSyntheticResource(device, source, resource, programs[2].writeRef()));
+    SyntheticResourceBindingDesc resources[] = {resource, resource};
+    resources[1].id = 2;
+    resources[1].binding = 12;
+    REQUIRE_CALL(createComputeProgramWithSyntheticResources(device, source, resources, 2, programs[2].writeRef()));
     vk::RootShaderObjectLayoutImpl* layouts[3];
     for (uint32_t i = 0; i < 3; ++i)
         layouts[i] = static_cast<vk::ShaderProgramImpl*>(programs[i].get())->m_rootShaderObjectLayout;
 
-    CHECK_FALSE(layouts[0]->m_descriptorSetComposition);
-    CHECK_FALSE(layouts[1]->m_descriptorSetComposition);
-    REQUIRE(layouts[2]->m_descriptorSetComposition);
+    CHECK_FALSE(layouts[0]->m_descriptorSetPlacements);
+    CHECK_FALSE(layouts[1]->m_descriptorSetPlacements);
+    REQUIRE(layouts[2]->m_descriptorSetPlacements);
     CHECK_EQ(layouts[0]->getOwnDescriptorSetCount(), layouts[1]->getOwnDescriptorSetCount());
     CHECK_EQ(layouts[0]->getTotalDescriptorSetCount(), layouts[1]->getTotalDescriptorSetCount());
-    CHECK_EQ(layouts[0]->getTotalDescriptorSetCount(), layouts[2]->getTotalDescriptorSetCount());
+    CHECK_EQ(layouts[0]->getOwnDescriptorSetCount() + 1, layouts[2]->getOwnDescriptorSetCount());
+    CHECK_EQ(layouts[0]->getChildDescriptorSetCount(), layouts[2]->getChildDescriptorSetCount());
+    CHECK_EQ(layouts[2]->getTotalDescriptorSetCount(), 5u);
+    if (!specialize)
+    {
+        for (const auto& subObject : layouts[2]->getSubObjectRanges())
+        {
+            const auto& range = layouts[2]->getBindingRange(subObject.bindingRangeIndex);
+            if (range.bindingType != slang::BindingType::ParameterBlock)
+                continue;
+            const auto& placement = layouts[2]->m_descriptorSetPlacements->root.subObjects[range.subObjectIndex];
+            for (const auto& set : subObject.layout->getOwnDescriptorSets())
+            {
+                REQUIRE_LT(placement.firstSet + set.space, layouts[2]->m_vkDescriptorSetLayouts.size());
+                CHECK_EQ(layouts[2]->m_vkDescriptorSetLayouts[placement.firstSet + set.space], set.descriptorSetLayout);
+            }
+        }
+    }
     compareReflectedBindingLocations(layouts[0], layouts[1]);
     compareReflectedBindingLocations(layouts[0], layouts[2]);
 
@@ -413,7 +433,10 @@ GPU_TEST_CASE_EX("synthetic-resource-bindings-layout-composition", Vulkan, Debug
         auto output = createTestBuffer(device, sizeof(zero), &zero);
         REQUIRE_CALL(ShaderCursor(root).getPath("output").setBinding(output));
         if (i == 2)
-            REQUIRE_CALL(bindSyntheticResource(programs[i], root, resource.id, Binding(output)));
+        {
+            for (const auto& extra : resources)
+                REQUIRE_CALL(bindSyntheticResource(programs[i], root, extra.id, Binding(output)));
+        }
         ComputePipelineDesc desc = {};
         desc.program = programs[i];
         auto pipeline = device->createComputePipeline(desc);
@@ -503,7 +526,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     syntheticResourceDesc.arraySize = 1;
     syntheticResourceDesc.scope = SyntheticResourceScope::Global;
     syntheticResourceDesc.access = SyntheticResourceAccess::ReadWrite;
-    syntheticResourceDesc.space = 0;
+    syntheticResourceDesc.space = 1;
     syntheticResourceDesc.binding = 11;
     syntheticResourceDesc.uniformOffset = 16;
     syntheticResourceDesc.uniformStride = 16;
@@ -545,7 +568,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     syntheticResourceDesc.arraySize = 1;
     syntheticResourceDesc.scope = SyntheticResourceScope::Global;
     syntheticResourceDesc.access = SyntheticResourceAccess::ReadWrite;
-    syntheticResourceDesc.space = 0;
+    syntheticResourceDesc.space = 1;
     syntheticResourceDesc.binding = 11;
     syntheticResourceDesc.uniformOffset = 16;
     syntheticResourceDesc.uniformStride = 16;
@@ -627,7 +650,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         desc.arraySize = 1;
         desc.scope = SyntheticResourceScope::Global;
         desc.access = SyntheticResourceAccess::ReadWrite;
-        desc.space = 0;
+        desc.space = 1;
         desc.binding = 11;
         desc.uniformOffset = 16;
         desc.uniformStride = 16;
@@ -690,9 +713,10 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         callback.errors.clear();
 
         desc = makeSyntheticResourceDesc();
-        desc.binding = 0;
+        desc.space = 0;
+        desc.binding = 11;
         checkCreateFails(desc, SLANG_E_INVALID_ARG);
-        CHECK(callback.errors.find("Duplicate Vulkan descriptor binding") != std::string::npos);
+        CHECK(callback.errors.find("separate Vulkan descriptor set") != std::string::npos);
     }
 
     if (testDevice->getDeviceType() == DeviceType::CUDA)
@@ -773,7 +797,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         desc.arraySize = 1;
         desc.scope = SyntheticResourceScope::Global;
         desc.access = SyntheticResourceAccess::ReadWrite;
-        desc.space = 0;
+        desc.space = 1;
         desc.binding = 11;
         desc.uniformOffset = 16;
         desc.uniformStride = 16;
@@ -833,7 +857,8 @@ static void testCoverageMetadata(
     int32_t coverageSpace = 3,
     bool entryPointParameter = false,
     const char* inputPath = nullptr,
-    uint32_t expectedChildSet = 0
+    uint32_t expectedChildSet = 0,
+    bool expectRejectedSet = false
 )
 {
     static constexpr uint32_t kCoverageBinding = 11;
@@ -863,6 +888,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
     shaderSource += ";\n}\n";
 
     DeviceExtraOptions extraOptions = {};
+    SyntheticLayoutDebugCallback callback;
+    if (expectRejectedSet)
+        extraOptions.debugCallback = &callback;
     if (requestedCounterByteWidth == 4)
     {
         slang::CompilerOptionEntry width = {};
@@ -897,7 +925,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
     uint32_t coverageCounterCount = 0;
     uint32_t counterByteWidth = 0;
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(createComputeProgramFromCoverageMetadata(
+    Result result = createComputeProgramFromCoverageMetadata(
         localDevice,
         shaderSource,
         shaderProgram.writeRef(),
@@ -905,7 +933,15 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
         &syntheticResourceDebugNames,
         &coverageCounterCount,
         &counterByteWidth
-    ));
+    );
+    if (expectRejectedSet)
+    {
+        CHECK_EQ(result, SLANG_E_INVALID_ARG);
+        CHECK(shaderProgram == nullptr);
+        CHECK(callback.errors.find("separate Vulkan descriptor set") != std::string::npos);
+        return;
+    }
+    REQUIRE_CALL(result);
 
     REQUIRE_EQ(syntheticResources.size(), 1u);
     REQUIRE_GT(coverageCounterCount, 0u);
@@ -942,9 +978,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)";
         // Check placement before creating a pipeline: a wrong set would make
         // the pipeline invalid, so it must never reach dispatch in this test.
         auto* layout = static_cast<vk::ShaderProgramImpl*>(shaderProgram.get())->m_rootShaderObjectLayout.get();
-        REQUIRE(layout->m_descriptorSetComposition);
-        const auto& placement = entryPointParameter ? layout->m_descriptorSetComposition->entryPoints[0]
-                                                    : layout->m_descriptorSetComposition->root;
+        REQUIRE(layout->m_descriptorSetPlacements);
+        const auto& placement = entryPointParameter ? layout->m_descriptorSetPlacements->entryPoints[0]
+                                                    : layout->m_descriptorSetPlacements->root;
         REQUIRE_GT(placement.subObjects.size(), 0u);
         REQUIRE_EQ(placement.subObjects[0].firstSet, expectedChildSet);
     }
@@ -1037,11 +1073,10 @@ GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata-64", Vulkan | CUD
     testCoverageMetadata(ctx, 8);
 }
 
-// Exercise compiler-assigned and explicit coverage sets alongside a child set,
-// including sharing that set at a distinct binding and nested ParameterBlocks.
+// Exercise compiler-assigned and explicit dedicated coverage sets alongside a child set.
 GPU_TEST_CASE("synthetic-resource-bindings-parameter-block", Vulkan | DontCreateDevice)
 {
-    for (int32_t space : {-1, 0, 3})
+    for (int32_t space : {-1, 3})
     {
         CAPTURE(space);
         testCoverageMetadata(
@@ -1054,8 +1089,25 @@ GPU_TEST_CASE("synthetic-resource-bindings-parameter-block", Vulkan | DontCreate
     }
 }
 
+// Slang accepts an explicit free binding in the scene's set; RHI rejects that
+// metadata because the descriptor set belongs to the scene parameter block.
+GPU_TEST_CASE("synthetic-resource-bindings-coverage-shared-set-rejected", Vulkan | DontCreateDevice)
+{
+    testCoverageMetadata(
+        ctx,
+        4,
+        "struct Params { RWStructuredBuffer<uint> outBuffer; }; ParameterBlock<Params> params;",
+        "params.outBuffer",
+        0,
+        false,
+        nullptr,
+        0,
+        true
+    );
+}
+
 // A reflected root binding at set 3 must not move the compiler-assigned child
-// from set 0 to set 4. Use real coverage metadata sharing the root's set.
+// from set 0 to set 4. Coverage uses a dedicated set after the root's set.
 GPU_TEST_CASE("synthetic-resource-bindings-sparse-root-child", Vulkan | DontCreateDevice)
 {
     std::string declarations;
@@ -1086,7 +1138,12 @@ GPU_TEST_CASE("synthetic-resource-bindings-sparse-root-child", Vulkan | DontCrea
         entryPoint = true;
     }
     declarations += "[[vk::binding(0, 3)]] RWStructuredBuffer<uint> outBuffer;";
-    testCoverageMetadata(ctx, 4, declarations.c_str(), "outBuffer", 3, entryPoint, inputPath, expectedChildSet);
+    // Both an unused gap and a set after all reflected resources are valid.
+    for (int32_t space : {2, 4})
+    {
+        CAPTURE(space);
+        testCoverageMetadata(ctx, 4, declarations.c_str(), "outBuffer", space, entryPoint, inputPath, expectedChildSet);
+    }
 }
 
 GPU_TEST_CASE("synthetic-resource-bindings-nested-parameter-block", Vulkan | DontCreateDevice)
@@ -1108,31 +1165,59 @@ GPU_TEST_CASE("synthetic-resource-bindings-entry-point-parameter-block", Vulkan 
     testCoverageMetadata(ctx, 4, "struct Params { RWStructuredBuffer<uint> outBuffer; };", "params.outBuffer", 3, true);
 }
 
-// A synthetic binding cannot overwrite an ordinary binding in a child set.
-GPU_TEST_CASE("synthetic-resource-bindings-child-binding-collision", Vulkan)
+// A synthetic binding cannot extend any reflected set, even at an unused binding.
+GPU_TEST_CASE("synthetic-resource-bindings-reflected-set-rejected", Vulkan)
 {
     SyntheticLayoutDebugCallback callback;
     DeviceExtraOptions extraOptions;
     extraOptions.debugCallback = &callback;
     ComPtr<IDevice> testDevice = createTestingDevice(ctx, device->getDeviceType(), false, &extraOptions);
     REQUIRE(testDevice);
-    const char* source = R"(
-struct Params { RWStructuredBuffer<uint> outBuffer; };
-ParameterBlock<Params> params;
-[shader("compute")][numthreads(1, 1, 1)]
-void computeMain() { params.outBuffer[0] = 10; }
-)";
+    std::string declarations;
+    std::string body;
+    std::string parameters;
+    SUBCASE("root resource")
+    {
+        declarations = "RWStructuredBuffer<uint> outBuffer;";
+        body = "outBuffer[0] = 10;";
+    }
+    SUBCASE("parameter block")
+    {
+        declarations = "struct Params { RWStructuredBuffer<uint> outBuffer; }; ParameterBlock<Params> params;";
+        body = "params.outBuffer[0] = 10;";
+    }
+    SUBCASE("nested parameter block")
+    {
+        declarations =
+            "struct Inner { RWStructuredBuffer<uint> outBuffer; }; "
+            "struct Outer { ParameterBlock<Inner> inner; }; ParameterBlock<Outer> params;";
+        body = "params.inner.outBuffer[0] = 10;";
+    }
+    SUBCASE("entry-point parameter block")
+    {
+        declarations = "struct Params { RWStructuredBuffer<uint> outBuffer; };";
+        parameters = "uniform ParameterBlock<Params> params";
+        body = "params.outBuffer[0] = 10;";
+    }
+    std::string source = declarations + "\n[shader(\"compute\")][numthreads(1,1,1)] void computeMain(" + parameters +
+                         ") { " + body + " }";
     SyntheticResourceBindingDesc desc = {};
     desc.id = 17;
     desc.bindingType = slang::BindingType::MutableRawBuffer;
     desc.space = 0;
-    desc.binding = 0;
     desc.access = SyntheticResourceAccess::ReadWrite;
-    ComPtr<IShaderProgram> program;
-    CHECK_EQ(
-        createComputeProgramWithSyntheticResource(testDevice, source, desc, program.writeRef()),
-        SLANG_E_INVALID_ARG
-    );
-    CHECK(program == nullptr);
-    CHECK(callback.errors.find("Duplicate Vulkan descriptor binding") != std::string::npos);
+    for (int32_t binding : {0, 11})
+    {
+        CAPTURE(binding);
+        desc.binding = binding;
+        callback.errors.clear();
+        ComPtr<IShaderProgram> program;
+        CHECK_EQ(
+            createComputeProgramWithSyntheticResource(testDevice, source, desc, program.writeRef()),
+            SLANG_E_INVALID_ARG
+        );
+        CHECK(program == nullptr);
+        CHECK(callback.errors.find("separate Vulkan descriptor set") != std::string::npos);
+        CHECK(callback.errors.find("recompile") != std::string::npos);
+    }
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "vk-api.h"
+
 #include <vector>
 #include <cstdint>
 
@@ -14,13 +16,15 @@ struct DescriptorSetPlacement
     std::vector<DescriptorSetPlacement> subObjects;
 };
 
-/// Maps a program's object tree to a single, composed descriptor-set layout.
-/// The root allocates all sets, including gaps and sets shared by added bindings.
-/// Runtime binding only consumes placements; it does not reconstruct allocation order.
-struct DescriptorSetComposition
+/// Places independently owned descriptor sets in a program's pipeline layout.
+/// Parameter blocks retain their own layouts and allocate their own sets.
+struct DescriptorSetPlacements
 {
     DescriptorSetPlacement root;
     std::vector<DescriptorSetPlacement> entryPoints;
+    // Borrowed child layouts at their absolute set numbers. Root sets and gaps
+    // are filled in when the root's native pipeline layout is created.
+    std::vector<VkDescriptorSetLayout> layouts;
 };
 
 } // namespace rhi::vk
