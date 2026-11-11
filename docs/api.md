@@ -400,10 +400,29 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `getConfig`        | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 | `configure`        | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 | `unconfigure`      | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `waitForNextImage` | :x: | yes  | yes   | yes   | yes    | yes   | native only |
 | `acquireNextImage` | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 | `present`          | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 
 Note: CUDA's surface is implemented using a Vulkan swapchain.
+
+`waitForNextImage` moves the backend's image-availability or frame-slot wait before input
+sampling. It may reserve an image internally, but does not expose it or assign synchronization
+to subsequent offscreen submissions. Call `acquireNextImage` when ready to submit work for the
+surface, then present as usual. Acquisition without an explicit wait remains supported.
+Repeated waits before acquisition refer to the same frame. Reconfiguring or unconfiguring
+discards an unexposed reservation without presenting it.
+
+This is not an exact display-deadline API: DXGI uses its frame-latency waitable object, Vulkan
+waits for native acquisition to complete, Metal reserves a drawable, and native WebGPU performs
+its available acquisition operation. Browser WebGPU returns `SLANG_E_NOT_IMPLEMENTED` because
+the browser event loop owns frame pacing; acquire within the browser's frame callback instead.
+DXGI swapchains use the waitable object's default maximum frame latency of one, including
+with VSync enabled and when the caller uses acquisition without an explicit wait.
+
+Metal and native WebGPU can return `SLANG_E_NOT_AVAILABLE` for a temporary drawable timeout
+while keeping `getConfig()` non-null. Retry acquisition in that case; a null configuration
+instead indicates that the swapchain needs to be configured again.
 
 If a window change invalidates the swapchain during `acquireNextImage` or `present`, Vulkan
 returns `SLANG_E_NOT_AVAILABLE` and `getConfig()` returns null. Acquisition returns no image;

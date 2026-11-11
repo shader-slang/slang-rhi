@@ -80,6 +80,28 @@ Result DebugSurface::unconfigure()
     return result;
 }
 
+Result DebugSurface::waitForNextImage()
+{
+    SLANG_RHI_DEBUG_API(ISurface, waitForNextImage);
+
+    if (!m_configured)
+    {
+        RHI_VALIDATION_ERROR("Surface is not configured.");
+        return SLANG_FAIL;
+    }
+    if (m_state == State::ImageAcquired)
+    {
+        RHI_VALIDATION_ERROR("Present the acquired image before waiting for another frame.");
+        return SLANG_FAIL;
+    }
+
+    // Waiting alone must not allow presentation or prevent a resize. Only acquireNextImage
+    // exposes an image, so repeated waits leave the public acquisition state unchanged.
+    Result result = baseObject->waitForNextImage();
+    m_configured = baseObject->getConfig() != nullptr;
+    return result;
+}
+
 Result DebugSurface::acquireNextImage(ITexture** outTexture)
 {
     SLANG_RHI_DEBUG_API(ISurface, acquireNextImage);
@@ -103,11 +125,10 @@ Result DebugSurface::acquireNextImage(ITexture** outTexture)
     }
 
     Result result = baseObject->acquireNextImage(outTexture);
-    if (result == SLANG_E_NOT_AVAILABLE)
-    {
-        m_configured = false;
-    }
-    else if (SLANG_SUCCEEDED(result))
+    // A drawable timeout need not invalidate the configuration. Follow the backend's state so
+    // retrying a temporary availability failure is not rejected by the validation layer.
+    m_configured = baseObject->getConfig() != nullptr;
+    if (SLANG_SUCCEEDED(result))
     {
         m_state = State::ImageAcquired;
     }

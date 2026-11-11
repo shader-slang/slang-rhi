@@ -21,6 +21,8 @@ static Format translateWGPUFormat(WGPUTextureFormat format)
 
 SurfaceImpl::~SurfaceImpl()
 {
+    // Release an unused reservation before its native surface is destroyed.
+    m_currentTexture = nullptr;
     if (m_surface)
     {
         m_device->m_ctx.api.wgpuSurfaceRelease(m_surface);
@@ -207,6 +209,9 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
         m_device->printWarning("WebGPU device had reported an error before surface configuration.");
 
+    // Reconfiguration invalidates the old native image, including an unexposed reservation.
+    m_currentTexture = nullptr;
+    m_imageAcquired = false;
     m_device->m_ctx.api.wgpuSurfaceConfigure(m_surface, &wgpuConfig);
     if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
         return SLANG_FAIL;
@@ -219,31 +224,57 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::unconfigure()
 {
-    if (!m_configured)
-    {
-        return SLANG_OK;
-    }
-
+    // Dropping a reserved image needs no artificial presentation.
+    m_currentTexture = nullptr;
+    m_imageAcquired = false;
+    // An outdated acquisition can invalidate the public configuration while native surface
+    // resources still exist, so unconfigure them even when getConfig() already returns null.
     m_device->m_ctx.api.wgpuSurfaceUnconfigure(m_surface);
     m_configured = false;
 
     return SLANG_OK;
 }
 
-Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+Result SurfaceImpl::waitForNextImage()
 {
-    *outTexture = nullptr;
+#if SLANG_WASM
+    // Browser canvas images expire at event-loop boundaries. The browser must schedule the
+    // frame (for example with requestAnimationFrame); a blocking native wait cannot do that.
+    return SLANG_E_NOT_IMPLEMENTED;
+#else
+    // Native WebGPU performs its acquisition work here. It does not expose an exact display
+    // deadline or a separate readiness fence, so this only moves the backend's acquisition wait.
+    return prepareNextImage();
+#endif
+}
 
-    if (!m_configured)
+Result SurfaceImpl::prepareNextImage()
+{
+    if (!m_configured || m_imageAcquired)
     {
         return SLANG_FAIL;
     }
+    if (m_currentTexture)
+        return SLANG_OK;
 
-    WGPUSurfaceTexture surfaceTexture;
+    WGPUSurfaceTexture surfaceTexture = {};
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
         surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
     {
+        // Some implementations return an owned texture even for an unsuccessful acquisition.
+        if (surfaceTexture.texture)
+            m_device->m_ctx.api.wgpuTextureRelease(surfaceTexture.texture);
+        // Timeouts can be retried, while an outdated image needs a new swapchain configuration.
+        // Surface loss and device errors remain failures because configuration alone cannot
+        // promise to recover a lost native surface.
+        if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_Timeout)
+            return SLANG_E_NOT_AVAILABLE;
+        if (surfaceTexture.status == WGPUSurfaceGetCurrentTextureStatus_Outdated)
+        {
+            m_configured = false;
+            return SLANG_E_NOT_AVAILABLE;
+        }
         return SLANG_FAIL;
     }
 
@@ -260,19 +291,32 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
     texture->m_texture = surfaceTexture.texture;
-    returnComPtr(outTexture, texture);
+    m_currentTexture = texture;
+    return SLANG_OK;
+}
+
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+{
+    *outTexture = nullptr;
+    // Acquire without wait remains available on every platform, including browser frame callbacks.
+    SLANG_RETURN_ON_FAIL(prepareNextImage());
+    m_imageAcquired = true;
+    returnComPtrCopy(outTexture, m_currentTexture);
     return SLANG_OK;
 }
 
 Result SurfaceImpl::present()
 {
-    if (!m_configured)
+    if (!m_configured || !m_imageAcquired)
     {
         return SLANG_FAIL;
     }
 #if !SLANG_WASM
     m_device->m_ctx.api.wgpuSurfacePresent(m_surface);
 #endif
+    // The next wait/acquire must obtain the next native image rather than reuse this frame.
+    m_currentTexture = nullptr;
+    m_imageAcquired = false;
     return SLANG_OK;
 }
 

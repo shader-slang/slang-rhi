@@ -14,6 +14,13 @@ namespace rhi {
 class D3DSurface : public Surface
 {
 public:
+    ~D3DSurface()
+    {
+        // DXGI transfers ownership of the latency wait handle to the application.
+        if (m_frameLatencyWaitableObject)
+            CloseHandle(m_frameLatencyWaitableObject);
+    }
+
     Result init(WindowHandle windowHandle, DXGI_SWAP_EFFECT swapEffect, bool allowUnorderedAccess)
     {
         if (windowHandle.type != WindowHandleType::HWND)
@@ -58,10 +65,10 @@ public:
         swapChainDesc.OutputWindow = m_windowHandle;
         swapChainDesc.SampleDesc.Count = 1;
         swapChainDesc.Windowed = TRUE;
-        if (!m_config.vsync)
-        {
-            swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-        }
+        // A frame-slot wait lets callers sample input after presentation backpressure, including
+        // when VSync is enabled. Acquire-only callers can continue using their existing flow.
+        // DXGI's default maximum latency for a waitable swapchain is one queued frame.
+        swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
         // Swap chain needs the queue so that it can force a flush on it.
         ComPtr<IDXGIFactory2> dxgiFactory2;
@@ -98,12 +105,21 @@ public:
             SLANG_D3D_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
         }
 
+        m_frameLatencyWaitableObject = m_swapChain->GetFrameLatencyWaitableObject();
+        if (!m_frameLatencyWaitableObject)
+            return SLANG_FAIL;
         createSwapchainTextures(m_config.desiredImageCount);
         return SLANG_OK;
     }
 
     void destroySwapchain()
     {
+        // A frame slot has no exposed texture ownership; rebuilding discards it directly.
+        if (m_frameLatencyWaitableObject)
+            CloseHandle(m_frameLatencyWaitableObject);
+        m_frameLatencyWaitableObject = nullptr;
+        m_frameReady = false;
+        m_imageAcquired = false;
         m_textures.clear();
         m_swapChain.setNull();
     }
@@ -142,11 +158,26 @@ public:
         return SLANG_OK;
     }
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() override
+    {
+        if (!m_configured || m_imageAcquired)
+            return SLANG_FAIL;
+        if (m_frameReady)
+            return SLANG_OK;
+
+        // Consume the DXGI readiness signal once per frame. A second wait before acquisition
+        // must not wait for a presentation that the caller has not submitted yet.
+        if (WaitForSingleObject(m_frameLatencyWaitableObject, INFINITE) != WAIT_OBJECT_0)
+            return SLANG_FAIL;
+        m_frameReady = true;
+        return SLANG_OK;
+    }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override
     {
         *outTexture = nullptr;
 
-        if (!m_configured)
+        if (!m_configured || m_imageAcquired)
         {
             return SLANG_FAIL;
         }
@@ -154,18 +185,24 @@ public:
         uint32_t count;
         m_swapChain->GetLastPresentCount(&count);
         uint32_t index = count % m_textures.size();
+        // Only public acquisition begins the interval that requires a matching present.
+        m_imageAcquired = true;
         returnComPtrCopy(outTexture, m_textures[index]);
         return SLANG_OK;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override
     {
-        if (!m_configured)
+        // Reserving a frame slot alone does not give the caller an image to present.
+        if (!m_configured || !m_imageAcquired)
         {
             return SLANG_FAIL;
         }
 
         const auto res = m_swapChain->Present(m_config.vsync ? 1 : 0, 0);
+        // The next frame must wait for its own DXGI readiness signal.
+        m_frameReady = false;
+        m_imageAcquired = false;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
         // We may want to wait for crash dump completion for some kinds of debugging scenarios
@@ -186,6 +223,10 @@ public:
     DXGI_SWAP_EFFECT m_swapEffect;
     ComPtr<IDXGISwapChain2> m_swapChain;
     short_vector<RefPtr<Texture>> m_textures;
+    // Keep frame-slot readiness separate from public image ownership.
+    HANDLE m_frameLatencyWaitableObject = nullptr;
+    bool m_frameReady = false;
+    bool m_imageAcquired = false;
 };
 
 } // namespace rhi

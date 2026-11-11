@@ -14,13 +14,18 @@ public:
     WGPUSurface m_surface = nullptr;
     WGPUPresentMode m_vsyncOffMode = WGPUPresentMode(0);
     WGPUPresentMode m_vsyncOnMode = WGPUPresentMode(0);
+    // Keep native acquisition separate from exposing the texture to the caller.
+    RefPtr<TextureImpl> m_currentTexture;
+    bool m_imageAcquired = false;
 
     ~SurfaceImpl();
 
     Result init(DeviceImpl* device, WindowHandle windowHandle);
+    Result prepareNextImage();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };

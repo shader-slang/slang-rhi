@@ -26,6 +26,9 @@ SurfaceImpl::~SurfaceImpl() {}
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
     SLANG_RETURN_ON_FAIL(validateConfig(config));
+    // Dropping an unexposed drawable returns it to the layer before changing its dimensions.
+    m_currentDrawable.reset();
+    m_imageAcquired = false;
     setConfig(config);
     if (m_config.format == Format::Undefined)
     {
@@ -49,27 +52,36 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::unconfigure()
 {
+    // A reserved drawable has no caller references and can be abandoned without presentation.
+    m_currentDrawable.reset();
+    m_imageAcquired = false;
     m_configured = false;
     return SLANG_OK;
 }
 
-Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+Result SurfaceImpl::waitForNextImage()
 {
-    *outTexture = nullptr;
-    if (!m_configured)
+    if (!m_configured || m_imageAcquired)
     {
         return SLANG_FAIL;
     }
+    if (m_currentDrawable)
+        return SLANG_OK;
 
     // Scoped pool drains autoreleased temporaries from nextDrawable() at
     // function exit. The drawable itself survives via NS::RetainPtr.
     AUTORELEASEPOOL
 
     m_currentDrawable = NS::RetainPtr(m_metalLayer->nextDrawable());
-    if (!m_currentDrawable)
-    {
-        return SLANG_FAIL;
-    }
+    return m_currentDrawable ? SLANG_OK : SLANG_E_NOT_AVAILABLE;
+}
+
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+{
+    *outTexture = nullptr;
+    // Reuse the reserved drawable so an early wait removes nextDrawable's blocking work from
+    // the interval between input sampling and rendering. Acquire-only callers still work.
+    SLANG_RETURN_ON_FAIL(waitForNextImage());
 
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
@@ -87,13 +99,14 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     texture->m_pixelFormat = texture->m_texture->pixelFormat();
     texture->m_isSwapchainTexture = true;
 
+    m_imageAcquired = true;
     returnComPtr(outTexture, texture);
     return SLANG_OK;
 }
 
 Result SurfaceImpl::present()
 {
-    if (!m_currentDrawable)
+    if (!m_currentDrawable || !m_imageAcquired)
     {
         return SLANG_FAIL;
     }
@@ -104,6 +117,8 @@ Result SurfaceImpl::present()
     commandBuffer->presentDrawable(m_currentDrawable.get());
     commandBuffer->commit();
     m_currentDrawable.reset();
+    // Waiting for the following frame may now reserve a new drawable.
+    m_imageAcquired = false;
 
     return SLANG_OK;
 }

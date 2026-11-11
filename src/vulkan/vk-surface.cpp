@@ -381,6 +381,13 @@ Result SurfaceImpl::createSwapchain()
         }
     }
 
+    // The explicit wait uses a host fence so returning an image index alone is not mistaken
+    // for presentation-engine completion. Acquire-only callers retain semaphore-based waiting.
+    VkFenceCreateInfo acquisitionFenceInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkCreateFence(api.m_device, &acquisitionFenceInfo, nullptr, &m_acquisitionFence),
+        m_device
+    );
     m_currentFrameIndex = 0;
 
     return SLANG_OK;
@@ -390,6 +397,13 @@ void SurfaceImpl::destroySwapchain()
 {
     auto& api = m_device->m_api;
     api.vkQueueWaitIdle(m_device->m_queue->m_queue);
+    // waitForNextImage completes native acquisition before returning. A reserved but unexposed
+    // image can therefore be discarded with its swapchain during resize or shutdown.
+    if (m_acquisitionFence != VK_NULL_HANDLE)
+    {
+        api.vkDestroyFence(api.m_device, m_acquisitionFence, nullptr);
+        m_acquisitionFence = VK_NULL_HANDLE;
+    }
     m_textures.clear();
     for (FrameData& frameData : m_frameData)
     {
@@ -408,6 +422,7 @@ void SurfaceImpl::destroySwapchain()
     }
     m_frameData.clear();
     m_currentTextureIndex = -1;
+    m_imageAcquired = false;
     if (m_swapchain != VK_NULL_HANDLE)
     {
         api.vkDestroySwapchainKHR(api.m_device, m_swapchain, nullptr);
@@ -488,13 +503,16 @@ Result SurfaceImpl::unconfigure()
     return SLANG_OK;
 }
 
-Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+Result SurfaceImpl::reserveNextImage(bool waitForAvailability)
 {
-    *outTexture = nullptr;
-
-    if (!m_configured)
+    if (!m_configured || m_imageAcquired)
     {
         return SLANG_FAIL;
+    }
+    // Repeated waits refer to the same reservation, until acquisition or reconfiguration.
+    if (m_currentTextureIndex != uint32_t(-1))
+    {
+        return SLANG_OK;
     }
 
     auto& api = m_device->m_api;
@@ -504,16 +522,20 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX),
         m_device
     );
-    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
+    if (waitForAvailability)
+    {
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &m_acquisitionFence), m_device);
+    }
 
-    m_currentTextureIndex = -1;
+    // Publish a reservation only after native acquisition succeeds; failure leaves no usable index.
+    uint32_t imageIndex = -1;
     VkResult result = api.vkAcquireNextImageKHR(
         api.m_device,
         m_swapchain,
         UINT64_MAX,
         frameData.imageAvailableSemaphore,
-        VK_NULL_HANDLE,
-        (uint32_t*)&m_currentTextureIndex
+        waitForAvailability ? m_acquisitionFence : VK_NULL_HANDLE,
+        &imageIndex
     );
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -525,8 +547,39 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     {
         return SLANG_FAIL;
     }
+    m_currentTextureIndex = imageIndex;
 
-    // Setup queue's next submit for synchronization with the swapchain.
+    if (waitForAvailability)
+    {
+        // Native acquisition may return before the image is ready. Wait for its signal so
+        // applications can sample input after this availability wait and still submit offscreen work.
+        result = api.vkWaitForFences(api.m_device, 1, &m_acquisitionFence, VK_TRUE, UINT64_MAX);
+        if (result != VK_SUCCESS)
+        {
+            // A failed readiness wait must not leave a reservation that later appears ready.
+            m_configured = false;
+            SLANG_VK_RETURN_ON_FAIL_REPORT(result, m_device);
+        }
+    }
+    return SLANG_OK;
+}
+
+Result SurfaceImpl::waitForNextImage()
+{
+    return reserveNextImage(true);
+}
+
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+{
+    *outTexture = nullptr;
+    SLANG_RETURN_ON_FAIL(reserveNextImage(false));
+
+    auto& api = m_device->m_api;
+    FrameData& frameData = m_frameData[m_currentFrameIndex];
+    // Only exposure arms submission synchronization. Offscreen work between wait and acquire
+    // must not consume the surface semaphore or signal that presentation rendering is finished.
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
+    m_imageAcquired = true;
     m_device->m_queue->m_surfaceSync.fence = frameData.fence;
     m_device->m_queue->m_surfaceSync.imageAvailableSemaphore = frameData.imageAvailableSemaphore;
     // Present consumes this semaphore outside the submitted command buffer's fence.
@@ -550,7 +603,7 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
-    if (m_currentTextureIndex == -1)
+    if (!m_imageAcquired)
     {
         return SLANG_FAIL;
     }
@@ -577,11 +630,13 @@ Result SurfaceImpl::present()
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
     VkResult result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    // Presentation consumes the exposed image; the next wait must reserve a new one.
+    m_currentTextureIndex = -1;
+    m_imageAcquired = false;
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         // A resize or minimize can invalidate an image after acquisition. Presentation still
         // consumes its semaphore wait, but the caller must reconfigure before acquiring again.
-        m_currentTextureIndex = -1;
         m_configured = false;
         return SLANG_E_NOT_AVAILABLE;
     }

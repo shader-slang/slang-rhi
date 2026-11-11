@@ -1190,8 +1190,7 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
-        DescriptorHandle* outHandle
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle
     ) = 0;
 };
 
@@ -3212,8 +3211,20 @@ public:
     /// In that case getConfig() returns null; try configuring again after a window change.
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() = 0;
+    /// Wait for the backend's next surface image or frame slot before sampling input.
+    /// This may reserve an image internally, but does not expose it or attach surface
+    /// synchronization to GPU submissions. Offscreen work can be submitted before acquisition.
+    /// Repeated waits before acquisition refer to the same frame. configure/unconfigure may
+    /// discard an unexposed reservation; an acquired image must instead be presented first.
+    /// This is not an exact display-deadline wait. Browser WebGPU returns SLANG_E_NOT_IMPLEMENTED:
+    /// its frame pacing belongs to the browser event loop. SLANG_E_NOT_AVAILABLE indicates a
+    /// temporary acquisition failure; if getConfig() is null, reconfigure before retrying.
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() = 0;
     /// May return SLANG_E_NOT_AVAILABLE with a null image if a window change invalidates
     /// the swapchain. getConfig() then returns null; reconfigure before acquiring again.
+    /// A temporary drawable timeout also returns SLANG_E_NOT_AVAILABLE but retains getConfig();
+    /// in that case acquisition can be retried without reconfiguration.
+    /// Exposes a previously reserved image, or acquires one directly if no wait was requested.
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) = 0;
     /// Present the acquired image. If a window change invalidates the swapchain, this may
     /// return SLANG_E_NOT_AVAILABLE: the acquired image is consumed, getConfig() returns null,
