@@ -152,6 +152,8 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo), m_device);
+    if (m_device->m_descriptorHeap)
+        m_device->m_descriptorHeap->bind(m_cmdBuffer);
 
     CommandList& commandList = commandBuffer->m_commandList;
 
@@ -1708,6 +1710,31 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint)
 {
+    if (auto heap = m_device->m_descriptorHeap.get())
+    {
+        for (uint32_t i = 0; i < bindingData->pushConstantCount; ++i)
+        {
+            const auto& range = bindingData->pushConstantRanges[i];
+            VkPushDataInfoEXT push = {VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT};
+            push.offset = range.offset;
+            push.data = {bindingData->pushConstantData[i], range.size};
+            m_api.vkCmdPushDataEXT(m_cmdBuffer, &push);
+        }
+        uint32_t indices[kMaxDescriptorSets * 2] = {};
+        for (uint32_t i = 0; i < bindingData->descriptorSetCount; ++i)
+        {
+            indices[i * 2] = bindingData->descriptorSets[i].resourceOffset;
+            indices[i * 2 + 1] = bindingData->descriptorSets[i].samplerOffset;
+        }
+        if (bindingData->descriptorSetCount)
+        {
+            VkPushDataInfoEXT push = {VK_STRUCTURE_TYPE_PUSH_DATA_INFO_EXT};
+            push.offset = bindingData->heapPushOffset;
+            push.data = {indices, size_t(bindingData->descriptorSetCount) * 8};
+            m_api.vkCmdPushDataEXT(m_cmdBuffer, &push);
+        }
+        return;
+    }
     // Set push constants.
     for (uint32_t i = 0; i < bindingData->pushConstantCount; ++i)
     {
@@ -1726,13 +1753,16 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPo
     // Bind descriptor sets.
     if (bindingData->descriptorSetCount)
     {
+        VkDescriptorSet sets[kMaxDescriptorSets];
+        for (uint32_t i = 0; i < bindingData->descriptorSetCount; ++i)
+            sets[i] = bindingData->descriptorSets[i].descriptorSet;
         m_api.vkCmdBindDescriptorSets(
             m_cmdBuffer,
             bindPoint,
             bindingData->pipelineLayout,
             0,
             bindingData->descriptorSetCount,
-            bindingData->descriptorSets,
+            sets,
             0,
             nullptr
         );
@@ -2362,6 +2392,7 @@ CommandBufferImpl::~CommandBufferImpl()
 #endif
     device->m_api.vkFreeCommandBuffers(device->m_api.m_device, m_commandPool, 1, &m_commandBuffer);
     device->m_api.vkDestroyCommandPool(device->m_api.m_device, m_commandPool, nullptr);
+    m_bindingCache.reset();
     m_descriptorSetAllocator.close();
 }
 
@@ -2370,6 +2401,7 @@ Result CommandBufferImpl::init()
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_constantBufferArena.initialize(&m_queue->m_constantBufferHeap);
     m_descriptorSetAllocator.init(&device->m_api);
+    m_bindingCache.heap = device->m_descriptorHeap;
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;

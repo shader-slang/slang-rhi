@@ -19,6 +19,8 @@ SamplerImpl::~SamplerImpl()
     }
 
     device->m_api.vkDestroySampler(device->m_api.m_device, m_sampler, nullptr);
+    if (m_customBorderColorIndex != UINT32_MAX)
+        device->m_api.vkUnregisterCustomBorderColorEXT(device->m_device, m_customBorderColorIndex);
 }
 
 void SamplerImpl::deleteThis()
@@ -138,6 +140,21 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 
     RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
     samplerImpl->m_sampler = sampler;
+    if (m_descriptorHeap)
+    {
+        VkSamplerCustomBorderColorIndexCreateInfoEXT customIndex = {VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_INDEX_CREATE_INFO_EXT};
+        if (samplerInfo.borderColor == VK_BORDER_COLOR_FLOAT_CUSTOM_EXT)
+        {
+            if (!m_api.vkRegisterCustomBorderColorEXT || !m_api.vkUnregisterCustomBorderColorEXT)
+                return SLANG_E_NOT_AVAILABLE;
+            SLANG_VK_RETURN_ON_FAIL(m_api.vkRegisterCustomBorderColorEXT(m_device, &customBorderColorInfo, VK_FALSE,
+                                                                       &samplerImpl->m_customBorderColorIndex));
+            customIndex.index = samplerImpl->m_customBorderColorIndex;
+            customIndex.pNext = &customBorderColorInfo;
+            reductionInfo.pNext = &customIndex;
+        }
+        SLANG_RETURN_ON_FAIL(m_descriptorHeap->encodeSampler(samplerInfo, samplerImpl->m_heapDescriptor));
+    }
     returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }

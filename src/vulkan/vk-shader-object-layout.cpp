@@ -605,6 +605,8 @@ ShaderObjectLayoutImpl::~ShaderObjectLayoutImpl()
 {
     for (auto& descSetInfo : m_descriptorSetInfos)
     {
+        if (!descSetInfo.descriptorSetLayout)
+            continue;
         getDevice()
             ->m_api.vkDestroyDescriptorSetLayout(getDevice()->m_api.m_device, descSetInfo.descriptorSetLayout, nullptr);
     }
@@ -628,6 +630,9 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     m_totalOrdinaryDataSize = builder->m_totalOrdinaryDataSize;
 
     m_containerType = builder->m_containerType;
+
+    if (device->m_useDescriptorHeap)
+        return SLANG_OK;
 
     // Create VkDescriptorSetLayout for all descriptor sets.
     for (auto& descriptorSetInfo : m_descriptorSetInfos)
@@ -774,13 +779,59 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
     //
     SLANG_RETURN_ON_FAIL(addAllPushConstantRanges());
 
+    if (device->m_useDescriptorHeap)
+    {
+        for (const auto& range : m_allPushConstantRanges)
+            m_heapPushOffset = std::max(m_heapPushOffset, range.offset + range.size);
+        m_heapPushOffset = (m_heapPushOffset + 3) & ~3u;
+        if (uint64_t(m_heapPushOffset) + m_heapSets.size() * 8 > device->m_descriptorHeapProperties.maxPushDataSize)
+        {
+            device->printError("Shader constants and descriptor heap indices exceed maxPushDataSize.");
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        for (uint32_t set = 0; set < m_heapSets.size(); ++set)
+        {
+            uint32_t resourceSlot = 0, samplerSlot = 0;
+            for (const auto& binding : m_heapSets[set]->vkBindings)
+            {
+                VkDescriptorSetAndBindingMappingEXT mapping = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT};
+                mapping.descriptorSet = set;
+                mapping.firstBinding = binding.binding;
+                mapping.bindingCount = 1;
+                mapping.resourceMask = VK_SPIRV_RESOURCE_TYPE_ALL_EXT;
+                mapping.source = VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT;
+                auto& source = mapping.sourceData.pushIndex;
+                bool sampler = binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER;
+                uint32_t stride = sampler ? device->m_descriptorHeap->m_samplerStride : device->m_descriptorHeap->m_resourceStride;
+                source.heapOffset = (sampler ? samplerSlot : resourceSlot) * stride;
+                source.heapIndexStride = stride;
+                source.heapArrayStride = stride;
+                source.pushOffset = m_heapPushOffset + set * 8 + (sampler ? 4 : 0);
+                source.samplerHeapOffset = samplerSlot * device->m_descriptorHeap->m_samplerStride;
+                source.samplerPushOffset = m_heapPushOffset + set * 8 + 4;
+                source.samplerHeapIndexStride = device->m_descriptorHeap->m_samplerStride;
+                source.samplerHeapArrayStride = device->m_descriptorHeap->m_samplerStride;
+                m_heapMappings.push_back(mapping);
+                if (binding.descriptorCount > UINT32_MAX - resourceSlot || binding.descriptorCount > UINT32_MAX - samplerSlot)
+                    return SLANG_E_INVALID_ARG;
+                if (!sampler)
+                    resourceSlot += binding.descriptorCount;
+                if (sampler || binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    samplerSlot += binding.descriptorCount;
+            }
+        }
+        m_heapMappingInfo.mappingCount = uint32_t(m_heapMappings.size());
+        m_heapMappingInfo.pMappings = m_heapMappings.data();
+        return SLANG_OK;
+    }
+
     // Once we've collected the information across the entire
     // tree of sub-objects
 
     // Add bindless descriptor set layout if needed.
     // We currently assume that the bindless descriptor set is always the last,
     // following all other descriptor sets, without any gaps.
-    if (m_device->m_bindlessDescriptorSet)
+    if (m_device->m_bindlessDescriptorSet && !m_device->m_descriptorHeap)
     {
         m_vkDescriptorSetLayouts.push_back(m_device->m_bindlessDescriptorSet->m_descriptorSetLayout);
     }
@@ -823,7 +874,10 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
     if (m_descriptorSetComposition)
     {
         for (const auto& set : getOwnDescriptorSets())
+        {
+            m_heapSets.push_back(&set);
             m_vkDescriptorSetLayouts.push_back(set.descriptorSetLayout);
+        }
         return SLANG_OK;
     }
 
@@ -854,6 +908,7 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImp
     // Vulkan set numbers so binding locations match the compiler metadata.
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
+        m_heapSets.push_back(&descSetInfo);
         m_vkDescriptorSetLayouts.push_back(descSetInfo.descriptorSetLayout);
     }
 
@@ -940,7 +995,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
     if (m_program->getSpecializationParamCount() == 0)
     {
         size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
-        if (m_device->m_bindlessDescriptorSet)
+        if (m_device->m_bindlessDescriptorSet && !m_device->m_descriptorHeap)
             totalDescriptorSetCount++;
         if (totalDescriptorSetCount > kMaxDescriptorSets)
         {

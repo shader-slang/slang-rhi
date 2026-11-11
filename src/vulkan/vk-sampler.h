@@ -20,6 +20,8 @@ public:
 
 public:
     VkSampler m_sampler;
+    uint32_t m_customBorderColorIndex = UINT32_MAX;
+    std::vector<uint8_t> m_heapDescriptor;
     DescriptorHandle m_descriptorHandle;
 };
 

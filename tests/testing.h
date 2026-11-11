@@ -32,6 +32,7 @@ struct Options
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
     uint32_t d3d12ShaderModel = 0;
     bool d3d12DisableNVAPI = false;
+    bool vulkanDescriptorHeap = false;
     int optixVersion = 0;
 
     Options()

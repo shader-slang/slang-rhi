@@ -529,6 +529,10 @@ public:
     static_vector<VkDescriptorSetLayout, kMaxDescriptorSets> m_vkDescriptorSetLayouts;
     std::vector<VkPushConstantRange> m_allPushConstantRanges;
     uint32_t m_totalPushConstantSize = 0;
+    std::vector<const DescriptorSetInfo*> m_heapSets;
+    std::vector<VkDescriptorSetAndBindingMappingEXT> m_heapMappings;
+    VkShaderDescriptorSetAndBindingMappingInfoEXT m_heapMappingInfo = {VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT};
+    uint32_t m_heapPushOffset = 0;
 
     DeviceImpl* m_device = nullptr;
 };

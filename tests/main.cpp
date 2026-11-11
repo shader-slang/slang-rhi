@@ -140,6 +140,8 @@ int main(int argc, const char** argv)
             }
         }
 
+        options.vulkanDescriptorHeap = doctest::detail::parseFlag(argc, argv, "vulkan-descriptor-heap");
+
         doctest::String d3d12ShaderModel;
         if (doctest::detail::parseOption(argc, argv, "d3d12-shader-model=", &d3d12ShaderModel))
         {

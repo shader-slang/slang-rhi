@@ -916,6 +916,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-api.cpp
         src/vulkan/vk-backend.cpp
         src/vulkan/vk-bindless-descriptor-set.cpp
+        src/vulkan/vk-descriptor-heap.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
         src/vulkan/vk-descriptor-set-composition.cpp
@@ -1061,6 +1062,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp
+        tests/test-vulkan-descriptor-heap.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer.cpp

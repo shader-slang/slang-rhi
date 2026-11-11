@@ -2,6 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-bindless-descriptor-set.h"
+#include "vk-descriptor-heap.h"
 
 #include <string>
 #include <vector>
@@ -309,8 +310,11 @@ public:
 
     DescriptorSetAllocator descriptorSetAllocator;
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
+    RefPtr<DescriptorHeap> m_descriptorHeap;
+    bool m_useDescriptorHeap = false;
+    VkPhysicalDeviceDescriptorHeapPropertiesEXT m_descriptorHeapProperties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_PROPERTIES_EXT};
 
-    VkSampler m_defaultSampler;
+    VkSampler m_defaultSampler = VK_NULL_HANDLE;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     /// Aftermath crash dumper (null if Aftermath is not enabled).

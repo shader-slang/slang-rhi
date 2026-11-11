@@ -18,9 +18,9 @@ inline void writeDescriptor(DeviceImpl* device, const VkWriteDescriptorSet& writ
     device->m_api.vkUpdateDescriptorSets(device->m_device, 1, &write, 0, nullptr);
 }
 
-inline void writePlainBufferDescriptor(
+inline Result writePlainBufferDescriptor(
     DeviceImpl* device,
-    VkDescriptorSet descriptorSet,
+    const DescriptorSetBinding& descriptorSet,
     uint32_t binding,
     uint32_t index,
     VkDescriptorType descriptorType,
@@ -28,6 +28,11 @@ inline void writePlainBufferDescriptor(
     BufferRange range
 )
 {
+    if (device->m_descriptorHeap)
+    {
+        return device->m_descriptorHeap->writeBuffer(descriptorSet.slot(binding, index), descriptorType, buffer, range, Format::Undefined);
+    }
+
     VkDescriptorBufferInfo bufferInfo = {};
     bufferInfo.range = VK_WHOLE_SIZE;
 
@@ -40,7 +45,7 @@ inline void writePlainBufferDescriptor(
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = descriptorSet;
+    write.dstSet = descriptorSet.descriptorSet;
     write.dstBinding = binding;
     write.dstArrayElement = index;
     write.descriptorCount = 1;
@@ -48,11 +53,12 @@ inline void writePlainBufferDescriptor(
     write.pBufferInfo = &bufferInfo;
 
     writeDescriptor(device, write);
+    return SLANG_OK;
 }
 
-inline void writeTexelBufferDescriptor(
+inline Result writeTexelBufferDescriptor(
     DeviceImpl* device,
-    VkDescriptorSet descriptorSet,
+    const DescriptorSetBinding& descriptorSet,
     uint32_t binding,
     uint32_t index,
     VkDescriptorType descriptorType,
@@ -61,28 +67,40 @@ inline void writeTexelBufferDescriptor(
     BufferRange range
 )
 {
+    if (device->m_descriptorHeap)
+    {
+        return device->m_descriptorHeap->writeBuffer(descriptorSet.slot(binding, index), descriptorType, buffer, range, format);
+    }
+
     VkBufferView bufferView = buffer ? buffer->getView(format, range) : VK_NULL_HANDLE;
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = descriptorSet;
+    write.dstSet = descriptorSet.descriptorSet;
     write.dstBinding = binding;
     write.dstArrayElement = index;
     write.descriptorCount = 1;
     write.descriptorType = descriptorType;
     write.pTexelBufferView = &bufferView;
     writeDescriptor(device, write);
+    return SLANG_OK;
 }
 
-inline void writeTextureSamplerDescriptor(
+inline Result writeTextureSamplerDescriptor(
     DeviceImpl* device,
-    VkDescriptorSet descriptorSet,
+    const DescriptorSetBinding& descriptorSet,
     uint32_t binding,
     uint32_t index,
     TextureViewImpl* textureView,
     SamplerImpl* sampler
 )
 {
+    if (device->m_descriptorHeap)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_descriptorHeap->writeTexture(descriptorSet.slot(binding, index), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, textureView));
+        return device->m_descriptorHeap->writeSampler(descriptorSet.slot(binding, index, true), sampler);
+    }
+
     VkDescriptorImageInfo imageInfo = {};
     if (textureView && sampler)
     {
@@ -93,7 +111,7 @@ inline void writeTextureSamplerDescriptor(
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = descriptorSet;
+    write.dstSet = descriptorSet.descriptorSet;
     write.dstBinding = binding;
     write.dstArrayElement = index;
     write.descriptorCount = 1;
@@ -101,22 +119,28 @@ inline void writeTextureSamplerDescriptor(
     write.pImageInfo = &imageInfo;
 
     writeDescriptor(device, write);
+    return SLANG_OK;
 }
 
-inline void writeAccelerationStructureDescriptor(
+inline Result writeAccelerationStructureDescriptor(
     DeviceImpl* device,
-    VkDescriptorSet descriptorSet,
+    const DescriptorSetBinding& descriptorSet,
     uint32_t binding,
     uint32_t index,
     AccelerationStructureImpl* as
 )
 {
+    if (device->m_descriptorHeap)
+    {
+        return device->m_descriptorHeap->writeAccelerationStructure(descriptorSet.slot(binding, index), as);
+    }
+
     // The Vulkan spec states: If the nullDescriptor feature is not enabled, each element of
     // pAccelerationStructures must not be VK_NULL_HANDLE
     if (!as && !device->m_api.m_extendedFeatures.robustness2Features.nullDescriptor)
     {
         SLANG_RHI_ASSERT_FAILURE("nullDescriptor feature is not available on the device");
-        return;
+        return SLANG_E_NOT_AVAILABLE;
     }
 
     VkWriteDescriptorSetAccelerationStructureKHR writeAS = {};
@@ -127,24 +151,30 @@ inline void writeAccelerationStructureDescriptor(
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = descriptorSet;
+    write.dstSet = descriptorSet.descriptorSet;
     write.dstBinding = binding;
     write.dstArrayElement = index;
     write.descriptorCount = 1;
     write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     write.pNext = &writeAS;
     writeDescriptor(device, write);
+    return SLANG_OK;
 }
 
-inline void writeTextureDescriptor(
+inline Result writeTextureDescriptor(
     DeviceImpl* device,
-    VkDescriptorSet descriptorSet,
+    const DescriptorSetBinding& descriptorSet,
     uint32_t binding,
     uint32_t index,
     VkDescriptorType descriptorType,
     TextureViewImpl* textureView
 )
 {
+    if (device->m_descriptorHeap)
+    {
+        return device->m_descriptorHeap->writeTexture(descriptorSet.slot(binding, index), descriptorType, textureView);
+    }
+
     VkDescriptorImageInfo imageInfo = {};
     if (textureView)
     {
@@ -157,7 +187,7 @@ inline void writeTextureDescriptor(
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = descriptorSet;
+    write.dstSet = descriptorSet.descriptorSet;
     write.dstBinding = binding;
     write.dstArrayElement = index;
     write.descriptorCount = 1;
@@ -165,16 +195,22 @@ inline void writeTextureDescriptor(
     write.pImageInfo = &imageInfo;
 
     writeDescriptor(device, write);
+    return SLANG_OK;
 }
 
-inline void writeSamplerDescriptor(
+inline Result writeSamplerDescriptor(
     DeviceImpl* device,
-    VkDescriptorSet descriptorSet,
+    const DescriptorSetBinding& descriptorSet,
     uint32_t binding,
     uint32_t index,
     SamplerImpl* sampler
 )
 {
+    if (device->m_descriptorHeap)
+    {
+        return device->m_descriptorHeap->writeSampler(descriptorSet.slot(binding, index, true), sampler);
+    }
+
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageView = 0;
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -182,7 +218,7 @@ inline void writeSamplerDescriptor(
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = descriptorSet;
+    write.dstSet = descriptorSet.descriptorSet;
     write.dstBinding = binding;
     write.dstArrayElement = index;
     write.descriptorCount = 1;
@@ -190,6 +226,7 @@ inline void writeSamplerDescriptor(
     write.pImageInfo = &imageInfo;
 
     writeDescriptor(device, write);
+    return SLANG_OK;
 }
 
 inline void writeBufferState(BindingDataBuilder* builder, BufferImpl* buffer, ResourceState state)
@@ -253,15 +290,16 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->textureStateCount = 0;
 
     m_bindingData->pipelineLayout = specializedLayout->m_pipelineLayout;
+    m_bindingData->heapPushOffset = specializedLayout->m_heapPushOffset;
 
     uint32_t totalDescriptorSetCount = specializedLayout->getTotalDescriptorSetCount();
-    if (m_device->m_bindlessDescriptorSet)
+    if (m_device->m_bindlessDescriptorSet && !m_device->m_descriptorHeap)
     {
         // The bindless descriptor set is always the last descriptor set in the pipeline layout.
         // We need to add one more descriptor set to the count to account for it.
         totalDescriptorSetCount++;
     }
-    m_bindingData->descriptorSets = m_allocator->allocate<VkDescriptorSet>(totalDescriptorSetCount);
+    m_bindingData->descriptorSets = m_allocator->allocate<DescriptorSetBinding>(totalDescriptorSetCount);
     m_bindingData->descriptorSetCount = 0;
 
     m_pushConstantRanges = specializedLayout->getAllPushConstantRanges();
@@ -335,10 +373,10 @@ Result BindingDataBuilder::bindAsRoot(
     }
 
     // Assign bindless descriptor set to the last slot if available.
-    if (m_device->m_bindlessDescriptorSet)
+    if (m_device->m_bindlessDescriptorSet && !m_device->m_descriptorHeap)
     {
         m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] =
-            m_device->m_bindlessDescriptorSet->m_descriptorSet;
+            {m_device->m_bindlessDescriptorSet->m_descriptorSet};
     }
 
     outBindingData = m_bindingData;
@@ -433,7 +471,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // the given `descriptorSet` and update the base range index for
     // subsequent binding operations to account for it.
     //
-    writePlainBufferDescriptor(
+    SLANG_RETURN_ON_FAIL(writePlainBufferDescriptor(
         m_device,
         m_bindingData->descriptorSets[ioOffset.bindingSet],
         ioOffset.binding,
@@ -441,7 +479,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         checked_cast<BufferImpl*>(allocation.buffer),
         {allocation.offset, size}
-    );
+    ));
     ioOffset.binding++;
 
     return SLANG_OK;
@@ -481,7 +519,7 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::Texture:
         case slang::BindingType::MutableTexture:
         {
-            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
+            const auto& descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
             VkDescriptorType descriptorType = bindingRangeInfo.bindingType == slang::BindingType::Texture
                                                   ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
                                                   : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -492,7 +530,7 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                writeTextureDescriptor(device, descriptorSet, binding, i, descriptorType, textureView);
+                SLANG_RETURN_ON_FAIL(writeTextureDescriptor(device, descriptorSet, binding, i, descriptorType, textureView));
                 if (textureView)
                 {
                     writeTextureState(this, textureView, requiredState);
@@ -502,14 +540,14 @@ Result BindingDataBuilder::bindAsValue(
         }
         case slang::BindingType::CombinedTextureSampler:
         {
-            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
+            const auto& descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
             ResourceState requiredState = ResourceState::ShaderResource;
             for (uint32_t i = 0; i < count; ++i)
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource2.get());
-                writeTextureSamplerDescriptor(device, descriptorSet, binding, i, textureView, sampler);
+                SLANG_RETURN_ON_FAIL(writeTextureSamplerDescriptor(device, descriptorSet, binding, i, textureView, sampler));
                 if (textureView)
                 {
                     writeTextureState(this, textureView, requiredState);
@@ -519,19 +557,19 @@ Result BindingDataBuilder::bindAsValue(
         }
         case slang::BindingType::Sampler:
         {
-            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
+            const auto& descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
             for (uint32_t i = 0; i < count; ++i)
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
-                writeSamplerDescriptor(device, descriptorSet, binding, i, sampler);
+                SLANG_RETURN_ON_FAIL(writeSamplerDescriptor(device, descriptorSet, binding, i, sampler));
             }
             break;
         }
         case slang::BindingType::RawBuffer:
         case slang::BindingType::MutableRawBuffer:
         {
-            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
+            const auto& descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
             // TODO: should RawBuffer map to VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER?
             VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             ResourceState requiredState = bindingRangeInfo.bindingType == slang::BindingType::RawBuffer
@@ -541,7 +579,7 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                writePlainBufferDescriptor(device, descriptorSet, binding, i, descriptorType, buffer, slot.bufferRange);
+                SLANG_RETURN_ON_FAIL(writePlainBufferDescriptor(device, descriptorSet, binding, i, descriptorType, buffer, slot.bufferRange));
                 if (buffer)
                 {
                     writeBufferState(this, buffer, requiredState);
@@ -552,7 +590,7 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::TypedBuffer:
         case slang::BindingType::MutableTypedBuffer:
         {
-            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
+            const auto& descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
             VkDescriptorType descriptorType = bindingRangeInfo.bindingType == slang::BindingType::TypedBuffer
                                                   ? VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
                                                   : VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
@@ -563,7 +601,7 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                writeTexelBufferDescriptor(
+                SLANG_RETURN_ON_FAIL(writeTexelBufferDescriptor(
                     device,
                     descriptorSet,
                     binding,
@@ -572,7 +610,7 @@ Result BindingDataBuilder::bindAsValue(
                     buffer,
                     slot.format,
                     slot.bufferRange
-                );
+                ));
                 if (buffer)
                 {
                     writeBufferState(this, buffer, requiredState);
@@ -582,12 +620,12 @@ Result BindingDataBuilder::bindAsValue(
         }
         case slang::BindingType::RayTracingAccelerationStructure:
         {
-            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
+            const auto& descriptorSet = m_bindingData->descriptorSets[rangeOffset.bindingSet];
             for (uint32_t i = 0; i < count; ++i)
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
-                writeAccelerationStructureDescriptor(device, descriptorSet, binding, i, as);
+                SLANG_RETURN_ON_FAIL(writeAccelerationStructureDescriptor(device, descriptorSet, binding, i, as));
                 if (as)
                 {
                     writeBufferState(this, as->m_buffer, ResourceState::AccelerationStructureRead);
@@ -734,8 +772,34 @@ Result BindingDataBuilder::allocateDescriptorSets(
     // A shader object can own multiple descriptor sets. This is expected for
     // layouts that preserve explicit Vulkan set numbers, such as programs with
     // synthetic resources whose compiler metadata reports a non-zero set.
-    for (auto descriptorSetInfo : specializedLayout->getOwnDescriptorSets())
+    for (const auto& descriptorSetInfo : specializedLayout->getOwnDescriptorSets())
     {
+        if (m_device->m_descriptorHeap)
+        {
+            uint64_t resourceCount = 0, samplerCount = 0;
+            for (const auto& binding : descriptorSetInfo.vkBindings)
+            {
+                if (binding.descriptorType != VK_DESCRIPTOR_TYPE_SAMPLER)
+                    resourceCount += binding.descriptorCount;
+                if (binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    samplerCount += binding.descriptorCount;
+            }
+            if (resourceCount > UINT32_MAX || samplerCount > UINT32_MAX)
+                return SLANG_E_OUT_OF_MEMORY;
+            DescriptorSetBinding set;
+            // Layouts remain alive with the tracked shader objects.
+            if (resourceCount || samplerCount)
+            {
+                DescriptorHeap::Allocation allocation;
+                SLANG_RETURN_ON_FAIL(m_device->m_descriptorHeap->allocate(uint32_t(resourceCount), uint32_t(samplerCount), allocation));
+                m_bindingCache->heapAllocations.push_back(allocation);
+                set.resourceOffset = allocation.resource ? m_device->m_descriptorHeap->m_resourcePrefix + allocation.resource.offset : 0;
+                set.samplerOffset = allocation.sampler ? m_device->m_descriptorHeap->m_samplerPrefix + allocation.sampler.offset : 0;
+            }
+            set.layout = &descriptorSetInfo;
+            m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = set;
+            continue;
+        }
         auto descriptorSetHandle = m_descriptorSetAllocator->allocate(descriptorSetInfo.descriptorSetLayout).handle;
 
         // For each set, we need to write it into the set of descriptor sets
@@ -744,7 +808,7 @@ Result BindingDataBuilder::allocateDescriptorSets(
         // we can bind all the descriptor sets to the pipeline when the
         // time comes.
         //
-        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = descriptorSetHandle;
+        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] = {descriptorSetHandle};
     }
 
     return SLANG_OK;

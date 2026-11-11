@@ -177,6 +177,7 @@ DeviceImpl::~DeviceImpl()
     }
     m_deviceQueue.destroy();
     m_bindlessDescriptorSet.setNull();
+    m_descriptorHeap.setNull();
 
     descriptorSetAllocator.close();
 
@@ -545,6 +546,7 @@ Result DeviceImpl::initVulkanDevice(
 {
     SLANG_RHI_ASSERT(m_api.m_instance != VK_NULL_HANDLE);
 
+    m_useDescriptorHeap = extendedDesc && extendedDesc->enableDescriptorHeap;
     availableFeatures.clear();
     availableCapabilities.clear();
 
@@ -669,6 +671,12 @@ Result DeviceImpl::initVulkanDevice(
         // Get device features
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
 
+        if (m_useDescriptorHeap)
+        {
+            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.descriptorHeapFeatures);
+            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.untypedPointersFeatures);
+            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.maintenance5Features);
+        }
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.inlineUniformBlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPipelineFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayQueryFeatures);
@@ -772,6 +780,26 @@ Result DeviceImpl::initVulkanDevice(
             deviceCreateInfo.pNext = &featureStruct;
             return true;
         };
+
+        if (m_useDescriptorHeap)
+        {
+            if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_2 ||
+                !extendedFeatures.vulkan12Features.bufferDeviceAddress ||
+                !addFeatureExtension(extendedFeatures.descriptorHeapFeatures.descriptorHeap,
+                                     extendedFeatures.descriptorHeapFeatures, VK_EXT_DESCRIPTOR_HEAP_EXTENSION_NAME) ||
+                !addFeatureExtension(extendedFeatures.untypedPointersFeatures.shaderUntypedPointers,
+                                     extendedFeatures.untypedPointersFeatures, VK_KHR_SHADER_UNTYPED_POINTERS_EXTENSION_NAME))
+            {
+                printError("Descriptor heaps require VK_EXT_descriptor_heap, shader untyped pointers, and buffer device addresses.");
+                return SLANG_E_NOT_AVAILABLE;
+            }
+            if (!addFeatureExtension(extendedFeatures.maintenance5Features.maintenance5,
+                                     extendedFeatures.maintenance5Features, VK_KHR_MAINTENANCE_5_EXTENSION_NAME))
+                return SLANG_E_NOT_AVAILABLE;
+            VkPhysicalDeviceProperties2 heapProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+            heapProps.pNext = &m_descriptorHeapProperties;
+            m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &heapProps);
+        }
 
         // SIMPLE_EXTENSION_FEATURE(struct, feature member name, extension, code)
         // will check for the presence of the boolean feature member in struct and the availability of the extensions.
@@ -1412,7 +1440,7 @@ Result DeviceImpl::initVulkanDevice(
         availableCapabilities.push_back(Capability::SPV_EXT_descriptor_indexing);
     }
 
-    if (extendedFeatures.vulkan12Features.descriptorIndexing &&
+    if (m_useDescriptorHeap || (extendedFeatures.vulkan12Features.descriptorIndexing &&
         extendedFeatures.descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing &&
         extendedFeatures.descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing &&
         extendedFeatures.descriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing &&
@@ -1425,7 +1453,7 @@ Result DeviceImpl::initVulkanDevice(
         extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind &&
         extendedFeatures.descriptorIndexingFeatures.descriptorBindingUpdateUnusedWhilePending &&
         extendedFeatures.descriptorIndexingFeatures.descriptorBindingPartiallyBound &&
-        extendedFeatures.mutableDescriptorTypeFeatures.mutableDescriptorType)
+        extendedFeatures.mutableDescriptorTypeFeatures.mutableDescriptorType))
     {
         availableFeatures.push_back(Feature::Bindless);
     }
@@ -1519,6 +1547,9 @@ Result DeviceImpl::initVulkanDevice(
             }
         }
 
+        std::set<std::string> enabledExtensions;
+        deviceExtensions.erase(std::remove_if(deviceExtensions.begin(), deviceExtensions.end(),
+            [&](const char* extension) { return !enabledExtensions.insert(extension).second; }), deviceExtensions.end());
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
@@ -1537,6 +1568,8 @@ Result DeviceImpl::initVulkanDevice(
     {
         return SLANG_FAIL;
     }
+    if (m_useDescriptorHeap && !extendedFeatures.descriptorHeapFeatures.descriptorHeap)
+        return SLANG_E_NOT_AVAILABLE;
     m_api.initDerivedDeviceProperties();
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
 
@@ -1912,13 +1945,46 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_formatSupport[formatIndex] = formatSupport;
     }
 
+    SlangDesc slangDesc = desc.slang;
+    std::vector<slang::CompilerOptionEntry> heapCompilerOptions;
+    if (m_useDescriptorHeap)
+    {
+        if (!m_api.vkCmdBindResourceHeapEXT || !m_api.vkCmdBindSamplerHeapEXT || !m_api.vkCmdPushDataEXT ||
+            !m_api.vkWriteResourceDescriptorsEXT || !m_api.vkWriteSamplerDescriptorsEXT)
+            return SLANG_E_NOT_AVAILABLE;
+        m_descriptorHeap = new DescriptorHeap(this);
+        SLANG_RETURN_ON_FAIL(m_descriptorHeap->initialize(desc.bindless, extendedDesc->descriptorHeapTransientCount));
+        if (slangDesc.slangGlobalSession)
+            m_slangContext.globalSession = slangDesc.slangGlobalSession;
+        else
+            SLANG_RETURN_ON_FAIL(slang::createGlobalSession(m_slangContext.globalSession.writeRef()));
+        slangDesc.slangGlobalSession = m_slangContext.globalSession;
+        slang::CompilerOptionEntry capability = {};
+        capability.name = slang::CompilerOptionName::Capability;
+        capability.value.kind = slang::CompilerOptionValueKind::Int;
+        capability.value.intValue0 = m_slangContext.globalSession->findCapability("spvDescriptorHeapEXT");
+        if (capability.value.intValue0 == SLANG_CAPABILITY_UNKNOWN)
+            return SLANG_E_NOT_AVAILABLE;
+        heapCompilerOptions.push_back(capability);
+        for (auto option : {std::pair{slang::CompilerOptionName::SPIRVResourceHeapStride, m_descriptorHeap->m_resourceStride},
+                            std::pair{slang::CompilerOptionName::SPIRVSamplerHeapStride, m_descriptorHeap->m_samplerStride}})
+        {
+            slang::CompilerOptionEntry stride = {};
+            stride.name = option.first;
+            stride.value.kind = slang::CompilerOptionValueKind::Int;
+            stride.value.intValue0 = option.second;
+            heapCompilerOptions.push_back(stride);
+        }
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
-        desc.slang,
+        slangDesc,
         SLANG_SPIRV,
         nullptr,
         getCapabilities(),
-        std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}}
+        std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}},
+        heapCompilerOptions
     ));
 
     // Create default sampler.
@@ -1939,6 +2005,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
         SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler), this);
+        if (m_descriptorHeap)
+            SLANG_RETURN_ON_FAIL(m_descriptorHeap->encodeSampler(samplerInfo, m_descriptorHeap->m_defaultSampler));
     }
 
     // Create bindless descriptor set if needed.

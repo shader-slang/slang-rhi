@@ -4481,6 +4481,14 @@ struct VulkanDeviceExtendedDesc
 
     bool enableDebugPrintf = false;
 
+    /// Opt in to VK_EXT_descriptor_heap. Device creation fails if unsupported.
+    /// Imported devices must have enabled descriptorHeap and shaderUntypedPointers.
+    bool enableDescriptorHeap = false;
+    /// Upper bound on ordinary binding descriptors retained across command buffers, per heap.
+    /// Each heap is additionally limited by the physical device capacity.
+    /// Persistent bindless descriptors are reserved separately using DeviceDesc::bindless.
+    uint32_t descriptorHeapTransientCount = 65536;
+
     uint32_t instanceExtensionCount = 0;
     const char* const* instanceExtensions = nullptr;
     uint32_t deviceExtensionCount = 0;

@@ -69,6 +69,7 @@ public:
         }
     };
 
+    std::mutex m_mutex;
     SlotAllocator m_bufferAllocator;
     SlotAllocator m_textureAllocator;
     SlotAllocator m_samplerAllocator;

@@ -762,6 +762,13 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.slang.compilerOptionEntries = compilerOptions.data();
     deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
 
+    VulkanDeviceExtendedDesc vulkanExtDesc = {};
+    if (deviceType == DeviceType::Vulkan && options().vulkanDescriptorHeap)
+    {
+        vulkanExtDesc.enableDescriptorHeap = true;
+        deviceDesc.next = &vulkanExtDesc;
+    }
+
     D3D12DeviceExtendedDesc extDesc = {};
     bool requireSpecificD3D12ShaderModel = false;
     if (deviceType == DeviceType::D3D12)
@@ -911,6 +918,12 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    VulkanDeviceExtendedDesc vulkanExtDesc = {};
+    if (deviceType == DeviceType::Vulkan && options().vulkanDescriptorHeap)
+    {
+        vulkanExtDesc.enableDescriptorHeap = true;
+        desc.next = &vulkanExtDesc;
+    }
     D3D12DeviceExtendedDesc d3d12ExtDesc = {};
     if (deviceType == DeviceType::D3D12 && options().d3d12ShaderModel != 0)
     {

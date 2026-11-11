@@ -309,6 +309,13 @@ protected:
     x(vkCmdSetCheckpointNV) \
     x(vkGetCalibratedTimestampsKHR) \
     x(vkGetCalibratedTimestampsEXT) \
+    x(vkCmdBindResourceHeapEXT) \
+    x(vkCmdBindSamplerHeapEXT) \
+    x(vkCmdPushDataEXT) \
+    x(vkWriteResourceDescriptorsEXT) \
+    x(vkWriteSamplerDescriptorsEXT) \
+    x(vkRegisterCustomBorderColorEXT) \
+    x(vkUnregisterCustomBorderColorEXT) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -337,6 +344,9 @@ protected:
 
 struct VulkanExtendedFeatures
 {
+    VkPhysicalDeviceDescriptorHeapFeaturesEXT descriptorHeapFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_FEATURES_EXT};
+    VkPhysicalDeviceShaderUntypedPointersFeaturesKHR untypedPointersFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_UNTYPED_POINTERS_FEATURES_KHR};
+    VkPhysicalDeviceMaintenance5FeaturesKHR maintenance5Features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR};
     // 16 bit storage features
     VkPhysicalDevice16BitStorageFeatures storage16BitFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR

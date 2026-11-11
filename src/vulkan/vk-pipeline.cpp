@@ -70,6 +70,27 @@ static Result getRayTracingPipelineFallbackKey(
     static constexpr uint32_t kKeyVersion = 1;
     sha1.update(kKeyTag, sizeof(kKeyTag));
     sha1.update(kKeyVersion);
+    const auto* rootLayout = program->m_rootShaderObjectLayout.get();
+    bool heaps = program->getDevice<DeviceImpl>()->m_useDescriptorHeap;
+    sha1.update(heaps);
+    if (heaps)
+    {
+        sha1.update(rootLayout->m_heapPushOffset);
+        for (const auto& mapping : rootLayout->m_heapMappings)
+        {
+            sha1.update(mapping.descriptorSet);
+            sha1.update(mapping.firstBinding);
+            const auto& source = mapping.sourceData.pushIndex;
+            sha1.update(source.heapOffset);
+            sha1.update(source.pushOffset);
+            sha1.update(source.heapIndexStride);
+            sha1.update(source.heapArrayStride);
+            sha1.update(source.samplerHeapOffset);
+            sha1.update(source.samplerPushOffset);
+            sha1.update(source.samplerHeapIndexStride);
+            sha1.update(source.samplerHeapArrayStride);
+        }
+    }
 
     auto updateNullableString = [&](const char* value)
     {
@@ -467,7 +488,8 @@ Result createPipelineWithCache(
             binaryInfo.pPipelineBinaries = pipelineBinaries.data();
             binaryInfo.pNext = createInfo->pNext;
             createInfo->pNext = &binaryInfo;
-            if (createPipelineFunc(device, createInfo, &pipeline) == VK_SUCCESS)
+            VkResult cacheResult = createPipelineFunc(device, createInfo, &pipeline);
+            if (cacheResult == VK_SUCCESS)
             {
                 writeCache = false;
                 outCached = true;
@@ -478,7 +500,7 @@ Result createPipelineWithCache(
             {
                 createInfo->pNext = binaryInfo.pNext;
                 pipeline = VK_NULL_HANDLE;
-                device->printWarning("Failed to create pipeline from cache, creating new pipeline.");
+                device->printWarning("Failed to create pipeline from cache (%d), creating new pipeline.", int(cacheResult));
             }
             for (auto& binary : pipelineBinaries)
             {
@@ -755,8 +777,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     VkGraphicsPipelineCreateInfo createInfo = {VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     createInfo.pNext = &renderingInfo;
-    createInfo.stageCount = (uint32_t)program->m_stageCreateInfos.size();
-    createInfo.pStages = program->m_stageCreateInfos.data();
+    auto stages = program->m_stageCreateInfos;
+    if (m_descriptorHeap)
+        for (auto& stage : stages)
+            stage.pNext = &program->m_rootShaderObjectLayout->m_heapMappingInfo;
+    createInfo.stageCount = (uint32_t)stages.size();
+    createInfo.pStages = stages.data();
     createInfo.pVertexInputState = &vertexInputInfo;
     createInfo.pInputAssemblyState = &inputAssembly;
     createInfo.pViewportState = &viewportState;
@@ -768,6 +794,15 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     createInfo.subpass = 0;
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.pDynamicState = &dynamicStateInfo;
+
+    VkPipelineCreateFlags2CreateInfoKHR heapFlags = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
+    if (m_descriptorHeap)
+    {
+        heapFlags.flags = createInfo.flags | VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT;
+        heapFlags.pNext = createInfo.pNext;
+        createInfo.pNext = &heapFlags;
+        createInfo.flags = 0;
+    }
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     ComPtr<ISlangBlob> cacheKey;
@@ -844,7 +879,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 
     VkComputePipelineCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     createInfo.stage = program->m_stageCreateInfos[0];
+    if (m_descriptorHeap)
+        createInfo.stage.pNext = &program->m_rootShaderObjectLayout->m_heapMappingInfo;
     createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
+
+    VkPipelineCreateFlags2CreateInfoKHR heapFlags = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
+    if (m_descriptorHeap)
+    {
+        heapFlags.flags = createInfo.flags | VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT;
+        heapFlags.pNext = createInfo.pNext;
+        createInfo.pNext = &heapFlags;
+        createInfo.flags = 0;
+    }
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     ComPtr<ISlangBlob> cacheKey;
@@ -940,6 +986,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     VkPipelineCreateFlags2CreateInfoKHR createFlags2Info = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
     createFlags2Info.flags = translateRayTracingPipelineFlags2(desc.flags);
+    if (m_descriptorHeap)
+        createFlags2Info.flags |= VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT;
     if (createFlags2Info.flags != createInfo.flags)
     {
         createInfo.flags = 0; // Unused
@@ -956,8 +1004,12 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         createInfo.pNext = &clusterCreateInfo;
     }
 
-    createInfo.stageCount = (uint32_t)program->m_stageCreateInfos.size();
-    createInfo.pStages = program->m_stageCreateInfos.data();
+    auto stages = program->m_stageCreateInfos;
+    if (m_descriptorHeap)
+        for (auto& stage : stages)
+            stage.pNext = &program->m_rootShaderObjectLayout->m_heapMappingInfo;
+    createInfo.stageCount = (uint32_t)stages.size();
+    createInfo.pStages = stages.data();
 
     // Build a map from entry point name to entry point index
     // (which matches stageCreateInfos index) for all entry points.

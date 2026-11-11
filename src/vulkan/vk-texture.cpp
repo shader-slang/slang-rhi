@@ -176,6 +176,16 @@ TextureImpl::View TextureImpl::getView(
     if (view.imageView)
         return view;
 
+    VkImageViewCreateInfo createInfo = getViewCreateInfo(format, aspect, range, isRenderTarget);
+
+    VkResult result = device->m_api.vkCreateImageView(device->m_api.m_device, &createInfo, nullptr, &view.imageView);
+    SLANG_RHI_ASSERT(result == VK_SUCCESS);
+    return view;
+}
+
+VkImageViewCreateInfo TextureImpl::getViewCreateInfo(
+    Format format, TextureAspect aspect, const SubresourceRange& range, bool isRenderTarget)
+{
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
@@ -228,9 +238,7 @@ TextureImpl::View TextureImpl::getView(
         createInfo.subresourceRange.layerCount = m_desc.size.depth;
     }
 
-    VkResult result = device->m_api.vkCreateImageView(device->m_api.m_device, &createInfo, nullptr, &view.imageView);
-    SLANG_RHI_ASSERT(result == VK_SUCCESS);
-    return view;
+    return createInfo;
 }
 
 TextureViewImpl::TextureViewImpl(TextureImpl* texture, const TextureViewDesc& desc)

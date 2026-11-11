@@ -28,6 +28,7 @@ public:
     };
 
     View getView(Format format, TextureAspect aspect, const SubresourceRange& range, bool isRenderTarget);
+    VkImageViewCreateInfo getViewCreateInfo(Format format, TextureAspect aspect, const SubresourceRange& range, bool isRenderTarget);
 
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;

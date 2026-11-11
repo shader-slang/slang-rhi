@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-descriptor-heap.h"
 #include "vk-shader-object-layout.h"
 #include "../transient-buffer-heap.h"
 
@@ -9,6 +10,32 @@
 #include <vector>
 
 namespace rhi::vk {
+
+struct DescriptorSetBinding
+{
+    VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+    const ShaderObjectLayoutImpl::DescriptorSetInfo* layout = nullptr;
+    uint32_t resourceOffset = 0;
+    uint32_t samplerOffset = 0;
+
+    uint32_t slot(uint32_t binding, uint32_t index, bool sampler = false) const
+    {
+        uint32_t offset = sampler ? samplerOffset : resourceOffset;
+        for (const auto& range : layout->vkBindings)
+        {
+            if (range.binding == binding)
+            {
+                SLANG_RHI_ASSERT(index < range.descriptorCount);
+                return offset + index;
+            }
+            if (sampler ? (range.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || range.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                        : range.descriptorType != VK_DESCRIPTOR_TYPE_SAMPLER)
+                offset += range.descriptorCount;
+        }
+        SLANG_RHI_ASSERT_FAILURE("Descriptor binding is absent from heap layout");
+        return offset;
+    }
+};
 
 struct BindingDataBuilder
 {
@@ -127,7 +154,8 @@ public:
     VkPipelineLayout pipelineLayout;
 
     /// Descriptor sets.
-    VkDescriptorSet* descriptorSets;
+    DescriptorSetBinding* descriptorSets;
+    uint32_t heapPushOffset;
     uint32_t descriptorSetCount;
 
     /// Push constants.
@@ -144,7 +172,15 @@ struct BindingCache
 {
     std::vector<BindingDataImpl*> bindingData;
 
-    void reset() { bindingData.clear(); }
+    DescriptorHeap* heap = nullptr;
+    std::vector<DescriptorHeap::Allocation> heapAllocations;
+    void reset()
+    {
+        for (const auto& allocation : heapAllocations)
+            heap->free(allocation);
+        heapAllocations.clear();
+        bindingData.clear();
+    }
 };
 
 } // namespace rhi::vk
