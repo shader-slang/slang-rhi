@@ -19,7 +19,10 @@ public:
         OffsetAllocator::Allocation sampler;
     };
 
-    DescriptorHeap(DeviceImpl* device) : m_device(device) {}
+    DescriptorHeap(DeviceImpl* device)
+        : m_device(device)
+    {
+    }
     ~DescriptorHeap();
     Result initialize(const BindlessDesc& bindless, uint32_t transientCount);
     Result allocate(uint32_t resourceCount, uint32_t samplerCount, Allocation& allocation);

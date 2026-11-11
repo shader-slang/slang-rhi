@@ -28,7 +28,9 @@ Result DescriptorHeap::initializeHeap(Heap& heap, uint32_t count, uint32_t strid
     if (size > (sampler ? props.maxSamplerHeapSize : props.maxResourceHeapSize))
         return SLANG_E_OUT_OF_MEMORY;
     SLANG_RETURN_ON_FAIL(heap.buffer.init(
-        api, size, VK_BUFFER_USAGE_DESCRIPTOR_HEAP_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        api,
+        size,
+        VK_BUFFER_USAGE_DESCRIPTOR_HEAP_BIT_EXT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     ));
     SLANG_VK_RETURN_ON_FAIL(api.vkMapMemory(api.m_device, heap.buffer.m_memory, 0, VK_WHOLE_SIZE, 0, &heap.mapped));
@@ -44,7 +46,8 @@ Result DescriptorHeap::initialize(const BindlessDesc& bindless, uint32_t transie
 {
     const auto& props = m_device->m_descriptorHeapProperties;
     VkDeviceSize resourceAlignment = std::max(props.bufferDescriptorAlignment, props.imageDescriptorAlignment);
-    VkDeviceSize resourceSize = std::max(VkDeviceSize(8), std::max(props.bufferDescriptorSize, props.imageDescriptorSize));
+    VkDeviceSize resourceSize =
+        std::max(VkDeviceSize(8), std::max(props.bufferDescriptorSize, props.imageDescriptorSize));
     resourceSize = (resourceSize + resourceAlignment - 1) / resourceAlignment * resourceAlignment;
     VkDeviceSize samplerSize = (props.samplerDescriptorSize + props.samplerDescriptorAlignment - 1) /
                                props.samplerDescriptorAlignment * props.samplerDescriptorAlignment;
@@ -60,17 +63,34 @@ Result DescriptorHeap::initialize(const BindlessDesc& bindless, uint32_t transie
     m_samplerStride = uint32_t(samplerSize);
     m_resourcePrefix = uint32_t(resourcePrefix);
     m_samplerPrefix = uint32_t(samplerPrefix);
-    auto availableSlots = [](VkDeviceSize maxSize, VkDeviceSize reserved, VkDeviceSize alignment, uint32_t stride, uint32_t prefix)
+    auto availableSlots =
+        [](VkDeviceSize maxSize, VkDeviceSize reserved, VkDeviceSize alignment, uint32_t stride, uint32_t prefix)
     {
         if (maxSize < reserved)
             return uint32_t(0);
         VkDeviceSize slots = ((maxSize - reserved) / alignment * alignment) / stride;
         return slots > prefix ? uint32_t(std::min(slots - prefix, VkDeviceSize(UINT32_MAX))) : 0;
     };
-    uint32_t resources = std::min(transientCount, availableSlots(props.maxResourceHeapSize,
-        props.minResourceHeapReservedRange, props.resourceHeapAlignment, m_resourceStride, m_resourcePrefix));
-    uint32_t samplers = std::min(transientCount, availableSlots(props.maxSamplerHeapSize,
-        props.minSamplerHeapReservedRange, props.samplerHeapAlignment, m_samplerStride, m_samplerPrefix));
+    uint32_t resources = std::min(
+        transientCount,
+        availableSlots(
+            props.maxResourceHeapSize,
+            props.minResourceHeapReservedRange,
+            props.resourceHeapAlignment,
+            m_resourceStride,
+            m_resourcePrefix
+        )
+    );
+    uint32_t samplers = std::min(
+        transientCount,
+        availableSlots(
+            props.maxSamplerHeapSize,
+            props.minSamplerHeapReservedRange,
+            props.samplerHeapAlignment,
+            m_samplerStride,
+            m_samplerPrefix
+        )
+    );
     if (!resources || !samplers)
         return SLANG_E_OUT_OF_MEMORY;
     SLANG_RETURN_ON_FAIL(initializeHeap(m_resources, m_resourcePrefix + resources, m_resourceStride, false));
@@ -116,13 +136,21 @@ void DescriptorHeap::bind(VkCommandBuffer commandBuffer)
 
 Result DescriptorHeap::writeResource(uint32_t slot, const VkResourceDescriptorInfoEXT& info)
 {
-    VkHostAddressRangeEXT destination = {static_cast<uint8_t*>(m_resources.mapped) + size_t(slot) * m_resourceStride,
-                                         m_resourceStride};
+    VkHostAddressRangeEXT destination = {
+        static_cast<uint8_t*>(m_resources.mapped) + size_t(slot) * m_resourceStride,
+        m_resourceStride
+    };
     SLANG_VK_RETURN_ON_FAIL(m_device->m_api.vkWriteResourceDescriptorsEXT(m_device->m_device, 1, &info, &destination));
     return SLANG_OK;
 }
 
-Result DescriptorHeap::writeBuffer(uint32_t slot, VkDescriptorType type, BufferImpl* buffer, BufferRange range, Format format)
+Result DescriptorHeap::writeBuffer(
+    uint32_t slot,
+    VkDescriptorType type,
+    BufferImpl* buffer,
+    BufferRange range,
+    Format format
+)
 {
     VkResourceDescriptorInfoEXT info = {VK_STRUCTURE_TYPE_RESOURCE_DESCRIPTOR_INFO_EXT};
     info.type = type;
@@ -152,9 +180,12 @@ Result DescriptorHeap::writeTexture(uint32_t slot, VkDescriptorType type, Textur
     VkImageDescriptorInfoEXT image = {VK_STRUCTURE_TYPE_IMAGE_DESCRIPTOR_INFO_EXT};
     if (view)
     {
-        viewInfo = view->m_texture->getViewCreateInfo(view->m_desc.format, view->m_desc.aspect, view->m_desc.subresourceRange, false);
+        viewInfo =
+            view->m_texture
+                ->getViewCreateInfo(view->m_desc.format, view->m_desc.aspect, view->m_desc.subresourceRange, false);
         image.pView = &viewInfo;
-        image.layout = type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image.layout = type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ? VK_IMAGE_LAYOUT_GENERAL
+                                                                : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         info.data.pImage = &image;
     }
     return writeResource(slot, info);
@@ -171,7 +202,11 @@ Result DescriptorHeap::encodeSampler(const VkSamplerCreateInfo& info, std::vecto
 Result DescriptorHeap::writeSampler(uint32_t slot, SamplerImpl* sampler)
 {
     const auto& descriptor = sampler ? sampler->m_heapDescriptor : m_defaultSampler;
-    memcpy(static_cast<uint8_t*>(m_samplers.mapped) + size_t(slot) * m_samplerStride, descriptor.data(), descriptor.size());
+    memcpy(
+        static_cast<uint8_t*>(m_samplers.mapped) + size_t(slot) * m_samplerStride,
+        descriptor.data(),
+        descriptor.size()
+    );
     return SLANG_OK;
 }
 
@@ -185,9 +220,7 @@ Result DescriptorHeap::writeAccelerationStructure(uint32_t slot, AccelerationStr
         address.address = as->getAccelerationStructureDeviceAddress();
         info.data.pAddressRange = &address;
     }
-    Result result = writeResource(slot, info);
-    fprintf(stderr, "AS descriptor address %llx raw %llx\n", address.address, *reinterpret_cast<uint64_t*>(static_cast<uint8_t*>(m_resources.mapped) + size_t(slot) * m_resourceStride));
-    return result;
+    return writeResource(slot, info);
 }
 
 } // namespace rhi::vk

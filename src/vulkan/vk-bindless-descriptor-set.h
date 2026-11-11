@@ -2,6 +2,8 @@
 
 #include "vk-base.h"
 
+#include <mutex>
+
 namespace rhi::vk {
 
 class BindlessDescriptorSet : public RefObject

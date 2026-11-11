@@ -76,10 +76,8 @@ GPU_TEST_CASE("vulkan-descriptor-heap-bindless-acceleration-structure", Vulkan)
     DescriptorHandle handle = {};
     REQUIRE_CALL(tlas.tlas->getDescriptorHandle(&handle));
 
-
     const char* source = R"(
         uniform DescriptorHandle<RaytracingAccelerationStructure> scene;
-        RaytracingAccelerationStructure boundScene;
         RWStructuredBuffer<uint> result;
         [shader("compute")]
         [numthreads(1, 1, 1)]
@@ -91,16 +89,18 @@ GPU_TEST_CASE("vulkan-descriptor-heap-bindless-acceleration-structure", Vulkan)
             ray.TMin = 0;
             ray.TMax = 10;
             RayQuery<RAY_FLAG_FORCE_OPAQUE> query;
-            RaytracingAccelerationStructure heapScene = ResourceDescriptorHeap[((uint2)scene).x];
+            query.TraceRayInline(scene, RAY_FLAG_NONE, 255, ray);
+            query.Proceed();
 
 
             result[0] = ((uint2)scene).x;
-            result[1] = 1;
+            result[1] = query.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
         }
     )";
     auto session = device->getSlangSession();
     ComPtr<slang::IBlob> diagnostics;
-    auto module = session->loadModuleFromSourceString("heap_ray_query", "heap_ray_query", source, diagnostics.writeRef());
+    auto module =
+        session->loadModuleFromSourceString("heap_ray_query", "heap_ray_query", source, diagnostics.writeRef());
     diagnoseIfNeeded(diagnostics);
     REQUIRE(module);
     ComPtr<slang::IEntryPoint> entry;
@@ -114,21 +114,6 @@ GPU_TEST_CASE("vulkan-descriptor-heap-bindless-acceleration-structure", Vulkan)
     REQUIRE(program);
     auto pipeline = device->createComputePipeline({.program = program});
     REQUIRE(pipeline);
-    auto impl = checked_cast<vk::ShaderProgramImpl*>(program.get());
-    for (const auto& moduleCode : impl->m_modules)
-    {
-        const uint32_t* words = static_cast<const uint32_t*>(moduleCode.code->getBufferPointer());
-        size_t size = moduleCode.code->getBufferSize() / 4;
-        for (size_t i = 5; i < size; i += words[i] >> 16)
-        {
-            if ((words[i] & 0xffff) == 71 && (words[i] >> 16) == 4 && words[i+2] == 6)
-                fprintf(stderr, "STRIDE %u\n", words[i+3]);
-            if ((words[i] & 0xffff) == 17)
-                fprintf(stderr, "CAP %u\n", words[i+1]);
-            if ((words[i] & 0xffff) == 10)
-                fprintf(stderr, "EXT %s\n", reinterpret_cast<const char*>(words+i+1));
-        }
-    }
     BufferDesc bufferDesc = {};
     bufferDesc.size = 2 * sizeof(uint32_t);
     bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
@@ -139,7 +124,6 @@ GPU_TEST_CASE("vulkan-descriptor-heap-bindless-acceleration-structure", Vulkan)
     auto pass = encoder->beginComputePass();
     auto root = pass->bindPipeline(pipeline);
     REQUIRE_CALL(ShaderCursor(root)["scene"].setDescriptorHandle(handle));
-    REQUIRE_CALL(ShaderCursor(root)["boundScene"].setBinding(tlas.tlas));
     REQUIRE_CALL(ShaderCursor(root)["result"].setBinding(output));
     pass->dispatchCompute(1, 1, 1);
     pass->end();

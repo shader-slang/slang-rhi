@@ -346,3 +346,53 @@ callable). `maxDirectCallableDepthFromTraversal` separately budgets direct calls
 intersection/any-hit and defaults to zero. These limits are independent of
 `maxRecursion`, which controls nested ray tracing. Other backends ignore this extension.
 The pipeline copies these options, including when compilation is deferred.
+
+
+## Vulkan descriptor heaps (experimental)
+
+The default Vulkan backend continues to use descriptor sets, including the existing
+bindless descriptor set. Opt in to `VK_EXT_descriptor_heap` when creating a device:
+
+```cpp
+VulkanDeviceExtendedDesc vulkan = {};
+vulkan.enableDescriptorHeap = true;
+DeviceDesc desc = {};
+desc.deviceType = DeviceType::Vulkan;
+desc.next = &vulkan;
+ComPtr<IDevice> device;
+SLANG_RETURN_ON_FAIL(getRHI()->createDevice(desc, device.writeRef()));
+```
+
+Device creation fails if descriptor heaps, shader untyped pointers, maintenance5,
+or buffer device addresses are unavailable. Imported devices must already have
+enabled those extensions and features.
+
+The device's Slang session enables `spvDescriptorHeapEXT` and supplies resource and
+sampler strides matching the allocated heaps. Compile bindless shaders with that
+session, or configure an external session with the same capability and strides.
+Ordinary resource bindings use Vulkan's set/binding mapping interface. Existing
+shader-object and descriptor-handle APIs remain available; descriptor handle values
+are specific to the device and binding mode. Combined texture/sampler handles encode
+separate resource and sampler indices.
+
+`DeviceDesc::bindless` reserves persistent descriptors. The Vulkan extension's
+`descriptorHeapTransientCount` bounds ordinary descriptors retained across command
+buffers (default 65536 per heap), further capped to each physical heap's capacity.
+Allocations remain valid until the owning command buffer is recycled. Exhaustion
+returns an error; heaps do not grow or move while GPU work is in flight.
+
+Run the existing Vulkan tests through the opt-in path with
+`slang-rhi-tests -select-devices=vulkan -vulkan-descriptor-heap`. The default run
+continues to exercise descriptor sets. Dedicated `vulkan-descriptor-heap-*` tests
+check the selected binding mode, native shader emission, allocator rollback/reuse,
+and bindless acceleration-structure access.
+
+Current verification on NVIDIA TITAN RTX / driver 617.42 / Slang 2026.17.1 found two
+unresolved runtime failures: native bindless acceleration-structure access does not
+produce a successful ray query, and replaying cached heap-based ray-tracing pipeline
+binaries returns `VK_ERROR_INITIALIZATION_FAILED`. Ordinary acceleration-structure
+bindings and ray-tracing pipelines work; rejected pipeline binaries fall back to
+recompilation. The corresponding regression tests remain enabled to expose these
+failures. This mode is not ready for production until they are resolved. GPU tests
+were run with the installed older Vulkan validation layer disabled; validation with
+a layer supporting descriptor heaps is still required.

@@ -3613,7 +3613,7 @@ enum class AftermathFlags
     EnableShaderErrorReporting = (1 << 5),
 
     Default = EnableMarkers | EnableResourceTracking | CallStackCapturing | GenerateShaderDebugInfo |
-              EnableShaderErrorReporting,
+        EnableShaderErrorReporting,
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AftermathFlags);
 
@@ -4481,6 +4481,11 @@ struct VulkanDeviceExtendedDesc
 
     bool enableDebugPrintf = false;
 
+    uint32_t instanceExtensionCount = 0;
+    const char* const* instanceExtensions = nullptr;
+    uint32_t deviceExtensionCount = 0;
+    const char* const* deviceExtensions = nullptr;
+
     /// Opt in to VK_EXT_descriptor_heap. Device creation fails if unsupported.
     /// Imported devices must have enabled descriptorHeap and shaderUntypedPointers.
     bool enableDescriptorHeap = false;
@@ -4488,11 +4493,6 @@ struct VulkanDeviceExtendedDesc
     /// Each heap is additionally limited by the physical device capacity.
     /// Persistent bindless descriptors are reserved separately using DeviceDesc::bindless.
     uint32_t descriptorHeapTransientCount = 65536;
-
-    uint32_t instanceExtensionCount = 0;
-    const char* const* instanceExtensions = nullptr;
-    uint32_t deviceExtensionCount = 0;
-    const char* const* deviceExtensions = nullptr;
 };
 
 } // namespace rhi
