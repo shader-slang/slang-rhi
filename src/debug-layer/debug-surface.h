@@ -17,6 +17,8 @@ public:
     virtual SLANG_NO_THROW const SurfaceConfig* SLANG_MCALL getConfig() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
+    // Validate early waits without treating an internal reservation as an acquired image.
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 

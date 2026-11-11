@@ -18,13 +18,18 @@ public:
     // The canvas texture expires when execution yields; render into a persistent image instead.
     RefPtr<TextureImpl> m_texture;
 #endif
+    // Keep native acquisition separate from exposing the texture to the caller.
+    RefPtr<TextureImpl> m_currentTexture;
+    bool m_imageAcquired = false;
 
     ~SurfaceImpl();
 
     Result init(DeviceImpl* device, WindowHandle windowHandle);
+    Result prepareNextImage();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };

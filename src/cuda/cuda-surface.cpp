@@ -88,6 +88,9 @@ public:
     short_vector<VkImage> m_swapchainImages;
     short_vector<VkImageLayout> m_swapchainImageLayouts;
     uint32_t m_currentSwapchainImageIndex = -1;
+    // Reserve a native image without exposing its CUDA staging texture to the caller yet.
+    VkFence m_acquisitionFence = VK_NULL_HANDLE;
+    bool m_imageAcquired = false;
 
 public:
     ~SurfaceImpl();
@@ -99,6 +102,7 @@ public:
 
     Result createSwapchain();
     void destroySwapchain();
+    Result reserveNextImage(bool waitForAvailability);
 
     Result createFrameData(FrameData& frameData);
     void destroyFrameData(FrameData& frameData);
@@ -109,6 +113,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
@@ -563,6 +568,10 @@ Result SurfaceImpl::createSwapchain()
     {
         SLANG_RETURN_ON_FAIL(createFrameData(m_frameData[i]));
     }
+    // Explicit waits need a host-visible acquisition signal; the native acquire call alone
+    // does not guarantee the presentation engine has finished using the image.
+    VkFenceCreateInfo acquisitionFenceInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateFence(m_device, &acquisitionFenceInfo, nullptr, &m_acquisitionFence));
     m_currentFrameIndex = 0;
 
     return SLANG_OK;
@@ -577,6 +586,13 @@ void SurfaceImpl::destroySwapchain()
         m_api.vkQueueWaitIdle(m_queue);
     }
 
+    // Reservations have completed acquisition on the host and may be discarded with the
+    // swapchain during resize or shutdown, without copying or presenting their staging texture.
+    if (m_acquisitionFence != VK_NULL_HANDLE)
+    {
+        m_api.vkDestroyFence(m_device, m_acquisitionFence, nullptr);
+        m_acquisitionFence = VK_NULL_HANDLE;
+    }
     for (auto& frameData : m_frameData)
     {
         destroyFrameData(frameData);
@@ -585,6 +601,7 @@ void SurfaceImpl::destroySwapchain()
     m_swapchainImages.clear();
     m_swapchainImageLayouts.clear();
     m_currentSwapchainImageIndex = -1;
+    m_imageAcquired = false;
 
     if (m_swapchain != VK_NULL_HANDLE)
     {
@@ -943,48 +960,84 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::unconfigure()
 {
-    if (!m_configured)
-    {
-        return SLANG_OK;
-    }
-
+    // Out-of-date acquisition invalidates configuration but still owns the old swapchain.
     m_configured = false;
     destroySwapchain();
     return SLANG_OK;
 }
 
-Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+Result SurfaceImpl::reserveNextImage(bool waitForAvailability)
 {
-    *outTexture = nullptr;
-
-    if (!m_configured)
+    if (!m_configured || m_imageAcquired)
     {
         return SLANG_FAIL;
+    }
+    // Repeated waits retain one image until it is exposed or the surface is reconfigured.
+    if (m_currentSwapchainImageIndex != uint32_t(-1))
+    {
+        return SLANG_OK;
     }
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
 
     SLANG_VK_RETURN_ON_FAIL(m_api.vkWaitForFences(m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
+    if (waitForAvailability)
+    {
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &m_acquisitionFence));
+    }
 
-    m_currentSwapchainImageIndex = -1;
+    // Publish a reservation only after native acquisition succeeds; failure leaves no usable index.
+    uint32_t imageIndex = -1;
     VkResult result = m_api.vkAcquireNextImageKHR(
         m_device,
         m_swapchain,
         UINT64_MAX,
         frameData.imageAvailableSemaphore,
-        VK_NULL_HANDLE,
-        &m_currentSwapchainImageIndex
+        waitForAvailability ? m_acquisitionFence : VK_NULL_HANDLE,
+        &imageIndex
     );
 
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        // Let the caller resize after pumping input, including events received during the wait.
+        m_configured = false;
+        return SLANG_E_NOT_AVAILABLE;
+    }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;
     }
+    m_currentSwapchainImageIndex = imageIndex;
 
-    // Failed acquisition submits no work, so leave the fence signaled until an image is acquired.
+    if (waitForAvailability)
+    {
+        result = m_api.vkWaitForFences(m_device, 1, &m_acquisitionFence, VK_TRUE, UINT64_MAX);
+        if (result != VK_SUCCESS)
+        {
+            // A failed readiness wait must not leave a reservation that later appears ready.
+            m_configured = false;
+            SLANG_VK_RETURN_ON_FAIL(result);
+        }
+    }
+    return SLANG_OK;
+}
+
+Result SurfaceImpl::waitForNextImage()
+{
+    return reserveNextImage(true);
+}
+
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+{
+    *outTexture = nullptr;
+    SLANG_RETURN_ON_FAIL(reserveNextImage(false));
+
+    // The public acquire starts use of the CUDA staging texture. Keeping preparation here
+    // leaves unused reservations free of pending render-fence work when reconfiguring.
+    FrameData& frameData = m_frameData[m_currentFrameIndex];
     SLANG_VK_RETURN_ON_FAIL(m_api.vkResetFences(m_device, 1, &frameData.fence));
-
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
+    m_imageAcquired = true;
     returnComPtrCopy(outTexture, frameData.sharedTexture.cudaTexture);
     return SLANG_OK;
 }
@@ -998,7 +1051,7 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
-    if (m_currentSwapchainImageIndex == -1)
+    if (!m_imageAcquired)
     {
         return SLANG_FAIL;
     }
@@ -1216,6 +1269,11 @@ Result SurfaceImpl::present()
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentSwapchainImageIndex;
     VkResult result = m_api.vkQueuePresentKHR(m_queue, &presentInfo);
+    // Once submitted for presentation, the staging texture and native reservation belong to
+    // the completed frame. A subsequent wait must obtain a new reservation.
+    m_swapchainImageLayouts[m_currentSwapchainImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    m_currentSwapchainImageIndex = -1;
+    m_imageAcquired = false;
     // Resizing on the window thread can invalidate the swapchain during this frame.
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
         return SLANG_OK;
@@ -1223,8 +1281,6 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
-    m_swapchainImageLayouts[m_currentSwapchainImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
     return SLANG_OK;
 }
 

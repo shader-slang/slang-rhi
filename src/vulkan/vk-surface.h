@@ -31,6 +31,9 @@ public:
 
     uint32_t m_currentFrameIndex = 0;
     uint32_t m_currentTextureIndex = -1;
+    // A reservation waits for image availability without arming the queue's next submission.
+    VkFence m_acquisitionFence = VK_NULL_HANDLE;
+    bool m_imageAcquired = false;
 #if SLANG_APPLE_FAMILY
     void* m_metalLayer;
 #endif
@@ -41,9 +44,11 @@ public:
     Result init(DeviceImpl* device, WindowHandle windowHandle);
     Result createSwapchain();
     void destroySwapchain();
+    Result reserveNextImage(bool waitForAvailability);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForNextImage() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };

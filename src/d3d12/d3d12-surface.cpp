@@ -64,19 +64,34 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::unconfigure()
 {
+    // Release the additional interface before the shared implementation destroys the swapchain.
+    m_swapChain3.setNull();
     return D3DSurface::unconfigure();
+}
+
+Result SurfaceImpl::waitForNextImage()
+{
+    SLANG_RETURN_ON_FAIL(D3DSurface::waitForNextImage());
+    // Readiness alone does not consume the back buffer. Leave its event signaled until acquire
+    // so repeated waits and resizing between wait and acquire remain valid.
+    uint32_t index = m_swapChain3->GetCurrentBackBufferIndex();
+    return WaitForSingleObject(m_frameEvents[index], INFINITE) == WAIT_OBJECT_0 ? SLANG_OK : SLANG_FAIL;
 }
 
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
-    if (!m_configured)
+    *outTexture = nullptr;
+    if (!m_configured || m_imageAcquired)
     {
-        *outTexture = nullptr;
         return SLANG_FAIL;
     }
     auto result = (int)m_swapChain3->GetCurrentBackBufferIndex();
-    WaitForSingleObject(m_frameEvents[result], INFINITE);
+    // Acquire-only callers retain the existing GPU-use wait. After waitForNextImage this event
+    // is already signaled, and resetting it marks the start of the newly exposed frame.
+    if (WaitForSingleObject(m_frameEvents[result], INFINITE) != WAIT_OBJECT_0)
+        return SLANG_FAIL;
     ResetEvent(m_frameEvents[result]);
+    m_imageAcquired = true;
     returnComPtrCopy(outTexture, m_textures[result]);
     return SLANG_OK;
 }
@@ -87,13 +102,13 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
-    SLANG_D3D_RETURN_ON_FAIL_REPORT(
-        m_fence->SetEventOnCompletion(fenceValue, m_frameEvents[m_swapChain3->GetCurrentBackBufferIndex()]),
-        m_device
-    );
+    // The reuse event must track this frame's signal, not the preceding frame's fence value.
+    // Otherwise an early wait could report a back buffer ready while its GPU work still runs.
+    uint32_t index = m_swapChain3->GetCurrentBackBufferIndex();
     SLANG_RETURN_ON_FAIL(D3DSurface::present());
     fenceValue++;
-    m_queue->Signal(m_fence, fenceValue);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_queue->Signal(m_fence, fenceValue), m_device);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_fence->SetEventOnCompletion(fenceValue, m_frameEvents[index]), m_device);
     return SLANG_OK;
 }
 
