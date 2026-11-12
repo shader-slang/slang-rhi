@@ -607,6 +607,8 @@ Result DeviceImpl::initVulkanDevice(
     std::vector<const char*> deviceExtensions;
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
+    availableCapabilities.push_back(Capability::SPV_KHR_non_semantic_info);
+    availableCapabilities.push_back(Capability::spvNonSemanticInfoKHR);
 
     VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount = 1;
@@ -817,6 +819,8 @@ Result DeviceImpl::initVulkanDevice(
                 VK_KHR_SHADER_ABORT_EXTENSION_NAME
             );
             availableFeatures.push_back(Feature::ShaderAbort);
+            availableCapabilities.push_back(Capability::SPV_KHR_abort);
+            availableCapabilities.push_back(Capability::spvAbort);
         }
 
         SIMPLE_EXTENSION_FEATURE(
@@ -854,32 +858,80 @@ Result DeviceImpl::initVulkanDevice(
             {/* "16-bit-storage" */}
         );
 
-        // Keep extension enablement on the base atomics bits to preserve load/store/exchange support.
-        // Gate add/min-max capabilities on the operation-specific buffer bits; other storage classes
-        // and widths still need finer-grained capability checks.
-        SIMPLE_EXTENSION_FEATURE(
+        // Enable each atomic extension when any of its features is supported. In particular, float32
+        // min/max does not depend on float16 atomics. Report shader capabilities for buffer operations;
+        // shared and image atomics still require their own storage-class-specific feature checks.
+        const auto reportAtomicCapability = [&](bool supported, Capability extension, Capability capability)
+        {
+            if (supported)
+            {
+                availableCapabilities.push_back(extension);
+                availableCapabilities.push_back(capability);
+            }
+        };
+        const auto& atomicFloat = extendedFeatures.atomicFloatFeatures;
+        const bool atomicFloatEnabled = addFeatureExtension(
+            _hasAnySetBits(
+                atomicFloat,
+                offsetof(VkPhysicalDeviceShaderAtomicFloatFeaturesEXT, shaderBufferFloat32Atomics)
+            ),
             extendedFeatures.atomicFloatFeatures,
-            shaderBufferFloat32Atomics,
-            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::AtomicFloat);
-                if (extendedFeatures.atomicFloatFeatures.shaderBufferFloat32AtomicAdd)
-                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_add);
-            }
+            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
         );
+        if (atomicFloatEnabled)
+        {
+            if (atomicFloat.shaderBufferFloat32Atomics)
+                availableFeatures.push_back(Feature::AtomicFloat);
+            reportAtomicCapability(
+                atomicFloat.shaderBufferFloat32AtomicAdd,
+                Capability::SPV_EXT_shader_atomic_float_add,
+                Capability::spvAtomicFloat32AddEXT
+            );
+            reportAtomicCapability(
+                atomicFloat.shaderBufferFloat64AtomicAdd,
+                Capability::SPV_EXT_shader_atomic_float_add,
+                Capability::spvAtomicFloat64AddEXT
+            );
+        }
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.atomicFloat2Features,
-            shaderBufferFloat16Atomics,
-            VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
-            {
+        const auto& atomicFloat2 = extendedFeatures.atomicFloat2Features;
+        if (addFeatureExtension(
+                extensionNames.count(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME) &&
+                    _hasAnySetBits(
+                        atomicFloat2,
+                        offsetof(VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT, shaderBufferFloat16Atomics)
+                    ),
+                extendedFeatures.atomicFloat2Features,
+                VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME
+            ))
+        {
+            // VK_EXT_shader_atomic_float2 depends on VK_EXT_shader_atomic_float even if none of
+            // the latter's optional feature bits is supported.
+            if (!atomicFloatEnabled)
+                deviceExtensions.push_back(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME);
+            if (atomicFloat2.shaderBufferFloat16Atomics)
                 availableFeatures.push_back(Feature::AtomicFloat);
-                if (extendedFeatures.atomicFloat2Features.shaderBufferFloat16AtomicAdd)
-                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float16_add);
-                if (extendedFeatures.atomicFloat2Features.shaderBufferFloat32AtomicMinMax)
-                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_min_max);
-            }
-        );
+            reportAtomicCapability(
+                atomicFloat2.shaderBufferFloat16AtomicAdd,
+                Capability::SPV_EXT_shader_atomic_float16_add,
+                Capability::spvAtomicFloat16AddEXT
+            );
+            reportAtomicCapability(
+                atomicFloat2.shaderBufferFloat16AtomicMinMax,
+                Capability::SPV_EXT_shader_atomic_float_min_max,
+                Capability::spvAtomicFloat16MinMaxEXT
+            );
+            reportAtomicCapability(
+                atomicFloat2.shaderBufferFloat32AtomicMinMax,
+                Capability::SPV_EXT_shader_atomic_float_min_max,
+                Capability::spvAtomicFloat32MinMaxEXT
+            );
+            reportAtomicCapability(
+                atomicFloat2.shaderBufferFloat64AtomicMinMax,
+                Capability::SPV_EXT_shader_atomic_float_min_max,
+                Capability::spvAtomicFloat64MinMaxEXT
+            );
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.imageInt64AtomicFeatures,
@@ -909,15 +961,17 @@ Result DeviceImpl::initVulkanDevice(
             {/* Enable vertex attribute robustness to avoid validation errors */}
         );
 
-        if (extendedFeatures.vulkan14Features.shaderSubgroupRotate &&
-            extendedFeatures.vulkan14Features.shaderSubgroupRotateClustered &&
-            extensionNames.count(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME))
+        // Instances currently target at most Vulkan 1.3, so rotation still requires the KHR
+        // extension even when the physical device supports Vulkan 1.4.
+        if (addFeatureExtension(
+                extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotate,
+                extendedFeatures.shaderSubgroupRotateFeatures,
+                VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME
+            ))
         {
-            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotate = VK_TRUE;
-            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotateClustered = VK_TRUE;
-            extendedFeatures.shaderSubgroupRotateFeatures.pNext = (void*)deviceCreateInfo.pNext;
-            deviceCreateInfo.pNext = &extendedFeatures.shaderSubgroupRotateFeatures;
-            deviceExtensions.push_back(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME);
+            availableCapabilities.push_back(Capability::SPV_KHR_subgroup_rotate);
+            availableCapabilities.push_back(Capability::spvSubgroupRotateKHR);
+            availableCapabilities.push_back(Capability::spvGroupNonUniformRotateKHR);
         }
 
         // See DeviceDesc::enableRayTracing for rationale.
@@ -990,6 +1044,8 @@ Result DeviceImpl::initVulkanDevice(
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
                 {
                     availableFeatures.push_back(Feature::AccelerationStructureSpheres);
+                    availableCapabilities.push_back(Capability::SPV_NV_linear_swept_spheres);
+                    availableCapabilities.push_back(Capability::spvRayTracingSpheresGeometryNV);
                 }
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
                 {
@@ -1069,14 +1125,20 @@ Result DeviceImpl::initVulkanDevice(
             extendedFeatures.variablePointersFeatures,
             variablePointers,
             VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
-            {/* "variable-pointer" */}
+            {
+                availableCapabilities.push_back(Capability::SPV_KHR_variable_pointers);
+                availableCapabilities.push_back(Capability::spvVariablePointersKHR);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.computeShaderDerivativesFeatures,
             computeDerivativeGroupQuads,
             VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
-            { availableCapabilities.push_back(Capability::SPV_KHR_compute_shader_derivatives); }
+            {
+                availableCapabilities.push_back(Capability::SPV_KHR_compute_shader_derivatives);
+                availableCapabilities.push_back(Capability::spvComputeShaderDerivativesKHR);
+            }
         );
         // Also enable VK_NV_compute_shader_derivatives even if VK_KHR_compute_shader_derivatives is available.
         // This avoids warnings from the validation layer if the NV specific intrinsics are used.
@@ -1165,10 +1227,6 @@ Result DeviceImpl::initVulkanDevice(
                 availableFeatures.push_back(Feature::Float8);
                 availableCapabilities.push_back(Capability::SPV_EXT_float8);
                 availableCapabilities.push_back(Capability::spvFloat8EXT);
-                if (extendedFeatures.shaderFloat8Features.shaderFloat8CooperativeMatrix)
-                {
-                    availableCapabilities.push_back(Capability::spvFloat8CooperativeMatrixEXT);
-                }
             }
         );
 
@@ -1179,7 +1237,7 @@ Result DeviceImpl::initVulkanDevice(
             {
                 availableFeatures.push_back(Feature::Bfloat16);
                 availableCapabilities.push_back(Capability::SPV_KHR_bfloat16);
-                availableCapabilities.push_back(Capability::spvBfloat16KHR);
+                availableCapabilities.push_back(Capability::spvBFloat16KHR);
             }
         );
 
@@ -1210,7 +1268,6 @@ Result DeviceImpl::initVulkanDevice(
                 {
                     availableFeatures.push_back(Feature::CooperativeMatrix2);
                     availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
-                    availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
                 }
                 if (coopMat2.cooperativeMatrixReductions)
                 {
@@ -1308,7 +1365,27 @@ Result DeviceImpl::initVulkanDevice(
         }
 
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
+        {
             availableFeatures.push_back(Feature::AtomicInt64);
+            availableCapabilities.push_back(Capability::spvInt64Atomics);
+        }
+
+        if (extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        {
+            availableCapabilities.push_back(Capability::SPV_EXT_physical_storage_buffer);
+            availableCapabilities.push_back(Capability::SPV_KHR_physical_storage_buffer);
+            availableCapabilities.push_back(Capability::spvPhysicalStorageBufferEXT);
+            availableCapabilities.push_back(Capability::spvPhysicalStorageBufferKHR);
+        }
+        if (extendedFeatures.vulkan12Features.vulkanMemoryModel)
+        {
+            availableCapabilities.push_back(Capability::SPV_KHR_vulkan_memory_model);
+            availableCapabilities.push_back(Capability::spvVulkanMemoryModelKHR);
+            if (extendedFeatures.vulkan12Features.vulkanMemoryModelDeviceScope)
+            {
+                availableCapabilities.push_back(Capability::spvVulkanMemoryModelDeviceScopeKHR);
+            }
+        }
 
         if (_hasAnySetBits(
                 extendedFeatures.vulkan12Features,
@@ -1330,6 +1407,25 @@ Result DeviceImpl::initVulkanDevice(
 
         m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &extendedProps);
         m_api.m_rayTracingPipelineProperties = rtpProps;
+
+        // Report subgroup capabilities independently of the approximate WaveOps feature.
+        static constexpr std::pair<VkSubgroupFeatureFlagBits, Capability> subgroupCapabilities[] = {
+            {VK_SUBGROUP_FEATURE_BASIC_BIT, Capability::spvGroupNonUniform},
+            {VK_SUBGROUP_FEATURE_VOTE_BIT, Capability::spvGroupNonUniformVote},
+            {VK_SUBGROUP_FEATURE_ARITHMETIC_BIT, Capability::spvGroupNonUniformArithmetic},
+            {VK_SUBGROUP_FEATURE_BALLOT_BIT, Capability::spvGroupNonUniformBallot},
+            {VK_SUBGROUP_FEATURE_SHUFFLE_BIT, Capability::spvGroupNonUniformShuffle},
+            {VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT, Capability::spvGroupNonUniformShuffleRelative},
+            {VK_SUBGROUP_FEATURE_CLUSTERED_BIT, Capability::spvGroupNonUniformClustered},
+            {VK_SUBGROUP_FEATURE_QUAD_BIT, Capability::spvGroupNonUniformQuad},
+        };
+        for (const auto& [operation, capability] : subgroupCapabilities)
+        {
+            if (subgroupProps.supportedOperations & operation)
+            {
+                availableCapabilities.push_back(capability);
+            }
+        }
 
         // Approximate DX12's WaveOps boolean
         if (subgroupProps.supportedOperations & kWaveOpsSubgroupFeatureMask)
@@ -1404,6 +1500,11 @@ Result DeviceImpl::initVulkanDevice(
         if (extensionNames.count(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
+            if (subgroupProps.supportedOperations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV)
+            {
+                availableCapabilities.push_back(Capability::SPV_NV_shader_subgroup_partitioned);
+                availableCapabilities.push_back(Capability::spvGroupNonUniformPartitionedNV);
+            }
         }
     }
 
@@ -1605,6 +1706,7 @@ Result DeviceImpl::initVulkanDevice(
                      Capability::spirv_nv,
                      Capability::spvRayTracingClusterAccelerationStructureNV,
                      Capability::spvRayTracingLinearSweptSpheresGeometryNV,
+                     Capability::spvRayTracingSpheresGeometryNV,
                  })
             {
                 remove(availableCapabilities, capability);

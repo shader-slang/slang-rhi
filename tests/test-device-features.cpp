@@ -2,6 +2,10 @@
 
 #include "testing.h"
 
+#if SLANG_RHI_ENABLE_VULKAN
+#include "vulkan/vk-api.h"
+#endif
+
 #if SLANG_RHI_ENABLE_METAL
 #include <Foundation/NSProcessInfo.hpp>
 #endif
@@ -25,6 +29,142 @@ GPU_TEST_CASE("device-wave-size-limits", ALL)
     {
         CHECK(limits.minWaveSize > 0);
         CHECK(limits.maxWaveSize >= limits.minWaveSize);
+    }
+}
+
+#if SLANG_RHI_ENABLE_VULKAN
+GPU_TEST_CASE("vulkan-device-capabilities", Vulkan)
+{
+    DeviceNativeHandles handles;
+    REQUIRE_CALL(device->getNativeDeviceHandles(&handles));
+
+    vk::VulkanModule module;
+    REQUIRE_CALL(module.init());
+    vk::VulkanApi api;
+    REQUIRE_CALL(api.initGlobalProcs(module));
+    REQUIRE_CALL(api.initInstanceProcs((VkInstance)handles.handles[0].value));
+    VkPhysicalDevice physicalDevice = (VkPhysicalDevice)handles.handles[1].value;
+    VkPhysicalDeviceProperties basicProperties = {};
+    api.vkGetPhysicalDeviceProperties(physicalDevice, &basicProperties);
+    // The backend reports these capabilities only through its Vulkan 1.1+ feature-query path.
+    if (basicProperties.apiVersion < VK_API_VERSION_1_1 || !api.vkGetPhysicalDeviceProperties2 ||
+        !api.vkGetPhysicalDeviceFeatures2)
+    {
+        SKIP("Vulkan 1.1 feature and property queries are not available");
+    }
+
+    VkPhysicalDeviceSubgroupProperties subgroups = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES};
+    VkPhysicalDeviceProperties2 properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    properties.pNext = &subgroups;
+    api.vkGetPhysicalDeviceProperties2(physicalDevice, &properties);
+
+    // Compare the public RHI capabilities against the driver's individual operation bits, rather
+    // than the approximate WaveOps feature (which can be true on devices with only basic support).
+    const std::pair<VkSubgroupFeatureFlagBits, Capability> operations[] = {
+        {VK_SUBGROUP_FEATURE_BASIC_BIT, Capability::spvGroupNonUniform},
+        {VK_SUBGROUP_FEATURE_VOTE_BIT, Capability::spvGroupNonUniformVote},
+        {VK_SUBGROUP_FEATURE_ARITHMETIC_BIT, Capability::spvGroupNonUniformArithmetic},
+        {VK_SUBGROUP_FEATURE_BALLOT_BIT, Capability::spvGroupNonUniformBallot},
+        {VK_SUBGROUP_FEATURE_SHUFFLE_BIT, Capability::spvGroupNonUniformShuffle},
+        {VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT, Capability::spvGroupNonUniformShuffleRelative},
+        {VK_SUBGROUP_FEATURE_CLUSTERED_BIT, Capability::spvGroupNonUniformClustered},
+        {VK_SUBGROUP_FEATURE_QUAD_BIT, Capability::spvGroupNonUniformQuad},
+    };
+    for (const auto& [operation, capability] : operations)
+    {
+        const char* capabilityName = getRHI()->getCapabilityName(capability);
+        CAPTURE(capabilityName);
+        CHECK(device->hasCapability(capability) == bool(subgroups.supportedOperations & operation));
+    }
+
+    uint32_t extensionCount = 0;
+    REQUIRE(api.vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr) == VK_SUCCESS);
+    std::vector<VkExtensionProperties> extensions(extensionCount);
+    REQUIRE(
+        api.vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensions.data()) ==
+        VK_SUCCESS
+    );
+    const auto hasExtension = [&](const char* name)
+    {
+        for (const auto& extension : extensions)
+            if (std::strcmp(extension.extensionName, name) == 0)
+                return true;
+        return false;
+    };
+
+    VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloat = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT
+    };
+    VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT atomicFloat2 = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_2_FEATURES_EXT
+    };
+    VkPhysicalDeviceShaderSubgroupRotateFeatures rotate = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES
+    };
+    VkPhysicalDeviceFeatures2 features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+    features.pNext = &atomicFloat;
+    atomicFloat.pNext = &atomicFloat2;
+    atomicFloat2.pNext = &rotate;
+    api.vkGetPhysicalDeviceFeatures2(physicalDevice, &features);
+
+    const bool hasAtomicFloat = hasExtension(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME);
+    const bool hasAtomicFloat2 = hasAtomicFloat && hasExtension(VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME);
+    const std::pair<bool, Capability> atomicCapabilities[] = {
+        {hasAtomicFloat && atomicFloat.shaderBufferFloat32AtomicAdd, Capability::spvAtomicFloat32AddEXT},
+        {hasAtomicFloat && atomicFloat.shaderBufferFloat64AtomicAdd, Capability::spvAtomicFloat64AddEXT},
+        {hasAtomicFloat2 && atomicFloat2.shaderBufferFloat16AtomicAdd, Capability::spvAtomicFloat16AddEXT},
+        {hasAtomicFloat2 && atomicFloat2.shaderBufferFloat16AtomicMinMax, Capability::spvAtomicFloat16MinMaxEXT},
+        {hasAtomicFloat2 && atomicFloat2.shaderBufferFloat32AtomicMinMax, Capability::spvAtomicFloat32MinMaxEXT},
+        {hasAtomicFloat2 && atomicFloat2.shaderBufferFloat64AtomicMinMax, Capability::spvAtomicFloat64MinMaxEXT},
+    };
+    for (const auto& [supported, capability] : atomicCapabilities)
+    {
+        const char* capabilityName = getRHI()->getCapabilityName(capability);
+        CAPTURE(capabilityName);
+        CHECK(device->hasCapability(capability) == supported);
+    }
+    CHECK(
+        device->hasCapability(Capability::spvGroupNonUniformRotateKHR) ==
+        (hasExtension(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME) && bool(rotate.shaderSubgroupRotate))
+    );
+    CHECK(
+        device->hasCapability(Capability::spvGroupNonUniformPartitionedNV) ==
+        (hasExtension(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME) &&
+         bool(subgroups.supportedOperations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
+    );
+
+    if (properties.properties.apiVersion >= VK_API_VERSION_1_2)
+    {
+        VkPhysicalDeviceVulkan12Features vulkan12 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
+        features.pNext = &vulkan12;
+        api.vkGetPhysicalDeviceFeatures2(physicalDevice, &features);
+        CHECK(device->hasCapability(Capability::spvInt64Atomics) == bool(vulkan12.shaderBufferInt64Atomics));
+        CHECK(device->hasCapability(Capability::spvPhysicalStorageBufferEXT) == bool(vulkan12.bufferDeviceAddress));
+        CHECK(device->hasCapability(Capability::spvPhysicalStorageBufferKHR) == bool(vulkan12.bufferDeviceAddress));
+        CHECK(device->hasCapability(Capability::spvVulkanMemoryModelKHR) == bool(vulkan12.vulkanMemoryModel));
+        CHECK(
+            device->hasCapability(Capability::spvVulkanMemoryModelDeviceScopeKHR) ==
+            bool(vulkan12.vulkanMemoryModel && vulkan12.vulkanMemoryModelDeviceScope)
+        );
+    }
+}
+#endif
+
+TEST_CASE("slang-capability-names")
+{
+    ComPtr<slang::IGlobalSession> session;
+    REQUIRE_CALL(slang::createGlobalSession(session.writeRef()));
+    // These names previously were missing from RHI or used a spelling Slang silently ignored.
+    for (Capability capability : {
+             Capability::spvGroupNonUniform,
+             Capability::spvGroupNonUniformShuffleRelative,
+             Capability::spvGroupNonUniformClustered,
+             Capability::spvBFloat16KHR,
+         })
+    {
+        const char* name = getRHI()->getCapabilityName(capability);
+        CAPTURE(name);
+        CHECK(session->findCapability(name) != SLANG_CAPABILITY_UNKNOWN);
     }
 }
 
