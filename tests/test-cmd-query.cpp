@@ -247,6 +247,101 @@ GPU_TEST_CASE("cmd-query-render-pass-timestamps", D3D11 | D3D12 | Vulkan | Metal
     }
 }
 
+// Timestamps written between two dispatches of one compute pass, and around it, are taken in order, and the
+// dispatch after a timestamp still sees the pass's pipeline and bindings.
+GPU_TEST_CASE("cmd-query-compute-pass-timestamps", ALL)
+{
+    if (!device->hasFeature(Feature::TimestampQuery))
+        SKIP("Timestamp queries not supported");
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-compute-trivial", "computeMain", shaderProgram.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = sizeof(initialData);
+    bufferDesc.elementSize = sizeof(float);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> buffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, initialData, buffer.writeRef()));
+
+    auto pool = createTimestampQueryPool(device, 3);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    encoder->writeTimestamp(pool, 0);
+    auto pass = encoder->beginComputePass();
+    ShaderCursor cursor(pass->bindPipeline(pipeline));
+    cursor["buffer"].setBinding(buffer);
+    cursor["value"].setData(10.f);
+    pass->dispatchCompute(1, 1, 1);
+    pass->writeTimestamp(pool, 1);
+    pass->dispatchCompute(1, 1, 1);
+    pass->end();
+    encoder->writeTimestamp(pool, 2);
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+
+    uint64_t values[3] = {};
+    REQUIRE_CALL(pool->getResult(0, 3, values));
+    // A timestamp that was never sampled reads as 0.
+    CHECK(values[0] != 0);
+    CHECK(values[1] >= values[0]);
+    CHECK(values[2] >= values[1]);
+
+    compareComputeResult(device, buffer, makeArray<float>(22.0f, 23.0f, 24.0f, 25.0f));
+}
+
+// Timestamps inside render passes are taken in order and lie between the timestamps written around the passes.
+GPU_TEST_CASE("cmd-query-render-pass-timestamps-bracketed", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    if (!device->hasFeature(Feature::TimestampQuery))
+        SKIP("Timestamp queries not supported");
+
+    TextureDesc textureDesc = {};
+    textureDesc.size = {8, 8, 1};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.usage = TextureUsage::RenderTarget;
+    auto texture = device->createTexture(textureDesc);
+    REQUIRE(texture);
+
+    // Pass 0 writes 1 timestamp, pass 1 writes 3, pass 2 writes 4.
+    const uint32_t passTimestampCounts[] = {1, 3, 4};
+    const uint32_t queryCount = 2 + 1 + 3 + 4;
+    auto pool = createTimestampQueryPool(device, queryCount);
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    uint32_t queryIndex = 0;
+    encoder->writeTimestamp(pool, queryIndex++);
+    for (uint32_t count : passTimestampCounts)
+    {
+        RenderPassColorAttachment color = {};
+        color.view = texture->getDefaultView();
+        color.loadOp = LoadOp::Clear;
+        RenderPassDesc desc = {};
+        desc.colorAttachments = &color;
+        desc.colorAttachmentCount = 1;
+        auto pass = encoder->beginRenderPass(desc);
+        for (uint32_t i = 0; i < count; ++i)
+            pass->writeTimestamp(pool, queryIndex++);
+        pass->end();
+    }
+    encoder->writeTimestamp(pool, queryIndex++);
+    REQUIRE(queryIndex == queryCount);
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+
+    uint64_t values[queryCount] = {};
+    REQUIRE_CALL(pool->getResult(0, queryCount, values));
+    // A timestamp that was never sampled reads as 0.
+    CHECK(values[0] != 0);
+    for (uint32_t i = 1; i < queryCount; ++i)
+        CHECK(values[i] >= values[i - 1]);
+}
+
 GPU_TEST_CASE("cmd-query-result-readiness", ALL)
 {
     if (!device->hasFeature(Feature::TimestampQuery))
