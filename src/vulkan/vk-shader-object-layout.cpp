@@ -7,6 +7,16 @@
 
 namespace rhi::vk {
 
+// Include spaces reserved by a compiler-generated parameter-group wrapper.
+static uint64_t getElementSpace(slang::VariableLayoutReflection* variable, slang::TypeLayoutReflection* elementType)
+{
+    uint64_t space = variable->getOffset(SLANG_PARAMETER_CATEGORY_SUB_ELEMENT_REGISTER_SPACE);
+    auto* type = variable->getTypeLayout();
+    if (type != elementType)
+        space += type->getElementVarLayout()->getOffset(SLANG_PARAMETER_CATEGORY_SUB_ELEMENT_REGISTER_SPACE);
+    return space;
+}
+
 Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
 {
     if (!outDescriptorSetIndex)
@@ -482,6 +492,8 @@ Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflec
         //
         subObjectRange.offset = SubObjectRangeOffset(typeLayout->getSubObjectRangeOffset(r));
         subObjectRange.stride = SubObjectRangeStride(slangLeafTypeLayout);
+        if (auto element = slangLeafTypeLayout->getElementVarLayout())
+            subObjectRange.elementSpace = element->getOffset(SLANG_PARAMETER_CATEGORY_SUB_ELEMENT_REGISTER_SPACE);
 
         switch (slangBindingType)
         {
@@ -742,7 +754,10 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
 
     SLANG_RETURN_ON_FAIL(Super::_init(builder));
 
-    m_descriptorSetComposition = std::move(builder->m_descriptorSetComposition);
+    m_globalSpace = builder->m_globalSpace;
+    m_explicitDescriptorSetCount = uint32_t(builder->m_descriptorSetLayouts.size());
+    for (auto layout : builder->m_descriptorSetLayouts)
+        m_vkDescriptorSetLayouts.push_back(layout);
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
@@ -820,10 +835,12 @@ Result RootShaderObjectLayoutImpl::_init(Builder* builder)
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 {
-    if (m_descriptorSetComposition)
+    if (m_explicitDescriptorSetCount)
     {
+        // Child layouts are borrowed unchanged; the root owns reflected,
+        // synthetic, and empty sets at the remaining explicit locations.
         for (const auto& set : getOwnDescriptorSets())
-            m_vkDescriptorSetLayouts.push_back(set.descriptorSetLayout);
+            m_vkDescriptorSetLayouts[set.space] = set.descriptorSetLayout;
         return SLANG_OK;
     }
 
@@ -849,9 +866,8 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
 {
-    // Descriptor sets are already ordered by the builder: normal programs use
-    // the existing compact order, while synthetic resources preserve explicit
-    // Vulkan set numbers so binding locations match the compiler metadata.
+    // Ordinary programs use contiguous sets in traversal order. Synthetic
+    // programs assemble their explicit set locations in addAllDescriptorSets.
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
         m_vkDescriptorSetLayouts.push_back(descSetInfo.descriptorSetLayout);
@@ -939,7 +955,9 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 {
     if (m_program->getSpecializationParamCount() == 0)
     {
-        size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
+        size_t totalDescriptorSetCount = m_syntheticResources
+                                             ? m_descriptorSetLayouts.size()
+                                             : m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
         if (m_device->m_bindlessDescriptorSet)
             totalDescriptorSetCount++;
         if (totalDescriptorSetCount > kMaxDescriptorSets)
@@ -962,6 +980,7 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 Result RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
 {
     SLANG_RETURN_ON_FAIL(setElementTypeLayout(globalsLayout->getTypeLayout()));
+    m_globalSpace = getElementSpace(globalsLayout, m_elementTypeLayout);
 
     // We need to populate our descriptor sets/ranges with information
     // from the layout of the global scope.
@@ -998,6 +1017,7 @@ Result RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entr
     EntryPointInfo info;
     info.layout = entryPointLayout;
     info.offset = entryPointOffset;
+    info.offset.space = getElementSpace(entryPointVarLayout, entryPointLayout->getElementTypeLayout());
     info.paramsSize = entryPointLayout->getTotalOrdinaryDataSize();
 
     auto entryPointTypeLayout = entryPointVarLayout->getTypeLayout();

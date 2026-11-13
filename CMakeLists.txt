@@ -918,7 +918,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
-        src/vulkan/vk-descriptor-set-composition.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp

@@ -90,31 +90,37 @@ types return `SLANG_E_NOT_IMPLEMENTED`; `Unknown` is an invalid descriptor.
 Unsupported backends still behave normally when no synthetic resource
 descriptor is provided.
 
-## Vulkan Layout Composition
+## Vulkan descriptor-set ownership
 
-Vulkan permits an added binding to share a descriptor set with reflected
-resources, including resources in a parameter block, provided the binding number
-is unused. Explicit set numbers and gaps are preserved. A collision returns
-`SLANG_E_INVALID_ARG` with a diagnostic instead of terminating the application.
+Synthetic resources must use descriptor sets that are not occupied by ordinary
+reflected resources, including resources in global, nested, or entry-point
+parameter blocks. Sharing an occupied set is rejected with `SLANG_E_INVALID_ARG`,
+even when the requested binding number is unused. Multiple synthetic resources
+may share a synthetic-only set at distinct binding numbers; duplicate bindings
+are rejected.
 
-Layout creation uses the descriptor-set composition code in
-`src/vulkan/vk-descriptor-set-composition.*` to record a placement for each object
-occurrence. For example, two `ParameterBlock<Params>` fields can share a type
-layout but occupy different sets. Their placements are indexed by reflected
-subobject slots, so runtime binding does not have to repeat the construction
-traversal order. Entry-point objects have their own placements.
+Slang's automatic Vulkan coverage placement already selects a separate set.
+Applications using an explicit `TraceCoverageBinding` / `-trace-coverage-binding`
+override that shares a reflected set must select an unoccupied set and recompile.
+The RHI does not relocate bindings: descriptor locations must match the emitted
+shader code. Host-reserved sets absent from reflection can be reported to Slang
+with `TraceCoverageReservedSpace` / `-trace-coverage-reserved-space` when using
+automatic coverage allocation.
 
-Placements preserve Slang's register-space offsets, including nested container
-and entry-point offsets. For example, a parameter block at set 0 stays at set 0
-when a root buffer explicitly occupies set 3; expanding the root layout to cover
-set 3 does not move the child after that set. Children can fill gaps between root
-sets, and added bindings can share those sets at unused binding numbers.
+Explicit set numbers and gaps are preserved. For example, a parameter block at
+set 0 remains at set 0 when a reflected root buffer occupies set 3 and coverage
+occupies set 4. A synthetic resource can also occupy a gap that no reflected
+object owns.
 
-`src/vulkan/vk-synthetic-bindings.cpp` validates the additional records and adds
-ordinary resource ranges to that composed layout. Reflected and added ranges
-share resource-slot accounting. Descriptor writes and resource tracking use the
-existing binding path; they do not interpret synthetic IDs or coverage metadata.
+The pipeline layout borrows each parameter block's native set layouts, and
+parameter blocks allocate their own descriptor sets. The root owns its reflected
+and synthetic sets, including empty sets that fill gaps through the normal
+allocation path. Existing subobject layout records carry relative register-space
+offsets, including nested container and entry-point offsets, so sibling traversal
+order does not change binding locations.
 
-An absent or empty extension creates no composition object and retains ordinary
-per-object set allocation. Collision scans run only when adding explicit extra
-bindings, not when inserting ordinary reflected bindings.
+`src/vulkan/vk-synthetic-bindings.cpp` validates set ownership and adds root-owned
+resource ranges for the synthetic sets. Descriptor writes and resource tracking
+use the existing resource-slot binding path, without interpreting synthetic IDs
+or coverage metadata. An absent or empty extension retains the ordinary layout
+path. CUDA synthetic-resource support is unchanged by this Vulkan restriction.
