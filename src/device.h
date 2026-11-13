@@ -33,6 +33,9 @@ Device* getUnderlyingDevice(IDevice* device);
 // Returns the number of entries in the device's shader object layout cache.
 // Accepts either a device or its debug-layer wrapper.
 size_t getShaderObjectLayoutCacheSize(IDevice* device);
+// Returns the Slang session of a shader object's layout.
+// Accepts either a shader object or its debug-layer wrapper.
+slang::ISession* getShaderObjectLayoutSession(IShaderObject* object);
 } // namespace testing
 
 // Base class for adapters.
@@ -246,9 +249,11 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::ISession* slangSession,
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject
     ) override;
+    using IDevice::createShaderObjectFromTypeLayout;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(
         IShaderProgram* program,

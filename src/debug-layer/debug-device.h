@@ -109,6 +109,7 @@ public:
         IShaderObject** outObject
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::ISession* slangSession,
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject
     ) override;
