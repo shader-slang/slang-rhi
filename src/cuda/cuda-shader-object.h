@@ -6,6 +6,9 @@
 #include "cuda-shader-object-layout.h"
 #include "cuda-constant-buffer-pool.h"
 
+#include <string_view>
+#include <unordered_map>
+
 namespace rhi::cuda {
 
 void shaderObjectSetBinding(
@@ -64,6 +67,17 @@ struct BindingDataImpl : BindingData
 
 struct BindingCache
 {
+    // Interns packed global-parameter blocks by byte content so byte-identical
+    // packets (including nested parameter blocks) resolve to one canonical device
+    // address. The keys are std::string_view borrowed from this command buffer's
+    // ConstantBufferPool host pages, which is sound only because: (a) a page's backing
+    // storage keeps a stable address once allocated -- the pool never rewrites an
+    // existing packet's bytes, and although the Page objects are held by value in a
+    // std::vector (and move when it grows), the host memory they reference is
+    // separately heap-allocated and does not move; and (b) reset() clears this map
+    // before CommandBufferImpl::reset() releases those pages, so a borrowed key can
+    // never outlive its backing storage.
+    std::unordered_map<std::string_view, CUdeviceptr> internedGlobalParams;
     void reset();
 };
 
