@@ -409,6 +409,7 @@ Result ShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
+    SLANG_RETURN_ON_FAIL(checkFinalized());
     // If the shader object is a container, delegate the processing to
     // `setSpecializationArgsForContainerElements`.
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
@@ -467,7 +468,20 @@ Result ShaderObject::finalize()
             SLANG_RETURN_ON_FAIL(object->finalize());
     }
 
+    m_finalized = true;
     return SLANG_OK;
+}
+
+Result RootShaderObject::finalize()
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+    // Entry-point objects are not part of the sub-object array.
+    for (auto& entryPoint : m_entryPoints)
+    {
+        if (entryPoint && !entryPoint->isFinalized())
+            SLANG_RETURN_ON_FAIL(entryPoint->finalize());
+    }
+    return ShaderObject::finalize();
 }
 
 bool ShaderObject::isFinalized()

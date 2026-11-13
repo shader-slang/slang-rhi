@@ -353,6 +353,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
 
 public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override;
+
     static Result create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject);
 
     Result init(ShaderProgram* program);
