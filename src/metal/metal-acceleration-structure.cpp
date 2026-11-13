@@ -67,6 +67,7 @@ Result DeviceImpl::createAccelerationStructure(
 Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     const NS::Array* accelerationStructureArray,
+    bool hasRowMajorPreTransform,
     IDebugCallback* debugCallback
 )
 {
@@ -168,10 +169,35 @@ Result AccelerationStructureBuildDescConverter::convert(
 
             if (triangles.preTransformBuffer)
             {
+                // preTransformBuffer holds a row-major 3x4 matrix, as on D3D12, Vulkan and OptiX.
+                // Metal reads a column-major 4x3 matrix unless told otherwise, and only GPU family
+                // Apple9 on macOS 15 / iOS 18 and later can be told otherwise. Elsewhere, fail
+                // rather than build the geometry in the wrong place.
+                if (!hasRowMajorPreTransform)
+                {
+                    if (debugCallback)
+                    {
+                        debugCallback->handleMessage(
+                            DebugMessageType::Warning,
+                            DebugMessageSource::Layer,
+                            "preTransformBuffer requires a Metal device that supports row-major acceleration "
+                            "structure matrices (GPU family Apple9, macOS 15 / iOS 18)"
+                        );
+                    }
+                    for (uint32_t j = 0; j <= i; ++j)
+                    {
+                        triangleDescriptors[j]->release();
+                    }
+                    return SLANG_E_NOT_AVAILABLE;
+                }
                 triangleDescriptor->setTransformationMatrixBuffer(
                     checked_cast<BufferImpl*>(triangles.preTransformBuffer.buffer)->m_buffer.get()
                 );
                 triangleDescriptor->setTransformationMatrixBufferOffset(triangles.preTransformBuffer.offset);
+                if (__builtin_available(macOS 15.0, iOS 18.0, *))
+                {
+                    triangleDescriptor->setTransformationMatrixLayout(MTL::MatrixLayoutRowMajor);
+                }
             }
 
             triangleDescriptor->setOpaque(is_set(triangles.flags, AccelerationStructureGeometryFlags::Opaque));

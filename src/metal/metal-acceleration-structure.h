@@ -32,6 +32,7 @@ public:
     Result convert(
         const AccelerationStructureBuildDesc& buildDesc,
         const NS::Array* accelerationStructureArray,
+        bool hasRowMajorPreTransform,
         IDebugCallback* debugCallback
     );
 

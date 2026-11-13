@@ -1054,6 +1054,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/main.cpp
         tests/test-acceleration-structure-creation-with-validation.cpp
         tests/test-acceleration-structure-lifetime.cpp
+        tests/test-acceleration-structure-pre-transform.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-device-features.cpp
