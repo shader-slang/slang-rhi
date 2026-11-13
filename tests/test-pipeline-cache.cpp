@@ -584,7 +584,30 @@ Result parsePipelineCacheBlob(
     short_vector<VkPipelineBinaryKeyKHR>& outKeys,
     short_vector<VkPipelineBinaryDataKHR>& outData
 );
+Result checkPipelineKeySize(const VkPipelineBinaryKeyKHR& key, bool isGlobalKey);
 } // namespace rhi::vk
+
+// Driver-reported key sizes bound the bytes hashed from the fixed-size key array.
+TEST_CASE("pipeline-cache-key-size-validation")
+{
+    VkPipelineBinaryKeyKHR key = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+    for (bool isGlobalKey : {true, false})
+    {
+        CAPTURE(isGlobalKey);
+        key.keySize = VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR;
+        CHECK(SLANG_SUCCEEDED(rhi::vk::checkPipelineKeySize(key, isGlobalKey)));
+        key.keySize = 1;
+        CHECK(SLANG_SUCCEEDED(rhi::vk::checkPipelineKeySize(key, isGlobalKey)));
+        key.keySize = VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR + 1;
+        CHECK(SLANG_FAILED(rhi::vk::checkPipelineKeySize(key, isGlobalKey)));
+        key.keySize = 0xffffffff;
+        CHECK(SLANG_FAILED(rhi::vk::checkPipelineKeySize(key, isGlobalKey)));
+    }
+    // An empty pipeline key selects the fallback key; an empty global key is rejected.
+    key.keySize = 0;
+    CHECK(SLANG_FAILED(rhi::vk::checkPipelineKeySize(key, true)));
+    CHECK(SLANG_SUCCEEDED(rhi::vk::checkPipelineKeySize(key, false)));
+}
 
 // A cache entry whose header passes the magic/version check but carries an out-of-range length or
 // offset must be rejected rather than trusted: the key size drives a copy into a fixed-size array,
