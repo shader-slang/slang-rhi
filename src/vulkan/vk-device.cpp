@@ -1506,6 +1506,10 @@ Result DeviceImpl::initVulkanDevice(
                 availableCapabilities.push_back(Capability::spvGroupNonUniformPartitionedNV);
             }
         }
+        if (extensionNames.count(VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
+        }
     }
 
     if (extendedFeatures.vulkan12Features.descriptorIndexing)
