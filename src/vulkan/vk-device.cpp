@@ -714,6 +714,7 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderSubgroupPartitionedFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
@@ -1356,6 +1357,15 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
+        // The EXT version needs both the extension and the shaderSubgroupPartitioned feature. The NV version is
+        // enabled further below, because it reports its support through a subgroup property instead of a feature.
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderSubgroupPartitionedFeatures,
+            shaderSubgroupPartitioned,
+            VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME,
+            {}
+        );
+
 #undef SIMPLE_EXTENSION_FEATURE
 
         SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport));
@@ -1505,10 +1515,6 @@ Result DeviceImpl::initVulkanDevice(
                 availableCapabilities.push_back(Capability::SPV_NV_shader_subgroup_partitioned);
                 availableCapabilities.push_back(Capability::spvGroupNonUniformPartitionedNV);
             }
-        }
-        if (extensionNames.count(VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
         }
     }
 
