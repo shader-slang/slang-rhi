@@ -1,0 +1,11 @@
+EXPORTS
+    nvPTXCompilerGetVersion
+    nvPTXCompilerCreate
+    nvPTXCompilerDestroy
+    nvPTXCompilerCompile
+    nvPTXCompilerGetErrorLogSize
+    nvPTXCompilerGetErrorLog
+    nvPTXCompilerGetInfoLogSize
+    nvPTXCompilerGetInfoLog
+    nvPTXCompilerGetCompiledProgramSize
+    nvPTXCompilerGetCompiledProgram

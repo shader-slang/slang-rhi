@@ -1,4 +1,5 @@
 #include "device.h"
+#include "pipeline-resolver.h"
 
 #include "rhi-shared.h"
 #include "shader.h"
@@ -714,6 +715,11 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
         SLANG_RETURN_ON_FAIL(program->compileShaders(this));
         return createRayTracingPipeline2(desc, outPipeline);
     }
+}
+
+Result Device::createPendingPipelines()
+{
+    return resolvePendingPipelines(this);
 }
 
 Result Device::getCompilationReportList(ISlangBlob** outReportListBlob)

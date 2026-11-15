@@ -3,6 +3,7 @@
 #include "cuda-shader-program.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-utils.h"
+#include "cuda-cubin.h"
 
 // Enable using cuModuleLoadDataEx for loading CUDA modules.
 // This allows us to get logs for module loading.
@@ -76,10 +77,23 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     {
         printError("Error log from cuModuleLoadDataEx:\n%s", errorLog.get());
     }
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code.c_str()), this);
+    CUresult result = cuModuleLoadData(&pipeline->m_module, module.code.c_str());
 #endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
+    if (module.cubinCacheHit && (result == CUDA_ERROR_INVALID_IMAGE || result == CUDA_ERROR_NO_BINARY_FOR_GPU))
+    {
+        // A cache entry is only a hint. Rebuild rejected binaries from retained PTX,
+        // without modifying the program's modules while other pipelines may read them.
+        printWarning("CUDA rejected a cached CUBIN; rebuilding from PTX.");
+        ComPtr<ISlangBlob> cubin;
+        std::string diagnostics;
+        Result compileResult = m_cubinCompiler->rebuild(module.ptx, module.cubinCacheKey, cubin, diagnostics);
+        if (!diagnostics.empty())
+            printWarning("%s", diagnostics.c_str());
+        SLANG_RETURN_ON_FAIL(compileResult);
+        result = cuModuleLoadData(&pipeline->m_module, cubin->getBufferPointer());
+    }
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
     pipeline->m_entryPointName = module.entryPointName;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
         cuModuleGetFunction(&pipeline->m_function, pipeline->m_module, pipeline->m_entryPointName.data()),

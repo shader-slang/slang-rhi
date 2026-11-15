@@ -5,6 +5,8 @@
 
 namespace rhi::cuda {
 
+class CubinCompiler;
+
 struct Context
 {
     CUdevice device = -1;
@@ -28,6 +30,7 @@ public:
     }
 
     Context m_ctx;
+    std::unique_ptr<CubinCompiler> m_cubinCompiler;
     std::string m_adapterName;
     InternalRefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;

@@ -968,7 +968,39 @@ if(SLANG_RHI_ENABLE_METAL)
 endif()
 
 if(SLANG_RHI_ENABLE_CUDA)
+    set(SLANG_RHI_NVPTXCOMPILER_ROOT "" CACHE PATH "Optional standalone PTX compiler root for the CUBIN experiment")
+    if(SLANG_RHI_NVPTXCOMPILER_ROOT)
+        # Resolve again when the root changes; never fingerprint an old cached path.
+        unset(SLANG_RHI_NVPTXCOMPILER_INCLUDE CACHE)
+        unset(SLANG_RHI_NVPTXCOMPILER_LIBRARY CACHE)
+        find_path(SLANG_RHI_NVPTXCOMPILER_INCLUDE nvPTXCompiler.h
+            PATHS "${SLANG_RHI_NVPTXCOMPILER_ROOT}/include" NO_DEFAULT_PATH NO_CACHE REQUIRED)
+        find_library(SLANG_RHI_NVPTXCOMPILER_LIBRARY NAMES nvptxcompiler_static
+            PATHS "${SLANG_RHI_NVPTXCOMPILER_ROOT}/lib/x64" "${SLANG_RHI_NVPTXCOMPILER_ROOT}/lib64"
+            NO_DEFAULT_PATH NO_CACHE REQUIRED)
+        file(SHA256 "${SLANG_RHI_NVPTXCOMPILER_LIBRARY}" SLANG_RHI_NVPTXCOMPILER_HASH)
+        target_include_directories(slang-rhi PRIVATE "${SLANG_RHI_NVPTXCOMPILER_INCLUDE}")
+        if(MSVC)
+            # NVIDIA ships only an /MT release archive. Isolate its C runtime in
+            # a DLL exposing the C API instead of mixing it with the caller's CRT.
+            add_library(slang-rhi-nvptxcompiler SHARED
+                src/cuda/cuda-nvptxcompiler.cpp src/cuda/cuda-nvptxcompiler.def)
+            set_target_properties(slang-rhi-nvptxcompiler PROPERTIES
+                MSVC_RUNTIME_LIBRARY MultiThreaded
+                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+            target_link_libraries(slang-rhi-nvptxcompiler PRIVATE "${SLANG_RHI_NVPTXCOMPILER_LIBRARY}")
+            target_link_libraries(slang-rhi PRIVATE slang-rhi-nvptxcompiler)
+        else()
+            target_link_libraries(slang-rhi PRIVATE "${SLANG_RHI_NVPTXCOMPILER_LIBRARY}")
+        endif()
+        target_compile_definitions(slang-rhi PRIVATE
+            SLANG_RHI_HAS_NVPTXCOMPILER=1
+            SLANG_RHI_NVPTXCOMPILER_HASH="${SLANG_RHI_NVPTXCOMPILER_HASH}")
+    else()
+        target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_NVPTXCOMPILER=0)
+    endif()
     target_sources(slang-rhi PRIVATE
+        src/cuda/cuda-cubin.cpp
         src/cuda/cuda-acceleration-structure.cpp
         src/cuda/cuda-backend.cpp
         src/cuda/cuda-buffer.cpp

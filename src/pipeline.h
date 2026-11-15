@@ -24,6 +24,9 @@ public:
     InternalRefPtr<ShaderProgram> m_program;
 
     Pipeline(Device* device);
+    virtual ~Pipeline();
+    void registerPendingCompilation();
+    void unregisterPendingCompilation();
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
 
@@ -37,6 +40,7 @@ public:
     virtual void setConcretePipeline(Pipeline* pipeline) {}
 
 private:
+    bool m_pendingCompilation = false;
     const uint64_t m_specializationCacheId;
 };
 
@@ -69,7 +73,7 @@ public:
 
     virtual bool isVirtual() const override { return true; }
     virtual Pipeline* getConcretePipeline() const override { return m_concretePipeline.get(); }
-    virtual void setConcretePipeline(Pipeline* pipeline) override { m_concretePipeline = pipeline; }
+    virtual void setConcretePipeline(Pipeline* pipeline) override;
 
     // IRenderPipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -103,7 +107,7 @@ public:
 
     virtual bool isVirtual() const override { return true; }
     virtual Pipeline* getConcretePipeline() const override { return m_concretePipeline.get(); }
-    virtual void setConcretePipeline(Pipeline* pipeline) override { m_concretePipeline = pipeline; }
+    virtual void setConcretePipeline(Pipeline* pipeline) override;
 
     // IComputePipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -137,7 +141,7 @@ public:
 
     virtual bool isVirtual() const override { return true; }
     virtual Pipeline* getConcretePipeline() const override { return m_concretePipeline.get(); }
-    virtual void setConcretePipeline(Pipeline* pipeline) override { m_concretePipeline = pipeline; }
+    virtual void setConcretePipeline(Pipeline* pipeline) override;
 
     // IRayTracingPipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

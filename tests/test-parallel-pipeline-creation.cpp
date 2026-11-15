@@ -1,5 +1,13 @@
 #include "testing.h"
 #include "shader-cache.h"
+#include "device.h"
+#include "core/sha1.h"
+
+#if SLANG_RHI_ENABLE_CUDA
+#include "cuda/cuda-device.h"
+#endif
+
+#include <atomic>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -8,7 +16,8 @@ namespace {
 
 void runDeferredPipelineBatch(
     IDevice* device,
-    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default,
+    bool resolveBeforeRecording = false
 )
 {
     const char* entryPointNames[] = {"computeAdd", "computeMul", "computeSub", "computeNeg"};
@@ -70,6 +79,13 @@ void runDeferredPipelineBatch(
         TextureViewDesc colorViewDesc = {};
         colorViewDesc.format = Format::RGBA8Unorm;
         REQUIRE_CALL(device->createTextureView(colorTexture, colorViewDesc, colorView.writeRef()));
+    }
+
+    if (resolveBeforeRecording)
+    {
+        REQUIRE_CALL(device->createPendingPipelines());
+        CHECK(getUnderlyingDevice(device)->m_pendingPipelines.empty());
+        REQUIRE_CALL(device->createPendingPipelines());
     }
 
     float initialData[] = {1.0f, 2.0f, 3.0f, 4.0f};
@@ -234,6 +250,33 @@ GPU_TEST_CASE("parallel-pipeline-creation", ALL | DontCreateDevice)
     runDeferredPipelineBatch(device);
 }
 
+GPU_TEST_CASE("explicit-pending-pipeline-creation", ALL | DontCreateDevice)
+{
+    for (auto mode : {PipelineCompilationMode::Serial, PipelineCompilationMode::Parallel})
+    {
+        DeviceExtraOptions options;
+        options.pipelineCompilationMode = mode;
+        device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(device);
+        REQUIRE_CALL(device->createPendingPipelines());
+
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadProgram(device, "test-parallel-pipeline-creation", "computeAdd", program.writeRef()));
+        ComputePipelineDesc desc = {};
+        desc.program = program;
+        desc.compilationPolicy = PipelineCompilationPolicy::Deferred;
+        ComPtr<IComputePipeline> discarded;
+        REQUIRE_CALL(device->createComputePipeline(desc, discarded.writeRef()));
+        CHECK(getUnderlyingDevice(device)->m_pendingPipelines.size() == 1);
+        discarded.setNull();
+        CHECK(getUnderlyingDevice(device)->m_pendingPipelines.empty());
+        REQUIRE_CALL(device->createPendingPipelines());
+
+        runDeferredPipelineBatch(device, PipelineCompilationPolicy::Deferred, true);
+        CHECK(getUnderlyingDevice(device)->m_pendingPipelines.empty());
+    }
+}
+
 GPU_TEST_CASE("parallel-pipeline-creation-shared-cache", D3D12 | Vulkan | DontCreateDevice)
 {
     rhi::testing::ShaderCache sharedCache;
@@ -296,3 +339,94 @@ GPU_TEST_CASE("parallel-pipeline-creation-cuda-ray-tracing", CUDA | DontCreateDe
 
     runDeferredCudaRayTracingPipelineBatch(device);
 }
+
+#if SLANG_RHI_ENABLE_CUDA
+GPU_TEST_CASE("cuda-cubin-cache-recovery", CUDA | DontCreateDevice)
+{
+    // Run with SLANG_RHI_CUDA_CUBIN=1 in a build with the optional compiler.
+    // The existing batch dispatches and validates four different programs.
+    class Cache : public rhi::testing::ShaderCache
+    {
+    public:
+        std::atomic<unsigned> writes = 0;
+        int corruption = 0;
+        bool failIO = false;
+
+        Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* value) override
+        {
+            ++writes;
+            if (failIO)
+                return SLANG_FAIL;
+            return rhi::testing::ShaderCache::writeCache(key, value);
+        }
+
+        Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outValue) override
+        {
+            if (failIO)
+                return SLANG_FAIL;
+            ComPtr<ISlangBlob> value;
+            SLANG_RETURN_ON_FAIL(rhi::testing::ShaderCache::queryCache(key, value.writeRef()));
+            if (corruption)
+            {
+                const auto* data = static_cast<const uint8_t*>(value->getBufferPointer());
+                std::vector<uint8_t> bytes(data, data + value->getBufferSize());
+                REQUIRE(bytes.size() > 100);
+                if (corruption == 1)
+                    bytes.resize(12); // Truncated record.
+                else if (corruption == 2)
+                    bytes.back() ^= 0xff; // Valid header, invalid checksum.
+                else
+                {
+                    // Preserve the envelope/checksum, but make ELF e_machine invalid.
+                    // This passes cache decoding and exercises rejection by CUDA itself.
+                    bytes[28 + 18] = 0;
+                    bytes[28 + 19] = 0;
+                    auto digest = SHA1(bytes.data() + 28, bytes.size() - 28).getDigest();
+                    std::memcpy(bytes.data() + 8, digest.data(), digest.size());
+                }
+                value = OwnedBlob::create(bytes.data(), bytes.size());
+            }
+            *outValue = value.detach();
+            return SLANG_OK;
+        }
+    } cache;
+
+    DeviceExtraOptions options;
+    options.persistentPipelineCache = &cache;
+    options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
+    {
+        auto probe = createTestingDevice(ctx, DeviceType::CUDA, false, &options);
+        REQUIRE(probe);
+        auto cudaDevice = static_cast<rhi::cuda::DeviceImpl*>(getUnderlyingDevice(probe));
+        if (!cudaDevice->m_cubinCompiler)
+            SKIP("Enable SLANG_RHI_CUDA_CUBIN to test the optional CUBIN compiler.");
+    }
+    auto run = [&]()
+    {
+        // A local device ensures the test-owned cache outlives its reference,
+        // including assertion failures or a skip.
+        auto testDevice = createTestingDevice(ctx, DeviceType::CUDA, false, &options);
+        REQUIRE(testDevice);
+        runDeferredPipelineBatch(testDevice, PipelineCompilationPolicy::Deferred, true);
+    };
+    run();
+    CHECK(cache.writes == 4);
+    run();
+    CHECK(cache.writes == 4); // Reused binaries must not be recompiled/written.
+    for (int corruption = 1; corruption <= 3; ++corruption)
+    {
+        cache.corruption = corruption;
+        unsigned before = cache.writes;
+        run();
+        // The batch shares one program between two pipelines. Driver rejection
+        // can rebuild that one twice; malformed records rebuild once per program.
+        CHECK(cache.writes >= before + 4);
+        cache.corruption = 0;
+        before = cache.writes;
+        run();
+        CHECK(cache.writes == before);
+    }
+    cache.failIO = true;
+    run(); // Cache read/write errors must not prevent correct execution.
+}
+#endif

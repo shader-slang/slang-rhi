@@ -4059,6 +4059,14 @@ public:
         return pipeline;
     }
 
+    /// Compile all live, pending pipelines whose programs are fully specialized, without recording commands.
+    /// Blocks until compilation finishes, using the device's pipelineCompilationMode. Already resolved and
+    /// destroyed pipelines are excluded. Programs requiring specialization from bound shader objects continue
+    /// to compile when used by a command encoder. Failed pipelines remain pending for retry or destruction.
+    /// The caller must exclude concurrent pipeline creation/destruction and other operations on the shared
+    /// Slang global session and its derived objects until this call returns.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createPendingPipelines() = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) = 0;
 
     /// Read back texture resource and stores the result in `outData`.

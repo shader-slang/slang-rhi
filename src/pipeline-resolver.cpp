@@ -186,6 +186,17 @@ private:
 
     Result resolveSerial()
     {
+        if (!m_commandList)
+        {
+            SLANG_RETURN_ON_FAIL(collectRequests());
+            for (auto& request : m_requests)
+            {
+                Pipeline* concretePipeline = nullptr;
+                SLANG_RETURN_ON_FAIL(m_device->getConcretePipeline(request.pipeline, nullptr, concretePipeline));
+            }
+            return SLANG_OK;
+        }
+
         for (auto command = m_commandList->getCommands(); command; command = command->next)
         {
             Pipeline* pipeline;
@@ -203,6 +214,19 @@ private:
 
     Result collectRequests()
     {
+        if (!m_commandList)
+        {
+            // Retain a snapshot for the duration of this batch. Publication removes entries
+            // from the non-owning registry, so never resolve while iterating that registry.
+            for (Pipeline* pipeline : m_device->m_pendingPipelines)
+            {
+                PipelineRequest request;
+                request.pipeline = pipeline;
+                m_requests.push_back(std::move(request));
+            }
+            return SLANG_OK;
+        }
+
         std::unordered_map<PipelineKey, size_t, PipelineKeyHasher> requestMap;
 
         for (auto command = m_commandList->getCommands(); command; command = command->next)
@@ -471,6 +495,12 @@ private:
 Result resolvePipelines(Device* device, CommandList* commandList)
 {
     PipelineResolver resolver(device, commandList);
+    return resolver.resolve();
+}
+
+Result resolvePendingPipelines(Device* device)
+{
+    PipelineResolver resolver(device, nullptr);
     return resolver.resolve();
 }
 

@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-cubin.h"
 #include "cuda-resource-heap.h"
 #include "cuda-backend.h"
 #include "cuda-command.h"
@@ -157,6 +158,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.adapterName = m_adapterName.data();
         m_info.adapterLUID = getAdapterLUID(m_ctx.device);
         m_info.timestampFrequency = 1000000;
+    }
+
+    // Snapshot the experiment configuration before any compilation workers run.
+    if (CubinCompiler::isRequested())
+    {
+        m_cubinCompiler = std::make_unique<CubinCompiler>();
+        SLANG_RETURN_ON_FAIL(m_cubinCompiler->initialize(this));
     }
 
     // Query device limits

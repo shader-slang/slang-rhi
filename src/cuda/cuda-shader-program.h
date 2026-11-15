@@ -13,15 +13,19 @@ public:
     {
         SlangStage stage;
         std::string entryPointName;
-        // PTX artifacts are length-delimited; CUDA loading and text inspection need a terminator.
-        // Owning the text here preserves the artifact length while c_str() supplies that terminator.
+        // Length-delimited PTX or CUBIN. c_str() supplies the terminator required for PTX.
         std::string code;
+        ComPtr<ISlangBlob> ptx;
+        ComPtr<ISlangBlob> cubinCacheKey;
+        bool cubinCacheHit = false;
     };
 
     std::vector<Module> m_modules;
 
     ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
     ~ShaderProgramImpl();
+
+    Result compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime) override;
 
     virtual Result createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode) override;
 

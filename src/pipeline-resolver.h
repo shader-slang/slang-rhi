@@ -13,4 +13,7 @@ class Device;
 /// entry-point code generation and supported backend pipeline creation may run concurrently.
 Result resolvePipelines(Device* device, CommandList* commandList);
 
+/// Resolves the device's pending fully specialized pipelines without recording commands.
+Result resolvePendingPipelines(Device* device);
+
 } // namespace rhi

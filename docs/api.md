@@ -32,6 +32,7 @@
 | `createShaderProgram`              | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createRenderPipeline`             | :x:     | :x:  | yes   | yes   | yes    | yes     | yes  |
 | `createComputePipeline`            | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `createPendingPipelines`           | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createRayTracingPipeline`         | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `readTexture`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `readBuffer`                       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |

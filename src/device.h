@@ -16,6 +16,7 @@
 #include <map>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace rhi {
 
@@ -235,6 +236,8 @@ public:
         const RayTracingPipelineDesc& desc,
         IRayTracingPipeline** outPipeline
     ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createPendingPipelines() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) override;
 
@@ -570,6 +573,10 @@ public:
 
     /// Serializes resolution/publication across command encoders. Work within one resolver may still run concurrently.
     std::mutex m_pipelineResolutionMutex;
+
+    /// Non-owning. Pipelines unregister on resolution or destruction. Access requires external synchronization
+    /// with pipeline creation/destruction and shared Slang operations, just like the compilation batch itself.
+    std::unordered_set<Pipeline*> m_pendingPipelines;
 
     LiveDeviceTracker m_liveDeviceTracker;
 };
