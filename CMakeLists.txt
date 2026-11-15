@@ -999,6 +999,29 @@ if(SLANG_RHI_ENABLE_CUDA)
     else()
         target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_NVPTXCOMPILER=0)
     endif()
+    set(SLANG_RHI_NVJITLINK_ROOT "" CACHE PATH "Optional shared nvJitLink root for the CUBIN experiment")
+    if(SLANG_RHI_NVJITLINK_ROOT)
+        find_path(SLANG_RHI_NVJITLINK_INCLUDE nvJitLink.h
+            PATHS "${SLANG_RHI_NVJITLINK_ROOT}/include" NO_DEFAULT_PATH NO_CACHE REQUIRED)
+        find_library(SLANG_RHI_NVJITLINK_LIBRARY NAMES nvJitLink
+            PATHS "${SLANG_RHI_NVJITLINK_ROOT}/lib/x64" "${SLANG_RHI_NVJITLINK_ROOT}/lib64"
+            NO_DEFAULT_PATH NO_CACHE REQUIRED)
+        if(WIN32)
+            find_file(SLANG_RHI_NVJITLINK_BINARY NAMES nvJitLink_120_0.dll
+                PATHS "${SLANG_RHI_NVJITLINK_ROOT}/bin" NO_DEFAULT_PATH NO_CACHE REQUIRED)
+            add_custom_command(TARGET slang-rhi POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/$<CONFIG>"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${SLANG_RHI_NVJITLINK_BINARY}" "${CMAKE_BINARY_DIR}/$<CONFIG>")
+        else()
+            set(SLANG_RHI_NVJITLINK_BINARY "${SLANG_RHI_NVJITLINK_LIBRARY}")
+        endif()
+        target_include_directories(slang-rhi PRIVATE "${SLANG_RHI_NVJITLINK_INCLUDE}")
+        target_link_libraries(slang-rhi PRIVATE "${SLANG_RHI_NVJITLINK_LIBRARY}")
+        target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_NVJITLINK=1)
+    else()
+        target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_HAS_NVJITLINK=0)
+    endif()
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-cubin.cpp
         src/cuda/cuda-acceleration-structure.cpp

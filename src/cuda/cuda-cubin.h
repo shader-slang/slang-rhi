@@ -29,10 +29,14 @@ public:
 
 private:
     Result compile(ISlangBlob* ptx, ComPtr<ISlangBlob>& cubin, std::string& diagnostics);
+    Result compileWithJitLink(ISlangBlob* ptx, ComPtr<ISlangBlob>& cubin, std::string& diagnostics);
     void store(ISlangBlob* key, ISlangBlob* cubin);
     DeviceImpl* m_device = nullptr;
     std::string m_archOption;
     std::string m_optimizationOption;
+    std::string m_compilerName;
+    std::string m_fingerprint;
+    std::vector<std::string> m_options;
     unsigned int m_major = 0;
     unsigned int m_minor = 0;
     bool m_trace = false;
