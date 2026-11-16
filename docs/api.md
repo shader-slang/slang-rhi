@@ -33,6 +33,7 @@
 | `createRenderPipeline`             | :x:     | :x:  | yes   | yes   | yes    | yes     | yes  |
 | `createComputePipeline`            | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createRayTracingPipeline`         | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createPendingPipelines`           | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `readTexture`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `readBuffer`                       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createQueryPool`                  | yes     | yes  | yes   | yes   | yes    | yes     | yes  |

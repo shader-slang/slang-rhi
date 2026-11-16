@@ -4059,6 +4059,20 @@ public:
         return pipeline;
     }
 
+    /// Experimental API: compile all live, pending pipelines whose programs are fully specialized, without recording
+    /// commands.
+    ///
+    /// Blocks until compilation finishes, using the device's pipelineCompilationMode. Already resolved and
+    /// destroyed pipelines are excluded. Programs requiring specialization from bound shader objects continue
+    /// to compile when used by a command encoder. Failed pipelines remain pending for retry or destruction.
+    ///
+    /// The caller must ensure that NO other calls are in progress or made to the owning slang::ISession objects
+    /// of these programs, or to objects derived from those sessions, until this call returns. This includes both
+    /// direct Slang calls and RHI operations that use those sessions. The underlying parallel target-code generation
+    /// API cannot interleave with any other operations on the owning Slang sessions.
+    /// The caller must also exclude concurrent pipeline creation/destruction until this call returns.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createPendingPipelines() = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) = 0;
 
     /// Read back texture resource and stores the result in `outData`.

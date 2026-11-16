@@ -25,6 +25,9 @@ public:
 
     Pipeline(Device* device);
     Pipeline(const Pipeline&) = delete;
+
+    virtual ~Pipeline();
+
     Pipeline& operator=(const Pipeline&) = delete;
 
     /// Identifies this pipeline lifetime in specialization caches, even after
@@ -36,7 +39,12 @@ public:
     virtual Pipeline* getConcretePipeline() const { return nullptr; }
     virtual void setConcretePipeline(Pipeline* pipeline) {}
 
+protected:
+    void registerPendingCompilation();
+    void unregisterPendingCompilation();
+
 private:
+    bool m_pendingCompilation = false;
     const uint64_t m_specializationCacheId;
 };
 
@@ -69,7 +77,7 @@ public:
 
     virtual bool isVirtual() const override { return true; }
     virtual Pipeline* getConcretePipeline() const override { return m_concretePipeline.get(); }
-    virtual void setConcretePipeline(Pipeline* pipeline) override { m_concretePipeline = pipeline; }
+    virtual void setConcretePipeline(Pipeline* pipeline) override;
 
     // IRenderPipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -103,7 +111,7 @@ public:
 
     virtual bool isVirtual() const override { return true; }
     virtual Pipeline* getConcretePipeline() const override { return m_concretePipeline.get(); }
-    virtual void setConcretePipeline(Pipeline* pipeline) override { m_concretePipeline = pipeline; }
+    virtual void setConcretePipeline(Pipeline* pipeline) override;
 
     // IComputePipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -137,7 +145,7 @@ public:
 
     virtual bool isVirtual() const override { return true; }
     virtual Pipeline* getConcretePipeline() const override { return m_concretePipeline.get(); }
-    virtual void setConcretePipeline(Pipeline* pipeline) override { m_concretePipeline = pipeline; }
+    virtual void setConcretePipeline(Pipeline* pipeline) override;
 
     // IRayTracingPipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

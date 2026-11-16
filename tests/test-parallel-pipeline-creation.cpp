@@ -1,5 +1,10 @@
 #include "testing.h"
+#include "barrier.h"
+#include "device.h"
+#include "pipeline.h"
 #include "shader-cache.h"
+
+#include <thread>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -8,7 +13,8 @@ namespace {
 
 void runDeferredPipelineBatch(
     IDevice* device,
-    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default,
+    bool resolveBeforeRecording = false
 )
 {
     const char* entryPointNames[] = {"computeAdd", "computeMul", "computeSub", "computeNeg"};
@@ -70,6 +76,35 @@ void runDeferredPipelineBatch(
         TextureViewDesc colorViewDesc = {};
         colorViewDesc.format = Format::RGBA8Unorm;
         REQUIRE_CALL(device->createTextureView(colorTexture, colorViewDesc, colorView.writeRef()));
+    }
+
+    if (resolveBeforeRecording)
+    {
+        auto* underlyingDevice = getUnderlyingDevice(device);
+        std::vector<Pipeline*> virtualPipelines;
+        for (const auto& pipeline : pipelines)
+            virtualPipelines.push_back(checked_cast<ComputePipeline*>(pipeline.get()));
+        if (renderPipeline)
+            virtualPipelines.push_back(checked_cast<RenderPipeline*>(renderPipeline.get()));
+
+        for (auto* pipeline : virtualPipelines)
+            REQUIRE_FALSE(pipeline->getConcretePipeline());
+
+        REQUIRE_CALL(device->createPendingPipelines());
+        CHECK(underlyingDevice->m_pendingPipelines.empty());
+
+        // Check resolution before recording can trigger lazy compilation. Retain the
+        // concrete pipelines so an unexpected replacement cannot reuse their addresses.
+        std::vector<RefPtr<Pipeline>> concretePipelines;
+        for (auto* pipeline : virtualPipelines)
+        {
+            REQUIRE(pipeline->getConcretePipeline());
+            concretePipelines.emplace_back(pipeline->getConcretePipeline());
+        }
+
+        REQUIRE_CALL(device->createPendingPipelines());
+        for (size_t i = 0; i < virtualPipelines.size(); ++i)
+            CHECK_EQ(virtualPipelines[i]->getConcretePipeline(), concretePipelines[i].get());
     }
 
     float initialData[] = {1.0f, 2.0f, 3.0f, 4.0f};
@@ -232,6 +267,75 @@ GPU_TEST_CASE("parallel-pipeline-creation", ALL | DontCreateDevice)
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
     runDeferredPipelineBatch(device);
+}
+
+GPU_TEST_CASE("explicit-pending-pipeline-creation", ALL | DontCreateDevice)
+{
+    for (auto mode : {PipelineCompilationMode::Serial, PipelineCompilationMode::Parallel})
+    {
+        DeviceExtraOptions options;
+        options.pipelineCompilationMode = mode;
+        device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+        REQUIRE(device);
+        auto* underlyingDevice = getUnderlyingDevice(device);
+        REQUIRE_CALL(device->createPendingPipelines());
+
+        ComPtr<IShaderProgram> program;
+        REQUIRE_CALL(loadProgram(device, "test-parallel-pipeline-creation", "computeAdd", program.writeRef()));
+        ComputePipelineDesc desc = {};
+        desc.program = program;
+        desc.compilationPolicy = PipelineCompilationPolicy::Deferred;
+        ComPtr<IComputePipeline> discarded;
+        REQUIRE_CALL(device->createComputePipeline(desc, discarded.writeRef()));
+        CHECK_EQ(underlyingDevice->m_pendingPipelines.size(), 1);
+        discarded.setNull();
+        CHECK(underlyingDevice->m_pendingPipelines.empty());
+        REQUIRE_CALL(device->createPendingPipelines());
+
+        runDeferredPipelineBatch(device, PipelineCompilationPolicy::Deferred, true);
+        CHECK(underlyingDevice->m_pendingPipelines.empty());
+    }
+}
+
+GPU_TEST_CASE("pending-pipeline-concurrent-destruction", ALL)
+{
+    constexpr size_t workerCount = 8;
+    constexpr size_t pipelinesPerWorker = 1024;
+    auto* underlyingDevice = getUnderlyingDevice(device);
+
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-parallel-pipeline-creation", "computeAdd", program.writeRef()));
+    ComputePipelineDesc desc = {};
+    desc.program = program;
+    desc.compilationPolicy = PipelineCompilationPolicy::Deferred;
+
+    ComPtr<IComputePipeline> survivor;
+    REQUIRE_CALL(device->createComputePipeline(desc, survivor.writeRef()));
+    std::vector<ComPtr<IComputePipeline>> pipelines(workerCount * pipelinesPerWorker);
+    for (auto& pipeline : pipelines)
+        REQUIRE_CALL(device->createComputePipeline(desc, pipeline.writeRef()));
+
+    // Releasing distinct objects must be safe even when no compilation batch is active.
+    // Keep the program alive here so these workers only destroy pipeline objects.
+    rhi::testing::Barrier start(workerCount);
+    std::vector<std::thread> workers;
+    for (size_t worker = 0; worker < workerCount; ++worker)
+    {
+        workers.emplace_back(
+            [&, worker]
+            {
+                start.arriveAndWait();
+                for (size_t i = worker; i < pipelines.size(); i += workerCount)
+                    pipelines[i].setNull();
+            }
+        );
+    }
+    for (auto& worker : workers)
+        worker.join();
+
+    REQUIRE_EQ(underlyingDevice->m_pendingPipelines.size(), 1);
+    REQUIRE_CALL(device->createPendingPipelines());
+    CHECK(underlyingDevice->m_pendingPipelines.empty());
 }
 
 GPU_TEST_CASE("parallel-pipeline-creation-shared-cache", D3D12 | Vulkan | DontCreateDevice)

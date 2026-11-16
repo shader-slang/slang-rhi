@@ -13,4 +13,9 @@ class Device;
 /// entry-point code generation and supported backend pipeline creation may run concurrently.
 Result resolvePipelines(Device* device, CommandList* commandList);
 
+/// Resolves the device's pending fully specialized pipelines without recording commands.
+/// Experimental: requires exclusive access to the programs' owning Slang sessions and their derived objects
+/// for the duration of the call, as documented by IDevice::createPendingPipelines().
+Result resolvePendingPipelines(Device* device);
+
 } // namespace rhi

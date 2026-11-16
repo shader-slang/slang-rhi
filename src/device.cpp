@@ -4,6 +4,7 @@
 #include "shader.h"
 #include "heap.h"
 #include "resource-heap.h"
+#include "pipeline-resolver.h"
 #include "debug-layer/debug-device.h"
 
 #include <algorithm>
@@ -714,6 +715,11 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
         SLANG_RETURN_ON_FAIL(program->compileShaders(this));
         return createRayTracingPipeline2(desc, outPipeline);
     }
+}
+
+Result Device::createPendingPipelines()
+{
+    return resolvePendingPipelines(this);
 }
 
 Result Device::getCompilationReportList(ISlangBlob** outReportListBlob)

@@ -17,6 +17,32 @@ Pipeline::Pipeline(Device* device)
     SLANG_RHI_ASSERT(m_specializationCacheId != 0);
 }
 
+Pipeline::~Pipeline()
+{
+    unregisterPendingCompilation();
+}
+
+void Pipeline::registerPendingCompilation()
+{
+    // Programs requiring bound shader-object specialization cannot be compiled yet.
+    if (!m_program->isSpecializable())
+    {
+        std::lock_guard<std::mutex> lock(m_device->m_pendingPipelinesMutex);
+        m_device->m_pendingPipelines.insert(this);
+        m_pendingCompilation = true;
+    }
+}
+
+void Pipeline::unregisterPendingCompilation()
+{
+    if (m_pendingCompilation)
+    {
+        std::lock_guard<std::mutex> lock(m_device->m_pendingPipelinesMutex);
+        m_device->m_pendingPipelines.erase(this);
+        m_pendingCompilation = false;
+    }
+}
+
 // ----------------------------------------------------------------------------
 // RenderPipeline
 // ----------------------------------------------------------------------------
@@ -46,6 +72,13 @@ RenderPipeline::RenderPipeline(Device* device, const RenderPipelineDesc& desc)
 VirtualRenderPipeline::VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc)
     : RenderPipeline(device, desc)
 {
+    registerPendingCompilation();
+}
+
+void VirtualRenderPipeline::setConcretePipeline(Pipeline* pipeline)
+{
+    m_concretePipeline = pipeline;
+    unregisterPendingCompilation();
 }
 
 Result VirtualRenderPipeline::getNativeHandle(NativeHandle* outHandle)
@@ -82,6 +115,13 @@ ComputePipeline::ComputePipeline(Device* device, const ComputePipelineDesc& desc
 VirtualComputePipeline::VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc)
     : ComputePipeline(device, desc)
 {
+    registerPendingCompilation();
+}
+
+void VirtualComputePipeline::setConcretePipeline(Pipeline* pipeline)
+{
+    m_concretePipeline = pipeline;
+    unregisterPendingCompilation();
 }
 
 Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
@@ -137,6 +177,13 @@ RayTracingPipeline::RayTracingPipeline(Device* device, const RayTracingPipelineD
 VirtualRayTracingPipeline::VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc)
     : RayTracingPipeline(device, desc)
 {
+    registerPendingCompilation();
+}
+
+void VirtualRayTracingPipeline::setConcretePipeline(Pipeline* pipeline)
+{
+    m_concretePipeline = pipeline;
+    unregisterPendingCompilation();
 }
 
 Result VirtualRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
