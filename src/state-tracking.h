@@ -86,8 +86,8 @@ public:
                 textureState->subresourceStates.resize(texture->m_desc.getSubresourceCount(), textureState->state);
                 textureState->state = ResourceState::Undefined;
             }
-            uint32_t layerCount = texture->m_desc.getLayerCount();
-            for (uint32_t layer = subresourceRange.layer; layer < layerCount; layer++)
+            uint32_t layerEnd = subresourceRange.layer + subresourceRange.layerCount;
+            for (uint32_t layer = subresourceRange.layer; layer < layerEnd; layer++)
             {
                 for (uint32_t mip = subresourceRange.mip; mip < subresourceRange.mip + subresourceRange.mipCount; mip++)
                 {
