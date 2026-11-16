@@ -400,8 +400,14 @@ Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRa
 
 Result Device::queryInterface(const SlangUUID& uuid, void** outObject)
 {
-    *outObject = getInterface(uuid);
-    return SLANG_OK;
+    IDevice* intf = getInterface(uuid);
+    if (intf)
+    {
+        addRef();
+        *outObject = intf;
+        return SLANG_OK;
+    }
+    return SLANG_E_NO_INTERFACE;
 }
 
 IDevice* Device::getInterface(const Guid& guid)

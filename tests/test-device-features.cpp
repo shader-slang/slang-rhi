@@ -124,3 +124,17 @@ TEST_CASE("cooperative-matrix-2-subfeature-names")
     );
     CHECK(std::string(rhi->getFeatureName(Feature::CooperativeMatrixBlockLoads)) == "cooperative-matrix-block-loads");
 }
+
+// Querying an interface must add a reference on success and fail for unknown interfaces.
+GPU_TEST_CASE("device-query-interface", ALL)
+{
+    ComPtr<IDevice> queried;
+    REQUIRE_CALL(device->queryInterface(IDevice::getTypeGuid(), (void**)queried.writeRef()));
+    CHECK(queried.get() == device.get());
+
+    static const SlangUUID kUnknownGuid =
+        {0x6f2b7a1c, 0x3d54, 0x4e8f, {0x9a, 0x01, 0x5c, 0x2e, 0x7b, 0x44, 0xd3, 0x10}};
+    void* unknown = nullptr;
+    CHECK(device->queryInterface(kUnknownGuid, &unknown) == SLANG_E_NO_INTERFACE);
+    CHECK(unknown == nullptr);
+}
