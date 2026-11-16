@@ -685,8 +685,13 @@ GPU_TEST_CASE("cmd-draw-multiple-render-targets", D3D11 | D3D12 | Vulkan | Metal
     }
 }
 
-GPU_TEST_CASE("cmd-draw-viewport-array", D3D11 | D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("cmd-draw-viewport-array", D3D11 | D3D12 | Vulkan)
 {
+    if (!device->hasFeature(Feature::ViewportArrayIndex))
+    {
+        SKIP("SV_ViewportArrayIndex not supported");
+    }
+
     ComPtr<IShaderProgram> program;
     REQUIRE_CALL(loadProgram(
         device,
