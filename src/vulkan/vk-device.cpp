@@ -949,7 +949,8 @@ Result DeviceImpl::initVulkanDevice(
                 // Physical support does not establish which extensions an imported device enabled.
                 m_hasExtendedDynamicState = !desc.existingDeviceHandles.handles[2];
                 if (m_hasExtendedDynamicState && m_api.m_deviceFeatures.multiViewport &&
-                    extendedFeatures.vulkan12Features.shaderOutputViewportIndex)
+                    (extendedFeatures.vulkan12Features.shaderOutputViewportIndex ||
+                     extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME)))
                     availableFeatures.push_back(Feature::ViewportArrayIndex);
             }
         );
