@@ -180,6 +180,7 @@ enum class DeviceType
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     x(ShaderAbort,                              "shader-abort"                                  ) \
+    x(SubgroupPartitionedEXT,                   "subgroup-partitioned-ext"                      ) \
     /* VK_NV_cooperative_matrix2 subfeatures (reported independently) */                         \
     x(CooperativeMatrixReductions,              "cooperative-matrix-reductions"                 ) \
     x(CooperativeMatrixConversions,             "cooperative-matrix-conversions"                ) \
