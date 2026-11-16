@@ -945,7 +945,7 @@ Result DeviceImpl::initVulkanDevice(
             extendedFeatures.extendedDynamicStateFeatures,
             extendedDynamicState,
             VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
-            {/* "extended-dynamic-states" */}
+            { m_hasExtendedDynamicState = true; }
         );
 
         SIMPLE_EXTENSION_FEATURE(

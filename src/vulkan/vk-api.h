@@ -268,6 +268,8 @@ protected:
     x(vkGetBufferMemoryRequirements2) \
     x(vkGetImageMemoryRequirements2) \
     x(vkCmdSetPrimitiveTopologyEXT) \
+    x(vkCmdSetViewportWithCountEXT) \
+    x(vkCmdSetScissorWithCountEXT) \
     x(vkGetBufferDeviceAddress) \
     x(vkGetBufferDeviceAddressKHR) \
     x(vkGetBufferDeviceAddressEXT) \

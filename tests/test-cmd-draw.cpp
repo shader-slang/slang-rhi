@@ -684,3 +684,79 @@ GPU_TEST_CASE("cmd-draw-multiple-render-targets", D3D11 | D3D12 | Vulkan | Metal
         }
     }
 }
+
+GPU_TEST_CASE("cmd-draw-viewport-array", D3D11 | D3D12 | Vulkan | Metal)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(
+        device,
+        "test-cmd-draw",
+        {"viewportArrayVertexMain", "viewportArrayFragmentMain"},
+        program.writeRef()
+    ));
+    auto target = createColorBuffer(device);
+    ColorTargetDesc colorTarget = {};
+    colorTarget.format = format;
+    RenderPipelineDesc pipelineDesc = {};
+    pipelineDesc.program = program;
+    pipelineDesc.targets = &colorTarget;
+    pipelineDesc.targetCount = 1;
+    pipelineDesc.rasterizer.cullMode = CullMode::None;
+    pipelineDesc.depthStencil.depthTestEnable = false;
+    pipelineDesc.depthStencil.depthWriteEnable = false;
+    ComPtr<IRenderPipeline> pipeline;
+    REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    RenderPassColorAttachment color = {};
+    color.view = target->getDefaultView();
+    color.loadOp = LoadOp::Clear;
+    color.storeOp = StoreOp::Store;
+    RenderPassDesc passDesc = {};
+    passDesc.colorAttachments = &color;
+    passDesc.colorAttachmentCount = 1;
+    auto pass = encoder->beginRenderPass(passDesc);
+    REQUIRE(pass != nullptr);
+    REQUIRE(pass->bindPipeline(pipeline) != nullptr);
+    RenderState state = {};
+    state.viewportCount = 2;
+    state.scissorRectCount = 2;
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        state.viewports[i] = Viewport::fromSize(kWidth / 2, kHeight);
+        state.viewports[i].originX = float(i * kWidth / 2);
+        state.scissorRects[i] = {i * kWidth / 2, 0, (i + 1) * kWidth / 2, kHeight};
+    }
+    pass->setRenderState(state);
+    DrawArguments args = {};
+    args.vertexCount = 3;
+    args.instanceCount = 2;
+    pass->draw(args);
+    pass->end();
+    auto commands = encoder->finish();
+    REQUIRE(commands != nullptr);
+    REQUIRE_CALL(queue->submit(commands));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    ComPtr<ISlangBlob> result;
+    SubresourceLayout layout = {};
+    REQUIRE_CALL(device->readTexture(target, 0, 0, result.writeRef(), &layout));
+    const auto* bytes = static_cast<const uint8_t*>(result->getBufferPointer());
+    const float expected[2][4] = {{1.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 1.f, 1.f}};
+    for (uint32_t y = 0; y < kHeight; ++y)
+    {
+        for (uint32_t x = 0; x < kWidth; ++x)
+        {
+            CAPTURE(x);
+            CAPTURE(y);
+            CHECK(
+                std::memcmp(
+                    bytes + y * layout.rowPitch + x * sizeof(expected[0]),
+                    expected[x / (kWidth / 2)],
+                    sizeof(expected[0])
+                ) == 0
+            );
+        }
+    }
+}
