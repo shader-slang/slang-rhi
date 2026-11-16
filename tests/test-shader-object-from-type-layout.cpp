@@ -59,3 +59,35 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     // The device must not have retained the caller's type layout.
     CHECK_EQ(getShaderObjectLayoutCacheSize(device), cacheSizeBefore);
 }
+
+// Writing uniform data at an offset past the end of the shader object must fail instead of writing out of bounds.
+GPU_TEST_CASE("shader-object-set-data-out-of-range", ALL)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-shader-object-from-type-layout", "computeMain", shaderProgram.writeRef()));
+
+    slang::IComponentType* globalScope = shaderProgram->getDesc().slangGlobalScope;
+    REQUIRE(globalScope != nullptr);
+    slang::ProgramLayout* programLayout = globalScope->getLayout(0);
+    REQUIRE(programLayout != nullptr);
+    slang::TypeLayoutReflection* typeLayout = programLayout->getParameterByIndex(0)->getTypeLayout();
+    REQUIRE(typeLayout != nullptr);
+    if (typeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer ||
+        typeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock)
+    {
+        typeLayout = typeLayout->getElementTypeLayout();
+    }
+    REQUIRE(typeLayout != nullptr);
+
+    ComPtr<IShaderObject> shaderObject;
+    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, shaderObject.writeRef()));
+
+    float value = 1.f;
+
+    ShaderOffset validOffset = {};
+    CHECK_CALL(shaderObject->setData(validOffset, &value, sizeof(value)));
+
+    ShaderOffset invalidOffset = {};
+    invalidOffset.uniformOffset = 1024 * 1024;
+    CHECK(shaderObject->setData(invalidOffset, &value, sizeof(value)) == SLANG_E_INVALID_ARG);
+}
