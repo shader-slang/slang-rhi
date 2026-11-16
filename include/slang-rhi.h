@@ -2134,7 +2134,7 @@ struct MultisampleDesc
 enum class PipelineCompilationPolicy
 {
     /// Inherit the device's pipeline compilation behavior. Pipelines are compiled immediately on devices using
-    /// serial pipeline compilation and deferred on devices using parallel pipeline compilation.
+    /// serial pipeline compilation, deferred in parallel mode, and started asynchronously in async mode.
     Default,
 
     /// Compile target code and create the backend pipeline during pipeline creation. Programs that require
@@ -2143,6 +2143,11 @@ enum class PipelineCompilationPolicy
 
     /// Defer target code compilation and backend pipeline creation until the pipeline is used by a command encoder.
     Deferred,
+
+    /// Experimental: start target code compilation during pipeline creation using the task pool.
+    /// Backend pipeline creation and compilation errors are resolved when the command encoder finishes.
+    /// Programs requiring specialization remain deferred. CPU pipelines use deferred compilation.
+    Async,
 };
 
 struct RenderPipelineDesc
@@ -3625,6 +3630,11 @@ enum class PipelineCompilationMode
     /// Experimental: defer pipelines using the default policy and resolve deferred pipelines using available task
     /// parallelism.
     Parallel,
+
+    /// Experimental: start target code compilation for default-policy pipelines at creation when no
+    /// specialization is required. Resolve remaining work using the same parallel batching as Parallel.
+    /// CPU pipelines remain deferred. A blocking task pool executes code generation on the caller.
+    Async,
 };
 
 struct DeviceDesc

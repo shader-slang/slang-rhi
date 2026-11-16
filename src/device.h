@@ -557,15 +557,23 @@ public:
         switch (policy)
         {
         case PipelineCompilationPolicy::Default:
-            return m_pipelineCompilationMode == PipelineCompilationMode::Parallel;
+            return m_pipelineCompilationMode != PipelineCompilationMode::Serial;
         case PipelineCompilationPolicy::Immediate:
             return false;
         case PipelineCompilationPolicy::Deferred:
+        case PipelineCompilationPolicy::Async:
             return true;
         default:
             SLANG_RHI_ASSERT_FAILURE("Unhandled pipeline compilation policy");
             return false;
         }
+    }
+
+    bool shouldStartPipelineCompilation(PipelineCompilationPolicy policy) const
+    {
+        return policy == PipelineCompilationPolicy::Async ||
+               (policy == PipelineCompilationPolicy::Default &&
+                m_pipelineCompilationMode == PipelineCompilationMode::Async);
     }
 
     /// Serializes resolution/publication across command encoders. Work within one resolver may still run concurrently.

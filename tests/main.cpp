@@ -74,6 +74,26 @@ int main(int argc, const char** argv)
     {
         auto& options = rhi::testing::options();
 
+        doctest::String pipelineCompilation;
+        if (doctest::detail::parseOption(argc, argv, "pipeline-compilation=", &pipelineCompilation))
+        {
+            if (pipelineCompilation == "serial")
+                options.pipelineCompilationMode = rhi::PipelineCompilationMode::Serial;
+            else if (pipelineCompilation == "parallel")
+                options.pipelineCompilationMode = rhi::PipelineCompilationMode::Parallel;
+            else if (pipelineCompilation == "async")
+                options.pipelineCompilationMode = rhi::PipelineCompilationMode::Async;
+            else
+            {
+                std::fprintf(
+                    stderr,
+                    "Invalid pipeline compilation mode '%s'; expected serial, parallel, or async.\n",
+                    pipelineCompilation.c_str()
+                );
+                return 1;
+            }
+        }
+
         if (doctest::detail::parseFlag(argc, argv, "verbose"))
         {
             options.verbose = true;

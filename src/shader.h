@@ -50,6 +50,7 @@ struct CompiledEntryPoint
 };
 
 class SyntheticResourceBindingState;
+struct AsyncShaderCompilation;
 
 struct SpecializationKey
 {
@@ -101,6 +102,9 @@ public:
     /// Protects compilation state and backend shader modules.
     std::mutex m_compileMutex;
 
+    /// Prepared code-generation work shared by all pipelines using this program. Protected by m_compileMutex.
+    std::shared_ptr<AsyncShaderCompilation> m_asyncCompilation;
+
     std::mutex m_specializedProgramsMutex;
     std::unordered_map<SpecializationKey, InternalRefPtr<ShaderProgram>, SpecializationKey::Hasher>
         m_specializedPrograms;
@@ -118,6 +122,11 @@ public:
     bool isMeshShaderProgram() const;
 
     Result compileShaders(Device* device);
+
+    Result startAsyncCompilation(Device* device);
+
+    /// Must be called with m_compileMutex held. Joins, reports, and installs an existing async compilation once.
+    Result finishAsyncCompilation(Device* device);
 
     /// Must be called while holding m_compileMutex. Performs only front-end/reflection work.
     Result prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints);

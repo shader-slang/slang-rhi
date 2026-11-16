@@ -33,6 +33,7 @@ struct Options
     uint32_t d3d12ShaderModel = 0;
     bool d3d12DisableNVAPI = false;
     int optixVersion = 0;
+    PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
 
     Options()
     {
@@ -331,7 +332,7 @@ struct DeviceExtraOptions
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
-    PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
+    std::optional<PipelineCompilationMode> pipelineCompilationMode;
     DeviceNativeHandles existingDeviceHandles;
 
     // D3D12-specific (no effect for other devices): Limit the maximum shader model. When set to 0

@@ -1,6 +1,7 @@
 #include "shader.h"
 
 #include "core/sha1.h"
+#include "core/task-pool.h"
 #include "rhi-shared.h"
 #include "synthetic-resource-bindings.h"
 
@@ -120,6 +121,9 @@ Result ShaderProgram::compileShaders(Device* device)
     if (m_compiledShaders)
         return SLANG_OK;
 
+    if (m_asyncCompilation)
+        return finishAsyncCompilation(device);
+
     if (device->getInfo().deviceType == DeviceType::CPU)
     {
         // CPU device does not need to compile shaders.
@@ -138,6 +142,92 @@ Result ShaderProgram::compileShaders(Device* device)
 
     SLANG_RETURN_ON_FAIL(installCompiledEntryPoints(entryPoints));
     return SLANG_OK;
+}
+
+struct AsyncShaderCompilation
+{
+    ComPtr<ITaskPool> taskPool;
+    std::vector<ITaskPool::TaskHandle> tasks;
+    std::vector<CompiledEntryPoint> entryPoints;
+    Result result = SLANG_OK;
+    bool finalized = false;
+
+    ~AsyncShaderCompilation()
+    {
+        // Workers retain this storage and the program until their payloads are destroyed.
+        // In particular, destruction on the last worker must never wait on that worker's own task.
+        for (auto task : tasks)
+            taskPool->releaseTask(task);
+    }
+};
+
+Result ShaderProgram::startAsyncCompilation(Device* device)
+{
+    std::lock_guard<std::mutex> lock(m_compileMutex);
+    if (m_compiledShaders || m_asyncCompilation || device->getInfo().deviceType == DeviceType::CPU)
+        return SLANG_OK;
+
+    auto work = std::make_shared<AsyncShaderCompilation>();
+    SLANG_RETURN_ON_FAIL(prepareEntryPointCompilation(device, work->entryPoints));
+    work->taskPool = globalTaskPool();
+    work->tasks.reserve(work->entryPoints.size());
+    m_asyncCompilation = work;
+
+    struct Payload
+    {
+        RefPtr<ShaderProgram> program;
+        std::shared_ptr<AsyncShaderCompilation> work;
+        CompiledEntryPoint* entryPoint;
+    };
+    for (auto& entryPoint : work->entryPoints)
+    {
+        // An interrupted/throwing worker must not leave an apparently successful result.
+        entryPoint.result = SLANG_FAIL;
+        auto* payload = new Payload{this, work, &entryPoint};
+        auto task = work->taskPool->submitTask(
+            [](void* data)
+            {
+                auto* payload = static_cast<Payload*>(data);
+                payload->entryPoint->result =
+                    payload->program->compileEntryPoint(payload->program->getDevice(), *payload->entryPoint, false);
+            },
+            payload,
+            [](void* data)
+            {
+                delete static_cast<Payload*>(data);
+            }
+        );
+        if (!task)
+        {
+            delete payload;
+            work->result = SLANG_FAIL;
+            return SLANG_FAIL;
+        }
+        work->tasks.push_back(task);
+    }
+    return SLANG_OK;
+}
+
+Result ShaderProgram::finishAsyncCompilation(Device* device)
+{
+    auto& work = *m_asyncCompilation;
+    if (work.finalized)
+        return work.result;
+
+    for (auto task : work.tasks)
+        work.taskPool->waitAndReleaseTask(task);
+    work.tasks.clear();
+    for (const auto& entryPoint : work.entryPoints)
+    {
+        reportEntryPointCompilation(device, entryPoint);
+        if (SLANG_SUCCEEDED(work.result) && SLANG_FAILED(entryPoint.result))
+            work.result = entryPoint.result;
+    }
+    if (SLANG_SUCCEEDED(work.result))
+        work.result = installCompiledEntryPoints(work.entryPoints);
+    work.finalized = true;
+    work.entryPoints.clear();
+    return work.result;
 }
 
 Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints)

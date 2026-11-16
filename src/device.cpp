@@ -672,6 +672,8 @@ Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipel
     if (createVirtual)
     {
         RefPtr<VirtualRenderPipeline> pipeline = new VirtualRenderPipeline(this, desc);
+        if (shouldStartPipelineCompilation(desc.compilationPolicy) && !program->isSpecializable())
+            SLANG_RETURN_ON_FAIL(program->startAsyncCompilation(this));
         returnComPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
@@ -689,6 +691,8 @@ Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePi
     if (createVirtual)
     {
         RefPtr<VirtualComputePipeline> pipeline = new VirtualComputePipeline(this, desc);
+        if (shouldStartPipelineCompilation(desc.compilationPolicy) && !program->isSpecializable())
+            SLANG_RETURN_ON_FAIL(program->startAsyncCompilation(this));
         returnComPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
@@ -706,6 +710,8 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
     if (createVirtual)
     {
         RefPtr<VirtualRayTracingPipeline> pipeline = new VirtualRayTracingPipeline(this, desc);
+        if (shouldStartPipelineCompilation(desc.compilationPolicy) && !program->isSpecializable())
+            SLANG_RETURN_ON_FAIL(program->startAsyncCompilation(this));
         returnComPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
