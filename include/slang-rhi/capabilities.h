@@ -113,6 +113,7 @@
     x(_amplification) \
     x(SPV_EXT_fragment_shader_interlock) \
     x(SPV_EXT_physical_storage_buffer) \
+    x(SPV_KHR_physical_storage_buffer) \
     x(SPV_EXT_fragment_fully_covered) \
     x(SPV_EXT_descriptor_indexing) \
     x(SPV_EXT_shader_atomic_float_add) \
@@ -124,6 +125,8 @@
     x(SPV_KHR_quad_control) \
     x(SPV_KHR_fragment_shader_barycentric) \
     x(SPV_KHR_non_semantic_info) \
+    x(SPV_KHR_abort) \
+    x(SPV_KHR_variable_pointers) \
     x(SPV_KHR_device_group) \
     x(SPV_KHR_ray_tracing) \
     x(SPV_KHR_ray_query) \
@@ -147,6 +150,13 @@
     x(SPV_EXT_float8) \
     x(SPV_KHR_bfloat16) \
     x(spvDeviceGroup) \
+    x(spvAbort) \
+    x(spvVariablePointersKHR) \
+    x(spvSubgroupRotateKHR) \
+    x(spvComputeShaderDerivativesKHR) \
+    x(spvPhysicalStorageBufferEXT) \
+    x(spvPhysicalStorageBufferKHR) \
+    x(spvNonSemanticInfoKHR) \
     x(spvAtomicFloat32AddEXT) \
     x(spvAtomicFloat16AddEXT) \
     x(spvAtomicFloat64AddEXT) \
@@ -163,8 +173,11 @@
     x(spvFragmentShaderPixelInterlockEXT) \
     x(spvFragmentBarycentricKHR) \
     x(spvFragmentFullyCoveredEXT) \
+    x(spvGroupNonUniform) \
     x(spvGroupNonUniformBallot) \
     x(spvGroupNonUniformShuffle) \
+    x(spvGroupNonUniformShuffleRelative) \
+    x(spvGroupNonUniformClustered) \
     x(spvGroupNonUniformArithmetic) \
     x(spvGroupNonUniformQuad) \
     x(spvGroupNonUniformVote) \
@@ -180,6 +193,7 @@
     x(spirv_nv) \
     x(spvRayTracingClusterAccelerationStructureNV) \
     x(spvRayTracingLinearSweptSpheresGeometryNV) \
+    x(spvRayTracingSpheresGeometryNV) \
     x(spvShaderClockKHR) \
     x(spvShaderNonUniformEXT) \
     x(spvShaderNonUniform) \
@@ -189,7 +203,6 @@
     x(spvCooperativeVectorNV) \
     x(spvCooperativeVectorTrainingNV) \
     x(spvCooperativeMatrixKHR) \
-    x(spvCooperativeMatrix2NV) \
     x(spvCooperativeMatrixReductionsNV) \
     x(spvCooperativeMatrixConversionsNV) \
     x(spvCooperativeMatrixPerElementOperationsNV) \
@@ -201,8 +214,7 @@
     x(spvVulkanMemoryModelKHR) \
     x(spvVulkanMemoryModelDeviceScopeKHR) \
     x(spvFloat8EXT) \
-    x(spvBfloat16KHR) \
-    x(spvFloat8CooperativeMatrixEXT) \
+    x(spvBFloat16KHR) \
     x(_GL_EXT_buffer_reference) \
     x(_GL_EXT_buffer_reference_uvec2) \
     x(_GL_EXT_debug_printf) \
