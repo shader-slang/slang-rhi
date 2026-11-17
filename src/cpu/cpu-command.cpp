@@ -6,6 +6,11 @@
 #include "../strings.h"
 
 #include "core/platform.h"
+#include "core/task-pool.h"
+
+#include <algorithm>
+#include <thread>
+#include <vector>
 
 namespace rhi::cpu {
 
@@ -219,15 +224,69 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     if (!m_computeStateValid)
         return;
 
-    slang_prelude::ComputeVaryingInput varyingInput;
-    varyingInput.startGroupID.x = 0;
-    varyingInput.startGroupID.y = 0;
-    varyingInput.startGroupID.z = 0;
-    varyingInput.endGroupID.x = cmd.x;
-    varyingInput.endGroupID.y = cmd.y;
-    varyingInput.endGroupID.z = cmd.z;
+    if (cmd.x == 0 || cmd.y == 0 || cmd.z == 0)
+        return;
 
-    m_computePipeline->m_func(&varyingInput, m_bindingData->entryPoints[0].data, m_bindingData->globalData);
+    // A slice of the dispatch: the kernel's group-range function runs every group in
+    // [startGroupID, endGroupID) itself.
+    struct Slice
+    {
+        slang_prelude::ComputeFunc func;
+        slang_prelude::ComputeVaryingInput varyingInput;
+        void* entryPointData;
+        void* globalData;
+
+        static void run(void* payload)
+        {
+            Slice* slice = static_cast<Slice*>(payload);
+            slice->func(&slice->varyingInput, slice->entryPointData, slice->globalData);
+        }
+    };
+
+    Slice whole = {};
+    whole.func = m_computePipeline->m_func;
+    whole.varyingInput.startGroupID.x = 0;
+    whole.varyingInput.startGroupID.y = 0;
+    whole.varyingInput.startGroupID.z = 0;
+    whole.varyingInput.endGroupID.x = cmd.x;
+    whole.varyingInput.endGroupID.y = cmd.y;
+    whole.varyingInput.endGroupID.z = cmd.z;
+    whole.entryPointData = m_bindingData->entryPoints[0].data;
+    whole.globalData = m_bindingData->globalData;
+
+    // Thread groups are independent of each other, so the dispatch is split into slices that
+    // run on the global task pool. The split is along the axis with the most groups, so that
+    // every slice is again a box of groups. A few slices per hardware thread let the pool
+    // balance groups of uneven cost.
+    uint32_t groupCount[3] = {cmd.x, cmd.y, cmd.z};
+    int axis = 0;
+    for (int i = 1; i < 3; ++i)
+    {
+        if (groupCount[i] > groupCount[axis])
+            axis = i;
+    }
+    uint32_t extent = groupCount[axis];
+    uint32_t threadCount = std::max(1u, std::thread::hardware_concurrency());
+    uint32_t sliceCount = std::min(extent, 4 * threadCount);
+    if (sliceCount <= 1)
+    {
+        Slice::run(&whole);
+        return;
+    }
+
+    std::vector<Slice> slices(sliceCount, whole);
+    ITaskPool* taskPool = globalTaskPool();
+    ITaskPool::TaskGroupHandle taskGroup = taskPool->createTaskGroup();
+    for (uint32_t i = 0; i < sliceCount; ++i)
+    {
+        slang_prelude::ComputeVaryingInput& input = slices[i].varyingInput;
+        uint32_t begin = uint32_t(uint64_t(extent) * i / sliceCount);
+        uint32_t end = uint32_t(uint64_t(extent) * (i + 1) / sliceCount);
+        (axis == 0 ? input.startGroupID.x : axis == 1 ? input.startGroupID.y : input.startGroupID.z) = begin;
+        (axis == 0 ? input.endGroupID.x : axis == 1 ? input.endGroupID.y : input.endGroupID.z) = end;
+        taskPool->releaseTask(taskPool->submitTask(Slice::run, &slices[i], nullptr, taskGroup));
+    }
+    taskPool->waitAndReleaseTaskGroup(taskGroup);
 }
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
