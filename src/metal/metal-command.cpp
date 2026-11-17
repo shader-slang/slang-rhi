@@ -1098,6 +1098,7 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
+    endCommandEncoder();
     NativeHandle nativeHandle{
         NativeHandleType::MTLCommandBuffer,
         reinterpret_cast<uint64_t>(m_commandBuffer.get()),
