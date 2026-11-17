@@ -63,9 +63,6 @@ public:
 
     CommandBufferImpl* m_commandBufferImpl = nullptr;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
-
-    // The first failure of a recorded command that cannot be encoded, returned by `record`.
-    Result m_recordResult = SLANG_OK;
     NS::SharedPtr<MTL::RenderCommandEncoder> m_renderCommandEncoder;
     NS::SharedPtr<MTL::ComputeCommandEncoder> m_computeCommandEncoder;
     NS::SharedPtr<MTL::AccelerationStructureCommandEncoder> m_accelerationStructureCommandEncoder;
@@ -178,7 +175,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     endCommandEncoder();
 
-    return m_recordResult;
+    return SLANG_OK;
 }
 
 #define NOT_SUPPORTED(interface, method) m_device->printWarning(#interface "::" #method " is not supported!")
@@ -942,19 +939,13 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     MTL::AccelerationStructureCommandEncoder* encoder = getAccelerationStructureCommandEncoder();
 
     AccelerationStructureBuildDescConverter converter;
-    Result result = converter.convert(
-        cmd.desc,
-        m_device->getAccelerationStructureArray(),
-        m_device->m_hasRowMajorPreTransform,
-        m_device->m_debugCallback
-    );
-    if (SLANG_FAILED(result))
-    {
-        // The build is not encoded, so `finish` must not report success.
-        if (SLANG_SUCCEEDED(m_recordResult))
-            m_recordResult = result;
+    if (converter.convert(
+            cmd.desc,
+            m_device->getAccelerationStructureArray(),
+            m_device->m_hasRowMajorPreTransform,
+            m_device->m_debugCallback
+        ) != SLANG_OK)
         return;
-    }
 
     switch (cmd.desc.mode)
     {
