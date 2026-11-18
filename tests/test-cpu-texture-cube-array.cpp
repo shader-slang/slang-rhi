@@ -1,5 +1,5 @@
 // Tests for the CPU backend's texture array-coordinate classification. The coordinates after the
-// base (u, v) pair select an array element: an explicit array index for the *Array types, or a
+// base coordinates select an array element: an explicit array index for the *Array types, or a
 // cube face (the implicit array the base shape table describes). A cube array consumes both, the
 // face first and then the cube index, giving element index face + 6 * cubeIndex. The plain-cube
 // and one-element-array cases pin the behavior for shapes whose single element makes the array
@@ -27,8 +27,9 @@ constexpr uint32_t kCubeFaceCount = 6;
 
 // A single-mip RGBA32Float texture whose every texel of element `e` holds the value `e`, so a
 // lookup returns the index of whichever element the coordinate math actually selected. The
-// element count is derived from the same shape table TextureImpl::init uploads from, so the
-// fixture's subresource list always matches the texture's layout.
+// element count is derived from the same shape table TextureImpl::init derives its element
+// layout from, so the fixture's subresource list always matches the texture's layout. Desc
+// fields may be adjusted before the texture is created.
 struct ElementIndexedTexture
 {
     TextureDesc desc;
@@ -74,7 +75,7 @@ struct ElementIndexedTexture
 
 struct LookupCase
 {
-    // Coordinates in the order a compiled CPU-target shader passes them: base (u, v), then the cube
+    // Coordinates in the order the CPU prelude passes them: the base coordinates, then the cube
     // face, then (for cube arrays) the cube index.
     float sampleCoords[4];
     int32_t loadCoords[4];
@@ -82,7 +83,9 @@ struct LookupCase
 };
 
 // Checks that Sample, SampleLevel and Load all read the expected array element. These are the
-// slang_prelude entry points a compiled CPU-target shader calls.
+// entry points the CPU prelude defines; the shader-reachable subset is exercised end-to-end
+// below (cube textures have no Load in the shading languages, and sampling entry points do not
+// exist for multisample shapes, so those legs pin the CPU implementation directly).
 void runLookups(TextureViewImpl& textureView, const LookupCase* lookups, size_t lookupCount)
 {
     for (size_t i = 0; i < lookupCount; ++i)
@@ -124,19 +127,6 @@ LookupCase cubeArrayLookup(uint32_t face, uint32_t cubeIndex)
     };
 }
 
-// Out-of-range coordinates clamp against their own dimension before combining: the face against
-// the faces of one cube, the cube index against the array length.
-LookupCase clampedCubeArrayLookup(int32_t face, int32_t cubeIndex, uint32_t arrayLength)
-{
-    face = std::min(std::max(face, 0), int32_t(kCubeFaceCount - 1));
-    cubeIndex = std::min(std::max(cubeIndex, 0), int32_t(arrayLength - 1));
-    return LookupCase{
-        {0.5f, 0.5f, float(face), float(cubeIndex)},
-        {1, 1, face, cubeIndex},
-        float(face + kCubeFaceCount * cubeIndex),
-    };
-}
-
 } // namespace
 
 TEST_CASE("cpu-texture-cube-consumes-face-coordinate")
@@ -172,22 +162,53 @@ TEST_CASE("cpu-texture-cube-array-consumes-face-and-cube-index")
     REQUIRE_CALL(texture.init(fixture.subresources.data()));
     TextureViewImpl textureView(&texture, TextureViewDesc{});
 
+    // Out-of-range coordinates reach the implementation unclamped; each expectation states the
+    // element the per-dimension clamps must select (the face clamps within one cube's faces, the
+    // cube index within the array length, negative coordinates to zero).
     LookupCase lookups[] = {
         cubeArrayLookup(5, 0),
         cubeArrayLookup(0, 1),
         cubeArrayLookup(2, 1),
-        clampedCubeArrayLookup(9, 0, 2),
-        clampedCubeArrayLookup(-3, 0, 2),
-        clampedCubeArrayLookup(0, 100, 2),
-        clampedCubeArrayLookup(2, -1, 2),
+        {{0.5f, 0.5f, 9.0f, 0.0f}, {1, 1, 9, 0}, 5.0f},
+        {{0.5f, 0.5f, -3.0f, 0.0f}, {1, 1, -3, 0}, 0.0f},
+        {{0.5f, 0.5f, 0.0f, 100.0f}, {1, 1, 0, 100}, 6.0f},
+        {{0.5f, 0.5f, 2.0f, -1.0f}, {1, 1, 2, -1}, 2.0f},
+        {{0.5f, 0.5f, 5.0f, 1.0f}, {1, 1, 5, 1}, 11.0f},
     };
     runLookups(textureView, lookups, SLANG_COUNT_OF(lookups));
 }
 
+TEST_CASE("cpu-texture-rw-array-write-hits-selected-element")
+{
+    // refAt and Load share _getTexelPtr, so this exercises the element math from the write side:
+    // a write addressed to element 1 must change element 1 and leave element 0 untouched.
+    ElementIndexedTexture fixture(TextureType::Texture2DArray, Extent3D{kExtent, kExtent, 1}, 2);
+    TextureImpl texture(nullptr, fixture.desc);
+    REQUIRE_CALL(texture.init(fixture.subresources.data()));
+    TextureViewImpl textureView(&texture, TextureViewDesc{});
+
+    uint32_t writeCoords[3] = {1, 1, 1};
+    float* written = (float*)textureView.refAt(writeCoords);
+    for (uint32_t component = 0; component < kComponentsPerTexel; ++component)
+        written[component] = 42.0f;
+
+    int32_t loadCoords[4] = {1, 1, 1, 0};
+    float loaded[kComponentsPerTexel] = {};
+    textureView.Load(loadCoords, loaded, sizeof(loaded));
+    CHECK_EQ(loaded[0], 42.0f);
+
+    int32_t neighborCoords[4] = {1, 1, 0, 0};
+    float neighbor[kComponentsPerTexel] = {};
+    textureView.Load(neighborCoords, neighbor, sizeof(neighbor));
+    CHECK_EQ(neighbor[0], 0.0f);
+}
+
 TEST_CASE("cpu-texture-2dms-array-consumes-element-then-sample-coordinate")
 {
-    // For a Texture2DMSArray, Load consumes texelCoords[2] as the element index and
-    // texelCoords[3] as the per-texel sample slot.
+    // A one-element Texture2DMSArray classifies as an array type: its array coordinate is
+    // consumed and clamps to element 0, whichever value the trailing slots carry. The sample
+    // slot is unobservable here (the CPU backend stores a single value per texel); the element
+    // slot itself is pinned by the arrayLength=2 case below.
     ElementIndexedTexture fixture(TextureType::Texture2DMSArray, Extent3D{kExtent, kExtent, 1}, 1);
     fixture.desc.sampleCount = 2;
     TextureImpl texture(nullptr, fixture.desc);
