@@ -125,6 +125,7 @@ extern "C" bool rhiCudaDriverApiInit()
         LOAD(cuStreamWaitEvent);
         LOAD(cuStreamSynchronize);
         LOAD(cuStreamQuery);
+        LOAD(cuStreamIsCapturing);
         LOAD(cuStreamDestroy, "v2");
         LOAD(cuEventCreate);
         LOAD(cuEventRecord);
@@ -243,6 +244,7 @@ static void shutdownImpl()
     UNLOAD(cuStreamWaitEvent);
     UNLOAD(cuStreamSynchronize);
     UNLOAD(cuStreamQuery);
+    UNLOAD(cuStreamIsCapturing);
     UNLOAD(cuStreamDestroy);
     UNLOAD(cuEventCreate);
     UNLOAD(cuEventRecord);

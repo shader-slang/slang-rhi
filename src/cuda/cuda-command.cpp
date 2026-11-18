@@ -10,6 +10,8 @@
 #include "cuda-shader-object.h"
 #include "cuda-utils.h"
 #include "../command-list.h"
+
+#include <cstdlib> // EXPERIMENT (graph capture): std::getenv
 #include "../strings.h"
 
 #include "core/deferred.h"
@@ -1034,6 +1036,23 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
 {
     // NOTE: Caller must hold m_mutex!
     //
+    // EXPERIMENT (graph capture): retirement queries the queue's stream or its events. While any
+    // stream is being captured into a CUDA graph those calls are illegal, and the default stream
+    // cannot even be asked whether a capture is active elsewhere. So the caller has to say so; for
+    // this experiment, through an environment variable.
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996) // getenv
+#endif
+    const char* capturing = std::getenv("SLANG_RHI_CUDA_GRAPH_CAPTURE");
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+    if (capturing && capturing[0] == '1')
+    {
+        return SLANG_OK;
+    }
+
     // Use event-based tracking if events exist, otherwise use cuStreamQuery (non-blocking).
     // Single-stream workloads skip event creation entirely for better performance.
     if (!m_submitEvents.empty())
@@ -1283,6 +1302,17 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream, timestampAnchorGeneration);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
+
+        // EXPERIMENT (graph capture): if the stream is being captured into a CUDA graph, the work
+        // above was recorded, not run. Keep the command buffer alive for the graph and skip
+        // completion tracking, which would need events or queries that capture does not allow.
+        CUstreamCaptureStatus captureStatus = CU_STREAM_CAPTURE_STATUS_NONE;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamIsCapturing(requestedStream, &captureStatus), this);
+        if (captureStatus != CU_STREAM_CAPTURE_STATUS_NONE)
+        {
+            m_commandBuffersCaptured.push_back(commandBuffer);
+            continue;
+        }
 
         // Lazy events: timestamp writes need per-submission completion so getResultState can make
         // progress without waiting for unrelated later work to drain the whole stream.
