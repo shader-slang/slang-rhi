@@ -123,6 +123,7 @@ enum class DeviceType
     x(Rasterization,                            "rasterization"                                 ) \
     x(Barycentrics,                             "barycentrics"                                  ) \
     x(MultiView,                                "multi-view"                                    ) \
+    x(ViewportArrayIndex,                       "viewport-array-index"                          ) \
     x(RasterizerOrderedViews,                   "rasterizer-ordered-views"                      ) \
     x(ConservativeRasterization,                "conservative-rasterization"                    ) \
     x(CustomBorderColor,                        "custom-border-color"                           ) \
@@ -2563,6 +2564,7 @@ struct RenderState
     uint32_t stencilRef = 0;
     Viewport viewports[16];
     uint32_t viewportCount = 0;
+    /// One per viewport: scissorRectCount must equal viewportCount.
     ScissorRect scissorRects[16];
     uint32_t scissorRectCount = 0;
     BufferOffsetPair vertexBuffers[16];

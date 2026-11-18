@@ -626,10 +626,10 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
-    viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
+    viewportState.viewportCount = m_hasExtendedDynamicState ? 0 : 1;
+    viewportState.pViewports = m_hasExtendedDynamicState ? nullptr : &viewport;
+    viewportState.scissorCount = m_hasExtendedDynamicState ? 0 : 1;
+    viewportState.pScissors = m_hasExtendedDynamicState ? nullptr : &scissor;
 
     auto rasterizerDesc = desc.rasterizer;
 
@@ -716,8 +716,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     colorBlending.blendConstants[3] = 0.0f;
 
     static_vector<VkDynamicState, 8> dynamicStates;
-    dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-    dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+    dynamicStates.push_back(
+        m_hasExtendedDynamicState ? VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT_EXT : VK_DYNAMIC_STATE_VIEWPORT
+    );
+    dynamicStates.push_back(
+        m_hasExtendedDynamicState ? VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT_EXT : VK_DYNAMIC_STATE_SCISSOR
+    );
     dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
     dynamicStates.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
     VkPipelineDynamicStateCreateInfo dynamicStateInfo = {};
