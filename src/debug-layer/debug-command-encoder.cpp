@@ -120,6 +120,11 @@ void DebugRenderPassEncoder::setRenderState(const RenderState& state)
         RHI_VALIDATION_ERROR("Too many scissor rects (max 16).");
         return;
     }
+    if (state.scissorRectCount != state.viewportCount)
+    {
+        RHI_VALIDATION_ERROR("Scissor rect count must equal viewport count.");
+        return;
+    }
     if (state.vertexBufferCount > SLANG_COUNT_OF(state.vertexBuffers))
     {
         RHI_VALIDATION_ERROR("Too many vertex buffers (max 16).");
