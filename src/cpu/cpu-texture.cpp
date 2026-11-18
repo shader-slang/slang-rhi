@@ -28,8 +28,9 @@ static bool _isTextureArrayType(TextureType type)
 
 // A cube array's element index combines the cube face and the cube index. Each coordinate is
 // clamped against its own dimension before combining, so the multiply cannot overflow int32_t
-// for large coordinates; the float-to-int conversion of a coordinate is implementation-defined
-// for values outside int32_t, and the clamps below bound whatever it produces.
+// for large coordinates; the float-to-int conversion of a coordinate is undefined by the
+// standard for values outside int32_t (saturating on the targets this backend runs on), and
+// the clamps below bound whatever it produces.
 static int32_t _combineCubeArrayElementIndex(
     int32_t face,
     int32_t cubeIndex,
