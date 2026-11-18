@@ -341,19 +341,38 @@ void TextureViewImpl::SampleLevel(
 
     auto& mipLevelInfo = texture->m_mipLevels[integerMipLevel];
 
-    // The type determines whether an extra coordinate selects an array element: the *Array types
-    // consume an explicit array coordinate, and cube faces form the implicit array the base shape
-    // table describes. A cube array consumes both, so its element index combines the face and the
-    // cube index.
+    // The coordinates after the base (u, v) pair select an array element: an explicit array index
+    // for the *Array types, or a cube face (the implicit array the base shape table describes).
+    // The order matches what the CPU prelude passes through: TextureCubeArray's methods receive
+    // float4 (u, v, face, cubeIndex) and forward it component-wise (slang-cpp-types.h). A cube
+    // array consumes both extra coordinates, in this order: the face, then the cube index, so
+    // its element index is face + implicitArrayElementCount * cubeIndex. isCubeArray implies
+    // hasElementCoordinate, since TextureCubeArray is one of the *Array types the helper
+    // recognizes, so the face was consumed by the preceding branch.
     bool isCubeArray = desc.type == TextureType::TextureCubeArray;
-    bool isArray = _isTextureArrayType(desc.type) || baseShape->implicitArrayElementCount > 1;
+    bool hasElementCoordinate = _isTextureArrayType(desc.type) || baseShape->implicitArrayElementCount > 1;
     int32_t effectiveArrayElementCount = texture->m_effectiveArrayElementCount;
     int32_t coordIndex = baseCoordCount;
     int32_t elementIndex = 0;
-    if (isArray)
+    if (hasElementCoordinate)
         elementIndex = int32_t(coords[coordIndex++] + 0.5f);
     if (isCubeArray)
-        elementIndex += int32_t(coords[coordIndex++] + 0.5f) * baseShape->implicitArrayElementCount;
+    {
+        // Clamp each cube-array coordinate against its own dimension before combining: the face
+        // against the faces of one cube, the cube index against the array length. Clamping only
+        // after combining cannot rescue the multiply, which overflows int32_t for large cube
+        // indices.
+        if (elementIndex >= baseShape->implicitArrayElementCount)
+            elementIndex = baseShape->implicitArrayElementCount - 1;
+        if (elementIndex < 0)
+            elementIndex = 0;
+        int32_t cubeIndex = int32_t(coords[coordIndex++] + 0.5f);
+        if (cubeIndex >= int32_t(desc.arrayLength))
+            cubeIndex = int32_t(desc.arrayLength) - 1;
+        if (cubeIndex < 0)
+            cubeIndex = 0;
+        elementIndex += cubeIndex * baseShape->implicitArrayElementCount;
+    }
     if (elementIndex >= effectiveArrayElementCount)
         elementIndex = effectiveArrayElementCount - 1;
     if (elementIndex < 0)
@@ -400,10 +419,14 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
-    // Mirrors SampleLevel: the *Array types consume an explicit array coordinate, cube faces form
-    // the implicit array, and a cube array consumes both.
+    // Mirrors SampleLevel: the coordinates after the base (u, v) pair select an array element
+    // (an explicit array index for the *Array types, or a cube face from the implicit array),
+    // and a cube array consumes both, in this order: the face, then the cube index, giving
+    // element index face + implicitArrayElementCount * cubeIndex, with each coordinate clamped
+    // against its own dimension before combining (isCubeArray implies hasElementCoordinate, since
+    // TextureCubeArray is one of the *Array types the helper recognizes).
     bool isCubeArray = desc.type == TextureType::TextureCubeArray;
-    bool isArray = _isTextureArrayType(desc.type) || baseShape->implicitArrayElementCount > 1;
+    bool hasElementCoordinate = _isTextureArrayType(desc.type) || baseShape->implicitArrayElementCount > 1;
     bool isMultisample = desc.sampleCount > 1;
     bool hasMipLevels = !isMultisample;
 
@@ -411,10 +434,21 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
 
     int32_t coordIndex = baseCoordCount;
     int32_t elementIndex = 0;
-    if (isArray)
+    if (hasElementCoordinate)
         elementIndex = texelCoords[coordIndex++];
     if (isCubeArray)
-        elementIndex += texelCoords[coordIndex++] * baseShape->implicitArrayElementCount;
+    {
+        if (elementIndex >= baseShape->implicitArrayElementCount)
+            elementIndex = baseShape->implicitArrayElementCount - 1;
+        if (elementIndex < 0)
+            elementIndex = 0;
+        int32_t cubeIndex = texelCoords[coordIndex++];
+        if (cubeIndex >= int32_t(desc.arrayLength))
+            cubeIndex = int32_t(desc.arrayLength) - 1;
+        if (cubeIndex < 0)
+            cubeIndex = 0;
+        elementIndex += cubeIndex * baseShape->implicitArrayElementCount;
+    }
     if (elementIndex >= effectiveArrayElementCount)
         elementIndex = effectiveArrayElementCount - 1;
     if (elementIndex < 0)
