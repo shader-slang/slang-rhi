@@ -58,6 +58,12 @@ public:
     void cmdClearTextureFloat(const commands::ClearTextureFloat& cmd);
     void cmdClearTextureUint(const commands::ClearTextureUint& cmd);
     void cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd);
+    void clearTextureWithRenderPasses(
+        TextureImpl* texture,
+        SubresourceRange subresourceRange,
+        const WGPUColor* color,
+        const commands::ClearTextureDepthStencil* depthStencil
+    );
     void cmdUploadTextureData(const commands::UploadTextureData& cmd);
     void cmdResolveQuery(const commands::ResolveQuery& cmd);
     void cmdBeginRenderPass(const commands::BeginRenderPass& cmd);
@@ -335,19 +341,134 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     m_ctx.api.wgpuCommandEncoderClearBuffer(m_commandEncoder, buffer->m_buffer, cmd.range.offset, cmd.range.size);
 }
 
+// WebGPU has no command that clears a texture directly. These clears exist for h-slang, whose
+// render targets and depth targets are cleared from host code before raster draws. Each clear
+// records one render pass per mip level and array layer (or 3D depth slice) that clears the
+// attachment on load and stores it. That is simple rather than optimal: a texture with many
+// subresources gets many tiny passes, and the texture must have RenderTarget or DepthStencil
+// usage. Textures without attachment usage still report the operation as unsupported.
+void CommandRecorder::clearTextureWithRenderPasses(
+    TextureImpl* texture,
+    SubresourceRange subresourceRange,
+    const WGPUColor* color,
+    const commands::ClearTextureDepthStencil* depthStencil
+)
+{
+    const TextureDesc& desc = texture->m_desc;
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+    subresourceRange = texture->resolveSubresourceRange(subresourceRange);
+    const bool is3D = desc.type == TextureType::Texture3D;
+
+    endPassEncoder();
+    for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
+    {
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; ++mipOffset)
+        {
+            uint32_t mip = subresourceRange.mip + mipOffset;
+            // A 3D texture is one layer whose depth slices are separate color attachments.
+            uint32_t sliceCount = is3D ? calcMipSize(desc.size, mip).depth : 1;
+
+            WGPUTextureViewDescriptor viewDesc = {};
+            viewDesc.format = translateTextureFormat(desc.format);
+            viewDesc.dimension = is3D ? WGPUTextureViewDimension_3D : WGPUTextureViewDimension_2D;
+            viewDesc.baseMipLevel = mip;
+            viewDesc.mipLevelCount = 1;
+            viewDesc.baseArrayLayer = is3D ? 0 : subresourceRange.layer + layerOffset;
+            viewDesc.arrayLayerCount = 1;
+            viewDesc.aspect = WGPUTextureAspect_All;
+            WGPUTextureView view = m_ctx.api.wgpuTextureCreateView(texture->m_texture, &viewDesc);
+            if (!view)
+            {
+                m_device->printError("WebGPU texture clear failed to create an attachment view");
+                return;
+            }
+
+            for (uint32_t slice = 0; slice < sliceCount; ++slice)
+            {
+                WGPURenderPassColorAttachment colorAttachment = {};
+                WGPURenderPassDepthStencilAttachment depthStencilAttachment = {};
+                WGPURenderPassDescriptor passDesc = {};
+                if (color)
+                {
+                    colorAttachment.view = view;
+                    colorAttachment.depthSlice = is3D ? slice : WGPU_DEPTH_SLICE_UNDEFINED;
+                    colorAttachment.loadOp = WGPULoadOp_Clear;
+                    colorAttachment.storeOp = WGPUStoreOp_Store;
+                    colorAttachment.clearValue = *color;
+                    passDesc.colorAttachmentCount = 1;
+                    passDesc.colorAttachments = &colorAttachment;
+                }
+                else
+                {
+                    // Aspects that are not being cleared load and store their current contents.
+                    depthStencilAttachment.view = view;
+                    if (formatInfo.hasDepth)
+                    {
+                        depthStencilAttachment.depthLoadOp =
+                            depthStencil->clearDepth ? WGPULoadOp_Clear : WGPULoadOp_Load;
+                        depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
+                        depthStencilAttachment.depthClearValue = depthStencil->depthValue;
+                    }
+                    if (formatInfo.hasStencil)
+                    {
+                        depthStencilAttachment.stencilLoadOp =
+                            depthStencil->clearStencil ? WGPULoadOp_Clear : WGPULoadOp_Load;
+                        depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
+                        depthStencilAttachment.stencilClearValue = depthStencil->stencilValue;
+                    }
+                    passDesc.depthStencilAttachment = &depthStencilAttachment;
+                }
+                WGPURenderPassEncoder pass = m_ctx.api.wgpuCommandEncoderBeginRenderPass(m_commandEncoder, &passDesc);
+                m_ctx.api.wgpuRenderPassEncoderEnd(pass);
+                m_ctx.api.wgpuRenderPassEncoderRelease(pass);
+            }
+            m_ctx.api.wgpuTextureViewRelease(view);
+        }
+        // All slices of a 3D texture were cleared in the first iteration.
+        if (is3D)
+            break;
+    }
+}
+
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    NOT_SUPPORTED(ICommandEncoder, clearTextureFloat);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    if (!is_set(texture->m_desc.usage, TextureUsage::RenderTarget))
+    {
+        NOT_SUPPORTED(ICommandEncoder, clearTextureFloat);
+        return;
+    }
+    WGPUColor color = {cmd.clearValue[0], cmd.clearValue[1], cmd.clearValue[2], cmd.clearValue[3]};
+    clearTextureWithRenderPasses(texture, cmd.subresourceRange, &color, nullptr);
 }
 
 void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    NOT_SUPPORTED(ICommandEncoder, clearTextureUint);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    if (!is_set(texture->m_desc.usage, TextureUsage::RenderTarget))
+    {
+        NOT_SUPPORTED(ICommandEncoder, clearTextureUint);
+        return;
+    }
+    // clearTextureSint also records this command, storing int32 bits in the uint32 values. WGPUColor
+    // holds doubles, which represent every 32-bit integer exactly once the signedness is restored.
+    double values[4];
+    bool isSigned = getFormatInfo(texture->m_desc.format).isSigned;
+    for (int i = 0; i < 4; ++i)
+        values[i] = isSigned ? double(int32_t(cmd.clearValue[i])) : double(cmd.clearValue[i]);
+    WGPUColor color = {values[0], values[1], values[2], values[3]};
+    clearTextureWithRenderPasses(texture, cmd.subresourceRange, &color, nullptr);
 }
 
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
-    NOT_SUPPORTED(ICommandEncoder, clearTextureDepthStencil);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    if (!is_set(texture->m_desc.usage, TextureUsage::DepthStencil))
+    {
+        NOT_SUPPORTED(ICommandEncoder, clearTextureDepthStencil);
+        return;
+    }
+    clearTextureWithRenderPasses(texture, cmd.subresourceRange, nullptr, &cmd);
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)

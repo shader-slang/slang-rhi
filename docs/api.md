@@ -316,10 +316,10 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `uploadTextureData`                    | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
 | `uploadBufferData`                     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `clearBuffer`                          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `clearTextureFloat`                    | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
-| `clearTextureUint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
-| `clearTextureSint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
-| `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
+| `clearTextureFloat`                    | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `clearTextureUint`                     | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `clearTextureSint`                     | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
+| `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `resolveQuery`                         | yes | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildMicromap`                        | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
