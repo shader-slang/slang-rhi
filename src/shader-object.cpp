@@ -140,9 +140,11 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     if (m_finalized)
         return SLANG_FAIL;
 
-    incrementVersion();
-
     ShaderObject* subObject = checked_cast<ShaderObject*>(object);
+    if (subObject && m_layout->m_slangSession.get() != subObject->m_layout->m_slangSession.get())
+        return SLANG_E_INVALID_ARG;
+
+    incrementVersion();
     // There are three different cases in `setObject`.
     // 1. `this` object represents a StructuredBuffer, and `object` is an
     //    element to be written into the StructuredBuffer.
@@ -479,18 +481,20 @@ Result ShaderObject::create(
     Device* device,
     ShaderObjectLayout* layout,
     ShaderObject** outShaderObject,
-    ShaderProgram* program
+    ShaderProgram* program,
+    slang::IComponentType* slangOwner
 )
 {
     RefPtr<ShaderObject> shaderObject = new ShaderObject(device);
-    SLANG_RETURN_ON_FAIL(shaderObject->init(layout, program));
+    SLANG_RETURN_ON_FAIL(shaderObject->init(layout, program, slangOwner));
     returnRefPtr(outShaderObject, shaderObject);
     return SLANG_OK;
 }
 
-Result ShaderObject::init(ShaderObjectLayout* layout, ShaderProgram* program)
+Result ShaderObject::init(ShaderObjectLayout* layout, ShaderProgram* program, slang::IComponentType* slangOwner)
 {
     m_shaderProgram = program;
+    m_slangOwner = slangOwner;
     m_layout = layout;
 
     // If the layout tells us that there is any uniform data,
@@ -550,7 +554,9 @@ Result ShaderObject::init(ShaderObjectLayout* layout, ShaderProgram* program)
         for (uint32_t i = 0; i < bindingRange.count; ++i)
         {
             RefPtr<ShaderObject> subObject;
-            SLANG_RETURN_ON_FAIL(ShaderObject::create(m_device, subObjectLayout, subObject.writeRef(), program));
+            SLANG_RETURN_ON_FAIL(
+                ShaderObject::create(m_device, subObjectLayout, subObject.writeRef(), program, slangOwner)
+            );
             m_objects[bindingRange.subObjectIndex + i] = subObject;
         }
     }
@@ -648,7 +654,7 @@ Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& arg
                 {
                     if (args[i + oldArgsCount].componentID != typeArgs[i].componentID)
                     {
-                        auto dynamicType = m_device->m_slangContext.session->getDynamicType();
+                        auto dynamicType = m_layout->m_slangSession->getDynamicType();
                         args.componentIDs[i + oldArgsCount] = m_device->m_shaderCache.getComponentId(dynamicType);
                         args.components[i + oldArgsCount] = slang::SpecializationArg::fromType(dynamicType);
                     }
@@ -711,11 +717,13 @@ Result ShaderObject::getSpecializedShaderObjectType(ExtendedShaderObjectType* ou
     }
     else
     {
-        m_shaderObjectType.slangType = m_device->m_slangContext.session->specializeType(
+        m_shaderObjectType.slangType = m_layout->m_slangSession->specializeType(
             _getElementTypeLayout()->getType(),
             specializationArgs.components.data(),
             specializationArgs.getCount()
         );
+        if (!m_shaderObjectType.slangType)
+            return SLANG_FAIL;
         m_shaderObjectType.componentID = m_device->m_shaderCache.getComponentId(m_shaderObjectType.slangType);
     }
     *outType = m_shaderObjectType;
@@ -766,7 +774,7 @@ void ShaderObject::setSpecializationArgsForContainerElement(ExtendedShaderObject
         {
             if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
             {
-                auto dynamicType = m_device->m_slangContext.session->getDynamicType();
+                auto dynamicType = m_layout->m_slangSession->getDynamicType();
                 m_structuredBufferSpecializationArgs.componentIDs[i] =
                     m_device->m_shaderCache.getComponentId(dynamicType);
                 m_structuredBufferSpecializationArgs.components[i] = slang::SpecializationArg::fromType(dynamicType);
@@ -847,7 +855,7 @@ Result RootShaderObject::create(Device* device, ShaderProgram* program, RootShad
 Result RootShaderObject::init(ShaderProgram* program)
 {
     ShaderObjectLayout* layout = program->getRootShaderObjectLayout();
-    SLANG_RETURN_ON_FAIL(ShaderObject::init(layout, program));
+    SLANG_RETURN_ON_FAIL(ShaderObject::init(layout, program, nullptr));
     for (uint32_t entryPointIndex = 0; entryPointIndex < layout->getEntryPointCount(); entryPointIndex++)
     {
         ShaderObjectLayout* entryPointLayout = layout->getEntryPointLayout(entryPointIndex);

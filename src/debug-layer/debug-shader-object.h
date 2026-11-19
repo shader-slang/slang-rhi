@@ -75,6 +75,7 @@ public:
     virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() override;
 
 public:
+    void setTypeInfo(DebugDevice* device, slang::TypeReflection* type);
     void checkCompleteness();
     Result checkNotFinalized();
 

@@ -390,9 +390,12 @@ GPU_TEST_CASE_EX("synthetic-resource-bindings-layout-composition", Vulkan, Debug
             auto* type = layouts[i]->getSlangProgramLayout()->findTypeByName("Transform");
             REQUIRE(type);
             ComPtr<IShaderObject> transform;
-            REQUIRE_CALL(
-                device->createShaderObject(nullptr, type, ShaderObjectContainerType::None, transform.writeRef())
-            );
+            REQUIRE_CALL(device->createShaderObjectFromType(
+                programs[i],
+                type,
+                ShaderObjectContainerType::None,
+                transform.writeRef()
+            ));
             REQUIRE_CALL(ShaderCursor(root->getEntryPoint(0))["transform"].setObject(transform));
         }
         uint32_t left = 3, right = 11, zero = 0;

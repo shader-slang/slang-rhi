@@ -26,6 +26,7 @@
 | `createSurface`                    | :x:     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createInputLayout`                | :x:     | :x:  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObject`               | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `createShaderObjectFromType`       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObjectFromTypeLayout` | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createRootShaderObject`           | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderTable`                | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |

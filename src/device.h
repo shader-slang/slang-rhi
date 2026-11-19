@@ -245,7 +245,20 @@ public:
         IShaderObject** outObject
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromType(
+        slang::IComponentType* slangOwner,
+        slang::TypeReflection* type,
+        ShaderObjectContainerType containerType,
+        IShaderObject** outObject
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::TypeLayoutReflection* typeLayout,
+        IShaderObject** outObject
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::IComponentType* slangOwner,
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject
     ) override;
@@ -440,8 +453,14 @@ public:
     void printWarning(const char* message, ...);
     void printError(const char* message, ...);
 
-    Result createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject);
     Result createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject);
+
+    Result createShaderObjectFromTypeLayoutImpl(
+        slang::IComponentType* slangOwner,
+        slang::ISession* slangSession,
+        slang::TypeLayoutReflection* typeLayout,
+        IShaderObject** outObject
+    );
 
     Result getSpecializedProgram(
         ShaderProgram* program,
@@ -541,7 +560,8 @@ public:
     /// program would leave the entry dangling, and a later allocation reusing that
     /// address turns the next lookup into a use-after-free. That is
     /// shader-slang/slang#10893, which is why createShaderObjectFromTypeLayout builds
-    /// its layout directly instead of caching one.
+    /// its layout directly instead of caching one. The owner-aware overload also
+    /// retains the originating component on the shader object and its children.
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
 
     // List of heaps managed by this device. DeviceImpl is expected

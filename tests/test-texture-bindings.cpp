@@ -327,7 +327,9 @@ static void runSpecializedBindings(IDevice* device)
         auto type = reflection->findTypeByName(useA ? "TextureReaderA" : "TextureReaderB");
         REQUIRE(type);
         ComPtr<IShaderObject> reader;
-        REQUIRE_CALL(device->createShaderObject(type, ShaderObjectContainerType::None, reader.writeRef()));
+        REQUIRE_CALL(
+            device->createShaderObjectFromType(program, type, ShaderObjectContainerType::None, reader.writeRef())
+        );
         auto pass = encoder->beginComputePass();
         auto root = pass->bindPipeline(pipeline);
         ShaderCursor cursor(root);
