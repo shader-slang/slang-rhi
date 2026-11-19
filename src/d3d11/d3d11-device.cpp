@@ -352,6 +352,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
 
+    // Check whether shaders other than the geometry shader can write SV_ViewportArrayIndex
+    {
+        D3D11_FEATURE_DATA_D3D11_OPTIONS3 options3 = {};
+        if (SUCCEEDED(m_device->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS3, &options3, sizeof(options3))) &&
+            options3.VPAndRTArrayIndexFromAnyShaderFeedingRasterizer)
+        {
+            addFeature(Feature::ViewportArrayIndex);
+        }
+    }
+
     // Initialize format support table
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
     {

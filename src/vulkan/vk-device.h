@@ -281,6 +281,7 @@ public:
 
     VkDevice m_device = VK_NULL_HANDLE;
     bool m_hasSubgroupSizeControl = false;
+    bool m_hasExtendedDynamicState = false;
     bool m_supportsImageView2DOn3DImage = true;
     CalibratedTimestampSupport m_calibratedTimestampSupport;
 
