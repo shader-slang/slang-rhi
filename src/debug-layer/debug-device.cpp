@@ -134,6 +134,28 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     RHI_VALIDATION_INFO("Debug layer is enabled.");
 }
 
+void DebugDevice::checkSharedResourceDeviceUse(IResource* resource)
+{
+    // A device-side read/map is not recorded on a specific queue, so we attribute it to the device's
+    // graphics queue: reads/maps are serviced there, and slang-rhi exposes a single Vulkan queue
+    // family, so it is the queue a shared resource would be owned by. If getQueue fails we skip the
+    // check rather than pass a null queue (which would misreport ownership).
+    ComPtr<ICommandQueue> ownerQueue;
+    if (SLANG_SUCCEEDED(baseObject->getQueue(QueueType::Graphics, ownerQueue.writeRef())) && ownerQueue)
+        SharedResourceOwnershipTracker::get().checkUse(ctx, resource, ownerQueue.get());
+}
+
+void DebugDevice::resetSharedResourceTracking(IResource* resource, bool hasInitData)
+{
+    // initData is uploaded on the graphics queue - the same queue checkSharedResourceDeviceUse
+    // attributes device-side uses to. If getQueue fails the resource is left unowned, to be acquired
+    // by its first use, rather than owned by a null queue.
+    ComPtr<ICommandQueue> initialOwner;
+    if (hasInitData)
+        baseObject->getQueue(QueueType::Graphics, initialOwner.writeRef());
+    SharedResourceOwnershipTracker::get().resetForNewSharedResource(resource, ctx->deviceType, initialOwner.get());
+}
+
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 {
     SLANG_RHI_DEBUG_API(IDevice, getSlangSession);
@@ -359,7 +381,12 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
     SLANG_RETURN_ON_FAIL(validateResourcePlacementHeap(ctx, baseObject, patchedDesc.heap));
     patchedDesc.heap = getInnerObj(patchedDesc.heap);
 
-    return baseObject->createTexture(patchedDesc, initData, outTexture);
+    Result result = baseObject->createTexture(patchedDesc, initData, outTexture);
+    // A newly created shared texture mints a fresh handle, so drop any stale (recycled) tracker entry
+    // for it; see SharedResourceOwnershipTracker::resetForNewSharedResource.
+    if (SLANG_SUCCEEDED(result) && outTexture && *outTexture && is_set(desc.usage, TextureUsage::Shared))
+        resetSharedResourceTracking(*outTexture, initData != nullptr);
+    return result;
 }
 
 Result DebugDevice::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
@@ -372,6 +399,14 @@ Result DebugDevice::createTextureFromNativeHandle(NativeHandle handle, const Tex
         return SLANG_E_INVALID_ARG;
     }
 
+    // createFromNativeHandle wraps an existing platform resource by its own object handle. Unlike
+    // createTexture (a fresh producer allocation, which resets any recycled tracker entry) and
+    // createTextureFromSharedHandle (a cross-API import, which ties the entry to the shared handle),
+    // the handle passed here is not the shared/export handle the tracker keys on, so we neither reset
+    // nor tie. If the wrapped texture is Shared on a backend that implements getSharedHandle, its
+    // ownership entry resolves lazily from that handle on first tracked use; on a backend without
+    // getSharedHandle it normally stays untracked, unless its address matches a stale import tie (the
+    // create*FromNativeHandle residual noted in SharedResourceOwnershipTracker).
     return baseObject->createTextureFromNativeHandle(handle, desc, outTexture);
 }
 
@@ -390,7 +425,10 @@ Result DebugDevice::createTextureFromSharedHandle(
         return SLANG_E_INVALID_ARG;
     }
 
-    return baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
+    Result result = baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
+    if (SLANG_SUCCEEDED(result) && outTexture && *outTexture)
+        SharedResourceOwnershipTracker::get().tieImportedResource(*outTexture, handle);
+    return result;
 }
 
 static Result validateBufferDesc(DebugContext* ctx, const BufferDesc& desc)
@@ -447,7 +485,12 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     SLANG_RETURN_ON_FAIL(validateResourcePlacementHeap(ctx, baseObject, patchedDesc.heap));
     patchedDesc.heap = getInnerObj(patchedDesc.heap);
 
-    return baseObject->createBuffer(patchedDesc, initData, outBuffer);
+    Result result = baseObject->createBuffer(patchedDesc, initData, outBuffer);
+    // A newly created shared buffer mints a fresh handle, so drop any stale (recycled) tracker entry
+    // for it; see SharedResourceOwnershipTracker::resetForNewSharedResource.
+    if (SLANG_SUCCEEDED(result) && outBuffer && *outBuffer && is_set(desc.usage, BufferUsage::Shared))
+        resetSharedResourceTracking(*outBuffer, initData != nullptr);
+    return result;
 }
 
 Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
@@ -460,6 +503,14 @@ Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const Buff
         return SLANG_E_INVALID_ARG;
     }
 
+    // createFromNativeHandle wraps an existing platform resource by its own object handle. Unlike
+    // createBuffer (a fresh producer allocation, which resets any recycled tracker entry) and
+    // createBufferFromSharedHandle (a cross-API import, which ties the entry to the shared handle),
+    // the handle passed here is not the shared/export handle the tracker keys on, so we neither reset
+    // nor tie. If the wrapped buffer is Shared on a backend that implements getSharedHandle, its
+    // ownership entry resolves lazily from that handle on first tracked use; on a backend without
+    // getSharedHandle it normally stays untracked, unless its address matches a stale import tie (the
+    // create*FromNativeHandle residual noted in SharedResourceOwnershipTracker).
     return baseObject->createBufferFromNativeHandle(handle, desc, outBuffer);
 }
 
@@ -473,7 +524,10 @@ Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const Buff
         return SLANG_E_INVALID_ARG;
     }
 
-    return baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
+    Result result = baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
+    if (SLANG_SUCCEEDED(result) && outBuffer && *outBuffer)
+        SharedResourceOwnershipTracker::get().tieImportedResource(*outBuffer, handle);
+    return result;
 }
 
 Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
@@ -515,6 +569,8 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
     default:
         break;
     }
+
+    checkSharedResourceDeviceUse(buffer);
 
 #if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
     {
@@ -1215,6 +1271,7 @@ Result DebugDevice::readTexture(
         return SLANG_E_INVALID_ARG;
     }
 
+    checkSharedResourceDeviceUse(texture);
     return baseObject->readTexture(texture, layer, mip, layout, outData);
 }
 
@@ -1264,6 +1321,7 @@ Result DebugDevice::readTexture(
         break;
     }
 
+    checkSharedResourceDeviceUse(texture);
     return baseObject->readTexture(texture, layer, mip, outBlob, outLayout);
 }
 
@@ -1294,6 +1352,7 @@ Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* 
         return SLANG_E_INVALID_ARG;
     }
 
+    checkSharedResourceDeviceUse(buffer);
     return baseObject->readBuffer(buffer, offset, size, outData);
 }
 
@@ -1324,6 +1383,7 @@ Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISla
         return SLANG_E_INVALID_ARG;
     }
 
+    checkSharedResourceDeviceUse(buffer);
     return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 
