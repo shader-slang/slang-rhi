@@ -156,6 +156,126 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
     test.run(tlas.tlas, raygenNames, hitGroupProgramNames, missNames, expectedPixels);
 }
 
+GPU_TEST_CASE("ray-tracing-out-of-place-refit", CUDA | D3D12 | Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    SKIP_IF_ARM64_WARP(device);
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    const Vertex movedVertices[] = {{-1.f, 0.f, 1.f}, {0.f, 0.f, 1.f}, {-1.f, 1.f, 1.f}};
+    BufferDesc verticesDesc = {};
+    verticesDesc.size = sizeof(movedVertices);
+    verticesDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    verticesDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    auto vertices = device->createBuffer(verticesDesc, SingleTriangleBLAS::kVertexData);
+    auto moved = device->createBuffer(verticesDesc, movedVertices);
+    REQUIRE(vertices);
+    REQUIRE(moved);
+
+    AccelerationStructureBuildInput input = {};
+    input.type = AccelerationStructureBuildInputType::Triangles;
+    input.triangles.vertexBuffers[0] = vertices;
+    input.triangles.vertexBufferCount = 1;
+    input.triangles.vertexFormat = Format::RGB32Float;
+    input.triangles.vertexCount = SingleTriangleBLAS::kVertexCount;
+    input.triangles.vertexStride = sizeof(Vertex);
+    input.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
+    AccelerationStructureBuildDesc build = {};
+    build.inputs = &input;
+    build.inputCount = 1;
+    build.flags = AccelerationStructureBuildFlags::AllowUpdate;
+    bool compact = false;
+    SUBCASE("uncompacted source") {}
+    SUBCASE("compacted source")
+    {
+        compact = true;
+        build.flags |= AccelerationStructureBuildFlags::AllowCompaction;
+    }
+    AccelerationStructureSizes sizes = {};
+    REQUIRE_CALL(device->getAccelerationStructureSizes(build, &sizes));
+
+    BufferDesc scratchDesc = {};
+    scratchDesc.size = std::max(sizes.scratchSize, sizes.updateScratchSize);
+    scratchDesc.usage = BufferUsage::UnorderedAccess;
+    scratchDesc.defaultState = ResourceState::UnorderedAccess;
+    auto scratch = device->createBuffer(scratchDesc);
+    REQUIRE(scratch);
+
+    AccelerationStructureDesc desc = {};
+    desc.kind = AccelerationStructureKind::BottomLevel;
+    desc.size = sizes.accelerationStructureSize;
+    ComPtr<IAccelerationStructure> original, updated;
+    REQUIRE_CALL(device->createAccelerationStructure(desc, updated.writeRef()));
+    desc.size += 4096; // The source allocation can be larger than the destination.
+    REQUIRE_CALL(device->createAccelerationStructure(desc, original.writeRef()));
+
+    auto encoder = queue->createCommandEncoder();
+    if (compact)
+    {
+        QueryPoolDesc poolDesc = {};
+        poolDesc.type = QueryType::AccelerationStructureCompactedSize;
+        poolDesc.count = 1;
+        ComPtr<IQueryPool> pool;
+        REQUIRE_CALL(device->createQueryPool(poolDesc, pool.writeRef()));
+        AccelerationStructureQueryDesc query = {poolDesc.type, pool, 0};
+        encoder->buildAccelerationStructure(build, original, nullptr, scratch, 1, &query);
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+
+        uint64_t compactedSize = 0;
+        REQUIRE_CALL(pool->getResult(0, 1, &compactedSize));
+        REQUIRE(compactedSize > 0);
+        desc.size = compactedSize;
+        ComPtr<IAccelerationStructure> compacted;
+        REQUIRE_CALL(device->createAccelerationStructure(desc, compacted.writeRef()));
+        encoder = queue->createCommandEncoder();
+        encoder->copyAccelerationStructure(compacted, original, AccelerationStructureCopyMode::Compact);
+        original = compacted;
+    }
+    else
+    {
+        encoder->buildAccelerationStructure(build, original, nullptr, scratch, 0, nullptr);
+    }
+    build.mode = AccelerationStructureBuildMode::Update;
+    input.triangles.vertexBuffers[0] = moved;
+    encoder->buildAccelerationStructure(build, updated, original, scratch, 0, nullptr);
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    TLAS originalScene(device, queue, original);
+    const auto sceneFlags = AccelerationStructureBuildFlags::AllowUpdate;
+    TLAS updatedScene(device, queue, updated, nullptr, sceneFlags);
+    ComPtr<IAccelerationStructure> clonedScene;
+    REQUIRE_CALL(device->createAccelerationStructure(updatedScene.tlas->getDesc(), clonedScene.writeRef()));
+    encoder = queue->createCommandEncoder();
+    encoder->copyAccelerationStructure(clonedScene, updatedScene.tlas, AccelerationStructureCopyMode::Clone);
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    // Move the cloned instance back to the original triangle's screen position.
+    const float translateX[] = {1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0};
+    TLAS translatedScene(device, queue, updated, translateX, sceneFlags, clonedScene);
+
+    RayTracingTriangleIntersectionTest test;
+    test.init(device);
+    test.createResultTexture();
+    RayTracingTestPipeline pipeline(
+        device,
+        "test-ray-tracing",
+        {"rayGenShaderIdx0"},
+        {{"closestHitShaderIdx0", nullptr, nullptr}},
+        {"missShaderIdx0"}
+    );
+    ExpectedPixel originalHits[] = {EXPECTED_PIXEL(80, 80, 1, 0, 0, 1), EXPECTED_PIXEL(16, 80, 1, 1, 1, 1)};
+    ExpectedPixel updatedHits[] = {EXPECTED_PIXEL(80, 80, 1, 1, 1, 1), EXPECTED_PIXEL(16, 80, 1, 0, 0, 1)};
+    test.renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, originalScene.tlas, 0);
+    test.checkTestResults(originalHits);
+    test.renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, clonedScene, 0);
+    test.checkTestResults(updatedHits);
+    test.renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, translatedScene.tlas, 0);
+    test.checkTestResults(originalHits);
+}
+
 GPU_TEST_CASE("ray-tracing-native-primitive-flags", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))

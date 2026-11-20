@@ -574,6 +574,7 @@ enum class ResourceState
     AccelerationStructureRead,
     AccelerationStructureWrite,
     AccelerationStructureBuildInput,
+    AccelerationStructureBuildScratch,
     MicromapBuildInput,
     MicromapRead,
     MicromapWrite,

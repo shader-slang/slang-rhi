@@ -1674,6 +1674,14 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
         RHI_VALIDATION_ERROR("'accelerationStructures' must not be null when 'accelerationStructureCount' > 0.");
         return;
     }
+    for (uint32_t i = 0; i < accelerationStructureCount; ++i)
+    {
+        if (!accelerationStructures[i])
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'accelerationStructures[%u]' must not be null.", i);
+            return;
+        }
+    }
     if (queryCount > 0 && !queryDescs)
     {
         RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'queryCount' > 0.");

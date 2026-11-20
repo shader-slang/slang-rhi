@@ -836,7 +836,14 @@ void CommandEncoder::queryAccelerationStructureProperties(
     const AccelerationStructureQueryDesc* queryDescs
 )
 {
-    SLANG_RHI_UNIMPLEMENTED("queryAccelerationStructureProperties");
+    if (!accelerationStructureCount || !queryCount)
+        return;
+    commands::QueryAccelerationStructureProperties cmd;
+    cmd.accelerationStructureCount = accelerationStructureCount;
+    cmd.accelerationStructures = accelerationStructures;
+    cmd.queryCount = queryCount;
+    cmd.queryDescs = queryDescs;
+    m_commandList->write(std::move(cmd));
 }
 
 void CommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)

@@ -2,6 +2,7 @@
 
 #include "testing.h"
 #include <slang-rhi/acceleration-structure-utils.h>
+#include <algorithm>
 #include <vector>
 #include <string>
 
@@ -674,7 +675,14 @@ struct TLAS
     ComPtr<IBuffer> tlasBuffer;
     ComPtr<IAccelerationStructure> tlas;
 
-    TLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas, const float* transform = nullptr)
+    TLAS(
+        IDevice* device,
+        ICommandQueue* queue,
+        IAccelerationStructure* blas,
+        const float* transform = nullptr,
+        AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None,
+        IAccelerationStructure* updateSource = nullptr
+    )
     {
         AccelerationStructureInstanceDescType nativeInstanceDescType = getAccelerationStructureInstanceDescType(device);
         Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
@@ -727,6 +735,8 @@ struct TLAS
         AccelerationStructureBuildDesc buildDesc = {};
         buildDesc.inputs = &buildInput;
         buildDesc.inputCount = 1;
+        buildDesc.flags = flags;
+        buildDesc.mode = updateSource ? AccelerationStructureBuildMode::Update : AccelerationStructureBuildMode::Build;
 
         // Query buffer size for acceleration structure build.
         AccelerationStructureSizes sizes;
@@ -735,7 +745,7 @@ struct TLAS
         BufferDesc scratchBufferDesc;
         scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
         scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-        scratchBufferDesc.size = sizes.scratchSize;
+        scratchBufferDesc.size = std::max(sizes.scratchSize, sizes.updateScratchSize);
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
         AccelerationStructureDesc createDesc{};
@@ -745,7 +755,7 @@ struct TLAS
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();
-        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, updateSource, scratchBuffer, 0, nullptr);
         REQUIRE_CALL(queue->submit(commandEncoder->finish()));
         REQUIRE_CALL(queue->waitOnHost());
     }

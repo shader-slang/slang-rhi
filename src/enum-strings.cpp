@@ -298,6 +298,8 @@ const char* enumToString(ResourceState value)
         return S_ResourceState_AccelerationStructureWrite;
     case ResourceState::AccelerationStructureBuildInput:
         return S_ResourceState_AccelerationStructureBuildInput;
+    case ResourceState::AccelerationStructureBuildScratch:
+        return S_ResourceState_AccelerationStructureBuildScratch;
     case ResourceState::MicromapBuildInput:
         return S_ResourceState_MicromapBuildInput;
     case ResourceState::MicromapRead:

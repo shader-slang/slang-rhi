@@ -1263,14 +1263,15 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
     BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
 
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     converter.buildInfo.dstAccelerationStructure = dst->m_vkHandle;
     if (src)
     {
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
         converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    // Keep the destination tracked as written when updating in place.
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
@@ -1487,7 +1488,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     requireBufferState(argsBuffer, ResourceState::ShaderResource);
     if (argCountBuffer)
         requireBufferState(argCountBuffer, ResourceState::ShaderResource);
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     if (addressesBuffer)
         requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
     if (resultBuffer)

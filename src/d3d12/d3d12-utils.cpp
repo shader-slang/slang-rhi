@@ -349,6 +349,8 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
         return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
     case ResourceState::AccelerationStructureBuildInput:
         return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    case ResourceState::AccelerationStructureBuildScratch:
+        return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     case ResourceState::MicromapBuildInput:
         return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case ResourceState::MicromapRead:
