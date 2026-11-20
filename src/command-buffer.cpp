@@ -583,6 +583,13 @@ Result CommandEncoder::uploadTextureData(
     uint32_t subresourceDataCount
 )
 {
+    // The layouts below are written and the source data is read once per layer/mip in the range,
+    // so the caller must provide exactly that many subresources.
+    if (uint64_t(subresourceRange.layerCount) * uint64_t(subresourceRange.mipCount) != subresourceDataCount)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
     // Allocate space in command list memory for layout information on each subresource.
     SubresourceLayout* layouts =
         static_cast<SubresourceLayout*>(m_commandList->allocData(sizeof(SubresourceLayout) * subresourceDataCount));

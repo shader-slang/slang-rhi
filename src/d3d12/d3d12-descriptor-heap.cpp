@@ -113,10 +113,7 @@ Result CPUDescriptorHeap::allocate(
         if (m_freePages.empty())
         {
             uint32_t size = max(m_pageSize, count);
-            if (!SUCCEEDED(newPage(size)))
-            {
-                return {};
-            }
+            SLANG_RETURN_ON_FAIL(newPage(size));
         }
         SLANG_RHI_ASSERT(!m_freePages.empty());
         Page* page = *m_freePages.begin();
@@ -150,7 +147,12 @@ Result CPUDescriptorHeap::newPage(uint32_t size)
 {
     uint32_t heapIndex = uint32_t(m_pages.size());
     Page* page = new Page(heapIndex, size);
-    SLANG_RETURN_ON_FAIL(page->heap.init(m_device, m_type, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, size));
+    Result result = page->heap.init(m_device, m_type, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, size);
+    if (SLANG_FAILED(result))
+    {
+        delete page;
+        return result;
+    }
     m_pages.push_back(page);
     m_freePages.insert(page);
     return SLANG_OK;

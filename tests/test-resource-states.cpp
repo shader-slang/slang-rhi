@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "../src/state-tracking.h"
 
 #include <set>
 
@@ -135,4 +136,47 @@ GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
 
         queue->waitOnHost();
     }
+}
+
+// Changing the state of a layer range must only affect the layers in that range.
+GPU_TEST_CASE("texture-state-tracking-layer-range", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+{
+    const uint32_t kLayerCount = 4;
+    const uint32_t kMipCount = 2;
+
+    TextureDesc textureDesc = {};
+    textureDesc.type = TextureType::Texture2DArray;
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.size = Extent3D{4, 4, 1};
+    textureDesc.arrayLength = kLayerCount;
+    textureDesc.mipCount = kMipCount;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopySource | TextureUsage::CopyDestination;
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(device->createTexture(textureDesc, nullptr, texture.writeRef()));
+    Texture* textureImpl = checked_cast<Texture*>(texture.get());
+
+    StateTracking stateTracking;
+
+    // Transition all mips of layers 1 and 2.
+    stateTracking.setTextureState(textureImpl, SubresourceRange{1, 2, 0, kMipCount}, ResourceState::CopySource);
+    CHECK(stateTracking.getTextureBarriers().size() == 2 * kMipCount);
+    for (const TextureBarrier& barrier : stateTracking.getTextureBarriers())
+    {
+        CHECK(!barrier.entireTexture);
+        CHECK(barrier.layer >= 1);
+        CHECK(barrier.layer <= 2);
+        CHECK(barrier.stateAfter == ResourceState::CopySource);
+    }
+    stateTracking.clearBarriers();
+
+    // Transition a single mip of layer 0. This must not touch the layers transitioned above.
+    stateTracking.setTextureState(textureImpl, SubresourceRange{0, 1, 1, 1}, ResourceState::CopyDestination);
+    REQUIRE(stateTracking.getTextureBarriers().size() == 1);
+    CHECK(stateTracking.getTextureBarriers()[0].layer == 0);
+    CHECK(stateTracking.getTextureBarriers()[0].mip == 1);
+    stateTracking.clearBarriers();
+
+    // Layers 1 and 2 are still in the state set above, so transitioning them again is a no-op.
+    stateTracking.setTextureState(textureImpl, SubresourceRange{1, 2, 0, kMipCount}, ResourceState::CopySource);
+    CHECK(stateTracking.getTextureBarriers().empty());
 }

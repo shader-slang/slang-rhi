@@ -16,6 +16,7 @@
 #include "cuda-heap.h"
 #include "synthetic-resource-bindings.h"
 
+#include "core/deferred.h"
 #include "core/platform.h"
 
 #include <filesystem>
@@ -698,17 +699,25 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
     if (m_ctx.optixContext)
     {
         CUdeviceptr dstPtr = 0;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&dstPtr, dstBufferSize), this);
         CUdeviceptr srcPtr = 0;
+        // Free the temporary device allocations on every exit path.
+        SLANG_RHI_DEFERRED({
+            if (srcPtr)
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(srcPtr));
+            if (dstPtr)
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(dstPtr));
+        });
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&dstPtr, dstBufferSize), this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&srcPtr, srcBufferSize), this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyHtoD(srcPtr, srcBuffer, srcBufferSize), this);
 
-        Result result =
-            m_ctx.optixContext->convertCooperativeVectorMatrix(0, dstPtr, dstDescs, srcPtr, srcDescs, matrixCount);
+        SLANG_RETURN_ON_FAIL(
+            m_ctx.optixContext->convertCooperativeVectorMatrix(0, dstPtr, dstDescs, srcPtr, srcDescs, matrixCount)
+        );
 
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyDtoH(dstBuffer, dstPtr, dstBufferSize), this);
 
-        return result;
+        return SLANG_OK;
     }
     return SLANG_E_NOT_AVAILABLE;
 }

@@ -462,3 +462,55 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
         }
     );
 }
+
+// The number of provided subresources must match the subresource range. A mismatch must be
+// rejected instead of reading and writing past the provided data.
+GPU_TEST_CASE("cmd-upload-texture-subresource-count-mismatch", D3D12 | Vulkan | Metal | CUDA | WGPU | DontCreateDevice)
+{
+    // The validation layer reports the mismatch as an error. Swallow it, the result code is checked below.
+    struct IgnoreDebugCallback : public IDebugCallback
+    {
+        virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+            DebugMessageType type,
+            DebugMessageSource source,
+            const char* message
+        ) override
+        {
+            SLANG_UNUSED(type);
+            SLANG_UNUSED(source);
+            SLANG_UNUSED(message);
+        }
+    };
+    IgnoreDebugCallback debugCallback;
+    DeviceExtraOptions extraOptions;
+    extraOptions.debugCallback = &debugCallback;
+    ComPtr<IDevice> testDevice = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
+    REQUIRE(testDevice != nullptr);
+
+    TextureDesc textureDesc = {};
+    textureDesc.format = Format::RGBA8Unorm;
+    textureDesc.size = {4, 4, 1};
+    textureDesc.mipCount = 2;
+    textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
+    ComPtr<ITexture> texture;
+    REQUIRE_CALL(testDevice->createTexture(textureDesc, nullptr, texture.writeRef()));
+
+    uint8_t pixels[4 * 4 * 4] = {};
+    SubresourceData subresourceData[] = {{pixels, 4 * 4, 4 * 4 * 4}};
+
+    auto queue = testDevice->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    // Two mip levels are addressed, but only one subresource is provided.
+    CHECK(
+        commandEncoder->uploadTextureData(
+            texture,
+            {0, 1, 0, 2},
+            {0, 0, 0},
+            Extent3D::kWholeTexture,
+            subresourceData,
+            SLANG_COUNT_OF(subresourceData)
+        ) == SLANG_E_INVALID_ARG
+    );
+    ComPtr<ICommandBuffer> commandBuffer;
+    REQUIRE_CALL(commandEncoder->finish(commandBuffer.writeRef()));
+}

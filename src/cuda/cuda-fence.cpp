@@ -69,9 +69,12 @@ Result DeviceImpl::waitForFences(
     auto currentTime = startTime;
     while (currentTime <= endTime || timeout == kTimeoutInfinite)
     {
-        for (uint32_t i = 0; i < fenceCount && waitFences[i]; ++i)
+        for (uint32_t i = 0; i < fenceCount; ++i)
         {
+            // Skip fences that already reached their value.
             FenceImpl* fence = waitFences[i];
+            if (!fence)
+                continue;
             uint64_t value;
             SLANG_RETURN_ON_FAIL(fence->getCurrentValue(&value));
             if (value >= fenceValues[i])

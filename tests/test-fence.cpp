@@ -1,5 +1,8 @@
 #include "testing.h"
 
+#include <chrono>
+#include <thread>
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -179,4 +182,36 @@ GPU_TEST_CASE("fence-queue-wait", ALL & ~D3D11)
     submitDesc.waitFenceValues = waitFenceValues;
     REQUIRE_CALL(device->getQueue(QueueType::Graphics)->submit(submitDesc));
     REQUIRE_CALL(device->getQueue(QueueType::Graphics)->waitOnHost());
+}
+
+// Waiting for all fences must keep polling every fence that has not reached its value yet,
+// including fences that follow one that is already signaled.
+GPU_TEST_CASE("fence-wait-all-signaled-later", ALL & ~D3D11)
+{
+    FenceDesc fenceDesc = {};
+    ComPtr<IFence> fence1;
+    ComPtr<IFence> fence2;
+    REQUIRE_CALL(device->createFence(fenceDesc, fence1.writeRef()));
+    REQUIRE_CALL(device->createFence(fenceDesc, fence2.writeRef()));
+
+    // The first fence is already signaled, the second one gets signaled while waiting.
+    IFence* fences[] = {fence1.get(), fence2.get()};
+    uint64_t values[] = {0, 1};
+
+    std::thread signalThread(
+        [&]()
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            fence2->setCurrentValue(1);
+        }
+    );
+
+    const uint64_t timeout = 10ull * 1000 * 1000 * 1000; // 10 seconds in nanoseconds
+    CHECK(device->waitForFences(2, fences, values, true, timeout) == SLANG_OK);
+
+    signalThread.join();
+
+    uint64_t value = 0;
+    REQUIRE_CALL(fence2->getCurrentValue(&value));
+    CHECK(value == 1);
 }
