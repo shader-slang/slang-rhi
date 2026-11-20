@@ -1088,6 +1088,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-compute-trivial.cpp
         tests/test-cooperative-matrix.cpp
         tests/test-cooperative-vector.cpp
+        tests/test-cpu-texture-cube-array.cpp
         tests/test-cuda-external-devices.cpp
         tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
