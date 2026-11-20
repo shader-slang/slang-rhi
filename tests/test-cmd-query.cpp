@@ -60,7 +60,8 @@ static AccelerationStructureQueryBuild createAccelerationStructureCompactionQuer
     IDevice* device,
     ICommandQueue* queue,
     uint32_t triangleCount = 1,
-    IQueryPool* currentSizePool = nullptr
+    IQueryPool* currentSizePool = nullptr,
+    bool updateBeforeQuery = false
 )
 {
     struct Vertex
@@ -110,6 +111,8 @@ static AccelerationStructureQueryBuild createAccelerationStructureCompactionQuer
     buildDesc.inputs = &buildInput;
     buildDesc.inputCount = 1;
     buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
+    if (updateBeforeQuery)
+        buildDesc.flags |= AccelerationStructureBuildFlags::AllowUpdate;
 
     AccelerationStructureSizes sizes = {};
     REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
@@ -117,7 +120,7 @@ static AccelerationStructureQueryBuild createAccelerationStructureCompactionQuer
     BufferDesc scratchBufferDesc = {};
     scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
     scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-    scratchBufferDesc.size = sizes.scratchSize;
+    scratchBufferDesc.size = std::max(sizes.scratchSize, sizes.updateScratchSize);
     ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
     REQUIRE(scratchBuffer != nullptr);
 
@@ -142,8 +145,21 @@ static AccelerationStructureQueryBuild createAccelerationStructureCompactionQuer
         queryDesc,
         {QueryType::AccelerationStructureCurrentSize, currentSizePool, 0}
     };
-    commandEncoder
-        ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, currentSizePool ? 2 : 1, queries);
+    if (updateBeforeQuery)
+    {
+        commandEncoder->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 0, nullptr);
+        buildDesc.mode = AccelerationStructureBuildMode::Update;
+        // Exercise consecutive in-place updates followed by a standalone query in the same command buffer.
+        commandEncoder->buildAccelerationStructure(buildDesc, draftAS, draftAS, scratchBuffer, 0, nullptr);
+        commandEncoder->buildAccelerationStructure(buildDesc, draftAS, draftAS, scratchBuffer, 0, nullptr);
+        IAccelerationStructure* structures[] = {draftAS};
+        commandEncoder->queryAccelerationStructureProperties(1, structures, currentSizePool ? 2 : 1, queries);
+    }
+    else
+    {
+        commandEncoder
+            ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, currentSizePool ? 2 : 1, queries);
+    }
 
     return {queryPool, commandEncoder->finish(), draftAS};
 }
@@ -594,6 +610,23 @@ GPU_TEST_CASE("cmd-query-acceleration-structure-properties", CUDA | D3D12 | Vulk
     CHECK(sizes[2] == smallSize);
     CHECK(sizes[3] == largeSize);
     compareComputeResult(device, buffer, makeArray<uint64_t>(99, smallSize, largeSize, smallSize, largeSize));
+}
+
+GPU_TEST_CASE("cmd-query-acceleration-structure-properties-after-update", D3D12 | Vulkan)
+{
+    if (!device->hasFeature(Feature::AccelerationStructure))
+        SKIP("Acceleration structures not supported");
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto build = createAccelerationStructureCompactionQueryBuild(device, queue, 256, nullptr, true);
+    REQUIRE_CALL(queue->submit(build.commandBuffer));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    uint64_t compactedSize = 0;
+    REQUIRE_CALL(build.queryPool->getResult(0, 1, &compactedSize));
+    CHECK(compactedSize > 0);
+    CHECK(compactedSize <= build.structure->getDesc().size);
+    checkQueryResultReady(build.queryPool, 0, 1);
 }
 
 GPU_TEST_CASE("cmd-query-acceleration-structure-null-entry", CUDA | D3D12 | Vulkan | DontCreateDevice)

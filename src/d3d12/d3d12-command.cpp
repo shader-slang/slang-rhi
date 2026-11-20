@@ -1240,9 +1240,10 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
     BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
 
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     if (src)
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    // Keep the destination tracked as written when updating in place.
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)

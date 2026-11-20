@@ -1263,13 +1263,14 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
     BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
 
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     converter.buildInfo.dstAccelerationStructure = dst->m_vkHandle;
     if (src)
     {
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
         converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
+    // Keep the destination tracked as written when updating in place.
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
 
