@@ -169,6 +169,13 @@ class CommandBufferImpl : public CommandBuffer
 public:
     CommandQueueImpl* m_queue;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
+    /// Metal command buffers recorded before m_commandBuffer and committed ahead of it. The recorder starts a new
+    /// Metal command buffer where a resolve must wait for timestamps sampled earlier in the same command buffer
+    /// (see CommandRecorder::cmdResolveQuery).
+    std::vector<NS::SharedPtr<MTL::CommandBuffer>> m_precedingCommandBuffers;
+    /// One event per preceding command buffer, signaled on the host when it completes; the following Metal command
+    /// buffer waits for it.
+    std::vector<NS::SharedPtr<MTL::SharedEvent>> m_completionEvents;
     BindingCache m_bindingCache;
     uint64_t m_submissionID;
 

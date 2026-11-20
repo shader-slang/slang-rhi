@@ -199,6 +199,12 @@ public:
     bool m_hasArgumentBufferTier2 = false;
     bool m_supportsPlacementHeaps = false;
 
+    /// Target of the one small fill in each timestamp's blit encoder: Metal skips an encoder without commands,
+    /// and its counter samples with it.
+    NS::SharedPtr<MTL::Buffer> m_timestampFillBuffer;
+    /// The counter set with the timestamp counter, or null when the device has none.
+    NS::SharedPtr<MTL::CounterSet> m_timestampCounterSet;
+
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_hasResidencySet = false;
     bool m_residencySetDirty = false;
