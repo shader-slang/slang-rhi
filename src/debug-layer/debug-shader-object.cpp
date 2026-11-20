@@ -150,20 +150,25 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
         RHI_VALIDATION_ERROR("'object' must have an underlying shader object.");
         return SLANG_E_INVALID_ARG;
     }
-    auto* parent = checked_cast<ShaderObject*>(baseObject.get());
-    auto* child = checked_cast<ShaderObject*>(objectImpl->baseObject.get());
-    if (parent->m_layout->m_slangSession != child->m_layout->m_slangSession)
+    // The core implementation already rejects session mismatches. Only repeat the check on failure
+    // to provide a diagnostic without adding duplicate validation to successful bindings.
+    Result result = baseObject->setObject(offset, objectImpl->baseObject.get());
+    if (SLANG_FAILED(result))
     {
-        RHI_VALIDATION_ERROR_FORMAT(
-            "The child shader object (%s) at binding range %u, array index %u belongs to a different Slang session. "
-            "Create the child using reflection from the parent's program.",
-            objectImpl->m_typeName.empty() ? "unnamed type" : objectImpl->m_typeName.c_str(),
-            offset.bindingRangeIndex,
-            offset.bindingArrayIndex
-        );
-        return SLANG_E_INVALID_ARG;
+        auto* parent = checked_cast<ShaderObject*>(baseObject.get());
+        auto* child = checked_cast<ShaderObject*>(objectImpl->baseObject.get());
+        if (parent->m_layout->m_slangSession != child->m_layout->m_slangSession)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "The child shader object (%s) at binding range %u, array index %u belongs to a different Slang session. "
+                "Create the child using reflection from the parent's program.",
+                objectImpl->m_typeName.empty() ? "unnamed type" : objectImpl->m_typeName.c_str(),
+                offset.bindingRangeIndex,
+                offset.bindingArrayIndex
+            );
+        }
+        return result;
     }
-    SLANG_RETURN_ON_FAIL(baseObject->setObject(offset, child));
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
