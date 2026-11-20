@@ -213,11 +213,11 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `clearTextureUint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureSint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `resolveQuery`                         | yes | :x:  | :x:   | yes   | yes    | yes   | :x:  |
-| `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `resolveQuery`                         | yes | yes (1) | :x:   | yes   | yes (1) | yes   | :x:  |
+| `buildAccelerationStructure`           | :x: | yes (1) | :x:   | yes   | yes (1) | yes   | :x:  |
 | `buildMicromap`                        | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `copyAccelerationStructure`            | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
-| `queryAccelerationStructureProperties` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `queryAccelerationStructureProperties` | :x: | yes (1) | :x:   | yes   | yes (1) | :x:   | :x:  |
 | `executeClusterOperation`              | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `convertCooperativeVectorMatrix`       | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
@@ -230,6 +230,8 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `writeTimestamp`                       | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 | `finish`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`                      | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+
+(1) The CUDA and Vulkan backends support only `AccelerationStructureCompactedSize` for build-time and standalone acceleration structure queries. CUDA resolves only compacted-size queries. Vulkan also resolves timestamp queries.
 
 ## `IPassEncoder` interface
 

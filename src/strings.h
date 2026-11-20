@@ -115,6 +115,7 @@
 #define S_ResourceState_AccelerationStructureRead "AccelerationStructureRead"
 #define S_ResourceState_AccelerationStructureWrite "AccelerationStructureWrite"
 #define S_ResourceState_AccelerationStructureBuildInput "AccelerationStructureBuildInput"
+#define S_ResourceState_AccelerationStructureBuildScratch "AccelerationStructureBuildScratch"
 #define S_ResourceState_MicromapBuildInput "MicromapBuildInput"
 #define S_ResourceState_MicromapRead "MicromapRead"
 #define S_ResourceState_MicromapWrite "MicromapWrite"

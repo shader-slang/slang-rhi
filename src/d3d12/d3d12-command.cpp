@@ -1243,7 +1243,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     if (src)
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
     {
@@ -1467,15 +1467,20 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     std::vector<DeviceAddress> asAddresses;
     asAddresses.resize(cmd.accelerationStructureCount);
     for (uint32_t i = 0; i < cmd.accelerationStructureCount; i++)
-        asAddresses[i] = cmd.accelerationStructures[i]->getDeviceAddress();
+    {
+        auto as = checked_cast<AccelerationStructureImpl*>(cmd.accelerationStructures[i]);
+        requireBufferState(as->m_buffer, ResourceState::AccelerationStructureRead);
+        asAddresses[i] = as->getDeviceAddress();
+    }
     translatePostBuildInfoDescs(cmd.queryCount, cmd.queryDescs, postBuildInfoDescs);
     requireAccelerationStructureQueryResultBuffers(cmd.queryCount, cmd.queryDescs);
     commitBarriers();
-    m_cmdList4->EmitRaytracingAccelerationStructurePostbuildInfo(
-        postBuildInfoDescs.data(),
-        cmd.accelerationStructureCount,
-        asAddresses.data()
-    );
+    for (const auto& desc : postBuildInfoDescs)
+        m_cmdList4->EmitRaytracingAccelerationStructurePostbuildInfo(
+            &desc,
+            cmd.accelerationStructureCount,
+            asAddresses.data()
+        );
     copyAccelerationStructureQueryResults(cmd.queryCount, cmd.queryDescs, cmd.accelerationStructureCount);
 }
 
@@ -1500,7 +1505,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     requireBufferState(argsBuffer, ResourceState::ShaderResource);
     if (argCountBuffer)
         requireBufferState(argCountBuffer, ResourceState::ShaderResource);
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     if (addressesBuffer)
         requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
     if (resultBuffer)

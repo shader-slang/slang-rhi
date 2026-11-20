@@ -401,6 +401,10 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
         return VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
         return VK_ACCESS_SHADER_READ_BIT;
+    case ResourceState::AccelerationStructureBuildScratch:
+        return VkAccessFlagBits(
+            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
+        );
     case ResourceState::MicromapBuildInput:
     case ResourceState::MicromapRead:
         return VK_ACCESS_MEMORY_READ_BIT;
@@ -457,6 +461,7 @@ VkPipelineStageFlags calcPipelineStageFlags(
     case ResourceState::AccelerationStructureWrite:
         return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
+    case ResourceState::AccelerationStructureBuildScratch:
         return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::MicromapBuildInput:
     case ResourceState::MicromapRead:

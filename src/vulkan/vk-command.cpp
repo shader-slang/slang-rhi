@@ -1270,7 +1270,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
         converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
@@ -1487,7 +1487,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     requireBufferState(argsBuffer, ResourceState::ShaderResource);
     if (argCountBuffer)
         requireBufferState(argCountBuffer, ResourceState::ShaderResource);
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     if (addressesBuffer)
         requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
     if (resultBuffer)
