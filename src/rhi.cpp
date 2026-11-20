@@ -186,11 +186,6 @@ void RHI::decrementLiveDeviceCount()
     m_liveDeviceCount--;
 }
 
-void RHI::enableDebugLayers()
-{
-    m_debugLayerOptions.coreValidation = true;
-}
-
 Result RHI::setDebugLayerOptions(DebugLayerOptions options)
 {
     if (m_liveDeviceCount != 0)
@@ -282,25 +277,6 @@ IAdapter* RHI::getAdapter(DeviceType type, uint32_t index)
 {
     Backend* backend = getBackend(type);
     return backend ? backend->getAdapter(index) : nullptr;
-}
-
-Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
-{
-    std::vector<AdapterInfo> adapterInfos;
-
-    for (uint32_t i = 0;; ++i)
-    {
-        IAdapter* adapter = getAdapter(type, i);
-        if (!adapter)
-        {
-            break;
-        }
-        adapterInfos.push_back(adapter->getInfo());
-    }
-
-    auto adaptersBlob = OwnedBlob::create(adapterInfos.data(), adapterInfos.size() * sizeof(AdapterInfo));
-    returnComPtr(outAdaptersBlob, adaptersBlob);
-    return SLANG_OK;
 }
 
 Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
