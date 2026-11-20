@@ -225,6 +225,8 @@ public:
     // Retain the program that owns reflection used by this object and its descendants.
     // Returning an entry point/subobject must not leave its layout dangling when the root dies.
     InternalRefPtr<ShaderProgram> m_shaderProgram;
+    // Standalone objects can borrow reflection directly from a Slang component.
+    ComPtr<slang::IComponentType> m_slangOwner;
 
     // The shader object layout used to create this shader object.
     RefPtr<ShaderObjectLayout> m_layout;
@@ -260,6 +262,7 @@ public:
 public:
     // IShaderObject implementation
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override;
+    virtual SLANG_NO_THROW slang::IComponentType* SLANG_MCALL getSlangComponentType() override;
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override;
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
@@ -292,10 +295,11 @@ public:
         Device* device,
         ShaderObjectLayout* layout,
         ShaderObject** outShaderObject,
-        ShaderProgram* program = nullptr
+        ShaderProgram* program = nullptr,
+        slang::IComponentType* slangOwner = nullptr
     );
 
-    Result init(ShaderObjectLayout* layout, ShaderProgram* program);
+    Result init(ShaderObjectLayout* layout, ShaderProgram* program, slang::IComponentType* slangOwner);
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args);
 

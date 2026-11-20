@@ -41,6 +41,7 @@ public:
 public:
     // IShaderObject implementation
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() override;
+    virtual SLANG_NO_THROW slang::IComponentType* SLANG_MCALL getSlangComponentType() override;
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override;
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
@@ -75,6 +76,7 @@ public:
     virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() override;
 
 public:
+    void setTypeInfo(DebugDevice* device, slang::TypeReflection* type);
     void checkCompleteness();
     Result checkNotFinalized();
 

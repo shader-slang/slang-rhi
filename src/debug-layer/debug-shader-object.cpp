@@ -1,5 +1,6 @@
 #include "debug-shader-object.h"
 #include "debug-helper-functions.h"
+#include "../shader-object.h"
 
 namespace rhi::debug {
 
@@ -12,6 +13,13 @@ slang::TypeLayoutReflection* DebugShaderObject::getElementTypeLayout()
     SLANG_RHI_DEBUG_API(IShaderObject, getElementTypeLayout);
 
     return baseObject->getElementTypeLayout();
+}
+
+slang::IComponentType* DebugShaderObject::getSlangComponentType()
+{
+    SLANG_RHI_DEBUG_API(IShaderObject, getSlangComponentType);
+
+    return baseObject->getSlangComponentType();
 }
 
 ShaderObjectContainerType DebugShaderObject::getContainerType()
@@ -136,13 +144,37 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
         return SLANG_E_INVALID_ARG;
     }
 
-    auto objectImpl = getDebugObj(object);
+    auto* objectImpl = getDebugObj(object);
+    if (!objectImpl->baseObject)
+    {
+        RHI_VALIDATION_ERROR("'object' must have an underlying shader object.");
+        return SLANG_E_INVALID_ARG;
+    }
+    // The core implementation already rejects session mismatches. Only repeat the check on failure
+    // to provide a diagnostic without adding duplicate validation to successful bindings.
+    Result result = baseObject->setObject(offset, objectImpl->baseObject.get());
+    if (SLANG_FAILED(result))
+    {
+        auto* parent = checked_cast<ShaderObject*>(baseObject.get());
+        auto* child = checked_cast<ShaderObject*>(objectImpl->baseObject.get());
+        if (parent->m_layout->m_slangSession != child->m_layout->m_slangSession)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "The child shader object (%s) at binding range %u, array index %u belongs to a different Slang "
+                "session. Create the child using reflection from the parent's program.",
+                objectImpl->m_typeName.empty() ? "unnamed type" : objectImpl->m_typeName.c_str(),
+                offset.bindingRangeIndex,
+                offset.bindingArrayIndex
+            );
+        }
+        return result;
+    }
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
     // objectImpl->checkCompleteness();
 
-    return baseObject->setObject(offset, getInnerObj(object));
+    return SLANG_OK;
 }
 
 Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
@@ -226,6 +258,13 @@ bool DebugShaderObject::isFinalized()
     SLANG_RHI_DEBUG_API(IShaderObject, isFinalized);
 
     return baseObject->isFinalized();
+}
+
+void DebugShaderObject::setTypeInfo(DebugDevice* device, slang::TypeReflection* type)
+{
+    m_device = device;
+    m_slangType = type;
+    m_typeName = string::from_cstr(type ? type->getName() : nullptr);
 }
 
 void DebugShaderObject::checkCompleteness()

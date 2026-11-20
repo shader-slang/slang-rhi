@@ -572,19 +572,13 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
 // One shader featuring multiple kinds of shader objects that can be bound.
 struct ShaderCacheTestSpecialization : ShaderCacheTest
 {
-    slang::ProgramLayout* slangReflection = nullptr;
-
     void createComputePipeline()
     {
         ComPtr<IShaderProgram> shaderProgram;
 
-        REQUIRE_CALL(loadAndLinkProgram(
-            device,
-            "test-shader-cache-specialization",
-            "computeMain",
-            shaderProgram.writeRef(),
-            &slangReflection
-        ));
+        REQUIRE_CALL(
+            loadAndLinkProgram(device, "test-shader-cache-specialization", "computeMain", shaderProgram.writeRef())
+        );
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -599,11 +593,14 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         auto rootObject = passEncoder->bindPipeline(computePipeline);
 
         ComPtr<IShaderObject> transformer;
-        slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
-        REQUIRE_CALL(
-            device
-                ->createShaderObject(nullptr, transformerType, ShaderObjectContainerType::None, transformer.writeRef())
-        );
+        IShaderProgram* program = computePipeline->getProgram();
+        slang::TypeReflection* transformerType = program->findTypeByName(transformerTypeName);
+        REQUIRE_CALL(device->createShaderObjectFromType(
+            program,
+            transformerType,
+            ShaderObjectContainerType::None,
+            transformer.writeRef()
+        ));
 
         float c = 5.f;
         ShaderCursor(transformer)["c"].setData(&c, sizeof(float));

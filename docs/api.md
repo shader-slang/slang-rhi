@@ -26,6 +26,7 @@
 | `createSurface`                    | :x:     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createInputLayout`                | :x:     | :x:  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObject`               | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `createShaderObjectFromType`       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObjectFromTypeLayout` | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createRootShaderObject`           | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderTable`                | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
@@ -111,6 +112,7 @@
 | API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
 | `getElementTypeLayout`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getSlangComponentType`     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getContainerType`          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getEntryPointCount`        | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getEntryPoint`             | yes | yes  | yes   | yes   | yes    | yes   | yes  |

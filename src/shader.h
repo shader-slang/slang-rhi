@@ -139,6 +139,7 @@ public:
     // IShaderProgram interface
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) override;
+    virtual SLANG_NO_THROW slang::IComponentType* SLANG_MCALL getSlangComponentType() override;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
 
     // ISyntheticShaderProgram interface
@@ -160,7 +161,7 @@ private:
 
     bool _isSpecializable()
     {
-        if (slangGlobalScope->getSpecializationParamCount() != 0)
+        if (slangGlobalScope && slangGlobalScope->getSpecializationParamCount() != 0)
         {
             return true;
         }
