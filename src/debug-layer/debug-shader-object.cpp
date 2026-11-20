@@ -160,8 +160,8 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
         if (parent->m_layout->m_slangSession != child->m_layout->m_slangSession)
         {
             RHI_VALIDATION_ERROR_FORMAT(
-                "The child shader object (%s) at binding range %u, array index %u belongs to a different Slang session. "
-                "Create the child using reflection from the parent's program.",
+                "The child shader object (%s) at binding range %u, array index %u belongs to a different Slang "
+                "session. Create the child using reflection from the parent's program.",
                 objectImpl->m_typeName.empty() ? "unnamed type" : objectImpl->m_typeName.c_str(),
                 offset.bindingRangeIndex,
                 offset.bindingArrayIndex
