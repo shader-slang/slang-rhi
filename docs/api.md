@@ -112,6 +112,7 @@
 | API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
 | `getElementTypeLayout`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getSlangComponentType`     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getContainerType`          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getEntryPointCount`        | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getEntryPoint`             | yes | yes  | yes   | yes   | yes    | yes   | yes  |

@@ -1952,6 +1952,12 @@ class IShaderObject : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW slang::TypeLayoutReflection* SLANG_MCALL getElementTypeLayout() = 0;
+
+    /// Returns the component owning the reflection exposed by getElementTypeLayout().
+    /// The pointer is borrowed for the lifetime of this shader object (or the current pipeline
+    /// binding for a transient root). Returns null for objects created without a component.
+    virtual SLANG_NO_THROW slang::IComponentType* SLANG_MCALL getSlangComponentType() = 0;
+
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() = 0;
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) = 0;

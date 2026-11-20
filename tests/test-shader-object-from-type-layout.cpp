@@ -340,6 +340,62 @@ GPU_TEST_CASE("shader-object-session-validation", CPU)
                 legacy.writeRef()
             ));
             CHECK(callback.warning.find("originating Slang session") != std::string::npos);
+            CHECK_EQ(legacy->getSlangComponentType(), nullptr);
         }
+    }
+}
+
+GPU_TEST_CASE("shader-object-rebound-layout-owner", CPU)
+{
+    DeviceExtraOptions options = {};
+    options.enableValidation = true;
+    auto validated = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(validated);
+    IDevice* devices[] = {getUnderlyingDevice(validated), validated.get()};
+    for (auto* target : devices)
+    {
+        ComPtr<IShaderObject> rebound;
+        slang::IComponentType* childOwner = nullptr;
+        {
+            ComPtr<IShaderProgram> program;
+            REQUIRE_CALL(loadProgram(target, "test-shader-object-from-type-layout", "computeMain", program.writeRef()));
+            auto root = target->createRootShaderObject(program);
+            REQUIRE(root);
+            auto* rootOwner = program->getSlangComponentType();
+            REQUIRE_EQ(root->getSlangComponentType(), rootOwner);
+            auto entryPoint = root->getEntryPoint(0);
+            REQUIRE(entryPoint);
+            CHECK_EQ(entryPoint->getSlangComponentType(), rootOwner);
+            auto field = ShaderCursor(root)["gParams"];
+            REQUIRE(field.isValid());
+            auto initial = root->getObject(field.m_offset);
+            REQUIRE(initial);
+            CHECK_EQ(initial->getSlangComponentType(), rootOwner);
+
+            // Bind an object reflected from a different component in the same session.
+            childOwner = program->getDesc().slangGlobalScope;
+            REQUIRE(childOwner);
+            REQUIRE_NE(childOwner, rootOwner);
+            auto* type = childOwner->getLayout()->findTypeByName("Params");
+            REQUIRE(type);
+            ComPtr<IShaderObject> replacement;
+            REQUIRE_CALL(target->createShaderObjectFromType(
+                childOwner,
+                type,
+                ShaderObjectContainerType::None,
+                replacement.writeRef()
+            ));
+            REQUIRE_CALL(field.setObject(replacement));
+            REQUIRE_CALL(root->getObject(field.m_offset, rebound.writeRef()));
+        }
+        REQUIRE(rebound);
+        REQUIRE_EQ(rebound->getSlangComponentType(), childOwner);
+        ComPtr<IShaderObject> copy;
+        REQUIRE_CALL(target->createShaderObjectFromTypeLayout(
+            rebound->getSlangComponentType(),
+            rebound->getElementTypeLayout(),
+            copy.writeRef()
+        ));
+        REQUIRE_CALL(ShaderCursor(copy)["a"].setData(1.0f));
     }
 }

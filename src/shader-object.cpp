@@ -53,6 +53,13 @@ slang::TypeLayoutReflection* ShaderObject::getElementTypeLayout()
     return m_layout->getElementTypeLayout();
 }
 
+slang::IComponentType* ShaderObject::getSlangComponentType()
+{
+    if (m_slangOwner)
+        return m_slangOwner.get();
+    return m_shaderProgram ? m_shaderProgram->getSlangComponentType() : nullptr;
+}
+
 ShaderObjectContainerType ShaderObject::getContainerType()
 {
     return m_layout->getContainerType();

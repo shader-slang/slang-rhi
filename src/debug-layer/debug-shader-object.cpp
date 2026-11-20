@@ -15,6 +15,13 @@ slang::TypeLayoutReflection* DebugShaderObject::getElementTypeLayout()
     return baseObject->getElementTypeLayout();
 }
 
+slang::IComponentType* DebugShaderObject::getSlangComponentType()
+{
+    SLANG_RHI_DEBUG_API(IShaderObject, getSlangComponentType);
+
+    return baseObject->getSlangComponentType();
+}
+
 ShaderObjectContainerType DebugShaderObject::getContainerType()
 {
     SLANG_RHI_DEBUG_API(IShaderObject, getContainerType);
