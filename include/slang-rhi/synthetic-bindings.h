@@ -53,6 +53,9 @@ struct SyntheticResourceBindingDesc
     int32_t entryPointIndex = -1;
 
     /// Descriptor-space index for descriptor-backed backends, or `-1` if not applicable.
+    /// Vulkan requires a set not occupied by reflected resources, including parameter blocks.
+    /// Multiple synthetic resources may share that set at distinct bindings. Locations must
+    /// match the compiled shader; changing a location requires recompilation.
     int32_t space = -1;
 
     /// Descriptor binding index for descriptor-backed backends, or `-1` if not applicable.
