@@ -23,7 +23,6 @@ public:
 
     // IRHI implementation
 
-    virtual void enableDebugLayers() override;
     virtual Result setDebugLayerOptions(DebugLayerOptions options) override;
     virtual DebugLayerOptions getDebugLayerOptions() override;
 
@@ -34,7 +33,6 @@ public:
     virtual const char* getCapabilityName(Capability capability) override;
 
     virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
-    virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
 
     virtual Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;

@@ -640,25 +640,6 @@ Result selectAdapter(Device* device, std::span<const T> adapters, const DeviceDe
         }
         outAdapter = checked_cast<T*>(desc.adapter);
     }
-    else if (desc.adapterLUID)
-    {
-        // Select adapter based on LUID.
-        bool found = false;
-        for (auto& adapter : adapters)
-        {
-            if (adapter.getInfo().luid == *desc.adapterLUID)
-            {
-                outAdapter = &adapter;
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-        {
-            device->printError("Invalid adapter LUID\n");
-            return SLANG_FAIL;
-        }
-    }
     else
     {
         // Select the default adapter or the first one if no default is available.
