@@ -4,19 +4,6 @@
 
 namespace rhi::vk {
 
-// Prefer the requested properties when available, falling back to a required-only memory
-// type if the preferred heap is exhausted. Optionally return the type actually allocated.
-Result allocateVkMemory(
-    const VulkanApi& api,
-    const VkMemoryRequirements& memoryReqs,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkMemoryPropertyFlags preferredMemoryProperties,
-    bool needsDeviceAddress,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory,
-    uint32_t* outMemoryTypeIndex = nullptr
-);
-
 Result createVkBuffer(
     const VulkanApi& api,
     Size bufferSize,
@@ -29,19 +16,18 @@ Result createVkBuffer(
 class VKBufferHandleRAII
 {
 public:
-    /// Initialize a buffer with specified size, and memory props.
-    /// The memory type must have all of reqMemoryProperties, and one that also has
-    /// preferredMemoryProperties is used if available.
+    /// Initialize a buffer with memory allocated through VMA.
+    /// If exportable is true, the buffer gets its own VkDeviceMemory that can be
+    /// exported via OS handles (for shared buffers).
     Result init(
-        const VulkanApi& api,
+        DeviceImpl* device,
         Size bufferSize,
         VkBufferUsageFlags usage,
-        VkMemoryPropertyFlags reqMemoryProperties,
-        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0,
-        VkMemoryPropertyFlags preferredMemoryProperties = 0
+        MemoryType memoryType,
+        bool exportable = false
     );
 
-    /// Create a buffer and bind it to existing memory.
+    /// Create a buffer and bind it to existing memory (not owned, not managed by VMA).
     Result initPlaced(
         const VulkanApi& api,
         Size bufferSize,
@@ -63,17 +49,37 @@ public:
 
     ~VKBufferHandleRAII()
     {
-        if (m_ownsBuffer && m_buffer != VK_NULL_HANDLE)
+        if (m_vmaAllocation != VK_NULL_HANDLE)
+        {
+            // Safety net: callers (e.g. DeviceImpl::mapBuffer/unmapBuffer) must
+            // perform balanced vmaMapMemory/vmaUnmapMemory calls. This handles
+            // at most one leaked map (e.g. from an early-return error path).
+            // VMA tracks a per-allocation map count; only a single outstanding
+            // map is expected here - multiple outstanding maps indicate a bug.
+            VmaAllocationInfo allocInfo;
+            vmaGetAllocationInfo(m_vmaAllocator, m_vmaAllocation, &allocInfo);
+            if (allocInfo.pMappedData)
+            {
+                SLANG_RHI_ASSERT_FAILURE("VMA allocation destroyed while still mapped");
+                vmaUnmapMemory(m_vmaAllocator, m_vmaAllocation);
+            }
+            vmaDestroyBuffer(m_vmaAllocator, m_buffer, m_vmaAllocation);
+        }
+        else if (m_ownsBuffer && m_buffer != VK_NULL_HANDLE)
+        {
             m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-        if (m_ownsMemory && m_memory != VK_NULL_HANDLE)
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+        }
     }
 
     VkBuffer m_buffer = VK_NULL_HANDLE;
+    /// Backing device memory. For VMA allocations this may be a block shared with
+    /// other allocations; for placed buffers it is owned by the resource heap.
     VkDeviceMemory m_memory = VK_NULL_HANDLE;
     const VulkanApi* m_api = nullptr;
+    VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
+    VmaAllocation m_vmaAllocation = VK_NULL_HANDLE;
+    /// True if m_buffer was created by initPlaced() and must be destroyed with vkDestroyBuffer.
     bool m_ownsBuffer = false;
-    bool m_ownsMemory = false;
 };
 
 class BufferImpl : public Buffer

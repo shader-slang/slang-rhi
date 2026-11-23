@@ -26,6 +26,10 @@
 #include "core/deferred.h"
 #include "core/platform.h"
 
+#if SLANG_WINDOWS_FAMILY
+#include <dxgi1_4.h>
+#endif
+
 #include <algorithm>
 #include <set>
 #include <string>
@@ -179,6 +183,21 @@ DeviceImpl::~DeviceImpl()
     m_bindlessDescriptorSet.setNull();
 
     descriptorSetAllocator.close();
+
+    for (VmaPool& pool : m_exportPools)
+    {
+        if (pool != VK_NULL_HANDLE)
+        {
+            vmaDestroyPool(m_vmaAllocator, pool);
+            pool = VK_NULL_HANDLE;
+        }
+    }
+
+    if (m_vmaAllocator != VK_NULL_HANDLE)
+    {
+        vmaDestroyAllocator(m_vmaAllocator);
+        m_vmaAllocator = VK_NULL_HANDLE;
+    }
 
     if (m_device != VK_NULL_HANDLE)
     {
@@ -494,6 +513,7 @@ Result DeviceImpl::initVulkanInstance(
             const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
             if (r == VK_SUCCESS)
             {
+                m_instanceApiVersion = apiVersion;
                 break;
             }
         }
@@ -2032,6 +2052,36 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_formatSupport[formatIndex] = formatSupport;
     }
 
+    // Initialize VMA (Vulkan Memory Allocator).
+    {
+        VmaVulkanFunctions vulkanFunctions = {};
+        vulkanFunctions.vkGetInstanceProcAddr = m_api.vkGetInstanceProcAddr;
+        vulkanFunctions.vkGetDeviceProcAddr = m_api.vkGetDeviceProcAddr;
+
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        // VMA uses core functions up to this version, so it must not exceed
+        // the version the instance was created with.
+        allocatorInfo.vulkanApiVersion = min(m_instanceApiVersion, basicProps.apiVersion);
+        allocatorInfo.physicalDevice = m_api.m_physicalDevice;
+        allocatorInfo.device = m_device;
+        allocatorInfo.instance = m_api.m_instance;
+        allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+        if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        {
+            allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        }
+        SLANG_VK_RETURN_ON_FAIL_REPORT(vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator), this);
+
+        // Set up the pNext chain used for exportable (shared) allocations.
+        m_exportMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
+        m_exportMemoryAllocateInfo.handleTypes = kSharedMemoryHandleType;
+#if SLANG_WINDOWS_FAMILY
+        m_exportMemoryWin32HandleInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
+        m_exportMemoryWin32HandleInfo.dwAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
+        m_exportMemoryAllocateInfo.pNext = &m_exportMemoryWin32HandleInfo;
+#endif
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
@@ -2108,14 +2158,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     // create staging buffer (prefer cached memory, the CPU reads from it)
     VKBufferHandleRAII staging;
 
-    SLANG_RETURN_ON_FAIL(staging.init(
-        m_api,
-        size,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        0,
-        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
-    ));
+    SLANG_RETURN_ON_FAIL(staging.init(this, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, MemoryType::ReadBack));
 
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -2171,10 +2214,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Write out the data from the buffer
     void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
+    SLANG_VK_RETURN_ON_FAIL(vmaMapMemory(m_vmaAllocator, staging.m_vmaAllocation, &mappedData));
 
     std::memcpy(outData, mappedData, size);
-    m_api.vkUnmapMemory(m_device, staging.m_memory);
+    vmaUnmapMemory(m_vmaAllocator, staging.m_vmaAllocation);
 
     return SLANG_OK;
 }
@@ -2383,6 +2426,32 @@ void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const ch
         nameInfo.pObjectName = label;
         m_api.vkSetDebugUtilsObjectNameEXT(m_api.m_device, &nameInfo);
     }
+}
+
+Result DeviceImpl::getExportPool(uint32_t memoryTypeIndex, VmaPool* outPool)
+{
+    // Exporting memory requires the platform specific external memory extension.
+#if SLANG_WINDOWS_FAMILY
+    if (!m_api.vkGetMemoryWin32HandleKHR)
+        return SLANG_E_NOT_AVAILABLE;
+#else
+    if (!m_api.vkGetMemoryFdKHR)
+        return SLANG_E_NOT_AVAILABLE;
+#endif
+    if (memoryTypeIndex >= VK_MAX_MEMORY_TYPES)
+        return SLANG_E_INVALID_ARG;
+
+    std::lock_guard<std::mutex> lock(m_exportPoolMutex);
+    VmaPool& pool = m_exportPools[memoryTypeIndex];
+    if (pool == VK_NULL_HANDLE)
+    {
+        VmaPoolCreateInfo poolCreateInfo = {};
+        poolCreateInfo.memoryTypeIndex = memoryTypeIndex;
+        poolCreateInfo.pMemoryAllocateNext = &m_exportMemoryAllocateInfo;
+        SLANG_VK_RETURN_ON_FAIL_REPORT(vmaCreatePool(m_vmaAllocator, &poolCreateInfo, &pool), this);
+    }
+    *outPool = pool;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)

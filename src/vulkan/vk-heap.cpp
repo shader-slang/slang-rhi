@@ -23,41 +23,12 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
         usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     }
 
-    // Determine memory properties based on heap memory type
-    VkMemoryPropertyFlags reqMemoryProperties;
+    // Allocate the page through VMA. Pages are large, so they end up as dedicated allocations.
     HeapImpl* heapImpl = static_cast<HeapImpl*>(heap);
-
-    switch (heapImpl->m_desc.memoryType)
-    {
-    case MemoryType::DeviceLocal:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        break;
-    case MemoryType::Upload:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        break;
-    case MemoryType::ReadBack:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                              VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-        break;
-    default:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        break;
-    }
-
-    // Check if external memory (shared) is needed
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0;
-    if (is_set(heapImpl->m_desc.usage, HeapUsage::Shared))
-    {
-#if SLANG_WINDOWS_FAMILY
-        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
-    }
-
-    // Initialize the buffer using the existing logic
-    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags);
+    const bool exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
+    Result result = m_buffer.init(device, desc.size, usage, heapImpl->m_desc.memoryType, exportable);
     SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
+    SLANG_UNUSED(result);
 }
 
 HeapImpl::PageImpl::~PageImpl() {}

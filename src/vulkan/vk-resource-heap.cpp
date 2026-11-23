@@ -26,16 +26,17 @@ ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
 ResourceHeapImpl::~ResourceHeapImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    if (m_mapped)
-        device->m_api.vkUnmapMemory(device->m_api.m_device, m_memory);
-    if (m_memory)
-        device->m_api.vkFreeMemory(device->m_api.m_device, m_memory, nullptr);
+    if (m_vmaAllocation)
+    {
+        if (m_mapped)
+            vmaUnmapMemory(device->m_vmaAllocator, m_vmaAllocation);
+        vmaFreeMemory(device->m_vmaAllocator, m_vmaAllocation);
+    }
 }
 
 Result ResourceHeapImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    const VulkanApi& api = device->m_api;
 
     uint32_t memoryTypeBits = ~0u;
     for (uint32_t i = 0; i < m_desc.requirementCount; ++i)
@@ -49,25 +50,39 @@ Result ResourceHeapImpl::init()
         return SLANG_E_INVALID_ARG;
     m_desc.alignment = max<Size>(m_desc.alignment, 1);
 
+    // Allocate a dedicated block of device memory. Resources are bound to it at
+    // explicit offsets, so the block must not be shared with other VMA allocations.
     VkMemoryRequirements memoryRequirements = {};
     memoryRequirements.size = m_desc.size;
+    memoryRequirements.alignment = 1;
     memoryRequirements.memoryTypeBits = memoryTypeBits;
-    const VkMemoryPropertyFlags preferredProperties =
-        m_desc.memoryType == MemoryType::ReadBack ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 0;
-    SLANG_RETURN_ON_FAIL(allocateVkMemory(
-        api,
-        memoryRequirements,
-        properties,
-        preferredProperties,
-        api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress,
-        0,
-        &m_memory,
-        &m_memoryTypeIndex
-    ));
+
+    VmaAllocationCreateInfo allocCreateInfo = {};
+    allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    allocCreateInfo.requiredFlags = properties;
+    // Readback memory is read by the CPU, so prefer a cached memory type.
+    // VMA falls back to a required-only memory type if the preferred one is exhausted.
+    if (m_desc.memoryType == MemoryType::ReadBack)
+        allocCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+
+    VmaAllocationInfo allocInfo = {};
+    VkResult result = vmaAllocateMemory(
+        device->m_vmaAllocator,
+        &memoryRequirements,
+        &allocCreateInfo,
+        &m_vmaAllocation,
+        &allocInfo
+    );
+    // No memory type is compatible with all requirements and the requested memory type.
+    if (result == VK_ERROR_FEATURE_NOT_PRESENT)
+        return SLANG_E_NOT_AVAILABLE;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(result, device);
+    m_memory = allocInfo.deviceMemory;
+    m_memoryTypeIndex = allocInfo.memoryType;
 
     if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
     {
-        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkMapMemory(api.m_device, m_memory, 0, m_desc.size, 0, &m_mapped), device);
+        SLANG_VK_RETURN_ON_FAIL_REPORT(vmaMapMemory(device->m_vmaAllocator, m_vmaAllocation, &m_mapped), device);
     }
 
     if (m_desc.label)

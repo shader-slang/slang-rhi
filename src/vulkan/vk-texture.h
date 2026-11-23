@@ -31,10 +31,13 @@ public:
 
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
+    /// VMA allocation backing the image (null for placed, swap chain and native images).
+    VmaAllocation m_vmaAllocation = VK_NULL_HANDLE;
+    /// Device memory the image is bound to. Unless the texture is shared (dedicated
+    /// allocation), this memory may be shared with other resources.
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
     // False for swap chain or externally-owned native images.
     bool m_shouldDestroyImage = true;
-    bool m_ownsMemory = true;
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
     bool m_isSwapchainTexture = false;
