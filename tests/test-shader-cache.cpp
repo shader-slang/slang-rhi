@@ -14,18 +14,26 @@ using namespace rhi::testing;
 
 TEST_CASE("shader-cache-pipeline-address-reuse")
 {
+    // Only pipeline lifetime identity matters here; avoid virtual-pipeline
+    // registration, which requires a real device and shader program.
+    struct CacheTestPipeline : Pipeline
+    {
+        CacheTestPipeline()
+            : Pipeline(nullptr)
+        {
+        }
+        PipelineType getType() const override { return PipelineType::Compute; }
+    };
+
     ShaderCache cache;
-    ComputePipelineDesc desc = {};
-    // These pipelines only exercise cache identity. Their constructors do not
-    // dereference the device, so no device is needed for this test.
-    std::optional<VirtualComputePipeline> source;
-    source.emplace(nullptr, desc);
+    std::optional<CacheTestPipeline> source;
+    source.emplace();
     Pipeline* address = &*source;
 
     PipelineKey firstKey(&*source);
     firstKey.specializationArgs.push_back(1);
     firstKey.updateHash();
-    RefPtr<Pipeline> firstResult = new VirtualComputePipeline(nullptr, desc);
+    RefPtr<Pipeline> firstResult = new CacheTestPipeline();
     cache.addSpecializedPipeline(firstKey, firstResult);
     CHECK_EQ(cache.getSpecializedPipeline(firstKey).get(), firstResult.get());
 
@@ -33,14 +41,14 @@ TEST_CASE("shader-cache-pipeline-address-reuse")
     // source pipeline must not inherit the previous lifetime's specialization,
     // even when the address and specialization arguments are identical.
     source.reset();
-    source.emplace(nullptr, desc);
+    source.emplace();
     REQUIRE_EQ(static_cast<Pipeline*>(&*source), address);
     PipelineKey secondKey(&*source);
     secondKey.specializationArgs.push_back(1);
     secondKey.updateHash();
     CHECK_FALSE(cache.getSpecializedPipeline(secondKey));
 
-    RefPtr<Pipeline> secondResult = new VirtualComputePipeline(nullptr, desc);
+    RefPtr<Pipeline> secondResult = new CacheTestPipeline();
     cache.addSpecializedPipeline(secondKey, secondResult);
     CHECK_EQ(cache.getSpecializedPipeline(secondKey).get(), secondResult.get());
     CHECK_EQ(cache.getSpecializedPipeline(firstKey).get(), firstResult.get());

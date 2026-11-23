@@ -1253,6 +1253,12 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
     return baseObject->createRayTracingPipeline(patchedDesc, outPipeline);
 }
 
+Result DebugDevice::createPendingPipelines()
+{
+    SLANG_RHI_DEBUG_API(IDevice, createPendingPipelines);
+    return baseObject->createPendingPipelines();
+}
+
 Result DebugDevice::getCompilationReportList(ISlangBlob** outReportListBlob)
 {
     SLANG_RHI_DEBUG_API(IDevice, getCompilationReportList);

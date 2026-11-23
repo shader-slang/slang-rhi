@@ -144,6 +144,7 @@ public:
         const RayTracingPipelineDesc& desc,
         IRayTracingPipeline** outPipeline
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createPendingPipelines() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
