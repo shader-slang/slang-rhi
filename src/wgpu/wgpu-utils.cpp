@@ -41,11 +41,6 @@ Result createWGPUInstance(API& api, WGPUInstance* outInstance)
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
-#else
-    // Emdawn requires this feature before a positive wait can suspend on a WebGPU promise.
-    WGPUInstanceFeatureName requiredFeatures[] = {WGPUInstanceFeatureName_TimedWaitAny};
-    instanceDesc.requiredFeatureCount = SLANG_COUNT_OF(requiredFeatures);
-    instanceDesc.requiredFeatures = requiredFeatures;
 #endif
     WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
     if (!instance)

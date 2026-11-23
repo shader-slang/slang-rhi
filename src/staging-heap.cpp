@@ -187,7 +187,7 @@ Result StagingHeap::write(const Allocation& allocation, const void* data, size_t
     Page* page = allocation.getPage();
     if (m_keepPagesMapped)
     {
-        memcpy(page->getMapped() + allocation.getOffset(), data, size);
+        memcpy(page->getMapped(allocation.getOffset()), data, size);
         return SLANG_OK;
     }
     return m_device->writeUploadBuffer(page->getBuffer(), allocation.getOffset(), size, data);

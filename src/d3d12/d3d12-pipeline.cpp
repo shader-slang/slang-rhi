@@ -617,7 +617,10 @@ static Result createShaderRecordRootSignature(
         const auto& region = recordLayout.entryPoints[i];
         if (!region.size)
             continue;
-        RootShaderObjectLayoutImpl::RootSignatureDescBuilder bindings(device);
+        RootShaderObjectLayoutImpl::RootSignatureDescBuilder bindings(
+            device,
+            programLayout->getSession()->getGlobalSession()
+        );
         auto setIndex = bindings.addDescriptorSet();
         bindings.addAsValue(programLayout->getEntryPointByIndex(region.entryPointIndex)->getVarLayout(), setIndex);
         const auto& ranges = bindings.m_descriptorSets[setIndex].m_resourceRanges;
