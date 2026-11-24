@@ -19,6 +19,30 @@
 
 namespace rhi::cuda {
 
+/// Puts the calling thread in CUDA's relaxed stream capture mode for the lifetime of the scope.
+/// Normally CUDA fails if ANY stream is being captured into a CUDA graph when sync or query
+/// ops happen. This disables that behaviour on the current thread for the duration of the scope.
+struct RelaxedStreamCaptureScope
+{
+    CUstreamCaptureMode m_mode = CU_STREAM_CAPTURE_MODE_RELAXED;
+    bool m_exchanged = false;
+
+    RelaxedStreamCaptureScope()
+    {
+        // On success m_mode receives the thread's previous mode.
+        m_exchanged = cuThreadExchangeStreamCaptureMode(&m_mode) == CUDA_SUCCESS;
+    }
+    ~RelaxedStreamCaptureScope()
+    {
+        if (m_exchanged)
+        {
+            cuThreadExchangeStreamCaptureMode(&m_mode);
+        }
+    }
+    RelaxedStreamCaptureScope(const RelaxedStreamCaptureScope&) = delete;
+    RelaxedStreamCaptureScope& operator=(const RelaxedStreamCaptureScope&) = delete;
+};
+
 // CUDA only exposes elapsed time between events, reported as float milliseconds. To present stable
 // query timestamps, the queue records periodic timestamp anchors on its default stream. Each timestamp
 // query stores the anchor generation that was current when the command buffer was submitted, and queue
@@ -1050,6 +1074,11 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
 {
     // NOTE: Caller must hold m_mutex!
     //
+    // Retirement queries the queue's stream and its events, and frees memory. If any stream
+    // is capturing (even if not the default stream), these functions fail. Relaxed capture
+    // mode still allows them to be called.
+    RelaxedStreamCaptureScope relaxedCaptureScope;
+
     // Use event-based tracking if events exist, otherwise use cuStreamQuery (non-blocking).
     // Single-stream workloads skip event creation entirely for better performance.
     if (!m_submitEvents.empty())
@@ -1272,6 +1301,16 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
     }
 
+    // Ask CUDA whether the stream is being captured into a graph. The legacy default stream (null)
+    // cannot be captured.
+    bool streamIsCapturing = false;
+    if (requestedStream)
+    {
+        CUstreamCaptureStatus captureStatus = CU_STREAM_CAPTURE_STATUS_NONE;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamIsCapturing(requestedStream, &captureStatus), this);
+        streamIsCapturing = captureStatus != CU_STREAM_CAPTURE_STATUS_NONE;
+    }
+
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
@@ -1299,6 +1338,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream, timestampAnchorGeneration);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
+
+        // If stream is being captured, we don't add time stamps or record command buffers as in-flight.
+        // It is the users responsibility to manage the lifetime of the command buffer while the graph
+        // can be launched.
+        if (streamIsCapturing)
+        {
+            continue;
+        }
 
         // Lazy events: timestamp writes need per-submission completion so getResultState can make
         // progress without waiting for unrelated later work to drain the whole stream.
