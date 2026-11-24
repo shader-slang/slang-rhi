@@ -5,6 +5,11 @@
 extern "C" bool rhiCudaDriverApiInit();
 extern "C" void rhiCudaDriverApiShutdown();
 
+/// Look up an exact symbol name exported by the dynamically loaded CUDA driver, including any ABI version suffix.
+/// Returns nullptr if the driver is not loaded or the symbol is unavailable. Keep a successful rhiCudaDriverApiInit()
+/// reference while using the address and cast it to the matching function signature and calling convention.
+extern "C" void* rhiCudaDriverApiGetProcAddress(const char* name);
+
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
 #include <cstdint>
