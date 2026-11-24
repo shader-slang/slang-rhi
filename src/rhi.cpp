@@ -1,4 +1,5 @@
 #include <slang-rhi.h>
+#include <slang-rhi/optix-launch.h>
 
 #include "rhi.h"
 #include "aftermath.h"
@@ -15,6 +16,7 @@
 #endif
 
 #if SLANG_RHI_ENABLE_CUDA
+#include "cuda/cuda-device.h"
 #include <slang-rhi/cuda-driver-api.h>
 #endif
 
@@ -24,6 +26,23 @@
 namespace rhi {
 
 Result reportD3DLiveObjects();
+
+Result installOptixPreLaunchCallback(IDevice* device, const OptixPreLaunchCallbackDesc& desc)
+{
+    if (!device)
+        return SLANG_E_INVALID_ARG;
+#if SLANG_RHI_ENABLE_CUDA
+    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
+        device = debugDevice->baseObject.get();
+    auto cudaDevice = dynamic_cast<cuda::DeviceImpl*>(device);
+    if (cudaDevice)
+    {
+        cudaDevice->m_preLaunchCallbackDesc = desc;
+        return SLANG_OK;
+    }
+#endif
+    return SLANG_E_NOT_AVAILABLE;
+}
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
