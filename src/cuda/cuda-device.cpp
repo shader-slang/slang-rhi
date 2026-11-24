@@ -831,4 +831,13 @@ Result DeviceImpl::popCudaContext()
     return SLANG_OK;
 }
 
+Result installOptixPreLaunchCallback(IDevice* device, const OptixPreLaunchCallbackDesc& desc)
+{
+    auto deviceImpl = dynamic_cast<DeviceImpl*>(device);
+    if (!deviceImpl || !deviceImpl->m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    deviceImpl->m_preLaunchCallbackDesc = desc;
+    return SLANG_OK;
+}
+
 } // namespace rhi::cuda

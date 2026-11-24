@@ -2,6 +2,7 @@
 
 #include "cuda-base.h"
 #include "cuda-clear-engine.h"
+#include <slang-rhi/optix-launch.h>
 
 namespace rhi::cuda {
 
@@ -34,6 +35,7 @@ public:
     bool m_ownsContext = false;
     InternalRefPtr<HeapImpl> m_deviceMemHeap;
     InternalRefPtr<HeapImpl> m_hostMemHeap;
+    OptixPreLaunchCallbackDesc m_preLaunchCallbackDesc;
 
 public:
     using Device::readBuffer;
