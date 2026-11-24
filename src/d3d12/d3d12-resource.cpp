@@ -118,8 +118,13 @@ Result D3D12Resource::initCommitted(
         // D3D12MA may probe small resource placement alignment (4096) for textures with Alignment==0.
         // Planar formats (e.g. D32_FLOAT_S8X24_UINT) and MSAA textures don't support small alignment,
         // and the probe triggers a D3D12 debug layer error. Set default alignment explicitly to skip the probe.
+        // When tight alignment is in use, D3D12MA adds D3D12_RESOURCE_FLAG_USE_TIGHT_ALIGNMENT and skips the
+        // probe itself. That flag requires Alignment==0, so the alignment must be left alone in that case.
+        // D3D12MA does not use tight alignment for cross-adapter resources.
         D3D12_RESOURCE_DESC desc = resourceDesc;
-        if (desc.Alignment == 0 && (isPlanarFormat(desc.Format) || desc.SampleDesc.Count > 1))
+        const bool usesTightAlignment =
+            allocator->IsTightAlignmentSupported() && (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER) == 0;
+        if (desc.Alignment == 0 && !usesTightAlignment && (isPlanarFormat(desc.Format) || desc.SampleDesc.Count > 1))
             desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
         SLANG_D3D_RETURN_ON_FAIL(

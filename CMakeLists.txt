@@ -572,6 +572,10 @@ if(SLANG_RHI_ENABLE_AGILITY_SDK AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     add_library(slang-rhi-agility-sdk INTERFACE)
     target_include_directories(slang-rhi-agility-sdk INTERFACE ${agility_sdk_SOURCE_DIR}/build/native/include)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
+    if(TARGET slang-rhi-d3d12ma)
+        # D3D12MA detects newer D3D12 features (e.g. tight alignment) from the SDK headers it is compiled against.
+        target_link_libraries(slang-rhi-d3d12ma PUBLIC slang-rhi-agility-sdk)
+    endif()
 endif()
 
 # Fetch & setup Aftermath
@@ -1278,6 +1282,18 @@ if(SLANG_RHI_BUILD_EXAMPLES)
     if(NOT EMSCRIPTEN)
         add_example(example-cluster-displacement examples/cluster-displacement/example-cluster-displacement.cpp)
         add_example(example-path-tracer examples/path-tracer/example-path-tracer.cpp)
+    endif()
+
+    if(NOT EMSCRIPTEN)
+        # Headless benchmark, not part of the example runner.
+        add_executable(blas-benchmark examples/blas-benchmark/blas-benchmark.cpp)
+        target_compile_features(blas-benchmark PRIVATE cxx_std_20)
+        target_compile_definitions(blas-benchmark PRIVATE
+            SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
+            $<$<PLATFORM_ID:Windows>:NOMINMAX>
+            $<$<PLATFORM_ID:Windows>:_CRT_SECURE_NO_WARNINGS>
+        )
+        target_link_libraries(blas-benchmark PRIVATE slang-rhi slang slang-rhi-warnings $<$<PLATFORM_ID:Windows>:dxgi>)
     endif()
 
     add_example_executable(example-runner examples/example-runner.cpp ${example_sources})

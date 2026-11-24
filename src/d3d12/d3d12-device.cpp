@@ -662,7 +662,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // Initialize D3D12 Memory Allocator.
     {
         D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
-        allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAGS(D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS);
+        // By default D3D12MA creates buffers <= 32KB as committed resources, because placed buffers are
+        // aligned to 64KB unless the device supports tight alignment. Committed resources are an order of
+        // magnitude slower to create and release, which dominates workloads creating many small buffers
+        // (e.g. hundreds of small BLASes), so we always sub-allocate small buffers.
+        // When tight alignment is supported, D3D12MA uses it automatically and no memory is wasted.
+        allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAGS(
+            D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS | D3D12MA::ALLOCATOR_FLAG_DONT_PREFER_SMALL_BUFFERS_COMMITTED
+        );
         allocatorDesc.pDevice = m_device.get();
         allocatorDesc.pAdapter = m_dxgiAdapter.get();
         SLANG_D3D_RETURN_ON_FAIL_REPORT(D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.writeRef()), this);
