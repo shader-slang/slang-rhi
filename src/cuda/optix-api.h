@@ -106,6 +106,14 @@ public:
         AccelerationStructureCopyMode mode
     ) = 0;
 
+    virtual void queryAccelerationStructureProperties(
+        CUstream stream,
+        uint32_t accelerationStructureCount,
+        IAccelerationStructure** accelerationStructures,
+        uint32_t queryCount,
+        const AccelerationStructureQueryDesc* queryDescs
+    ) = 0;
+
     /// Launch a ray tracing dispatch.
     virtual void dispatchRays(
         CUstream stream,

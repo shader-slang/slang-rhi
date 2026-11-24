@@ -5,6 +5,12 @@
 extern "C" bool rhiCudaDriverApiInit();
 extern "C" void rhiCudaDriverApiShutdown();
 
+/// Look up a symbol in the dynamically loaded CUDA driver by its exact exported name.
+/// Returns nullptr if the driver is not loaded (rhiCudaDriverApiInit() has not succeeded), the symbol does not exist,
+/// or CUDA is not loaded dynamically. The caller must cast the result to the correct function signature and must keep
+/// the driver loaded (i.e. not call rhiCudaDriverApiShutdown()) for as long as the address is in use.
+extern "C" void* rhiCudaDriverApiGetProcAddress(const char* name);
+
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
 #include <cstdint>

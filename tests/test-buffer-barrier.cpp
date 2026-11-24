@@ -90,6 +90,98 @@ GPU_TEST_CASE("buffer-barrier", ALL)
     compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
+// A chain of dependent dispatches, one compute pass each, with no explicit barrier: each pass reads
+// what the previous pass wrote, so every pass boundary must order the passes. Back-to-back compute
+// passes are the case the Metal backend handles by keeping one compute encoder open and putting a
+// memory barrier between the passes.
+GPU_TEST_CASE("buffer-barrier-compute-pass-chain", ALL)
+{
+    Shader program;
+    REQUIRE_CALL(loadAndLinkProgram(
+        device,
+        "test-buffer-barrier",
+        "computeStep",
+        program.program.writeRef(),
+        &program.reflection
+    ));
+    program.pipelineDesc.program = program.program.get();
+    REQUIRE_CALL(device->createComputePipeline(program.pipelineDesc, program.pipeline.writeRef()));
+
+    const uint32_t count = 1024;
+    const int stepCount = 64;
+    std::vector<float> zeros(count, 0.0f);
+    ComPtr<IBuffer> buffers[2] = {
+        createFloatBuffer(device, true, count, zeros.data()),
+        createFloatBuffer(device, true, count, zeros.data()),
+    };
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    for (int step = 0; step < stepCount; ++step)
+    {
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(program.pipeline);
+        ShaderCursor cursor(rootObject->getEntryPoint(0));
+        cursor["count"].setData(count);
+        cursor["inBuffer"].setBinding(buffers[step % 2]);
+        cursor["outBuffer"].setBinding(buffers[(step + 1) % 2]);
+        passEncoder->dispatchCompute((count + 63) / 64, 1, 1);
+        passEncoder->end();
+    }
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    std::vector<float> expected(count, float(stepCount));
+    compareComputeResult(device, buffers[stepCount % 2], std::span<float>(expected.data(), expected.size()));
+}
+
+// A compute pass, a copy, then a compute pass that reads the copy. On Metal the copy ends the
+// compute encoder kept open after the first pass, so this covers the compute-to-blit-to-compute
+// transition, which goes through the queue fence.
+GPU_TEST_CASE("buffer-barrier-compute-copy-compute", ALL)
+{
+    Shader program;
+    REQUIRE_CALL(loadAndLinkProgram(
+        device,
+        "test-buffer-barrier",
+        "computeStep",
+        program.program.writeRef(),
+        &program.reflection
+    ));
+    program.pipelineDesc.program = program.program.get();
+    REQUIRE_CALL(device->createComputePipeline(program.pipelineDesc, program.pipeline.writeRef()));
+
+    const uint32_t count = 1024;
+    std::vector<float> zeros(count, 0.0f);
+    ComPtr<IBuffer> buffers[3] = {
+        createFloatBuffer(device, true, count, zeros.data()),
+        createFloatBuffer(device, true, count, zeros.data()),
+        createFloatBuffer(device, true, count, zeros.data()),
+    };
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    auto step = [&](IBuffer* in, IBuffer* out)
+    {
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(program.pipeline);
+        ShaderCursor cursor(rootObject->getEntryPoint(0));
+        cursor["count"].setData(count);
+        cursor["inBuffer"].setBinding(in);
+        cursor["outBuffer"].setBinding(out);
+        passEncoder->dispatchCompute((count + 63) / 64, 1, 1);
+        passEncoder->end();
+    };
+    step(buffers[0], buffers[1]);
+    commandEncoder->copyBuffer(buffers[2], 0, buffers[1], 0, count * sizeof(float));
+    step(buffers[2], buffers[0]);
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    std::vector<float> expected(count, 2.0f);
+    compareComputeResult(device, buffers[0], std::span<float>(expected.data(), expected.size()));
+}
+
 // TODO: Currently disabled because the race condition will not ALWAYS materialize, making the test unreliable.
 #if 0
 GPU_TEST_CASE("buffer-no-barrier-race-condition", ALL)

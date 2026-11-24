@@ -120,6 +120,11 @@ void DebugRenderPassEncoder::setRenderState(const RenderState& state)
         RHI_VALIDATION_ERROR("Too many scissor rects (max 16).");
         return;
     }
+    if (state.scissorRectCount != state.viewportCount)
+    {
+        RHI_VALIDATION_ERROR("Scissor rect count must equal viewport count.");
+        return;
+    }
     if (state.vertexBufferCount > SLANG_COUNT_OF(state.vertexBuffers))
     {
         RHI_VALIDATION_ERROR("Too many vertex buffers (max 16).");
@@ -1668,6 +1673,14 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     {
         RHI_VALIDATION_ERROR("'accelerationStructures' must not be null when 'accelerationStructureCount' > 0.");
         return;
+    }
+    for (uint32_t i = 0; i < accelerationStructureCount; ++i)
+    {
+        if (!accelerationStructures[i])
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'accelerationStructures[%u]' must not be null.", i);
+            return;
+        }
     }
     if (queryCount > 0 && !queryDescs)
     {

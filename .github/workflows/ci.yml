@@ -87,6 +87,14 @@ jobs:
         with:
           arch: ${{matrix.platform == 'aarch64' && 'amd64_arm64' || 'amd64'}}
 
+      - name: Select Visual Studio's bundled Clang
+        if: runner.os == 'Windows' && runner.environment == 'github-hosted' && matrix.compiler == 'clang'
+        shell: pwsh
+        run: |
+          $bin = Join-Path $env:VCINSTALLDIR 'Tools\Llvm\x64\bin'
+          & "$bin\clang++.exe" --version
+          $bin >> $env:GITHUB_PATH
+
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
 

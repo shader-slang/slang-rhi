@@ -714,6 +714,7 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderSubgroupPartitionedFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
@@ -944,7 +945,14 @@ Result DeviceImpl::initVulkanDevice(
             extendedFeatures.extendedDynamicStateFeatures,
             extendedDynamicState,
             VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
-            {/* "extended-dynamic-states" */}
+            {
+                // Physical support does not establish which extensions an imported device enabled.
+                m_hasExtendedDynamicState = !desc.existingDeviceHandles.handles[2];
+                if (m_hasExtendedDynamicState && m_api.m_deviceFeatures.multiViewport &&
+                    (extendedFeatures.vulkan12Features.shaderOutputViewportIndex ||
+                     extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME)))
+                    availableFeatures.push_back(Feature::ViewportArrayIndex);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -1354,6 +1362,16 @@ Result DeviceImpl::initVulkanDevice(
                 availableCapabilities.push_back(Capability::SPV_NV_ray_tracing_motion_blur);
                 availableCapabilities.push_back(Capability::spvRayTracingMotionBlurNV);
             }
+        );
+
+        // The EXT version needs both the extension and the shaderSubgroupPartitioned feature. The NV version is
+        // enabled further below, because it reports its support through a subgroup property instead of a feature.
+        // Feature::SubgroupPartitionedEXT is the EXT version, which is the one that Slang uses by default.
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderSubgroupPartitionedFeatures,
+            shaderSubgroupPartitioned,
+            VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME,
+            { availableFeatures.push_back(Feature::SubgroupPartitionedEXT); }
         );
 
 #undef SIMPLE_EXTENSION_FEATURE

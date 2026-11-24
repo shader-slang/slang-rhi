@@ -164,11 +164,6 @@ void Device::printError(const char* message, ...)
     handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, buffer);
 }
 
-Result Device::createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject)
-{
-    return ShaderObject::create(this, layout, outObject);
-}
-
 Result Device::createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject)
 {
     return RootShaderObject::create(this, program, outObject);
@@ -725,6 +720,27 @@ Result Device::getCompilationReportList(ISlangBlob** outReportListBlob)
     return m_shaderCompilationReporter->getCompilationReportList(outReportListBlob);
 }
 
+static slang::TypeLayoutReflection* getSlangTypeLayout(
+    slang::ISession* session,
+    slang::TypeReflection* type,
+    ShaderObjectContainerType container
+)
+{
+    switch (container)
+    {
+    case ShaderObjectContainerType::StructuredBuffer:
+        type = session->getContainerType(type, slang::ContainerType::StructuredBuffer);
+        break;
+    case ShaderObjectContainerType::Array:
+        type = session->getContainerType(type, slang::ContainerType::UnsizedArray);
+        break;
+    default:
+        break;
+    }
+
+    return type ? session->getTypeLayout(type) : nullptr;
+}
+
 Result Device::createShaderObject(
     slang::ISession* slangSession,
     slang::TypeReflection* type,
@@ -732,29 +748,75 @@ Result Device::createShaderObject(
     IShaderObject** outObject
 )
 {
+    if (!type || !outObject)
+        return SLANG_E_INVALID_ARG;
     if (slangSession == nullptr)
         slangSession = m_slangContext.session.get();
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, container, shaderObjectLayout.writeRef()));
     RefPtr<ShaderObject> shaderObject;
-    SLANG_RETURN_ON_FAIL(createShaderObject(shaderObjectLayout, shaderObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(ShaderObject::create(this, shaderObjectLayout, shaderObject.writeRef()));
+    returnComPtr(outObject, shaderObject);
+    return SLANG_OK;
+}
+
+Result Device::createShaderObjectFromType(
+    slang::IComponentType* slangOwner,
+    slang::TypeReflection* type,
+    ShaderObjectContainerType container,
+    IShaderObject** outObject
+)
+{
+    if (!slangOwner || !type || !outObject)
+        return SLANG_E_INVALID_ARG;
+
+    slang::ISession* slangSession = slangOwner->getSession();
+    if (!slangSession)
+        return SLANG_E_INVALID_ARG;
+
+    // Derive a session-owned layout so repeated objects can share the cached
+    // backend layout, while each object retains the originating component.
+    RefPtr<ShaderObjectLayout> shaderObjectLayout;
+    SLANG_RETURN_ON_FAIL(getShaderObjectLayout(slangSession, type, container, shaderObjectLayout.writeRef()));
+    RefPtr<ShaderObject> shaderObject;
+    SLANG_RETURN_ON_FAIL(ShaderObject::create(this, shaderObjectLayout, shaderObject.writeRef(), nullptr, slangOwner));
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;
 }
 
 Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
-    // Build the layout directly rather than caching it.
-    //
-    // m_shaderObjectLayoutCache requires session-owned keys (see the invariant on its
-    // declaration). `typeLayout` comes from the caller instead, and in practice belongs
-    // to a `TargetProgram` that slang-rhi holds no reference to, so it does not qualify.
-    // More generally, slang-rhi cannot vouch for the lifetime of a pointer it was handed
-    // and so must not retain one past this call.
+    return createShaderObjectFromTypeLayoutImpl(nullptr, m_slangContext.session.get(), typeLayout, outObject);
+}
+
+Result Device::createShaderObjectFromTypeLayout(
+    slang::IComponentType* slangOwner,
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outObject
+)
+{
+    if (!slangOwner)
+        return SLANG_E_INVALID_ARG;
+    return createShaderObjectFromTypeLayoutImpl(slangOwner, slangOwner->getSession(), typeLayout, outObject);
+}
+
+Result Device::createShaderObjectFromTypeLayoutImpl(
+    slang::IComponentType* slangOwner,
+    slang::ISession* slangSession,
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outObject
+)
+{
+    if (!slangSession || !typeLayout || !outObject)
+        return SLANG_E_INVALID_ARG;
+
+    // Caller-supplied layouts cannot be cached because they are generally owned by a
+    // TargetProgram instead of its session. When an owner is supplied, retain it on the
+    // shader object and each child, which may independently outlive its parent.
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
-    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
+    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(slangSession, typeLayout, shaderObjectLayout.writeRef()));
     RefPtr<ShaderObject> shaderObject;
-    SLANG_RETURN_ON_FAIL(createShaderObject(shaderObjectLayout, shaderObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(ShaderObject::create(this, shaderObjectLayout, shaderObject.writeRef(), nullptr, slangOwner));
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;
 }
@@ -1108,23 +1170,13 @@ Result Device::getShaderObjectLayout(
     ShaderObjectLayout** outLayout
 )
 {
-    switch (container)
-    {
-    case ShaderObjectContainerType::StructuredBuffer:
-        type = session->getContainerType(type, slang::ContainerType::StructuredBuffer);
-        break;
-    case ShaderObjectContainerType::Array:
-        type = session->getContainerType(type, slang::ContainerType::UnsizedArray);
-        break;
-    default:
-        break;
-    }
-
     // Deriving the key here, rather than accepting one, is what keeps the cache
     // safe: `getTypeLayout` returns a layout owned by the `Linkage`, and the entry
     // records a strong reference to that same session below, so the key cannot
     // outlive the entry. See the invariant on m_shaderObjectLayoutCache.
-    auto typeLayout = session->getTypeLayout(type);
+    auto typeLayout = getSlangTypeLayout(session, type, container);
+    if (!typeLayout)
+        return SLANG_FAIL;
 
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     auto it = m_shaderObjectLayoutCache.find(typeLayout);

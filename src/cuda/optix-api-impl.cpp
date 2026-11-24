@@ -1389,6 +1389,25 @@ public:
 #endif
     }
 
+    Result cloneAccelerationStructure(CUstream stream, AccelerationStructureImpl* dst, AccelerationStructureImpl* src)
+    {
+        if (dst == src)
+            return SLANG_OK;
+
+        OptixRelocationInfo info = {};
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(optixAccelGetRelocationInfo(m_deviceContext, src->m_handle, &info), m_device);
+
+        // Both allocations must fit the AS, but either can contain extra padding.
+        const auto size = std::min(src->m_desc.size, dst->m_desc.size);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyDtoDAsync(dst->m_buffer, src->m_buffer, size, stream), m_device);
+        // Both structures live on the same device. Keep the original child traversables and micromaps.
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixAccelRelocate(m_deviceContext, stream, &info, nullptr, 0, dst->m_buffer, size, &dst->m_handle),
+            m_device
+        );
+        return SLANG_OK;
+    }
+
     virtual void buildAccelerationStructure(
         CUstream stream,
         const AccelerationStructureBuildDesc& desc,
@@ -1402,6 +1421,13 @@ public:
         AccelerationStructureBuildDescConverter converter;
         if (converter.convert(desc, m_device->m_debugCallback) != SLANG_OK)
             return;
+
+        if (desc.mode == AccelerationStructureBuildMode::Update && src && src != dst)
+        {
+            // OptiX updates the structure already in the output buffer.
+            if (SLANG_FAILED(cloneAccelerationStructure(stream, dst, src)))
+                return;
+        }
 
         short_vector<OptixAccelEmitDesc, 8> emittedProperties;
         for (uint32_t i = 0; i < propertyQueryCount; i++)
@@ -1479,29 +1505,8 @@ public:
         switch (mode)
         {
         case AccelerationStructureCopyMode::Clone:
-        {
-#if 0
-                OptixRelocationInfo relocInfo = {};
-                optixAccelGetRelocationInfo(m_commandBuffer->m_device->m_ctx.optixContext, src->m_handle, &relocInfo);
-
-                // TODO setup inputs
-                OptixRelocateInput relocInput = {};
-
-                cuMemcpyDtoD(dst->m_buffer, src->m_buffer, src->m_desc.size);
-
-                optixAccelRelocate(
-                    m_commandBuffer->m_device->m_ctx.optixContext,
-                    m_stream,
-                    &relocInfo,
-                    &relocInput,
-                    1,
-                    dst->m_buffer,
-                    dst->m_desc.size,
-                    &dst->m_handle
-                );
-                break;
-#endif
-        }
+            cloneAccelerationStructure(stream, dst, src);
+            break;
         case AccelerationStructureCopyMode::Compact:
             SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelCompact(
                 m_deviceContext,
@@ -1512,6 +1517,30 @@ public:
                 &dst->m_handle
             ));
             break;
+        }
+    }
+
+    virtual void queryAccelerationStructureProperties(
+        CUstream stream,
+        uint32_t accelerationStructureCount,
+        IAccelerationStructure** accelerationStructures,
+        uint32_t queryCount,
+        const AccelerationStructureQueryDesc* queryDescs
+    ) override
+    {
+        for (uint32_t i = 0; i < queryCount; ++i)
+        {
+            if (queryDescs[i].queryType != QueryType::AccelerationStructureCompactedSize)
+                continue;
+            auto pool = checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
+            for (uint32_t j = 0; j < accelerationStructureCount; ++j)
+            {
+                auto as = checked_cast<AccelerationStructureImpl*>(accelerationStructures[j]);
+                OptixAccelEmitDesc property = {};
+                property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
+                property.result = pool->m_buffer + (size_t(queryDescs[i].firstQueryIndex) + j) * sizeof(uint64_t);
+                SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelEmitProperty(m_deviceContext, stream, as->m_handle, &property));
+            }
         }
     }
 

@@ -294,6 +294,14 @@ extern "C" void rhiCudaDriverApiShutdown()
     shutdownImpl();
 }
 
+extern "C" void* rhiCudaDriverApiGetProcAddress(const char* name)
+{
+    std::lock_guard<std::mutex> lock(sCudaModuleMutex);
+    if (!sCudaModule || !name || !name[0])
+        return nullptr;
+    return rhi::findSymbolAddressByName(sCudaModule, name);
+}
+
 #else // SLANG_RHI_USE_DYNAMIC_CUDA
 
 extern "C" bool rhiCudaDriverApiInit()
@@ -302,5 +310,10 @@ extern "C" bool rhiCudaDriverApiInit()
 }
 
 extern "C" void rhiCudaDriverApiShutdown() {}
+
+extern "C" void* rhiCudaDriverApiGetProcAddress(const char*)
+{
+    return nullptr;
+}
 
 #endif // SLANG_RHI_USE_DYNAMIC_CUDA

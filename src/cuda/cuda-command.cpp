@@ -585,7 +585,17 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
 
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)
 {
-    SLANG_UNUSED(cmd);
+    if (cmd.queryPool->getDesc().type == QueryType::AccelerationStructureCompactedSize)
+    {
+        auto pool = checked_cast<PlainBufferProxyQueryPoolImpl*>(cmd.queryPool);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyDtoDAsync(
+            cmd.buffer->getDeviceAddress() + cmd.offset,
+            pool->m_buffer + size_t(cmd.index) * sizeof(uint64_t),
+            size_t(cmd.count) * sizeof(uint64_t),
+            m_stream
+        ));
+        return;
+    }
     NOT_SUPPORTED(ICommandEncoder, resolveQuery);
 }
 
@@ -829,8 +839,14 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
+    if (m_device->m_ctx.optixContext)
+        m_device->m_ctx.optixContext->queryAccelerationStructureProperties(
+            m_stream,
+            cmd.accelerationStructureCount,
+            cmd.accelerationStructures,
+            cmd.queryCount,
+            cmd.queryDescs
+        );
 }
 
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)

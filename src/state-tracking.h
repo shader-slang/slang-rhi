@@ -50,7 +50,8 @@ public:
         }
 
         BufferState* bufferState = getBufferState(buffer);
-        if (state != bufferState->state || state == ResourceState::UnorderedAccess)
+        if (state != bufferState->state || state == ResourceState::UnorderedAccess ||
+            state == ResourceState::AccelerationStructureBuildScratch)
         {
             m_bufferBarriers.push_back({buffer, bufferState->state, state});
             bufferState->state = state;

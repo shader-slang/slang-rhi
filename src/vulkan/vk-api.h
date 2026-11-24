@@ -268,6 +268,8 @@ protected:
     x(vkGetBufferMemoryRequirements2) \
     x(vkGetImageMemoryRequirements2) \
     x(vkCmdSetPrimitiveTopologyEXT) \
+    x(vkCmdSetViewportWithCountEXT) \
+    x(vkCmdSetScissorWithCountEXT) \
     x(vkGetBufferDeviceAddress) \
     x(vkGetBufferDeviceAddressKHR) \
     x(vkGetBufferDeviceAddressEXT) \
@@ -547,6 +549,11 @@ struct VulkanExtendedFeatures
     // Fragment shader interlock features
     VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT fragmentShaderInterlockFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT
+    };
+
+    // Subgroup partitioned features (the EXT version of the NV subgroup partitioned extension).
+    VkPhysicalDeviceShaderSubgroupPartitionedFeaturesEXT shaderSubgroupPartitionedFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_PARTITIONED_FEATURES_EXT
     };
 
     // Shader demote to helper invocation features

@@ -26,6 +26,7 @@
 | `createSurface`                    | :x:     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createInputLayout`                | :x:     | :x:  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObject`               | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `createShaderObjectFromType`       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderObjectFromTypeLayout` | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createRootShaderObject`           | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createShaderTable`                | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
@@ -111,6 +112,7 @@
 | API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
 | `getElementTypeLayout`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getSlangComponentType`     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getContainerType`          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getEntryPointCount`        | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getEntryPoint`             | yes | yes  | yes   | yes   | yes    | yes   | yes  |
@@ -213,11 +215,11 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `clearTextureUint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureSint`                     | :x: | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
-| `resolveQuery`                         | yes | :x:  | :x:   | yes   | yes    | yes   | :x:  |
-| `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `resolveQuery`                         | yes | yes (1) | :x:   | yes   | yes (1) | yes   | :x:  |
+| `buildAccelerationStructure`           | :x: | yes (1) | :x:   | yes   | yes (1) | yes   | :x:  |
 | `buildMicromap`                        | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `copyAccelerationStructure`            | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
-| `queryAccelerationStructureProperties` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `queryAccelerationStructureProperties` | :x: | yes (1) | :x:   | yes   | yes (1) | :x:   | :x:  |
 | `executeClusterOperation`              | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `convertCooperativeVectorMatrix`       | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
@@ -230,6 +232,8 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 | `writeTimestamp`                       | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 | `finish`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`                      | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
+
+(1) The CUDA and Vulkan backends support only `AccelerationStructureCompactedSize` for build-time and standalone acceleration structure queries. CUDA resolves only compacted-size queries. Vulkan also resolves timestamp queries.
 
 ## `IPassEncoder` interface
 

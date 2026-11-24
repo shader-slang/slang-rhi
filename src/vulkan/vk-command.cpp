@@ -885,7 +885,10 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.minDepth = src.minZ;
             dst.maxDepth = src.maxZ;
         }
-        api.vkCmdSetViewport(m_cmdBuffer, 0, state.viewportCount, viewports);
+        if (m_device->m_hasExtendedDynamicState)
+            api.vkCmdSetViewportWithCountEXT(m_cmdBuffer, state.viewportCount, viewports);
+        else
+            api.vkCmdSetViewport(m_cmdBuffer, 0, state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
@@ -900,7 +903,10 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.extent.width = src.maxX - src.minX;
             dst.extent.height = src.maxY - src.minY;
         }
-        api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
+        if (m_device->m_hasExtendedDynamicState)
+            api.vkCmdSetScissorWithCountEXT(m_cmdBuffer, state.scissorRectCount, scissorRects);
+        else
+            api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;
@@ -1257,14 +1263,15 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
     BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
 
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
     converter.buildInfo.dstAccelerationStructure = dst->m_vkHandle;
     if (src)
     {
         requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
         converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    // Keep the destination tracked as written when updating in place.
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
 
     for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
@@ -1481,7 +1488,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     requireBufferState(argsBuffer, ResourceState::ShaderResource);
     if (argCountBuffer)
         requireBufferState(argCountBuffer, ResourceState::ShaderResource);
-    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(scratchBuffer, ResourceState::AccelerationStructureBuildScratch);
     if (addressesBuffer)
         requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
     if (resultBuffer)
