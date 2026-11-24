@@ -528,6 +528,48 @@ VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& d
     return usage;
 }
 
+VkDeviceSize getBufferDeviceAddressAlignment(const VulkanApi& api, VkBufferUsageFlags usage)
+{
+    if (!(usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT))
+        return 1;
+
+    const auto& limits = api.m_deviceProperties.limits;
+    const auto& clusters = api.m_clusterAccelerationStructureProperties;
+    // Cooperative vector matrix conversion requires 64-byte-aligned addresses.
+    VkDeviceSize alignment = 64;
+    if (usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+    {
+        // Both regular and cluster acceleration structure builds use storage buffers for scratch.
+        alignment = max<VkDeviceSize>({
+            alignment,
+            limits.minStorageBufferOffsetAlignment,
+            api.m_accelerationStructureProperties.minAccelerationStructureScratchOffsetAlignment,
+            clusters.clusterScratchByteAlignment,
+        });
+    }
+    if (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+        alignment = max(alignment, limits.minUniformBufferOffsetAlignment);
+    if (usage & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT))
+        alignment = max(alignment, limits.minTexelBufferOffsetAlignment);
+    if (usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR)
+        alignment = max<VkDeviceSize>({alignment, 256, clusters.clusterTemplateBoundsByteAlignment});
+    if (usage & VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT)
+        alignment = max<VkDeviceSize>(alignment, 256);
+    if (usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR)
+    {
+        alignment = max<VkDeviceSize>({
+            alignment,
+            256,
+            clusters.clusterByteAlignment,
+            clusters.clusterTemplateByteAlignment,
+            clusters.clusterBottomLevelByteAlignment,
+        });
+    }
+    if (usage & VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR)
+        alignment = max<VkDeviceSize>(alignment, api.m_rayTracingPipelineProperties.shaderGroupBaseAlignment);
+    return alignment;
+}
+
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
 {
     switch (state)

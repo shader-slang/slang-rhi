@@ -73,6 +73,7 @@ VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
 VkBufferUsageFlags getBufferUsageFlags(const VulkanApi& api, const BufferDesc& desc);
+VkDeviceSize getBufferDeviceAddressAlignment(const VulkanApi& api, VkBufferUsageFlags usage);
 
 VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state);
 VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage);

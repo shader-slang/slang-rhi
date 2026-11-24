@@ -500,7 +500,9 @@ Result DeviceImpl::createTextureFromSharedHandle(
     ITexture** outTexture
 )
 {
-    return createTextureFromSharedHandle(handle, desc, size, false, outTexture);
+    // Shared textures are backed by dedicated memory: Vulkan allocates a dedicated VkDeviceMemory
+    // per shared texture, and a D3D12 resource handle always refers to a single resource.
+    return createTextureFromSharedHandle(handle, desc, size, true, outTexture);
 }
 
 Result DeviceImpl::createTextureFromSharedHandle(

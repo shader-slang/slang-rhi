@@ -80,10 +80,13 @@ TextureImpl::~TextureImpl()
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
     }
-    if (m_shouldDestroyImage)
+    if (m_vmaAllocation)
     {
-        if (m_ownsMemory)
-            api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
+        vmaDestroyImage(device->m_vmaAllocator, m_image, m_vmaAllocation);
+    }
+    else if (m_shouldDestroyImage)
+    {
+        // Placed images are bound to memory owned by the resource heap.
         api.vkDestroyImage(api.m_device, m_image, nullptr);
     }
     if (m_sharedHandle)
@@ -121,6 +124,11 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
         *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
+
+    // Only textures created with TextureUsage::Shared own exportable memory. All other textures are
+    // sub-allocated from memory blocks shared with unrelated resources (or placed in a resource heap).
+    if (!is_set(m_desc.usage, TextureUsage::Shared) || !m_vmaAllocation)
+        return SLANG_E_INVALID_ARG;
 
     DeviceImpl* device = getDevice<DeviceImpl>();
     const auto& api = device->m_api;
@@ -346,25 +354,21 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
         VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
     };
-    VkExternalMemoryHandleTypeFlags extMemoryHandleType =
-#if SLANG_WINDOWS_FAMILY
-        VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-        VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
-    if (is_set(desc.usage, TextureUsage::Shared))
+    const bool isShared = is_set(desc.usage, TextureUsage::Shared);
+    if (isShared)
     {
-        externalMemoryImageCreateInfo.pNext = nullptr;
-        externalMemoryImageCreateInfo.handleTypes = extMemoryHandleType;
+        externalMemoryImageCreateInfo.handleTypes = kSharedMemoryHandleType;
         imageInfo.pNext = &externalMemoryImageCreateInfo;
     }
-    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &texture->m_image), this);
-
-    VkMemoryRequirements memRequirements;
-    m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
 
     if (desc.heap)
     {
+        // Placed texture: bind the image to memory owned by the resource heap.
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &texture->m_image), this);
+
+        VkMemoryRequirements memRequirements;
+        m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
+
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
         SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
@@ -378,50 +382,42 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             this
         );
         texture->m_imageMemory = heap->m_memory;
-        texture->m_ownsMemory = false;
         texture->setPlacement(heap, desc.heapOffset, requirements.size);
     }
     else
     {
-        // Allocate the memory
-        VkMemoryPropertyFlags reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        int memoryTypeIndex = m_api.findMemoryTypeIndex(memRequirements.memoryTypeBits, reqMemoryProperties);
-        SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
+        // Create the image with memory allocated through VMA.
+        VmaAllocationCreateInfo allocCreateInfo = {};
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        allocCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-        VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = memoryTypeIndex;
-#if SLANG_WINDOWS_FAMILY
-        VkExportMemoryWin32HandleInfoKHR exportMemoryWin32HandleInfo = {
-            VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
-        };
-#endif
-        VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-        if (is_set(desc.usage, TextureUsage::Shared))
+        if (isShared)
         {
-#if SLANG_WINDOWS_FAMILY
-            exportMemoryWin32HandleInfo.pNext = nullptr;
-            exportMemoryWin32HandleInfo.pAttributes = nullptr;
-            exportMemoryWin32HandleInfo.dwAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
-            exportMemoryWin32HandleInfo.name = NULL;
-
-            exportMemoryAllocateInfo.pNext = extMemoryHandleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR
-                                                 ? &exportMemoryWin32HandleInfo
-                                                 : nullptr;
-#endif
-            exportMemoryAllocateInfo.handleTypes = extMemoryHandleType;
-            allocInfo.pNext = &exportMemoryAllocateInfo;
+            // Shared textures are allocated from a pool that creates exportable memory.
+            // Use dedicated memory so each texture gets its own VkDeviceMemory that can
+            // be exported via OS handles.
+            uint32_t memoryTypeIndex = 0;
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
+                vmaFindMemoryTypeIndexForImageInfo(m_vmaAllocator, &imageInfo, &allocCreateInfo, &memoryTypeIndex),
+                this
+            );
+            SLANG_RETURN_ON_FAIL(getExportPool(memoryTypeIndex, &allocCreateInfo.pool));
+            allocCreateInfo.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
         }
-        SLANG_VK_RETURN_ON_FAIL_REPORT(
-            m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &texture->m_imageMemory),
-            this
-        );
 
-        // Bind the memory to the image
+        VmaAllocationInfo allocInfo = {};
         SLANG_VK_RETURN_ON_FAIL_REPORT(
-            m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0),
+            vmaCreateImage(
+                m_vmaAllocator,
+                &imageInfo,
+                &allocCreateInfo,
+                &texture->m_image,
+                &texture->m_vmaAllocation,
+                &allocInfo
+            ),
             this
         );
+        texture->m_imageMemory = allocInfo.deviceMemory;
     }
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);

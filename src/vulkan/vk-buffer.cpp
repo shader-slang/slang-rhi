@@ -41,142 +41,113 @@ Result createVkBuffer(
     return SLANG_OK;
 }
 
-// Helper function to allocate VkDeviceMemory with optional external memory support.
-// The memory type must have all of reqMemoryProperties. If a type that also has all of
-// preferredMemoryProperties exists, it is tried first, and the required-only type is used
-// if that type is out of memory.
-Result allocateVkMemory(
-    const VulkanApi& api,
-    const VkMemoryRequirements& memoryReqs,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkMemoryPropertyFlags preferredMemoryProperties,
-    bool needsDeviceAddress,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory,
-    uint32_t* outMemoryTypeIndex
-)
-{
-    int requiredMemoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
-    int memoryTypeIndex = requiredMemoryTypeIndex;
-    if (preferredMemoryProperties)
-    {
-        int preferredMemoryTypeIndex =
-            api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties | preferredMemoryProperties);
-        if (preferredMemoryTypeIndex >= 0)
-            memoryTypeIndex = preferredMemoryTypeIndex;
-    }
-    if (memoryTypeIndex < 0)
-        return SLANG_E_NOT_AVAILABLE;
-
-    VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocateInfo.allocationSize = memoryReqs.size;
-    allocateInfo.memoryTypeIndex = memoryTypeIndex;
-
-#if SLANG_WINDOWS_FAMILY
-    VkExportMemoryWin32HandleInfoKHR exportMemoryWin32HandleInfo = {
-        VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
-    };
-#endif
-    VkExportMemoryAllocateInfoKHR exportMemoryAllocateInfo = {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR};
-    if (externalMemoryHandleTypeFlags)
-    {
-#if SLANG_WINDOWS_FAMILY
-        exportMemoryWin32HandleInfo.pNext = nullptr;
-        exportMemoryWin32HandleInfo.pAttributes = nullptr;
-        exportMemoryWin32HandleInfo.dwAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
-        exportMemoryWin32HandleInfo.name = NULL;
-
-        exportMemoryAllocateInfo.pNext =
-            externalMemoryHandleTypeFlags & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR
-                ? &exportMemoryWin32HandleInfo
-                : nullptr;
-#endif
-        exportMemoryAllocateInfo.handleTypes = externalMemoryHandleTypeFlags;
-        allocateInfo.pNext = &exportMemoryAllocateInfo;
-    }
-
-    VkMemoryAllocateFlagsInfo flagInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
-    if (needsDeviceAddress)
-    {
-        flagInfo.deviceMask = 1;
-        flagInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-
-        flagInfo.pNext = allocateInfo.pNext;
-        allocateInfo.pNext = &flagInfo;
-    }
-
-    VkResult result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
-    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY && memoryTypeIndex != requiredMemoryTypeIndex)
-    {
-        // The preferred memory type may live in a heap that is full, while a required-only type
-        // still has room.
-        allocateInfo.memoryTypeIndex = requiredMemoryTypeIndex;
-        result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory);
-    }
-    SLANG_VK_RETURN_ON_FAIL(result);
-    if (outMemoryTypeIndex)
-        *outMemoryTypeIndex = allocateInfo.memoryTypeIndex;
-    return SLANG_OK;
-}
-
-// Helper function to allocate VkDeviceMemory for a buffer with optional external memory support
-Result allocateVkMemoryForBuffer(
-    const VulkanApi& api,
-    VkBuffer buffer,
-    VkBufferUsageFlags bufferUsage,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkMemoryPropertyFlags preferredMemoryProperties,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory
-)
-{
-    VkMemoryRequirements memoryReqs = {};
-    api.vkGetBufferMemoryRequirements(api.m_device, buffer, &memoryReqs);
-
-    bool needsDeviceAddress = (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0;
-
-    return allocateVkMemory(
-        api,
-        memoryReqs,
-        reqMemoryProperties,
-        preferredMemoryProperties,
-        needsDeviceAddress,
-        externalMemoryHandleTypeFlags,
-        outMemory
-    );
-}
-
 Result VKBufferHandleRAII::init(
-    const VulkanApi& api,
+    DeviceImpl* device,
     Size bufferSize,
     VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkMemoryPropertyFlags preferredMemoryProperties
+    MemoryType memoryType,
+    bool exportable
 )
 {
     SLANG_RHI_ASSERT(!isInitialized());
 
+    const VulkanApi& api = device->m_api;
+    VmaAllocator vmaAllocator = device->m_vmaAllocator;
+
+    VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferCreateInfo.size = bufferSize;
+    bufferCreateInfo.usage = usage;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo allocCreateInfo = {};
+    switch (memoryType)
+    {
+    case MemoryType::DeviceLocal:
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        allocCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        break;
+    case MemoryType::Upload:
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        allocCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        break;
+    case MemoryType::ReadBack:
+        // Readback memory is read by the CPU, so prefer a cached memory type.
+        // Uncached (write-combined) memory is very slow to read from the CPU.
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+        allocCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        allocCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        break;
+    }
+
+    // Exportable buffers are allocated from a pool that creates exportable memory.
+    // Use dedicated memory so each buffer gets its own VkDeviceMemory that can be
+    // exported via OS handles.
+    VkExternalMemoryBufferCreateInfo externalMemoryBufferCreateInfo = {
+        VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO
+    };
+    if (exportable)
+    {
+        externalMemoryBufferCreateInfo.handleTypes = DeviceImpl::kSharedMemoryHandleType;
+        bufferCreateInfo.pNext = &externalMemoryBufferCreateInfo;
+        allocCreateInfo.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    }
+
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VmaAllocation vmaAllocation = VK_NULL_HANDLE;
+    const VkDeviceSize alignment = getBufferDeviceAddressAlignment(api, usage);
+    uint32_t remainingMemoryTypes = UINT32_MAX;
+    VkResult result = VK_SUCCESS;
+    for (bool firstAttempt = true;; firstAttempt = false)
+    {
+        if (exportable)
+        {
+            allocCreateInfo.pool = VK_NULL_HANDLE;
+            allocCreateInfo.memoryTypeBits = remainingMemoryTypes;
+            uint32_t memoryTypeIndex;
+            VkResult findResult = vmaFindMemoryTypeIndexForBufferInfo(
+                vmaAllocator,
+                &bufferCreateInfo,
+                &allocCreateInfo,
+                &memoryTypeIndex
+            );
+            // When retrying, running out of compatible memory types means the allocation failed
+            // because memory is exhausted, so report the previous out-of-memory result.
+            if (findResult != VK_SUCCESS && !firstAttempt)
+                break;
+            SLANG_VK_RETURN_ON_FAIL(findResult);
+            SLANG_RETURN_ON_FAIL(device->getExportPool(memoryTypeIndex, &allocCreateInfo.pool));
+            remainingMemoryTypes &= ~(1u << memoryTypeIndex);
+        }
+        result = vmaCreateBufferWithAlignment(
+            vmaAllocator,
+            &bufferCreateInfo,
+            &allocCreateInfo,
+            alignment,
+            &buffer,
+            &vmaAllocation,
+            nullptr
+        );
+        // Each export pool is pinned to one memory type. If the preferred readback type is full,
+        // let VMA choose the next compatible type, retaining the host-visible and coherent requirements.
+        if (!(exportable && memoryType == MemoryType::ReadBack && result == VK_ERROR_OUT_OF_DEVICE_MEMORY &&
+              remainingMemoryTypes != 0))
+            break;
+    }
+    SLANG_VK_RETURN_ON_FAIL(result);
+
+    // Retrieve the VkDeviceMemory for exporting shared buffers.
+    // NOTE: Unless the allocation is dedicated, this memory is shared with other
+    // allocations and must never be used directly without the allocation offset.
+    VmaAllocationInfo allocInfo;
+    vmaGetAllocationInfo(vmaAllocator, vmaAllocation, &allocInfo);
     m_api = &api;
-
-    // Create buffer
-    SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
-    m_ownsBuffer = true;
-
-    // Allocate memory
-    SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
-        api,
-        m_buffer,
-        usage,
-        reqMemoryProperties,
-        preferredMemoryProperties,
-        externalMemoryHandleTypeFlags,
-        &m_memory
-    ));
-    m_ownsMemory = true;
-
-    // Bind buffer to memory
-    SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
+    m_buffer = buffer;
+    m_vmaAllocator = vmaAllocator;
+    m_vmaAllocation = vmaAllocation;
+    m_memory = allocInfo.deviceMemory;
+    m_memoryType = memoryType;
 
     return SLANG_OK;
 }
@@ -266,10 +237,17 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         return SLANG_OK;
     }
 
+    // Only buffers created with BufferUsage::Shared own exportable memory. All other buffers are
+    // sub-allocated from memory blocks shared with unrelated resources (or placed in a resource heap).
+    if (!is_set(m_desc.usage, BufferUsage::Shared) || !m_buffer.m_vmaAllocation)
+        return SLANG_E_INVALID_ARG;
+
     DeviceImpl* device = getDevice<DeviceImpl>();
     const auto& api = device->m_api;
 
     // If a shared handle doesn't exist, create one and store it.
+    // Shared buffers use dedicated allocations from an export pool, so m_memory
+    // is the exclusive backing memory and can be exported directly.
     if (!m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
@@ -461,26 +439,12 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     const Size bufferSize = desc.size;
 
-    VkMemoryPropertyFlags reqMemoryProperties = 0;
-    VkMemoryPropertyFlags preferredMemoryProperties = 0;
-
     VkBufferUsageFlags usage = getBufferUsageFlags(m_api, desc);
 
-    if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
-        desc.memoryType == MemoryType::ReadBack)
-    {
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    }
-    else
-    {
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    }
-    if (desc.memoryType == MemoryType::ReadBack)
-    {
-        // Readback memory is read by the CPU, so prefer a cached memory type.
-        // Uncached (write-combined) memory is very slow to read from the CPU.
-        preferredMemoryProperties = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-    }
+    // Constant buffers are always host visible.
+    MemoryType effectiveMemoryType = desc.memoryType;
+    if (is_set(desc.usage, BufferUsage::ConstantBuffer) && desc.memoryType == MemoryType::DeviceLocal)
+        effectiveMemoryType = MemoryType::Upload;
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
     if (desc.heap)
@@ -496,28 +460,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         );
         buffer->setPlacement(heap, desc.heapOffset, requirements.size);
     }
-    else if (is_set(desc.usage, BufferUsage::Shared))
-    {
-        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
-#if SLANG_WINDOWS_FAMILY
-            = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-            = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(
-            m_api,
-            desc.size,
-            usage,
-            reqMemoryProperties,
-            externalMemoryHandleTypeFlags,
-            preferredMemoryProperties
-        ));
-    }
     else
     {
-        SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, 0, preferredMemoryProperties)
-        );
+        const bool exportable = is_set(desc.usage, BufferUsage::Shared);
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(this, desc.size, usage, effectiveMemoryType, exportable));
     }
 
     _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
@@ -542,11 +488,11 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             else
             {
                 SLANG_VK_RETURN_ON_FAIL_REPORT(
-                    m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
+                    vmaMapMemory(m_vmaAllocator, buffer->m_buffer.m_vmaAllocation, &mappedData),
                     this
                 );
                 ::memcpy(mappedData, initData, bufferSize);
-                m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+                vmaUnmapMemory(m_vmaAllocator, buffer->m_buffer.m_vmaAllocation);
             }
         }
     }
@@ -581,10 +527,14 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
         *outData = static_cast<uint8_t*>(heap->m_mapped) + bufferImpl->m_placement->offset;
         return SLANG_OK;
     }
-    SLANG_VK_RETURN_ON_FAIL_REPORT(
-        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData),
-        this
-    );
+    // Buffers created from native handles have no memory we can map.
+    if (!bufferImpl->m_buffer.m_vmaAllocation)
+        return SLANG_E_NOT_AVAILABLE;
+    // VMA only allows mapping allocations created with a host access flag (Upload/ReadBack).
+    // Note: this is the effective memory type, constant buffers are always allocated as Upload.
+    if (bufferImpl->m_buffer.m_memoryType == MemoryType::DeviceLocal)
+        return SLANG_E_INVALID_ARG;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(vmaMapMemory(m_vmaAllocator, bufferImpl->m_buffer.m_vmaAllocation, outData), this);
     return SLANG_OK;
 }
 
@@ -593,7 +543,13 @@ Result DeviceImpl::unmapBuffer(IBuffer* buffer)
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (bufferImpl->isPlaced())
         return SLANG_OK;
-    m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory);
+    if (!bufferImpl->m_buffer.m_vmaAllocation)
+        return SLANG_E_NOT_AVAILABLE;
+    // VMA asserts on unbalanced unmaps, so ignore an unmap of a buffer that is not mapped.
+    VmaAllocationInfo allocInfo;
+    vmaGetAllocationInfo(m_vmaAllocator, bufferImpl->m_buffer.m_vmaAllocation, &allocInfo);
+    if (allocInfo.pMappedData)
+        vmaUnmapMemory(m_vmaAllocator, bufferImpl->m_buffer.m_vmaAllocation);
     return SLANG_OK;
 }
 
