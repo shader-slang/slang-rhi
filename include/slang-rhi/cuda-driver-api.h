@@ -59,6 +59,20 @@ enum CUevent_wait_flags
     CU_EVENT_WAIT_EXTERNAL = 0x1,
 };
 
+enum CUstreamCaptureStatus
+{
+    CU_STREAM_CAPTURE_STATUS_NONE = 0,
+    CU_STREAM_CAPTURE_STATUS_ACTIVE = 1,
+    CU_STREAM_CAPTURE_STATUS_INVALIDATED = 2,
+};
+
+enum CUstreamCaptureMode
+{
+    CU_STREAM_CAPTURE_MODE_GLOBAL = 0,
+    CU_STREAM_CAPTURE_MODE_THREAD_LOCAL = 1,
+    CU_STREAM_CAPTURE_MODE_RELAXED = 2,
+};
+
 enum CUarray_format
 {
     CU_AD_FORMAT_UNSIGNED_INT8 = 0x01,
@@ -862,18 +876,6 @@ CUDA_SYM(CUresult (*cuStreamCreateWithPriority)(CUstream*, unsigned int, int));
 CUDA_SYM(CUresult (*cuStreamWaitEvent)(CUstream, CUevent, unsigned int));
 CUDA_SYM(CUresult (*cuStreamSynchronize)(CUstream));
 CUDA_SYM(CUresult (*cuStreamQuery)(CUstream));
-enum CUstreamCaptureStatus
-{
-    CU_STREAM_CAPTURE_STATUS_NONE = 0,
-    CU_STREAM_CAPTURE_STATUS_ACTIVE = 1,
-    CU_STREAM_CAPTURE_STATUS_INVALIDATED = 2,
-};
-enum CUstreamCaptureMode
-{
-    CU_STREAM_CAPTURE_MODE_GLOBAL = 0,
-    CU_STREAM_CAPTURE_MODE_THREAD_LOCAL = 1,
-    CU_STREAM_CAPTURE_MODE_RELAXED = 2,
-};
 CUDA_SYM(CUresult (*cuStreamIsCapturing)(CUstream, CUstreamCaptureStatus*));
 CUDA_SYM(CUresult (*cuThreadExchangeStreamCaptureMode)(CUstreamCaptureMode*));
 CUDA_SYM(CUresult (*cuStreamDestroy)(CUstream)); // v2
