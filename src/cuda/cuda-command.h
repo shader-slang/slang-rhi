@@ -42,9 +42,6 @@ public:
     std::mutex m_mutex;
     std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
-    // EXPERIMENT (graph capture): command buffers executed while their stream was being captured
-    // into a CUDA graph. The graph's nodes point into their memory, so they are never retired.
-    std::list<InternalRefPtr<CommandBufferImpl>> m_commandBuffersCaptured;
     std::list<SubmitEvent> m_submitEvents;
 
     // Deferred delete queue for GPU resources.

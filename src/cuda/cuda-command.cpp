@@ -10,8 +10,6 @@
 #include "cuda-shader-object.h"
 #include "cuda-utils.h"
 #include "../command-list.h"
-
-#include <cstdlib> // EXPERIMENT (graph capture): std::getenv
 #include "../strings.h"
 
 #include "core/deferred.h"
@@ -20,6 +18,30 @@
 #include <chrono>
 
 namespace rhi::cuda {
+
+/// Puts the calling thread in CUDA's relaxed stream capture mode for the lifetime of the scope.
+/// Normally CUDA fails if ANY stream is being captured into a CUDA graph when sync or query
+/// ops happen. This disables that behaviour on the current thread for the duration of the scope.
+struct RelaxedStreamCaptureScope
+{
+    CUstreamCaptureMode m_mode = CU_STREAM_CAPTURE_MODE_RELAXED;
+    bool m_exchanged = false;
+
+    RelaxedStreamCaptureScope()
+    {
+        // On success m_mode receives the thread's previous mode.
+        m_exchanged = cuThreadExchangeStreamCaptureMode(&m_mode) == CUDA_SUCCESS;
+    }
+    ~RelaxedStreamCaptureScope()
+    {
+        if (m_exchanged)
+        {
+            cuThreadExchangeStreamCaptureMode(&m_mode);
+        }
+    }
+    RelaxedStreamCaptureScope(const RelaxedStreamCaptureScope&) = delete;
+    RelaxedStreamCaptureScope& operator=(const RelaxedStreamCaptureScope&) = delete;
+};
 
 // CUDA only exposes elapsed time between events, reported as float milliseconds. To present stable
 // query timestamps, the queue records periodic timestamp anchors on its default stream. Each timestamp
@@ -1036,22 +1058,10 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
 {
     // NOTE: Caller must hold m_mutex!
     //
-    // EXPERIMENT (graph capture): retirement queries the queue's stream or its events. While any
-    // stream is being captured into a CUDA graph those calls are illegal, and the default stream
-    // cannot even be asked whether a capture is active elsewhere. So the caller has to say so; for
-    // this experiment, through an environment variable.
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4996) // getenv
-#endif
-    const char* capturing = std::getenv("SLANG_RHI_CUDA_GRAPH_CAPTURE");
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-    if (capturing && capturing[0] == '1')
-    {
-        return SLANG_OK;
-    }
+    // Retirement queries the queue's stream and its events, and frees memory. If any stream
+    // is capturing (even if not the default stream), these functions fail. Relaxed capture
+    // mode still allows them to be called.
+    RelaxedStreamCaptureScope relaxedCaptureScope;
 
     // Use event-based tracking if events exist, otherwise use cuStreamQuery (non-blocking).
     // Single-stream workloads skip event creation entirely for better performance.
@@ -1275,6 +1285,16 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
     }
 
+    // Ask CUDA whether the stream is being captured into a graph. The legacy default stream (null)
+    // cannot be captured.
+    bool streamIsCapturing = false;
+    if (requestedStream)
+    {
+        CUstreamCaptureStatus captureStatus = CU_STREAM_CAPTURE_STATUS_NONE;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamIsCapturing(requestedStream, &captureStatus), this);
+        streamIsCapturing = captureStatus != CU_STREAM_CAPTURE_STATUS_NONE;
+    }
+
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
@@ -1303,14 +1323,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream, timestampAnchorGeneration);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // EXPERIMENT (graph capture): if the stream is being captured into a CUDA graph, the work
-        // above was recorded, not run. Keep the command buffer alive for the graph and skip
-        // completion tracking, which would need events or queries that capture does not allow.
-        CUstreamCaptureStatus captureStatus = CU_STREAM_CAPTURE_STATUS_NONE;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamIsCapturing(requestedStream, &captureStatus), this);
-        if (captureStatus != CU_STREAM_CAPTURE_STATUS_NONE)
+        // If stream is being captured, we don't add time stamps or record command buffers as in-flight.
+        // It is the users responsibility to manage the lifetime of the command buffer while the graph
+        // can be launched.
+        if (streamIsCapturing)
         {
-            m_commandBuffersCaptured.push_back(commandBuffer);
             continue;
         }
 
