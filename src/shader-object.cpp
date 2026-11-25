@@ -473,8 +473,10 @@ Result ShaderObject::setSpecializationArgs(
 {
     // Specialization arguments feed both the specialization args and the
     // layout that recorded binding data is built from, so they count as
-    // content. Bump unconditionally: comparing against the stored list would
-    // cost more than the extra cache miss on a redundant re-set.
+    // content. Bump unconditionally and before any validation: comparing
+    // against the stored list would cost more than the state re-preparation
+    // a redundant re-set triggers in command recording, and a call that
+    // fails validation only costs a missed reuse.
     incrementVersion();
 
     // If the shader object is a container, delegate the processing to
