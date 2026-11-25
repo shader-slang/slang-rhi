@@ -18,12 +18,15 @@ public:
     // TODO: This is a temporary flag to warn about global parameter size mismatch once.
     bool m_warnedAboutGlobalParamsSizeMismatch = false;
     size_t m_sharedMemorySize = 0;
+    bool m_cooperative = false;
+    uint32_t m_maxCooperativeThreadGroupCount = 0;
 
     ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc);
     ~ComputePipelineImpl();
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(uint32_t* outCount) override;
 };
 
 class RayTracingPipelineImpl : public RayTracingPipeline

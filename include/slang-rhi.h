@@ -198,7 +198,9 @@ enum class DeviceType
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
+    /* All thread groups of a dispatch are co-resident, so a grid-wide barrier is legal */        \
+    x(CooperativeLaunch,                        "cooperative-launch"                            )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -2194,6 +2196,18 @@ struct RenderPipelineDesc
     const char* label = nullptr;
 };
 
+enum class ComputePipelineFlags : uint32_t
+{
+    None = 0,
+    /// Launch every dispatch of this pipeline so that all its thread groups run concurrently
+    /// (CUDA: cooperative launch), which makes a grid-wide barrier in the kernel legal.
+    /// Requires Feature::CooperativeLaunch (createComputePipeline returns SLANG_E_NOT_AVAILABLE
+    /// otherwise). The group count of a dispatch must not exceed getMaxCooperativeThreadGroupCount();
+    /// a larger dispatch reports an error and is skipped.
+    CooperativeLaunch = (1 << 0),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ComputePipelineFlags);
+
 struct ComputePipelineDesc
 {
     static constexpr StructType kStructType = StructType::ComputePipelineDesc;
@@ -2202,6 +2216,8 @@ struct ComputePipelineDesc
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
+
+    ComputePipelineFlags flags = ComputePipelineFlags::None;
 
     /// Controls when target code and the backend pipeline are compiled.
     PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
@@ -2339,6 +2355,12 @@ class IComputePipeline : public IPipeline
 
 public:
     virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() = 0;
+
+    /// For a pipeline created with ComputePipelineFlags::CooperativeLaunch: the largest number of
+    /// thread groups (x * y * z) one dispatch may use so that all groups are co-resident.
+    /// Returns SLANG_E_NOT_AVAILABLE for other pipelines, and for a pipeline whose compilation
+    /// is deferred or specializable until its concrete pipeline has been created.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(uint32_t* outCount) = 0;
 };
 
 class IRayTracingPipeline : public IPipeline

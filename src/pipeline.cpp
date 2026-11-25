@@ -90,6 +90,14 @@ Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result VirtualComputePipeline::getMaxCooperativeThreadGroupCount(uint32_t* outCount)
+{
+    if (m_concretePipeline)
+        return checked_cast<ComputePipeline*>(m_concretePipeline.get())->getMaxCooperativeThreadGroupCount(outCount);
+    *outCount = 0;
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 // ----------------------------------------------------------------------------
 // RayTracingPipeline
 // ----------------------------------------------------------------------------

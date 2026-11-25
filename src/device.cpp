@@ -679,6 +679,11 @@ Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipel
 
 Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    if (is_set(desc.flags, ComputePipelineFlags::CooperativeLaunch) && !hasFeature(Feature::CooperativeLaunch))
+    {
+        printError("Cooperative launch is not supported by this device.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
     bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
     if (createVirtual)

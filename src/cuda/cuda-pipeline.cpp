@@ -30,6 +30,12 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result ComputePipelineImpl::getMaxCooperativeThreadGroupCount(uint32_t* outCount)
+{
+    *outCount = m_maxCooperativeThreadGroupCount;
+    return m_cooperative ? SLANG_OK : SLANG_E_NOT_AVAILABLE;
+}
+
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     TimePoint startTime = Timer::now();
@@ -109,6 +115,25 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         this
     );
     pipeline->m_sharedMemorySize = sharedSizeBytes;
+
+    // Cooperative launch: the co-resident group limit is the occupancy per SM times the SM count.
+    if (is_set(desc.flags, ComputePipelineFlags::CooperativeLaunch))
+    {
+        int blocksPerSM = 0;
+        int smCount = 0;
+        uint32_t threads =
+            pipeline->m_threadGroupSize[0] * pipeline->m_threadGroupSize[1] * pipeline->m_threadGroupSize[2];
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuOccupancyMaxActiveBlocksPerMultiprocessor(&blocksPerSM, pipeline->m_function, int(threads), 0),
+            this
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&smCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, m_ctx.device),
+            this
+        );
+        pipeline->m_cooperative = true;
+        pipeline->m_maxCooperativeThreadGroupCount = uint32_t(blocksPerSM) * uint32_t(smCount);
+    }
 
     // Report the pipeline creation time.
     if (m_shaderCompilationReporter)

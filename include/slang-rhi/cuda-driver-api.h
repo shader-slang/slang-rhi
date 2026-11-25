@@ -920,6 +920,38 @@ CUDA_SYM(CUresult (*cuSurfObjectDestroy)(CUsurfObject));
 CUDA_SYM(CUresult (*cuTexObjectCreate)(CUtexObject*, const CUDA_RESOURCE_DESC*, const CUDA_TEXTURE_DESC*, const CUDA_RESOURCE_VIEW_DESC*));
 CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
 
+// Launch with attributes (CUDA 12.0+). Loaded optionally: null on older drivers.
+enum CUlaunchAttributeID
+{
+    CU_LAUNCH_ATTRIBUTE_COOPERATIVE = 2,
+};
+typedef union CUlaunchAttributeValue_union
+{
+    char pad[64];
+    int cooperative;
+} CUlaunchAttributeValue;
+typedef struct CUlaunchAttribute_st
+{
+    CUlaunchAttributeID id;
+    char pad[8 - sizeof(CUlaunchAttributeID)];
+    CUlaunchAttributeValue value;
+} CUlaunchAttribute;
+typedef struct CUlaunchConfig_st
+{
+    unsigned int gridDimX;
+    unsigned int gridDimY;
+    unsigned int gridDimZ;
+    unsigned int blockDimX;
+    unsigned int blockDimY;
+    unsigned int blockDimZ;
+    unsigned int sharedMemBytes;
+    CUstream hStream;
+    CUlaunchAttribute* attrs;
+    unsigned int numAttrs;
+} CUlaunchConfig;
+CUDA_SYM(CUresult (*cuLaunchKernelEx)(const CUlaunchConfig*, CUfunction, void**, void**));
+CUDA_SYM(CUresult (*cuOccupancyMaxActiveBlocksPerMultiprocessor)(int*, CUfunction, int, size_t));
+
 } // namespace rhi::cuda_driver
 
 using namespace rhi::cuda_driver;
