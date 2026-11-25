@@ -33,6 +33,8 @@ Device* getUnderlyingDevice(IDevice* device);
 // Returns the number of entries in the device's shader object layout cache.
 // Accepts either a device or its debug-layer wrapper.
 size_t getShaderObjectLayoutCacheSize(IDevice* device);
+// Returns the underlying root shader object, unwrapping the debug layer when enabled.
+RootShaderObject* getUnderlyingRootShaderObject(IShaderObject* object);
 } // namespace testing
 
 // Base class for adapters.
