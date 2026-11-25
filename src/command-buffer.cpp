@@ -213,10 +213,37 @@ Result ComputePassEncoder::writeComputeState()
 {
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
+
+    // The binding data recorded for a previous dispatch can be reused when neither
+    // the pipeline, the root object, the command list nor the root object's (folded)
+    // version changed since it was built, because the version only stays put when
+    // the object's content stayed put. The command itself is still emitted for every
+    // dispatch: executors make per-state-set decisions (for example Metal emits a
+    // memory barrier for each compute state set, and resource states are re-requested).
+    if (SLANG_SUCCEEDED(m_commandEncoder->m_recordingResult) && m_pipeline.get() == m_cachedBindingsPipeline.get() &&
+        m_rootObject == m_cachedBindingsRoot && m_commandList == m_cachedBindingsCommandList &&
+        m_commandList->getGeneration() == m_cachedBindingsGeneration &&
+        m_rootObject->getRecursiveVersion() == m_cachedBindingsVersion)
+    {
+        cmd.specializationArgs = m_cachedSpecializationArgs;
+        cmd.bindingData = m_cachedBindingData;
+        m_commandList->write(std::move(cmd));
+        return SLANG_OK;
+    }
+
     SLANG_RETURN_ON_FAIL(
         m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
     );
     m_commandList->write(std::move(cmd));
+
+    m_cachedBindingsPipeline = m_pipeline;
+    m_cachedBindingsRoot = m_rootObject;
+    m_cachedBindingsCommandList = m_commandList;
+    m_cachedBindingsGeneration = m_commandList->getGeneration();
+    m_cachedBindingsVersion = m_rootObject->getRecursiveVersion();
+    m_cachedSpecializationArgs = cmd.specializationArgs;
+    m_cachedBindingData = cmd.bindingData;
+
     return SLANG_OK;
 }
 
@@ -224,10 +251,19 @@ IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
 {
     if (m_commandList)
     {
-        m_pipeline = pipeline;
-        ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
-            return nullptr;
+        // Re-binding the same pipeline returns the previously created root object
+        // instead of allocating a new one, so that its recorded binding data can be
+        // reused across the passes of this command encoder. Bindings that the caller
+        // does not re-set therefore keep their previous values; callers that need a
+        // fresh object must use a new command encoder or the explicit two-argument
+        // bindPipeline.
+        if (m_pipeline.get() != pipeline)
+        {
+            m_pipeline = pipeline;
+            ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
+            if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+                return nullptr;
+        }
         return m_rootObject;
     }
     return nullptr;

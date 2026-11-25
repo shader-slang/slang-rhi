@@ -120,6 +120,18 @@ public:
 
     Result writeComputeState();
 
+    // Cached result of the last successful state preparation, keyed on the pipeline,
+    // root object, the command list (and its generation, to survive command buffer
+    // reset/reuse) and the root object's folded version. Holding the root object by
+    // reference prevents its address from being recycled while the cache is live.
+    ComPtr<IComputePipeline> m_cachedBindingsPipeline;
+    RefPtr<RootShaderObject> m_cachedBindingsRoot;
+    CommandList* m_cachedBindingsCommandList = nullptr;
+    uint64_t m_cachedBindingsGeneration = 0;
+    uint64_t m_cachedBindingsVersion = 0;
+    ExtendedShaderObjectTypeListObject* m_cachedSpecializationArgs = nullptr;
+    BindingData* m_cachedBindingData = nullptr;
+
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(

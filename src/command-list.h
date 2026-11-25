@@ -509,6 +509,12 @@ public:
 
     void* allocData(size_t size) { return m_allocator.allocate(size); }
 
+    // Bumped on every reset, so that data cached from a previous recording session
+    // (e.g. binding data allocated from the command buffer's arena or pools) can be
+    // invalidated even when the command buffer object is reused at the same address.
+    uint64_t m_generation = 0;
+    uint64_t getGeneration() const { return m_generation; }
+
     const void* writeData(const void* data, size_t size)
     {
         void* dst = m_allocator.allocate(size);
