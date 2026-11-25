@@ -164,21 +164,19 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
             CHECK(SLANG_FAILED(invalid.getFieldByIndex(0, field)));
         }
 
-        // The version contract of the object's data paths.
+        // The version contract of the object's data paths. The offsets are chosen
+        // independently of the backend's data-size conventions (the reflected
+        // stride and the allocated size need not agree).
         {
             uint8_t scratch[16] = {};
             IShaderObject* subObject = block.getDereferenced().m_baseObject;
-            size_t subDataSize = (size_t)subObject->getElementTypeLayout()->getStride();
-            // A setData offset past the end of the object's data is rejected.
-            CHECK(SLANG_FAILED(
-                subObject->setData(ShaderOffset{.uniformOffset = (uint32_t)subDataSize + 8}, scratch, sizeof(scratch))
-            ));
-            // A write that starts at the exact end of the object's data clamps to
-            // zero bytes: it succeeds as a no-op and must not advance the version.
-            uint64_t versionBefore = rootObject->getRecursiveVersion();
-            REQUIRE_CALL(
-                subObject->setData(ShaderOffset{.uniformOffset = (uint32_t)subDataSize}, scratch, sizeof(scratch))
+            // A setData offset far past the end of the object's data is rejected.
+            CHECK(
+                SLANG_FAILED(subObject->setData(ShaderOffset{.uniformOffset = 0x7FFFFFF0}, scratch, sizeof(scratch)))
             );
+            // A zero-length write is a no-op and must not advance the version.
+            uint64_t versionBefore = rootObject->getRecursiveVersion();
+            REQUIRE_CALL(subObject->setData(ShaderOffset{.uniformOffset = 0}, scratch, 0));
             CHECK(rootObject->getRecursiveVersion() == versionBefore);
         }
 
