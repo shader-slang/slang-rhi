@@ -124,6 +124,10 @@ public:
     // root object, the command list (and its generation, to survive command buffer
     // reset/reuse) and the root object's folded version. Holding the root object by
     // reference prevents its address from being recycled while the cache is live.
+    // The cached specialization args point into the encoder's
+    // m_pipelineSpecializationArgs list and the cached binding data into the cached
+    // command list's arena, so both outlive the cache exactly as long as the other
+    // key members match.
     ComPtr<IComputePipeline> m_cachedBindingsPipeline;
     RefPtr<RootShaderObject> m_cachedBindingsRoot;
     CommandList* m_cachedBindingsCommandList = nullptr;
@@ -131,6 +135,10 @@ public:
     uint64_t m_cachedBindingsVersion = 0;
     ExtendedShaderObjectTypeListObject* m_cachedSpecializationArgs = nullptr;
     BindingData* m_cachedBindingData = nullptr;
+
+    // True while the cached state preparation is still valid for a new dispatch
+    // (see the member comment above for the key).
+    bool canReuseRecordedComputeState() const;
 
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;

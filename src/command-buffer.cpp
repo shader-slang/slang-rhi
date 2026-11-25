@@ -209,21 +209,32 @@ ComputePassEncoder::ComputePassEncoder(CommandEncoder* commandEncoder)
 {
 }
 
+bool ComputePassEncoder::canReuseRecordedComputeState() const
+{
+    // The recorded state can be reused when recording has not failed, and the
+    // pipeline, the root object, the command list, the command list's reset
+    // generation, and the root's folded version all match the state the cached data
+    // was recorded for. The folded version only stays put when the content stayed
+    // put, so matching versions imply the recorded binding data is still correct.
+    // Encoders are not pooled today (every recording gets a fresh encoder), so the
+    // generation clause is currently unreachable; it keeps the cached arena pointers
+    // from outliving a reset command list if encoder pooling is ever introduced.
+    return SLANG_SUCCEEDED(m_commandEncoder->m_recordingResult) && m_pipeline.get() == m_cachedBindingsPipeline.get() &&
+           m_rootObject == m_cachedBindingsRoot && m_commandList == m_cachedBindingsCommandList &&
+           m_commandList->getGeneration() == m_cachedBindingsGeneration &&
+           m_rootObject->getRecursiveVersion() == m_cachedBindingsVersion;
+}
+
 Result ComputePassEncoder::writeComputeState()
 {
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
 
-    // The binding data recorded for a previous dispatch can be reused when neither
-    // the pipeline, the root object, the command list nor the root object's (folded)
-    // version changed since it was built, because the version only stays put when
-    // the object's content stayed put. The command itself is still emitted for every
-    // dispatch: executors make per-state-set decisions (for example Metal emits a
-    // memory barrier for each compute state set, and resource states are re-requested).
-    if (SLANG_SUCCEEDED(m_commandEncoder->m_recordingResult) && m_pipeline.get() == m_cachedBindingsPipeline.get() &&
-        m_rootObject == m_cachedBindingsRoot && m_commandList == m_cachedBindingsCommandList &&
-        m_commandList->getGeneration() == m_cachedBindingsGeneration &&
-        m_rootObject->getRecursiveVersion() == m_cachedBindingsVersion)
+    // The command itself is emitted for every dispatch: executors make per-state-set
+    // decisions (for example Metal emits a memory barrier for each compute state set,
+    // and resource states are re-requested). Only preparing the state is skipped when
+    // the previously recorded state still holds.
+    if (canReuseRecordedComputeState())
     {
         cmd.specializationArgs = m_cachedSpecializationArgs;
         cmd.bindingData = m_cachedBindingData;
@@ -256,7 +267,9 @@ IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
         // reused across the passes of this command encoder. Bindings that the caller
         // does not re-set therefore keep their previous values; callers that need a
         // fresh object must use a new command encoder or the explicit two-argument
-        // bindPipeline.
+        // bindPipeline. If root object creation fails, the pass keeps the previously
+        // bound pipeline and root object (dispatch entry points cannot report
+        // errors, so the pass is left in its last consistent state).
         if (m_pipeline.get() != pipeline)
         {
             RefPtr<RootShaderObject> rootObject;
