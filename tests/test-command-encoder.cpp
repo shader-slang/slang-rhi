@@ -203,7 +203,12 @@ GPU_TEST_CASE("compute-binding-reuse-copy-hazard", ALL)
     ComPtr<IBuffer> bufNewA;
     REQUIRE_CALL(device->createBuffer(readDesc, dataA, bufA.writeRef()));
     REQUIRE_CALL(device->createBuffer(readDesc, dataB, bufB.writeRef()));
-    REQUIRE_CALL(device->createBuffer(readDesc, dataNewA, bufNewA.writeRef()));
+
+    // The new contents are copied from this buffer between the two passes, so it
+    // needs the copy-source usage.
+    BufferDesc newADesc = bufferDesc;
+    newADesc.usage = BufferUsage::ShaderResource | BufferUsage::CopySource;
+    REQUIRE_CALL(device->createBuffer(newADesc, dataNewA, bufNewA.writeRef()));
 
     BufferDesc writeDesc = bufferDesc;
     writeDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
