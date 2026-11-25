@@ -1974,6 +1974,8 @@ public:
     /// Reserves a block of memory within the shader object's internal data buffer at the specified offset.
     /// WARNING: This function bypasses the immutability of a ShaderObject. To use safely, ensure that the address
     /// returned is immediately populated, not retained. Prefer using setData unless absolutely necessary.
+    /// Writes through the returned pointer are also not tracked by the object's version
+    /// counter, so they do not invalidate binding data recorded for a previous dispatch.
     virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
@@ -2784,6 +2786,14 @@ class IComputePassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x8479334f, 0xfb45, 0x471c, {0xb7, 0x75, 0x94, 0xa5, 0x76, 0x72, 0x32, 0xc8});
 
 public:
+    /// Bind `pipeline` and return the root shader object holding its parameters.
+    ///
+    /// Re-binding the same pipeline within one pass encoder returns the previously
+    /// created root object with the bindings it already holds, so bindings that are
+    /// not re-set keep their previous values. Pass an explicit `rootObject` (the
+    /// two-argument overload) to start from a different object. The render pass
+    /// encoder's one-argument bindPipeline differs: it creates a fresh root object
+    /// on every call.
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) = 0;
 
