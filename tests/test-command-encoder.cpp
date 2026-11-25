@@ -308,12 +308,6 @@ GPU_TEST_CASE("compute-binding-reuse-entry-point-mutation", ALL)
     // point objects makes its mutation visible to the recording-side reuse. A
     // mutation between two dispatches of one pass must invalidate the recorded
     // binding data, or the second dispatch would run with the stale value.
-    if (device->getDeviceType() == DeviceType::Vulkan)
-        SKIP(
-            "vulkan: entry-point uniform parameters break ParameterBlock data binding; "
-            "the very first dispatch reads count as 0 on the full-bind path, before any "
-            "reuse is involved, so the defect predates the reuse change"
-        );
     ComPtr<IShaderProgram> program;
     slang::ProgramLayout* reflection = nullptr;
     REQUIRE_CALL(loadAndLinkProgram(device, "test-binding-reuse-ep", "addkernel", program.writeRef(), &reflection));
@@ -384,6 +378,16 @@ GPU_TEST_CASE("compute-binding-reuse-entry-point-mutation", ALL)
         computePass->dispatchCompute(1, 1, 1);
         computePass->end();
     }
+
+    // Only the execution is defective on Vulkan: recording and the host-side
+    // version assertions above run on every backend, but with an entry-point
+    // uniform parameter present the very first dispatch (the full-bind path,
+    // before any reuse is involved) reads the parameter block's count as 0.
+    if (device->getDeviceType() == DeviceType::Vulkan)
+        SKIP(
+            "vulkan: entry-point uniform parameters break ParameterBlock data binding "
+            "(pre-existing; filed separately)"
+        );
 
     queue->submit(commandEncoder->finish());
     queue->waitOnHost();

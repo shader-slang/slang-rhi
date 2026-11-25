@@ -713,6 +713,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         // this kernel reads.
         if (computePipeline != m_lastGlobalParamsPipeline || bindingData != m_lastGlobalParamsBindingData)
         {
+            SLANG_RHI_CHECK_CUDA_CTX();
             CUresult copyResult = cuMemcpyAsync(
                 computePipeline->m_globalParams,
                 bindingData->globalParams,
