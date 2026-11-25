@@ -128,6 +128,7 @@ public:
     };
 
     void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
+    void requestBindingStates(BindingDataImpl* bindingData);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -1087,10 +1088,17 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         m_cmdList->SetPipelineState(m_computePipeline->m_pipelineState);
     }
 
+    m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+
     if (updateBindings)
     {
-        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
         setBindings(m_bindingData, BindMode::Compute);
+    }
+    else
+    {
+        // Re-request resource states even though the binding data is unchanged (see
+        // requestBindingStates).
+        requestBindingStates(m_bindingData);
     }
 
     commitBarriers();
@@ -1758,9 +1766,13 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     m_bindingData = nullptr;
 }
 
-void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+void CommandRecorder::requestBindingStates(BindingDataImpl* bindingData)
 {
-    // First, we transition all resources to the required states.
+    // Transition all resources to the states their bindings require. Running this
+    // unconditionally per state set (not only when the binding data changed) keeps
+    // state requests tied to the binding: recording reuses binding data across
+    // dispatches when the bound content is unchanged, and a command between two
+    // dispatches (e.g. a copy) can have transitioned a bound resource away.
     for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
     {
         const auto& bufferState = bindingData->bufferStates[i];
@@ -1775,6 +1787,12 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
             textureState.state
         );
     }
+}
+
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+{
+    // First, we transition all resources to the required states.
+    requestBindingStates(bindingData);
 
     // We need barriers to be committed before setting root parameters.
     commitBarriers();
