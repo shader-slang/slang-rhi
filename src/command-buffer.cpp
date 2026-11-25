@@ -245,6 +245,12 @@ Result ComputePassEncoder::writeComputeState()
     SLANG_RETURN_ON_FAIL(
         m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
     );
+
+    // Capture the pointers before the command (and its members) are moved into
+    // the command list.
+    ExtendedShaderObjectTypeListObject* specializationArgs = cmd.specializationArgs;
+    BindingData* bindingData = cmd.bindingData;
+
     m_commandList->write(std::move(cmd));
 
     m_cachedBindingsPipeline = m_pipeline;
@@ -252,8 +258,8 @@ Result ComputePassEncoder::writeComputeState()
     m_cachedBindingsCommandList = m_commandList;
     m_cachedBindingsGeneration = m_commandList->getGeneration();
     m_cachedBindingsVersion = m_rootObject->getRecursiveVersion();
-    m_cachedSpecializationArgs = cmd.specializationArgs;
-    m_cachedBindingData = cmd.bindingData;
+    m_cachedSpecializationArgs = specializationArgs;
+    m_cachedBindingData = bindingData;
 
     return SLANG_OK;
 }

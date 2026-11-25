@@ -510,8 +510,9 @@ public:
     void* allocData(size_t size) { return m_allocator.allocate(size); }
 
     // Bumped on every reset, so that data cached from a previous recording session
-    // (e.g. binding data allocated from the command buffer's arena or pools) can be
-    // invalidated even when the command buffer object is reused at the same address.
+    // (e.g. binding data allocated from this list's arena or pools) is invalidated
+    // even when the encoder that cached it lives on while the list is reset and
+    // recycled.
     uint64_t m_generation = 0;
     uint64_t getGeneration() const { return m_generation; }
 
