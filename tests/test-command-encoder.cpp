@@ -94,10 +94,12 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
     ComPtr<IBuffer> res2;
     ComPtr<IBuffer> res3;
     ComPtr<IBuffer> res4;
+    ComPtr<IBuffer> res5;
     REQUIRE_CALL(device->createBuffer(writeDesc, zeros, res1.writeRef()));
     REQUIRE_CALL(device->createBuffer(writeDesc, zeros, res2.writeRef()));
     REQUIRE_CALL(device->createBuffer(writeDesc, zeros, res3.writeRef()));
     REQUIRE_CALL(device->createBuffer(writeDesc, zeros, res4.writeRef()));
+    REQUIRE_CALL(device->createBuffer(writeDesc, zeros, res5.writeRef()));
 
     auto queue = device->getQueue(QueueType::Graphics);
 
@@ -112,7 +114,10 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
     {
         auto commandEncoder = queue->createCommandEncoder();
         auto computePass = commandEncoder->beginComputePass();
-        auto shaderObject = computePass->bindPipeline(pipeline);
+        // Hold a strong reference: binding a different root below makes the
+        // encoder drop the previous one, and the pointers into it (cursor, block,
+        // rootObject) would dangle without this.
+        ComPtr<IShaderObject> shaderObject(computePass->bindPipeline(pipeline));
         ShaderCursor cursor(shaderObject);
         ShaderCursor block = cursor["addKernelData"];
 
@@ -136,8 +141,9 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
 
         // Dispatch 2b: re-binding the pipeline must return the previously created
         // root object, and a dispatch with no parameter writes at all must use the
-        // bindings carried over from dispatch 2 (a fresh empty root would leave
-        // garbage in res2).
+        // bindings carried over from dispatch 2 - the res2 comparison validates the
+        // carried binding values, and a regression that binds a fresh, empty root
+        // leaves res2 holding its initial zeros instead.
         CHECK(computePass->bindPipeline(pipeline) == shaderObject);
         computePass->dispatchCompute(1, 1, 1);
 
@@ -157,6 +163,66 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
             ShaderCursor invalid;
             CHECK(SLANG_FAILED(invalid.getFieldByIndex(0, field)));
         }
+
+        // The version contract of the object's data paths.
+        {
+            uint8_t scratch[16] = {};
+            IShaderObject* subObject = block.getDereferenced().m_baseObject;
+            size_t subDataSize = (size_t)subObject->getElementTypeLayout()->getStride();
+            // A setData offset past the end of the object's data is rejected.
+            CHECK(SLANG_FAILED(
+                subObject->setData(ShaderOffset{.uniformOffset = (uint32_t)subDataSize + 8}, scratch, sizeof(scratch))
+            ));
+            // A write that starts at the exact end of the object's data clamps to
+            // zero bytes: it succeeds as a no-op and must not advance the version.
+            uint64_t versionBefore = rootObject->getRecursiveVersion();
+            REQUIRE_CALL(
+                subObject->setData(ShaderOffset{.uniformOffset = (uint32_t)subDataSize}, scratch, sizeof(scratch))
+            );
+            CHECK(rootObject->getRecursiveVersion() == versionBefore);
+        }
+
+        // setSpecializationArgs advances the version even when its arguments fail
+        // validation (the bump is unconditional and precedes validation).
+        {
+            uint64_t versionBefore = rootObject->getRecursiveVersion();
+            slang::SpecializationArg bogusArg = {};
+            ShaderOffset bogusOffset = {};
+            bogusOffset.bindingRangeIndex = 0x7FFFFFFF;
+            (void)shaderObject->setSpecializationArgs(bogusOffset, &bogusArg, 1);
+            CHECK(rootObject->getRecursiveVersion() != versionBefore);
+        }
+
+        // A raw setData that clobbers a bound resource slot's derived bytes followed
+        // by a redundant re-bind must advance the version: the re-bind's hook repair
+        // is a content change even though the slot is identical.
+        {
+            uint64_t versionBefore = rootObject->getRecursiveVersion();
+            uint8_t garbage[16] = {};
+            block["a"].setData(garbage, sizeof(garbage));
+            block["a"].setBinding(bufA1);
+            CHECK(rootObject->getRecursiveVersion() != versionBefore);
+        }
+
+        // Dispatch 4: the two-argument bindPipeline adopts a caller-provided root
+        // object, and the one-argument form returns it afterwards.
+        ComPtr<IShaderObject> root2;
+        REQUIRE_CALL(device->createRootShaderObject(program, root2.writeRef()));
+        {
+            ShaderCursor root2Cursor(root2);
+            ShaderCursor root2Block = root2Cursor["addKernelData"];
+            root2Block["a"].setBinding(bufA2);
+            root2Block["b"].setBinding(bufB);
+            root2Block["res"].setBinding(res5);
+            root2Block["count"].setData(kCount);
+        }
+        computePass->bindPipeline(pipeline, root2);
+        computePass->dispatchCompute(1, 1, 1);
+        // Compare through the unwrapping helper: the debug layer keeps its own
+        // wrapper identity, so raw pointer comparison only matches without it.
+        CHECK(
+            getUnderlyingRootShaderObject(computePass->bindPipeline(pipeline)) == getUnderlyingRootShaderObject(root2)
+        );
 
         computePass->end();
         queue->submit(commandEncoder->finish());
@@ -183,17 +249,20 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
     std::vector<float> expected2(kCount);
     std::vector<float> expected3(kCount);
     std::vector<float> expected4(kCount);
+    std::vector<float> expected5(kCount);
     for (uint32_t i = 0; i < kCount; i++)
     {
         expected1[i] = dataA1[i] + dataB[i];
         expected2[i] = (i < 16) ? dataA2[i] + dataB[i] : 0.0f;
         expected3[i] = dataA1[i] + dataB[i];
         expected4[i] = (i < 8) ? dataA2[i] + dataB[i] : 0.0f;
+        expected5[i] = dataA2[i] + dataB[i];
     }
     compareComputeResult(device, res1, std::span<float>(expected1));
     compareComputeResult(device, res2, std::span<float>(expected2));
     compareComputeResult(device, res3, std::span<float>(expected3));
     compareComputeResult(device, res4, std::span<float>(expected4));
+    compareComputeResult(device, res5, std::span<float>(expected5));
     // The zero tails of expected2 and expected4 hold because the buffers are
     // initialized with zeros and the kernel writes exactly `count` elements.
 }
@@ -386,7 +455,7 @@ GPU_TEST_CASE("compute-binding-reuse-entry-point-mutation", ALL)
     if (device->getDeviceType() == DeviceType::Vulkan)
         SKIP(
             "vulkan: entry-point uniform parameters break ParameterBlock data binding "
-            "(pre-existing; filed separately)"
+            "(pre-existing, tracked in slang-rhi#915)"
         );
 
     queue->submit(commandEncoder->finish());
