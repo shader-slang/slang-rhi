@@ -258,6 +258,13 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
+    // Binding data of the last compute dispatch whose global parameters were copied
+    // to the pipeline's `SLANG_globalParams` symbol, and the pipeline it was copied to.
+    // Reset at the start of every execution, since binding data pointers are only
+    // comparable within one command buffer's arena lifetime.
+    BindingDataImpl* m_lastGlobalParamsBindingData = nullptr;
+    ComputePipelineImpl* m_lastGlobalParamsPipeline = nullptr;
+
     CommandExecutor(DeviceImpl* device, CUstream stream, uint64_t timestampAnchorGeneration)
         : m_device(device)
         , m_stream(stream)
@@ -317,6 +324,9 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 
     // Upload constant buffer data
     commandBuffer->m_constantBufferPool.upload(m_stream);
+
+    m_lastGlobalParamsBindingData = nullptr;
+    m_lastGlobalParamsPipeline = nullptr;
 
     const CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
@@ -693,12 +703,20 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
             );
             computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
-            computePipeline->m_globalParams,
-            bindingData->globalParams,
-            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
-            m_stream
-        ));
+        // Recording only reuses binding data across dispatches when the bound content
+        // is unchanged, so when this dispatch uses the same binding data as the
+        // previous one the symbol already holds the exact bytes this kernel reads.
+        if (computePipeline != m_lastGlobalParamsPipeline || bindingData != m_lastGlobalParamsBindingData)
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+                computePipeline->m_globalParams,
+                bindingData->globalParams,
+                min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
+                m_stream
+            ));
+            m_lastGlobalParamsPipeline = computePipeline;
+            m_lastGlobalParamsBindingData = bindingData;
+        }
     }
 
     // The argument data for the entry-point parameters are already
