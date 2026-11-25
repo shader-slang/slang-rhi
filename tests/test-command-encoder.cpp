@@ -195,13 +195,18 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
 
         // A raw setData that clobbers a bound resource slot's derived bytes followed
         // by a redundant re-bind must advance the version: the re-bind's hook repair
-        // is a content change even though the slot is identical.
+        // is a content change even though the slot is identical. The snapshot is
+        // taken after the clobber (whose own version bump is not what is under
+        // test), and only backends with a set-binding hook can repair, so the
+        // discriminating check is gated to them - elsewhere a redundant re-bind is a
+        // true no-op.
         {
-            uint64_t versionBefore = rootObject->getRecursiveVersion();
             uint8_t garbage[16] = {};
             block["a"].setData(garbage, sizeof(garbage));
+            uint64_t versionAfterClobber = rootObject->getRecursiveVersion();
             block["a"].setBinding(bufA1);
-            CHECK(rootObject->getRecursiveVersion() != versionBefore);
+            if (device->getDeviceType() == DeviceType::CUDA || device->getDeviceType() == DeviceType::CPU)
+                CHECK(rootObject->getRecursiveVersion() != versionAfterClobber);
         }
 
         // Dispatch 4: the two-argument bindPipeline adopts a caller-provided root

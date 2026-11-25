@@ -438,7 +438,8 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     size_t hookWindowSize =
         hookWindowOffset < m_data.size() ? std::min<size_t>(16, m_data.size() - hookWindowOffset) : 0;
     uint8_t hookWindow[16];
-    ::memcpy(hookWindow, m_data.data() + hookWindowOffset, hookWindowSize);
+    if (hookWindowSize > 0)
+        ::memcpy(hookWindow, m_data.data() + hookWindowOffset, hookWindowSize);
 
     if (m_setBindingHook)
         m_setBindingHook(this, offset, slot, bindingRange.bindingType);
