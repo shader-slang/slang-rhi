@@ -119,8 +119,9 @@ Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size 
     if (dataOffset > availableSize)
         return SLANG_E_INVALID_ARG;
 
-    // This should be an error, but slang-test relies on this behavior.
-    if ((dataOffset + dataSize) > availableSize)
+    // This should be an error, but slang-test relies on this behavior. The
+    // subtraction form cannot wrap, unlike adding the offset to the size.
+    if (dataSize > availableSize - dataOffset)
     {
         dataSize = availableSize - dataOffset;
     }
@@ -424,16 +425,34 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
 
     // Run the hook even when the slot is unchanged. The hook derives device-visible
     // bytes (CUDA device pointers, texture object handles) from the slot and is
-    // idempotent, so re-running it on a redundant re-bind only restores any derived
-    // bytes that a raw setData may have overwritten.
+    // idempotent, so re-running it on a redundant re-bind restores any derived bytes
+    // that a raw setData may have overwritten - and such a repair counts as a
+    // content change, so it must advance the version or recorded binding data would
+    // reuse the clobbered bytes. The current CUDA/CPU hooks write at most a pointer
+    // and a count in a 16-byte window at the binding's uniform offset (see the
+    // m_setBindingHook contract), so comparing that window around the hook call
+    // detects every repair; a hook that writes beyond the window must extend it.
+    size_t hookWindowOffset = offset.uniformOffset;
+    size_t hookWindowSize =
+        hookWindowOffset < m_data.size() ? std::min<size_t>(16, m_data.size() - hookWindowOffset) : 0;
+    uint8_t hookWindow[16];
+    ::memcpy(hookWindow, m_data.data() + hookWindowOffset, hookWindowSize);
+
     if (m_setBindingHook)
         m_setBindingHook(this, offset, slot, bindingRange.bindingType);
 
+    bool hookChangedBytes =
+        hookWindowSize > 0 && ::memcmp(hookWindow, m_data.data() + hookWindowOffset, hookWindowSize) != 0;
+
     // A binding that does not change the stored slot leaves the object's content
-    // unchanged, so the version must not advance either (see setData).
+    // unchanged, so the version must not advance either - unless the hook repaired
+    // derived bytes (see setData). The comparison must cover every field of
+    // ResourceSlot: a gained field left out would silently skip the version bump.
     if (slot.type == oldSlot.type && slot.resource == oldSlot.resource && slot.resource2 == oldSlot.resource2 &&
         slot.format == oldSlot.format && slot.bufferRange == oldSlot.bufferRange)
     {
+        if (hookChangedBytes)
+            incrementVersion();
         return SLANG_OK;
     }
 
@@ -446,19 +465,20 @@ Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const Descr
 {
     SLANG_RETURN_ON_FAIL(checkFinalized());
 
-    if (offset.uniformOffset + 8 > m_data.size())
+    // The subtraction form cannot wrap, unlike adding the offset to the width.
+    if (m_data.size() < sizeof(handle.value) || offset.uniformOffset > m_data.size() - sizeof(handle.value))
     {
         return SLANG_E_INVALID_ARG;
     }
 
     // As in setData, a write that does not change the stored bytes must not advance
     // the version.
-    if (::memcmp(m_data.data() + offset.uniformOffset, &handle.value, 8) == 0)
+    if (::memcmp(m_data.data() + offset.uniformOffset, &handle.value, sizeof(handle.value)) == 0)
     {
         return SLANG_OK;
     }
 
-    ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, 8);
+    ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, sizeof(handle.value));
 
     incrementVersion();
 
