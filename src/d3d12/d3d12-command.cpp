@@ -1079,7 +1079,6 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         return;
 
     bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
-    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     if (updatePipeline)
     {
@@ -1090,16 +1089,13 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
 
     m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
 
-    if (updateBindings)
-    {
-        setBindings(m_bindingData, BindMode::Compute);
-    }
-    else
-    {
-        // Re-request resource states even though the binding data is unchanged (see
-        // requestBindingStates).
-        requestBindingStates(m_bindingData);
-    }
+    // D3D12 re-binds the root parameters for every compute state set, instead of
+    // reusing the bindings recorded for a previous state. Reusing recorded root
+    // bindings across an intervening copy on the same command list is legal
+    // D3D12, but the debug layer rejects dispatches submitted that way, so this
+    // backend keeps the full re-bind path. The re-binds cost far less than the
+    // recording-side work that the compute-state cache already avoids.
+    setBindings(m_bindingData, BindMode::Compute);
 
     commitBarriers();
 
