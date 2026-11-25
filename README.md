@@ -82,6 +82,7 @@ On Windows, append `.exe` to executable names.
 - [Error handling and diagnostics](docs/error-handling.md): result codes and debug callbacks.
 - [Object lifetime](docs/object-lifetime.md): reference counting and device ownership.
 - [Resource heaps](docs/resource-heaps.md): resource placement, aliasing, and synchronization.
+- [CUDA graph capture](docs/cuda-graph-capture.md): recording command buffers into a CUDA graph.
 - [Synthetic resource bindings](docs/synthetic-bindings.md): compiler-generated shader resources.
 
 For contributions, see [CONTRIBUTING.md](CONTRIBUTING.md). Report bugs and request
