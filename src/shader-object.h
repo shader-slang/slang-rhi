@@ -245,7 +245,8 @@ public:
     // Unique ID of the shader object (generated on construction).
     uint32_t m_uid;
 
-    // Version of the shader object. Incremented on every modification.
+    // Version of the shader object. Incremented only by modifications that actually
+    // change the object's content, so it serves as a content-dirty signal.
     uint32_t m_version = 0;
 
     // True if the shader object is finalized and no further modifications are allowed.
@@ -258,6 +259,11 @@ public:
 
 public:
     ShaderComponentID getComponentID() { return m_shaderObjectType.componentID; }
+
+    /// Returns a version value that changes when the binding-relevant content of this
+    /// object or any of its sub-objects changes, so that consumers (e.g. command
+    /// recording) can treat "folded version unchanged" as "binding data can be reused".
+    virtual uint64_t getRecursiveVersion();
 
 public:
     // IShaderObject implementation
@@ -355,6 +361,8 @@ public:
     // IShaderObject implementation
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
+
+    virtual uint64_t getRecursiveVersion() override;
 
 public:
     static Result create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject);

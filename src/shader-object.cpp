@@ -76,6 +76,21 @@ Result ShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint
     return SLANG_OK;
 }
 
+uint64_t ShaderObject::getRecursiveVersion()
+{
+    // Fold the versions of this object and all of its sub-objects into one value with
+    // FNV-1a, so that a change anywhere in the tree changes the folded result. A root
+    // object's own version alone would miss mutations made through a cursor into a
+    // nested parameter block, which only bumps the sub-object's version.
+    uint64_t hash = 14695981039346656037ULL ^ m_version;
+    for (const auto& object : m_objects)
+    {
+        if (object)
+            hash = (hash ^ object->getRecursiveVersion()) * 1099511628211ULL;
+    }
+    return hash;
+}
+
 Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
     // TODO: Ideally we would use the following code here, but slang-test relies
@@ -98,6 +113,14 @@ Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size 
     if ((dataOffset + dataSize) > availableSize)
     {
         dataSize = availableSize - dataOffset;
+    }
+
+    // A write that does not change the stored bytes leaves the object's content
+    // unchanged, so the version must not advance either: the version is the signal
+    // consumers use to decide whether binding data needs to be rebuilt.
+    if (::memcmp(dest + dataOffset, data, dataSize) == 0)
+    {
+        return SLANG_OK;
     }
 
     ::memcpy(dest + dataOffset, data, dataSize);
@@ -304,6 +327,7 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
         return SLANG_E_INVALID_ARG;
 
     ResourceSlot& slot = m_slots[slotIndex];
+    ResourceSlot oldSlot = slot;
 
     switch (binding.type)
     {
@@ -388,6 +412,14 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
         return SLANG_E_INVALID_ARG;
     }
 
+    // A binding that does not change the stored slot leaves the object's content
+    // unchanged, so the version must not advance either (see setData).
+    if (slot.type == oldSlot.type && slot.resource == oldSlot.resource && slot.resource2 == oldSlot.resource2 &&
+        slot.format == oldSlot.format && slot.bufferRange == oldSlot.bufferRange)
+    {
+        return SLANG_OK;
+    }
+
     if (m_setBindingHook)
         m_setBindingHook(this, offset, slot, bindingRange.bindingType);
 
@@ -403,6 +435,13 @@ Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const Descr
     if (offset.uniformOffset + 8 > m_data.size())
     {
         return SLANG_E_INVALID_ARG;
+    }
+
+    // As in setData, a write that does not change the stored bytes must not advance
+    // the version.
+    if (::memcmp(m_data.data() + offset.uniformOffset, &handle.value, 8) == 0)
+    {
+        return SLANG_OK;
     }
 
     ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, 8);
@@ -849,6 +888,17 @@ Result RootShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryP
         return SLANG_E_INVALID_ARG;
     returnComPtrCopy(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;
+}
+
+uint64_t RootShaderObject::getRecursiveVersion()
+{
+    uint64_t hash = ShaderObject::getRecursiveVersion();
+    for (const auto& entryPoint : m_entryPoints)
+    {
+        if (entryPoint)
+            hash = (hash ^ entryPoint->getRecursiveVersion()) * 1099511628211ULL;
+    }
+    return hash;
 }
 
 Result RootShaderObject::create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject)
