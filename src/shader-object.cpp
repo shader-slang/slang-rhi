@@ -457,6 +457,12 @@ Result ShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
+    // Specialization arguments feed both the specialization args and the
+    // layout that recorded binding data is built from, so they count as
+    // content. Bump unconditionally: comparing against the stored list would
+    // cost more than the extra cache miss on a redundant re-set.
+    incrementVersion();
+
     // If the shader object is a container, delegate the processing to
     // `setSpecializationArgsForContainerElements`.
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
