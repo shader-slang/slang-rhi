@@ -259,10 +259,12 @@ IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
         // bindPipeline.
         if (m_pipeline.get() != pipeline)
         {
-            m_pipeline = pipeline;
+            RefPtr<RootShaderObject> rootObject;
             ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-            if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+            if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, rootObject.writeRef())))
                 return nullptr;
+            m_pipeline = pipeline;
+            m_rootObject = rootObject;
         }
         return m_rootObject;
     }
