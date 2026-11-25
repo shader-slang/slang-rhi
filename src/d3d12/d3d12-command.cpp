@@ -128,7 +128,7 @@ public:
     };
 
     void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
-    void requestBindingStates(BindingDataImpl* bindingData);
+    void requireBindingStates(BindingDataImpl* bindingData);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -1762,13 +1762,14 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     m_bindingData = nullptr;
 }
 
-void CommandRecorder::requestBindingStates(BindingDataImpl* bindingData)
+void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
 {
-    // Transition all resources to the states their bindings require. Running this
-    // unconditionally per state set (not only when the binding data changed) keeps
-    // state requests tied to the binding: recording reuses binding data across
-    // dispatches when the bound content is unchanged, and a command between two
-    // dispatches (e.g. a copy) can have transitioned a bound resource away.
+    // Transition all resources to the states their bindings require. This runs for
+    // every compute state set (setBindings is called for each one), keeping the
+    // state requests tied to the binding rather than to whether the binding data
+    // changed: recording reuses binding data across dispatches when the bound
+    // content is unchanged, and a command between two dispatches (e.g. a copy) can
+    // have transitioned a bound resource away.
     for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
     {
         const auto& bufferState = bindingData->bufferStates[i];
@@ -1787,8 +1788,10 @@ void CommandRecorder::requestBindingStates(BindingDataImpl* bindingData)
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
 {
-    // First, we transition all resources to the required states.
-    requestBindingStates(bindingData);
+    // First, we transition all resources to the states their bindings require,
+    // keeping the state requests tied to the binding rather than to whether the
+    // binding data changed (see requireBindingStates).
+    requireBindingStates(bindingData);
 
     // We need barriers to be committed before setting root parameters.
     commitBarriers();
