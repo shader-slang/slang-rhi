@@ -1069,6 +1069,10 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
     requireBindingStates(m_bindingData);
 
+    // updateBindings is computed before m_bindingData is reassigned above: the
+    // comparison must see the previous state's binding data, so a dispatch whose
+    // binding data repeats the previous one keeps the already-bound descriptors
+    // without re-issuing the binds.
     if (updateBindings)
     {
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);

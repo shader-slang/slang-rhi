@@ -713,6 +713,8 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         // this kernel reads.
         if (computePipeline != m_lastGlobalParamsPipeline || bindingData != m_lastGlobalParamsBindingData)
         {
+            // Match the assert macro's pre-call context check, which the unwrapped
+            // call below no longer runs.
             SLANG_RHI_CHECK_CUDA_CTX();
             CUresult copyResult = cuMemcpyAsync(
                 computePipeline->m_globalParams,

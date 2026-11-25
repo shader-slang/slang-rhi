@@ -1091,10 +1091,11 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
 
     // D3D12 re-binds the root parameters for every compute state set, instead of
     // reusing the bindings recorded for a previous state. Reusing recorded root
-    // bindings across an intervening copy on the same command list is legal
-    // D3D12, but the debug layer rejects dispatches submitted that way, so this
-    // backend keeps the full re-bind path. The re-binds cost far less than the
-    // recording-side work that the compute-state cache already avoids.
+    // bindings across an intervening copy on the same command list is legal in
+    // D3D12, but the debug layer (active whenever validation is enabled) rejects a
+    // dispatch submitted that way, so this backend keeps the full re-bind path. The
+    // re-binds cost far less than the recording-side work that the compute-state
+    // cache already avoids.
     setBindings(m_bindingData, BindMode::Compute);
 
     commitBarriers();
