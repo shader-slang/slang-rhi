@@ -55,8 +55,9 @@ struct ShaderCursor
     /// If the operation succeeds, then the field cursor is written to `outCursor`.
     Result getField(const char* nameBegin, const char* nameEnd, ShaderCursor& outCursor) const;
 
-    /// Form a cursor pointing to the field at the given index within the value this cursor
-    /// points at.
+    /// Form a cursor pointing to the field at the given index within the value this
+    /// cursor points at. Returns SLANG_E_INVALID_ARG when the cursor is invalid or the
+    /// index is out of range.
     Result getFieldByIndex(SlangInt fieldIndex, ShaderCursor& outCursor) const;
 
     ShaderCursor getField(const char* name) const
@@ -162,11 +163,12 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     //
     // For the dominant case of a struct cursor this resolves the field with a
     // single reflection call (the name scan) instead of two (a query for the
-    // type's kind followed by the scan), and the kind query is the more
-    // expensive of the two calls on top of that. Container layouts (constant
-    // buffers, parameter blocks) do not expose their wrapped fields to the
-    // name scan, so a lookup against a container cursor misses here and falls
-    // through to the switch below, which dereferences the cursor and retries.
+    // type's kind followed by the scan). The name scan only matches struct
+    // type layouts - a property of the reflection layer, verified against its
+    // implementation - so container layouts (constant buffers, parameter
+    // blocks) do not expose their wrapped fields to it: a lookup against a
+    // container cursor misses here and falls through to the switch below,
+    // which dereferences the cursor and retries.
     //
     {
         SlangInt fieldIndex = m_typeLayout->findFieldIndexByName(name, nameEnd);
@@ -366,23 +368,13 @@ inline ShaderCursor ShaderCursor::getElement(uint32_t index) const
     }
     case slang::TypeReflection::Kind::Struct:
     {
-        // The logic here is similar to `getField()` except that we don't
-        // need to look up the field index based on a name first.
-        //
-        auto fieldIndex = index;
-        slang::VariableLayoutReflection* fieldLayout = m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
-        if (!fieldLayout)
-            return ShaderCursor();
-
+        // Indexing a struct cursor by number addresses its fields; route through
+        // getFieldByIndex so the index is bounds-checked like the name-based path
+        // (the reflection layer indexes its field array unchecked).
         ShaderCursor fieldCursor;
-        fieldCursor.m_baseObject = m_baseObject;
-        fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
-        fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
-        fieldCursor.m_offset.bindingRangeIndex =
-            m_offset.bindingRangeIndex + (uint32_t)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
-        fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
+        if (SLANG_FAILED(getFieldByIndex((SlangInt)index, fieldCursor)))
+            return ShaderCursor();
         return fieldCursor;
-        break;
     }
     case slang::TypeReflection::Kind::Vector:
     case slang::TypeReflection::Kind::Matrix:
