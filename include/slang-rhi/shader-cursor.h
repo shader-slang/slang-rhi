@@ -160,13 +160,13 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     // We try to resolve `name` as a direct field of the value this cursor
     // points at, before considering the type of that value.
     //
-    // Field lookup is a cheap linear name scan in the reflection layer, while
-    // querying the kind of a type layout is a far more expensive reflection
-    // round-trip, so the dominant case of a struct cursor is resolved without
-    // asking for the kind at all. Container layouts (constant buffers,
-    // parameter blocks) do not expose their wrapped fields to this query, so
-    // a lookup against a container cursor misses here and falls through to
-    // the switch below, which dereferences the cursor and retries.
+    // For the dominant case of a struct cursor this resolves the field with a
+    // single reflection call (the name scan) instead of two (a query for the
+    // type's kind followed by the scan), and the kind query is the more
+    // expensive of the two calls on top of that. Container layouts (constant
+    // buffers, parameter blocks) do not expose their wrapped fields to the
+    // name scan, so a lookup against a container cursor misses here and falls
+    // through to the switch below, which dereferences the cursor and retries.
     //
     {
         SlangInt fieldIndex = m_typeLayout->findFieldIndexByName(name, nameEnd);
@@ -223,6 +223,15 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
 
 inline Result ShaderCursor::getFieldByIndex(SlangInt fieldIndex, ShaderCursor& outCursor) const
 {
+    // If this cursor is invalid, then it can't fetch a field.
+    if (!isValid())
+        return SLANG_E_INVALID_ARG;
+
+    // The reflection layer indexes its field array without checking bounds, so an
+    // out-of-range index from a public caller must be rejected here.
+    if (fieldIndex < 0 || (SlangUInt)fieldIndex >= m_typeLayout->getFieldCount())
+        return SLANG_E_INVALID_ARG;
+
     // Once we know the index of the field being referenced,
     // we create a cursor to point at the field, based on
     // the offset information already in this cursor, plus
