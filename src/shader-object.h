@@ -246,7 +246,7 @@ public:
     uint32_t m_uid;
 
     // Version of the shader object. Advanced by every content-changing modification,
-    // so an unchanged version implies unchanged content — the signal the command
+    // so an unchanged version implies unchanged content - the signal the command
     // recording layer relies on when reusing recorded binding data. Some paths
     // (setObject, reserveData, setSpecializationArgs) advance it conservatively
     // without knowing whether the content changed, which costs only a missed reuse.

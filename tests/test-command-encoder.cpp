@@ -121,7 +121,7 @@ GPU_TEST_CASE("compute-binding-reuse-mutation", ALL)
         computePass->dispatchCompute(1, 1, 1);
 
         // The folded version advances on a content change and stays put on a
-        // redundant write — this is the key the recording-side reuse relies on.
+        // redundant write - this is the key the recording-side reuse relies on.
         // The public pointer may be a debug-layer wrapper, so unwrap it first.
         auto* rootObject = getUnderlyingRootShaderObject(shaderObject);
         uint64_t version0 = rootObject->getRecursiveVersion();
