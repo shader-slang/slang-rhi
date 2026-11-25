@@ -76,13 +76,17 @@ Result ShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint
     return SLANG_OK;
 }
 
-uint64_t ShaderObject::getRecursiveVersion()
+uint64_t ShaderObject::getRecursiveVersion() const
 {
     // Fold the versions of this object and all of its sub-objects into one value with
     // FNV-1a, so that a change anywhere in the tree changes the folded result. A root
     // object's own version alone would miss mutations made through a cursor into a
     // nested parameter block, which only bumps the sub-object's version.
-    uint64_t hash = 14695981039346656037ULL ^ m_version;
+    // Every component goes through both the XOR and the multiply step: mixing with XOR
+    // alone would cancel when version increments transfer between objects (for example
+    // one bump on this object paired with one bump on a sub-object), and consumers
+    // treat an unchanged fold as permission to reuse recorded binding data.
+    uint64_t hash = (14695981039346656037ULL ^ m_version) * 1099511628211ULL;
     for (const auto& object : m_objects)
     {
         if (object)
@@ -108,6 +112,12 @@ Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size 
 
     uint8_t* dest = m_data.data();
     size_t availableSize = m_data.size();
+
+    // An offset past the end of the object's data can only be a caller error;
+    // clamping it would underflow and pass a bogus size to the comparison and
+    // the copy below.
+    if (dataOffset > availableSize)
+        return SLANG_E_INVALID_ARG;
 
     // This should be an error, but slang-test relies on this behavior.
     if ((dataOffset + dataSize) > availableSize)
@@ -412,6 +422,13 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
         return SLANG_E_INVALID_ARG;
     }
 
+    // Run the hook even when the slot is unchanged. The hook derives device-visible
+    // bytes (CUDA device pointers, texture object handles) from the slot and is
+    // idempotent, so re-running it on a redundant re-bind only restores any derived
+    // bytes that a raw setData may have overwritten.
+    if (m_setBindingHook)
+        m_setBindingHook(this, offset, slot, bindingRange.bindingType);
+
     // A binding that does not change the stored slot leaves the object's content
     // unchanged, so the version must not advance either (see setData).
     if (slot.type == oldSlot.type && slot.resource == oldSlot.resource && slot.resource2 == oldSlot.resource2 &&
@@ -419,9 +436,6 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     {
         return SLANG_OK;
     }
-
-    if (m_setBindingHook)
-        m_setBindingHook(this, offset, slot, bindingRange.bindingType);
 
     incrementVersion();
 
@@ -896,8 +910,11 @@ Result RootShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryP
     return SLANG_OK;
 }
 
-uint64_t RootShaderObject::getRecursiveVersion()
+uint64_t RootShaderObject::getRecursiveVersion() const
 {
+    // Entry-point objects are not sub-objects of the root (they are not reachable
+    // through binding ranges), so the base fold misses their versions; fold them too,
+    // because a mutation of an entry-point parameter must invalidate recorded state.
     uint64_t hash = ShaderObject::getRecursiveVersion();
     for (const auto& entryPoint : m_entryPoints)
     {

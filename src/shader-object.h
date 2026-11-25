@@ -245,8 +245,11 @@ public:
     // Unique ID of the shader object (generated on construction).
     uint32_t m_uid;
 
-    // Version of the shader object. Incremented only by modifications that actually
-    // change the object's content, so it serves as a content-dirty signal.
+    // Version of the shader object. Advanced by every content-changing modification,
+    // so an unchanged version implies unchanged content — the signal the command
+    // recording layer relies on when reusing recorded binding data. Some paths
+    // (setObject, reserveData, setSpecializationArgs) advance it conservatively
+    // without knowing whether the content changed, which costs only a missed reuse.
     uint32_t m_version = 0;
 
     // True if the shader object is finalized and no further modifications are allowed.
@@ -255,15 +258,21 @@ public:
     // The specialized shader object type.
     ExtendedShaderObjectType m_shaderObjectType = {nullptr, kInvalidComponentID};
 
+    // Hook called by setBinding with the fully formed slot. Implementations must be
+    // idempotent functions of (object, offset, slot, bindingType): the same slot must
+    // always produce the same derived state, because setBinding runs the hook even on
+    // a binding that does not change the stored slot.
     ShaderObjectSetBindingHook m_setBindingHook = nullptr;
 
 public:
     ShaderComponentID getComponentID() { return m_shaderObjectType.componentID; }
 
     /// Returns a version value that changes when the binding-relevant content of this
-    /// object or any of its sub-objects changes, so that consumers (e.g. command
-    /// recording) can treat "folded version unchanged" as "binding data can be reused".
-    virtual uint64_t getRecursiveVersion();
+    /// object, any of its sub-objects, or (for root objects) any of its entry-point
+    /// objects changes, so that consumers (e.g. command recording) can treat "folded
+    /// version unchanged" as "binding data can be reused". The fold walks the whole
+    /// sub-object tree, so its cost grows with the object hierarchy, not the data size.
+    virtual uint64_t getRecursiveVersion() const;
 
 public:
     // IShaderObject implementation
@@ -362,7 +371,7 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
 
-    virtual uint64_t getRecursiveVersion() override;
+    virtual uint64_t getRecursiveVersion() const override;
 
 public:
     static Result create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject);
