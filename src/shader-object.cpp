@@ -85,7 +85,9 @@ uint64_t ShaderObject::getRecursiveVersion() const
     // Every component goes through both the XOR and the multiply step: mixing with XOR
     // alone would cancel when version increments transfer between objects (for example
     // one bump on this object paired with one bump on a sub-object), and consumers
-    // treat an unchanged fold as permission to reuse recorded binding data.
+    // treat an unchanged fold as permission to reuse recorded binding data. The
+    // declaration doc states the hash-collision and version-wraparound bounds of
+    // that permission.
     uint64_t hash = (14695981039346656037ULL ^ m_version) * 1099511628211ULL;
     for (const auto& object : m_objects)
     {

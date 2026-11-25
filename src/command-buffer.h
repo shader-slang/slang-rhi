@@ -128,6 +128,16 @@ public:
     // m_pipelineSpecializationArgs list and the cached binding data into the cached
     // command list's arena, so both outlive the cache exactly as long as the other
     // key members match.
+    //
+    // The contract this cache rests on, stated once: recording reuses binding data
+    // exactly when the root's folded version is unchanged, and the folded version
+    // only stays put when the content stayed put. Every consumer of a repeated
+    // binding-data pointer must therefore treat it as "content unchanged", not as
+    // "bindings just established" - Vulkan re-requests the binding's resource
+    // states per state set, CUDA skips only the global-params copy while assuming
+    // it stayed this executor's only write, D3D12 sidesteps the question by
+    // re-binding fully per state set, and raw reserveData writes (invisible to the
+    // fold) are the caller's responsibility per the public reserveData doc.
     ComPtr<IComputePipeline> m_cachedBindingsPipeline;
     RefPtr<RootShaderObject> m_cachedBindingsRoot;
     CommandList* m_cachedBindingsCommandList = nullptr;
