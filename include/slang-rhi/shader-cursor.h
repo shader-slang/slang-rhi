@@ -55,6 +55,10 @@ struct ShaderCursor
     /// If the operation succeeds, then the field cursor is written to `outCursor`.
     Result getField(const char* nameBegin, const char* nameEnd, ShaderCursor& outCursor) const;
 
+    /// Form a cursor pointing to the field at the given index within the value this cursor
+    /// points at.
+    Result getFieldByIndex(SlangInt fieldIndex, ShaderCursor& outCursor) const;
+
     ShaderCursor getField(const char* name) const
     {
         ShaderCursor cursor;
@@ -153,79 +157,28 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     if (!isValid())
         return SLANG_E_INVALID_ARG;
 
-    // If the cursor is valid, we want to consider the type of data
-    // it is referencing.
+    // We try to resolve `name` as a direct field of the value this cursor
+    // points at, before considering the type of that value.
+    //
+    // Field lookup is a cheap linear name scan in the reflection layer, while
+    // querying the kind of a type layout is a far more expensive reflection
+    // round-trip, so the dominant case of a struct cursor is resolved without
+    // asking for the kind at all. Container layouts (constant buffers,
+    // parameter blocks) do not expose their wrapped fields to this query, so
+    // a lookup against a container cursor misses here and falls through to
+    // the switch below, which dereferences the cursor and retries.
+    //
+    {
+        SlangInt fieldIndex = m_typeLayout->findFieldIndexByName(name, nameEnd);
+        if (fieldIndex >= 0)
+            return getFieldByIndex(fieldIndex, outCursor);
+    }
+
+    // If the field could not be resolved directly, we consider the type of
+    // data this cursor is referencing.
     //
     switch (m_typeLayout->getKind())
     {
-        // The easy/expected case is when the value has a structure type.
-        //
-    case slang::TypeReflection::Kind::Struct:
-    {
-        // We start by looking up the index of a field matching `name`.
-        //
-        // If there is no such field, we have an error.
-        //
-        SlangInt fieldIndex = m_typeLayout->findFieldIndexByName(name, nameEnd);
-        if (fieldIndex == -1)
-            break;
-
-        // Once we know the index of the field being referenced,
-        // we create a cursor to point at the field, based on
-        // the offset information already in this cursor, plus
-        // offsets derived from the field's layout.
-        //
-        slang::VariableLayoutReflection* fieldLayout = m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
-        ShaderCursor fieldCursor;
-
-        // The field cursorwill point into the same parent object.
-        //
-        fieldCursor.m_baseObject = m_baseObject;
-
-        // The type being pointed to is the tyep of the field.
-        //
-        fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
-
-        // The byte offset is the current offset plus the relative offset of the field.
-        // The offset in binding ranges is computed similarly.
-        //
-        fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
-        fieldCursor.m_offset.bindingRangeIndex =
-            m_offset.bindingRangeIndex + (uint32_t)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
-
-        // The index of the field within any binding ranges will be the same
-        // as the index computed for the parent structure.
-        //
-        // Note: this case would arise for an array of structures with texture-type
-        // fields. Suppose we have:
-        //
-        //      struct S { Texture2D t; Texture2D u; }
-        //      S g[4];
-        //
-        // In this scenario, `g` holds two binding ranges:
-        //
-        // * Range #0 comprises 4 textures, representing `g[...].t`
-        // * Range #1 comprises 4 textures, representing `g[...].u`
-        //
-        // A cursor for `g[2]` would have a `bindingRangeIndex` of zero but
-        // a `bindingArrayIndex` of 2, iindicating that we could end up
-        // referencing either range, but no matter what we know the index
-        // is 2. Thus when we form a cursor for `g[2].u` we want to
-        // apply the binding range offset to get a `bindingRangeIndex` of
-        // 1, while the `bindingArrayIndex` is unmodified.
-        //
-        // The result is that `g[2].u` is stored in range #1 at array index 2.
-        //
-        fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
-
-        outCursor = fieldCursor;
-        return SLANG_OK;
-        break;
-    }
-    // In some cases the user might be trying to acess a field by name
-    // from a cursor that references a constant buffer or parameter block,
-    // and in these cases we want the access to Just Work.
-    //
     case slang::TypeReflection::Kind::ConstantBuffer:
     case slang::TypeReflection::Kind::ParameterBlock:
     {
@@ -266,6 +219,60 @@ inline Result ShaderCursor::getField(const char* name, const char* nameEnd, Shad
     }
 
     return SLANG_E_INVALID_ARG;
+}
+
+inline Result ShaderCursor::getFieldByIndex(SlangInt fieldIndex, ShaderCursor& outCursor) const
+{
+    // Once we know the index of the field being referenced,
+    // we create a cursor to point at the field, based on
+    // the offset information already in this cursor, plus
+    // offsets derived from the field's layout.
+    //
+    slang::VariableLayoutReflection* fieldLayout = m_typeLayout->getFieldByIndex((unsigned int)fieldIndex);
+    ShaderCursor fieldCursor;
+
+    // The field cursor will point into the same parent object.
+    //
+    fieldCursor.m_baseObject = m_baseObject;
+
+    // The type being pointed to is the type of the field.
+    //
+    fieldCursor.m_typeLayout = fieldLayout->getTypeLayout();
+
+    // The byte offset is the current offset plus the relative offset of the field.
+    // The offset in binding ranges is computed similarly.
+    //
+    fieldCursor.m_offset.uniformOffset = m_offset.uniformOffset + fieldLayout->getOffset();
+    fieldCursor.m_offset.bindingRangeIndex =
+        m_offset.bindingRangeIndex + (uint32_t)m_typeLayout->getFieldBindingRangeOffset(fieldIndex);
+
+    // The index of the field within any binding ranges will be the same
+    // as the index computed for the parent structure.
+    //
+    // Note: this case would arise for an array of structures with texture-type
+    // fields. Suppose we have:
+    //
+    //      struct S { Texture2D t; Texture2D u; }
+    //      S g[4];
+    //
+    // In this scenario, `g` holds two binding ranges:
+    //
+    // * Range #0 comprises 4 textures, representing `g[...].t`
+    // * Range #1 comprises 4 textures, representing `g[...].u`
+    //
+    // A cursor for `g[2]` would have a `bindingRangeIndex` of zero but
+    // a `bindingArrayIndex` of 2, indicating that we could end up
+    // referencing either range, but no matter what we know the index
+    // is 2. Thus when we form a cursor for `g[2].u` we want to
+    // apply the binding range offset to get a `bindingRangeIndex` of
+    // 1, while the `bindingArrayIndex` is unmodified.
+    //
+    // The result is that `g[2].u` is stored in range #1 at array index 2.
+    //
+    fieldCursor.m_offset.bindingArrayIndex = m_offset.bindingArrayIndex;
+
+    outCursor = fieldCursor;
+    return SLANG_OK;
 }
 
 inline ShaderCursor ShaderCursor::getExplicitCounter() const
