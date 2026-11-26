@@ -226,6 +226,13 @@ Result VulkanApi::initDeviceProcs(VkDevice device)
         return SLANG_FAIL;
     }
 
+    // An imported device may use dynamic rendering from Vulkan 1.3 core without enabling VK_KHR_dynamic_rendering,
+    // in which case only the core entry points are available.
+    if (!vkCmdBeginRenderingKHR)
+        vkCmdBeginRenderingKHR = (PFN_vkCmdBeginRenderingKHR)vkGetDeviceProcAddr(device, "vkCmdBeginRendering");
+    if (!vkCmdEndRenderingKHR)
+        vkCmdEndRenderingKHR = (PFN_vkCmdEndRenderingKHR)vkGetDeviceProcAddr(device, "vkCmdEndRendering");
+
     if (!vkGetBufferDeviceAddressKHR && vkGetBufferDeviceAddressEXT)
         vkGetBufferDeviceAddressKHR = vkGetBufferDeviceAddressEXT;
     if (!vkGetBufferDeviceAddress && vkGetBufferDeviceAddressKHR)

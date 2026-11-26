@@ -27,6 +27,7 @@
 #include "core/platform.h"
 
 #include <algorithm>
+#include <cstring>
 #include <set>
 #include <string>
 #include <vector>
@@ -185,11 +186,13 @@ DeviceImpl::~DeviceImpl()
         if (!m_existingDeviceHandles.handles[2])
             m_api.vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;
-        if (m_debugReportCallback != VK_NULL_HANDLE)
-            m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
-        if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
-            m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
+    // Also clean up when initialization failed before the device was created. In particular, the debug messenger
+    // must not outlive this object when the instance is shared with the application.
+    if (m_debugReportCallback != VK_NULL_HANDLE)
+        m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
+    if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
+        m_api.vkDestroyInstance(m_api.m_instance, nullptr);
 }
 
 void DeviceImpl::deferDelete(Resource* resource)
@@ -338,6 +341,205 @@ static bool _hasAnySetBits(const T& val, size_t offset)
         if (ptr[i])
             return true;
     return false;
+}
+
+// Returns the structure with the given type in a Vulkan pNext chain, or nullptr if there is none.
+template<typename T>
+static const T* findInChain(const void* chain, VkStructureType sType)
+{
+    for (const VkBaseInStructure* s = static_cast<const VkBaseInStructure*>(chain); s; s = s->pNext)
+        if (s->sType == sType)
+            return reinterpret_cast<const T*>(s);
+    return nullptr;
+}
+
+// Vulkan feature structures consist of sType and pNext followed by VkBool32 members only.
+static constexpr size_t kFeatureBitsOffset = sizeof(VkBaseOutStructure);
+
+// Copies the feature bits from another structure of the same type, leaving sType and pNext untouched.
+template<typename T>
+static void copyFeatureBits(T& dst, const T& src)
+{
+    std::memcpy(
+        reinterpret_cast<uint8_t*>(&dst) + kFeatureBitsOffset,
+        reinterpret_cast<const uint8_t*>(&src) + kFeatureBitsOffset,
+        sizeof(T) - kFeatureBitsOffset
+    );
+}
+
+// Clears all feature bits in `features` that are not set in `enabled`.
+// `offset` is the offset of the first feature bit (0 for VkPhysicalDeviceFeatures).
+template<typename T>
+static void restrictFeatureBits(T& features, const T& enabled, size_t offset = kFeatureBitsOffset)
+{
+    VkBool32* dst = reinterpret_cast<VkBool32*>(reinterpret_cast<uint8_t*>(&features) + offset);
+    const VkBool32* src = reinterpret_cast<const VkBool32*>(reinterpret_cast<const uint8_t*>(&enabled) + offset);
+    for (size_t i = 0; i < (sizeof(T) - offset) / sizeof(VkBool32); i++)
+        dst[i] = (dst[i] && src[i]) ? VK_TRUE : VK_FALSE;
+}
+
+// Device extensions that feature detection checks by name, together with the core version they were promoted to.
+// A device using that core version provides their functionality without enabling the extension
+// (their features still need to be enabled).
+static const std::pair<const char*, uint32_t> kPromotedDeviceExtensions[] = {
+    {VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME, VK_API_VERSION_1_1},
+    {VK_KHR_16BIT_STORAGE_EXTENSION_NAME, VK_API_VERSION_1_1},
+    {VK_KHR_MULTIVIEW_EXTENSION_NAME, VK_API_VERSION_1_1},
+    {VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME, VK_API_VERSION_1_1},
+    {VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, VK_API_VERSION_1_3},
+    {VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME, VK_API_VERSION_1_3},
+    {VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME, VK_API_VERSION_1_3},
+    {VK_EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_EXTENSION_NAME, VK_API_VERSION_1_3},
+    {VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, VK_API_VERSION_1_3},
+    {VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME, VK_API_VERSION_1_4},
+    {VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME, VK_API_VERSION_1_4},
+};
+
+// Collects the features that were enabled on an imported device from the VkDeviceCreateInfo it was created with.
+// The features of a core version (VkPhysicalDeviceVulkanXXFeatures) and of the extensions promoted to it are
+// merged, so a feature is recognized regardless of which structure was used to enable it.
+static VulkanExtendedFeatures getEnabledFeatures(
+    const VkDeviceCreateInfo& createInfo,
+    const std::set<std::string>& enabledExtensions,
+    VkPhysicalDeviceFeatures& outFeatures
+)
+{
+    const void* chain = createInfo.pNext;
+
+    outFeatures = {};
+    if (createInfo.pEnabledFeatures)
+        outFeatures = *createInfo.pEnabledFeatures;
+    else if (auto f = findInChain<VkPhysicalDeviceFeatures2>(chain, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2))
+        outFeatures = f->features;
+
+    VulkanExtendedFeatures e;
+#define COPY_ENABLED_FEATURES(name)                                                                                    \
+    if (auto s = findInChain<decltype(e.name)>(chain, e.name.sType))                                                   \
+        copyFeatureBits(e.name, *s);
+    VK_EXTENDED_FEATURE_STRUCTS(COPY_ENABLED_FEATURES)
+    COPY_ENABLED_FEATURES(vulkan12Features)
+    COPY_ENABLED_FEATURES(vulkan13Features)
+    COPY_ENABLED_FEATURES(vulkan14Features)
+#undef COPY_ENABLED_FEATURES
+
+    // Merges a feature that can be enabled through either of two structures.
+    auto merge = [](VkBool32& a, VkBool32& b)
+    {
+        a = b = (a || b) ? VK_TRUE : VK_FALSE;
+    };
+
+    // Vulkan 1.1 (VulkanExtendedFeatures only contains the structures of the promoted extensions).
+    if (auto v11 =
+            findInChain<VkPhysicalDeviceVulkan11Features>(chain, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES))
+    {
+        e.storage16BitFeatures.storageBuffer16BitAccess |= v11->storageBuffer16BitAccess;
+        e.storage16BitFeatures.uniformAndStorageBuffer16BitAccess |= v11->uniformAndStorageBuffer16BitAccess;
+        e.storage16BitFeatures.storagePushConstant16 |= v11->storagePushConstant16;
+        e.storage16BitFeatures.storageInputOutput16 |= v11->storageInputOutput16;
+        e.multiviewFeatures.multiview |= v11->multiview;
+        e.multiviewFeatures.multiviewGeometryShader |= v11->multiviewGeometryShader;
+        e.multiviewFeatures.multiviewTessellationShader |= v11->multiviewTessellationShader;
+        e.variablePointersFeatures.variablePointersStorageBuffer |= v11->variablePointersStorageBuffer;
+        e.variablePointersFeatures.variablePointers |= v11->variablePointers;
+        e.shaderDrawParametersFeatures.shaderDrawParameters |= v11->shaderDrawParameters;
+    }
+
+    // Vulkan 1.2
+    auto& v12 = e.vulkan12Features;
+    auto& di = e.descriptorIndexingFeatures;
+    merge(v12.shaderInputAttachmentArrayDynamicIndexing, di.shaderInputAttachmentArrayDynamicIndexing);
+    merge(v12.shaderUniformTexelBufferArrayDynamicIndexing, di.shaderUniformTexelBufferArrayDynamicIndexing);
+    merge(v12.shaderStorageTexelBufferArrayDynamicIndexing, di.shaderStorageTexelBufferArrayDynamicIndexing);
+    merge(v12.shaderUniformBufferArrayNonUniformIndexing, di.shaderUniformBufferArrayNonUniformIndexing);
+    merge(v12.shaderSampledImageArrayNonUniformIndexing, di.shaderSampledImageArrayNonUniformIndexing);
+    merge(v12.shaderStorageBufferArrayNonUniformIndexing, di.shaderStorageBufferArrayNonUniformIndexing);
+    merge(v12.shaderStorageImageArrayNonUniformIndexing, di.shaderStorageImageArrayNonUniformIndexing);
+    merge(v12.shaderInputAttachmentArrayNonUniformIndexing, di.shaderInputAttachmentArrayNonUniformIndexing);
+    merge(v12.shaderUniformTexelBufferArrayNonUniformIndexing, di.shaderUniformTexelBufferArrayNonUniformIndexing);
+    merge(v12.shaderStorageTexelBufferArrayNonUniformIndexing, di.shaderStorageTexelBufferArrayNonUniformIndexing);
+    merge(v12.descriptorBindingUniformBufferUpdateAfterBind, di.descriptorBindingUniformBufferUpdateAfterBind);
+    merge(v12.descriptorBindingSampledImageUpdateAfterBind, di.descriptorBindingSampledImageUpdateAfterBind);
+    merge(v12.descriptorBindingStorageImageUpdateAfterBind, di.descriptorBindingStorageImageUpdateAfterBind);
+    merge(v12.descriptorBindingStorageBufferUpdateAfterBind, di.descriptorBindingStorageBufferUpdateAfterBind);
+    merge(
+        v12.descriptorBindingUniformTexelBufferUpdateAfterBind,
+        di.descriptorBindingUniformTexelBufferUpdateAfterBind
+    );
+    merge(
+        v12.descriptorBindingStorageTexelBufferUpdateAfterBind,
+        di.descriptorBindingStorageTexelBufferUpdateAfterBind
+    );
+    merge(v12.descriptorBindingUpdateUnusedWhilePending, di.descriptorBindingUpdateUnusedWhilePending);
+    merge(v12.descriptorBindingPartiallyBound, di.descriptorBindingPartiallyBound);
+    merge(v12.descriptorBindingVariableDescriptorCount, di.descriptorBindingVariableDescriptorCount);
+    merge(v12.runtimeDescriptorArray, di.runtimeDescriptorArray);
+    // Structures of promoted extensions that are not part of VulkanExtendedFeatures.
+    // Only the features that slang-rhi checks in vulkan12Features are merged.
+    if (auto s = findInChain<VkPhysicalDeviceShaderFloat16Int8Features>(
+            chain,
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES
+        ))
+    {
+        v12.shaderFloat16 |= s->shaderFloat16;
+        v12.shaderInt8 |= s->shaderInt8;
+    }
+    if (auto s = findInChain<VkPhysicalDeviceShaderAtomicInt64Features>(
+            chain,
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES
+        ))
+    {
+        v12.shaderBufferInt64Atomics |= s->shaderBufferInt64Atomics;
+        v12.shaderSharedInt64Atomics |= s->shaderSharedInt64Atomics;
+    }
+    if (auto s = findInChain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
+            chain,
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES
+        ))
+    {
+        v12.bufferDeviceAddress |= s->bufferDeviceAddress;
+        v12.bufferDeviceAddressCaptureReplay |= s->bufferDeviceAddressCaptureReplay;
+        v12.bufferDeviceAddressMultiDevice |= s->bufferDeviceAddressMultiDevice;
+    }
+    if (auto s = findInChain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
+            chain,
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES
+        ))
+    {
+        v12.vulkanMemoryModel |= s->vulkanMemoryModel;
+        v12.vulkanMemoryModelDeviceScope |= s->vulkanMemoryModelDeviceScope;
+        v12.vulkanMemoryModelAvailabilityVisibilityChains |= s->vulkanMemoryModelAvailabilityVisibilityChains;
+    }
+    if (auto s = findInChain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
+            chain,
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES
+        ))
+    {
+        v12.timelineSemaphore |= s->timelineSemaphore;
+    }
+    // Vulkan 1.2 features that correspond to enabling an extension.
+    if (enabledExtensions.count(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME))
+        v12.descriptorIndexing = VK_TRUE;
+    if (enabledExtensions.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
+        v12.shaderOutputViewportIndex = v12.shaderOutputLayer = VK_TRUE;
+
+    // Vulkan 1.3
+    auto& v13 = e.vulkan13Features;
+    merge(v13.inlineUniformBlock, e.inlineUniformBlockFeatures.inlineUniformBlock);
+    merge(
+        v13.descriptorBindingInlineUniformBlockUpdateAfterBind,
+        e.inlineUniformBlockFeatures.descriptorBindingInlineUniformBlockUpdateAfterBind
+    );
+    merge(v13.dynamicRendering, e.dynamicRenderingFeatures.dynamicRendering);
+    merge(v13.shaderIntegerDotProduct, e.shaderIntegerDotProductFeatures.shaderIntegerDotProduct);
+    merge(v13.shaderDemoteToHelperInvocation, e.shaderDemoteToHelperInvocationFeatures.shaderDemoteToHelperInvocation);
+
+    // Vulkan 1.4
+    auto& v14 = e.vulkan14Features;
+    merge(v14.dynamicRenderingLocalRead, e.dynamicRenderingLocalReadFeatures.dynamicRenderingLocalRead);
+    merge(v14.shaderSubgroupRotate, e.shaderSubgroupRotateFeatures.shaderSubgroupRotate);
+    merge(v14.shaderSubgroupRotateClustered, e.shaderSubgroupRotateFeatures.shaderSubgroupRotateClustered);
+
+    return e;
 }
 
 Result DeviceImpl::initVulkanInstance(
@@ -604,11 +806,77 @@ Result DeviceImpl::initVulkanDevice(
     for (const auto& e : extensions)
         extensionNames.emplace(e.extensionName);
 
+    const bool importingDevice = bool(desc.existingDeviceHandles.handles[2]);
+
+    // Get the API version the device is used with. An imported device can be limited to a lower version than the
+    // physical device supports, by the API version of its instance.
+    uint32_t apiVersion = VK_MAKE_VERSION(
+        VK_VERSION_MAJOR(m_api.m_deviceProperties.apiVersion),
+        VK_VERSION_MINOR(m_api.m_deviceProperties.apiVersion),
+        0
+    );
+    if (importingDevice && extendedDesc && extendedDesc->existingDeviceApiVersion != 0)
+    {
+        const uint32_t version = extendedDesc->existingDeviceApiVersion;
+        apiVersion = std::min(apiVersion, VK_MAKE_VERSION(VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), 0));
+    }
+
+    // When importing a device, Vulkan cannot tell which extensions and features were enabled on it.
+    // If the application describes them, only use (and report) those. Otherwise assume that everything the
+    // physical device supports is enabled.
+    const VkDeviceCreateInfo* existingCreateInfo = nullptr;
+    VkPhysicalDeviceFeatures enabledFeatures = {};
+    VulkanExtendedFeatures enabledExtendedFeatures;
+    if (importingDevice)
+    {
+        if (extendedDesc)
+            existingCreateInfo = static_cast<const VkDeviceCreateInfo*>(extendedDesc->existingDeviceCreateInfo);
+        if (existingCreateInfo)
+        {
+            if (existingCreateInfo->sType != VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
+            {
+                printError("VulkanDeviceExtendedDesc::existingDeviceCreateInfo must point to a VkDeviceCreateInfo.\n");
+                return SLANG_E_INVALID_ARG;
+            }
+
+            std::set<std::string> enabledExtensionNames;
+            for (uint32_t i = 0; i < existingCreateInfo->enabledExtensionCount; i++)
+            {
+                const char* name = existingCreateInfo->ppEnabledExtensionNames[i];
+                if (name && extensionNames.count(name))
+                    enabledExtensionNames.insert(name);
+            }
+            for (const auto& [name, version] : kPromotedDeviceExtensions)
+            {
+                if (apiVersion >= version)
+                    enabledExtensionNames.insert(name);
+            }
+            extensionNames = std::move(enabledExtensionNames);
+
+            enabledExtendedFeatures = getEnabledFeatures(*existingCreateInfo, extensionNames, enabledFeatures);
+            restrictFeatureBits(m_api.m_deviceFeatures, enabledFeatures, 0);
+        }
+        else
+        {
+            printWarning(
+                "Importing a VkDevice without VulkanDeviceExtendedDesc::existingDeviceCreateInfo. Assuming that all "
+                "extensions and features supported by the physical device are enabled.\n"
+            );
+        }
+    }
+
     std::vector<const char*> deviceExtensions;
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
-    availableCapabilities.push_back(Capability::SPV_KHR_non_semantic_info);
-    availableCapabilities.push_back(Capability::spvNonSemanticInfoKHR);
+    if (!existingCreateInfo || extensionNames.count(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+    {
+        availableFeatures.push_back(Feature::Surface);
+    }
+    if (!existingCreateInfo || extensionNames.count(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME))
+    {
+        availableCapabilities.push_back(Capability::SPV_KHR_non_semantic_info);
+        availableCapabilities.push_back(Capability::spvNonSemanticInfoKHR);
+    }
 
     VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount = 1;
@@ -631,7 +899,15 @@ Result DeviceImpl::initVulkanDevice(
         deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
         // Physical support does not establish which features an imported device enabled.
         m_supportsImageView2DOn3DImage = false;
-        if (!desc.existingDeviceHandles.handles[2] && m_api.vkGetPhysicalDeviceFeatures2)
+        if (existingCreateInfo)
+        {
+            auto enabled = findInChain<VkPhysicalDevicePortabilitySubsetFeaturesKHR>(
+                existingCreateInfo->pNext,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
+            );
+            m_supportsImageView2DOn3DImage = enabled && enabled->imageView2DOn3DImage;
+        }
+        else if (!importingDevice && m_api.vkGetPhysicalDeviceFeatures2)
         {
             VkPhysicalDevicePortabilitySubsetFeaturesKHR supported = {
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
@@ -646,12 +922,8 @@ Result DeviceImpl::initVulkanDevice(
         }
     }
 
-    VkPhysicalDeviceProperties basicProps = {};
-    m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
-
-    // Get the API version
-    const uint32_t majorVersion = VK_VERSION_MAJOR(basicProps.apiVersion);
-    const uint32_t minorVersion = VK_VERSION_MINOR(basicProps.apiVersion);
+    const uint32_t majorVersion = VK_VERSION_MAJOR(apiVersion);
+    const uint32_t minorVersion = VK_VERSION_MINOR(apiVersion);
     m_hasSubgroupSizeControl = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
                                extensionNames.count(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) != 0;
 
@@ -671,55 +943,9 @@ Result DeviceImpl::initVulkanDevice(
         // Get device features
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
 
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.inlineUniformBlockFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPipelineFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayQueryFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPositionFetchFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingMotionBlurFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.opacityMicromapFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.computeShaderDerivativesFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.extendedDynamicStateFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.storage16BitFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.robustness2Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clockFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.atomicFloatFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.atomicFloat2Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.imageInt64AtomicFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.meshShaderFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.multiviewFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShadingRateFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingValidationFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDrawParametersFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.dynamicRenderingFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.customBorderColorFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.dynamicRenderingLocalReadFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.formats4444Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderMaximalReconvergenceFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderQuadControlFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderIntegerDotProductFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeVectorFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingLinearSweptSpheresFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clusterAccelerationStructureFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix1Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderFloat8Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.descriptorIndexingFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.mutableDescriptorTypeFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.pipelineBinaryFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderSubgroupRotateFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderReplicatedCompositesFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderBarycentricFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderSubgroupPartitionedFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.faultFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderConstantDataFeatures);
+#define QUERY_FEATURES(name) EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.name);
+        VK_EXTENDED_FEATURE_STRUCTS(QUERY_FEATURES)
+#undef QUERY_FEATURES
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -737,6 +963,18 @@ Result DeviceImpl::initVulkanDevice(
         }
 
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
+
+        // Only keep the features that were enabled on an imported device.
+        if (existingCreateInfo)
+        {
+            restrictFeatureBits(deviceFeatures2.features, enabledFeatures, 0);
+#define RESTRICT_FEATURES(name) restrictFeatureBits(extendedFeatures.name, enabledExtendedFeatures.name);
+            VK_EXTENDED_FEATURE_STRUCTS(RESTRICT_FEATURES)
+            RESTRICT_FEATURES(vulkan12Features)
+            RESTRICT_FEATURES(vulkan13Features)
+            RESTRICT_FEATURES(vulkan14Features)
+#undef RESTRICT_FEATURES
+        }
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
@@ -946,8 +1184,9 @@ Result DeviceImpl::initVulkanDevice(
             extendedDynamicState,
             VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
             {
-                // Physical support does not establish which extensions an imported device enabled.
-                m_hasExtendedDynamicState = !desc.existingDeviceHandles.handles[2];
+                // Physical support does not establish which extensions an imported device enabled,
+                // so only use extended dynamic state on an imported device if it is known to be enabled.
+                m_hasExtendedDynamicState = !importingDevice || existingCreateInfo;
                 if (m_hasExtendedDynamicState && m_api.m_deviceFeatures.multiViewport &&
                     (extendedFeatures.vulkan12Features.shaderOutputViewportIndex ||
                      extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME)))
@@ -1377,7 +1616,7 @@ Result DeviceImpl::initVulkanDevice(
 #undef SIMPLE_EXTENSION_FEATURE
 
         SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport));
-        if (m_calibratedTimestampSupport.available && !desc.existingDeviceHandles.handles[2])
+        if (m_calibratedTimestampSupport.available && !importingDevice)
         {
             deviceExtensions.push_back(m_calibratedTimestampSupport.deviceExtensionName);
         }
@@ -1572,7 +1811,42 @@ Result DeviceImpl::initVulkanDevice(
         availableCapabilities.push_back(Capability::_spirv_1_6);
     }
 
-    int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    if (existingCreateInfo && !extendedFeatures.vulkan12Features.timelineSemaphore)
+    {
+        printError("The imported VkDevice must be created with the timelineSemaphore feature enabled.\n");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    int queueFamilyIndex = -1;
+    if (existingCreateInfo)
+    {
+        // Use a queue that was created on the imported device.
+        uint32_t queueFamilyCount = 0;
+        m_api.vkGetPhysicalDeviceQueueFamilyProperties(m_api.m_physicalDevice, &queueFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        m_api.vkGetPhysicalDeviceQueueFamilyProperties(m_api.m_physicalDevice, &queueFamilyCount, queueFamilies.data());
+        const VkQueueFlags requiredFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+        for (uint32_t i = 0; i < existingCreateInfo->queueCreateInfoCount; i++)
+        {
+            const VkDeviceQueueCreateInfo& queueCreateInfo = existingCreateInfo->pQueueCreateInfos[i];
+            if (queueCreateInfo.flags == 0 && queueCreateInfo.queueCount > 0 &&
+                queueCreateInfo.queueFamilyIndex < queueFamilyCount &&
+                (queueFamilies[queueCreateInfo.queueFamilyIndex].queueFlags & requiredFlags) == requiredFlags)
+            {
+                queueFamilyIndex = int(queueCreateInfo.queueFamilyIndex);
+                break;
+            }
+        }
+        if (queueFamilyIndex < 0)
+        {
+            printError("The imported VkDevice has no queue that supports both graphics and compute.\n");
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+    else
+    {
+        queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    }
     SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
     m_queueFamilyIndex = queueFamilyIndex;
 
@@ -1875,7 +2149,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     bool isSoftwareDevice = (basicProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_OTHER) ||
                             (basicProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU);
     addFeature(isSoftwareDevice ? Feature::SoftwareDevice : Feature::HardwareDevice);
-    addFeature(Feature::Surface);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
     addFeature(Feature::CombinedTextureSampler);

@@ -3666,7 +3666,8 @@ struct DeviceDesc
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
     // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
-    // VkPhysicalDevice, and the third is the VkDevice.
+    // VkPhysicalDevice, and the third is the VkDevice. When importing a VkDevice, use
+    // VulkanDeviceExtendedDesc::existingDeviceCreateInfo to describe the extensions and features it was created with.
     // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
     // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;
@@ -4573,6 +4574,21 @@ struct VulkanDeviceExtendedDesc
     const char* const* instanceExtensions = nullptr;
     uint32_t deviceExtensionCount = 0;
     const char* const* deviceExtensions = nullptr;
+
+    /// Pointer to the `VkDeviceCreateInfo` that was used to create the `VkDevice` passed in
+    /// `DeviceDesc::existingDeviceHandles`. Ignored unless an existing `VkDevice` is imported.
+    /// Vulkan cannot be queried for the extensions and features that were enabled on a device, so this is
+    /// needed for slang-rhi to only use, and only report, the extensions listed in `ppEnabledExtensionNames` and
+    /// the features enabled through `pEnabledFeatures` or the feature structures in the `pNext` chain.
+    /// slang-rhi also uses queue 0 of the first queue family in `pQueueCreateInfos` that supports both graphics and
+    /// compute. The device must have been created with the `timelineSemaphore` feature enabled.
+    /// The structure only needs to stay valid for the duration of `IRHI::createDevice`.
+    /// If not set, slang-rhi assumes that all extensions and features supported by the physical device are enabled.
+    const void* existingDeviceCreateInfo = nullptr;
+    /// Vulkan API version that the imported `VkDevice` can be used with, that is, the lower of the
+    /// `VkApplicationInfo::apiVersion` the instance was created with and the physical device's API version.
+    /// Ignored unless an existing `VkDevice` is imported. If 0, the physical device's API version is used.
+    uint32_t existingDeviceApiVersion = 0;
 };
 
 } // namespace rhi

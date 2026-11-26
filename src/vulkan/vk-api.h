@@ -582,6 +582,74 @@ struct VulkanExtendedFeatures
     };
 };
 
+// clang-format off
+
+// All members of VulkanExtendedFeatures except the core vulkan12Features, vulkan13Features and vulkan14Features.
+#define VK_EXTENDED_FEATURE_STRUCTS(x) \
+    x(inlineUniformBlockFeatures) \
+    x(rayTracingPipelineFeatures) \
+    x(rayQueryFeatures) \
+    x(rayTracingPositionFetchFeatures) \
+    x(rayTracingMotionBlurFeatures) \
+    x(rayTracingInvocationReorderFeatures) \
+    x(accelerationStructureFeatures) \
+    x(opacityMicromapFeatures) \
+    x(variablePointersFeatures) \
+    x(computeShaderDerivativesFeatures) \
+    x(extendedDynamicStateFeatures) \
+    x(storage16BitFeatures) \
+    x(robustness2Features) \
+    x(clockFeatures) \
+    x(atomicFloatFeatures) \
+    x(atomicFloat2Features) \
+    x(imageInt64AtomicFeatures) \
+    x(meshShaderFeatures) \
+    x(multiviewFeatures) \
+    x(fragmentShadingRateFeatures) \
+    x(rayTracingValidationFeatures) \
+    x(shaderDrawParametersFeatures) \
+    x(dynamicRenderingFeatures) \
+    x(customBorderColorFeatures) \
+    x(dynamicRenderingLocalReadFeatures) \
+    x(formats4444Features) \
+    x(shaderMaximalReconvergenceFeatures) \
+    x(shaderQuadControlFeatures) \
+    x(shaderIntegerDotProductFeatures) \
+    x(cooperativeVectorFeatures) \
+    x(rayTracingLinearSweptSpheresFeatures) \
+    x(clusterAccelerationStructureFeatures) \
+    x(cooperativeMatrix1Features) \
+    x(shaderFloat8Features) \
+    x(descriptorIndexingFeatures) \
+    x(mutableDescriptorTypeFeatures) \
+    x(pipelineBinaryFeatures) \
+    x(shaderSubgroupRotateFeatures) \
+    x(shaderReplicatedCompositesFeatures) \
+    x(fragmentShaderBarycentricFeatures) \
+    x(vertexAttributeRobustnessFeatures) \
+    x(fragmentShaderInterlockFeatures) \
+    x(shaderDemoteToHelperInvocationFeatures) \
+    x(shaderSubgroupPartitionedFeatures) \
+    x(shaderBfloat16Features) \
+    x(cooperativeMatrix2Features) \
+    x(shaderAbortFeatures) \
+    x(faultFeatures) \
+    x(shaderConstantDataFeatures) \
+    /* */
+
+// clang-format on
+
+// Make sure VK_EXTENDED_FEATURE_STRUCTS lists every member of VulkanExtendedFeatures.
+#define VK_EXTENDED_FEATURE_STRUCT_SIZE(name) +sizeof(VulkanExtendedFeatures::name)
+static_assert(
+    sizeof(VulkanExtendedFeatures) == sizeof(VulkanExtendedFeatures::vulkan12Features) +
+                                          sizeof(VulkanExtendedFeatures::vulkan13Features) +
+                                          sizeof(VulkanExtendedFeatures::vulkan14Features)
+                                              VK_EXTENDED_FEATURE_STRUCTS(VK_EXTENDED_FEATURE_STRUCT_SIZE),
+    "VK_EXTENDED_FEATURE_STRUCTS must list all members of VulkanExtendedFeatures"
+);
+#undef VK_EXTENDED_FEATURE_STRUCT_SIZE
+
 struct VulkanApi
 {
     VK_API_ALL_PROCS(VK_API_DECLARE_PROC)
