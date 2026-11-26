@@ -689,6 +689,8 @@ struct VulkanApi
     /// Module this was all loaded from.
     const VulkanModule* m_module = nullptr;
     VkInstance m_instance = VK_NULL_HANDLE;
+    /// API version the instance was created with, or 0 if unknown (for an imported instance).
+    uint32_t m_instanceApiVersion = 0;
     VkDevice m_device = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 

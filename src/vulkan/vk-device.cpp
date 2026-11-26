@@ -718,6 +718,7 @@ Result DeviceImpl::initVulkanInstance(
             const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
             if (r == VK_SUCCESS)
             {
+                m_api.m_instanceApiVersion = apiVersion;
                 break;
             }
         }
@@ -830,18 +831,18 @@ Result DeviceImpl::initVulkanDevice(
 
     const bool importingDevice = bool(desc.existingDeviceHandles.handles[2]);
 
-    // Get the API version the device is used with. An imported device can be limited to a lower version than the
-    // physical device supports, by the API version of its instance.
-    uint32_t apiVersion = VK_MAKE_VERSION(
-        VK_VERSION_MAJOR(m_api.m_deviceProperties.apiVersion),
-        VK_VERSION_MINOR(m_api.m_deviceProperties.apiVersion),
-        0
-    );
-    if (importingDevice && extendedDesc && extendedDesc->existingDeviceApiVersion != 0)
+    // Get the API version the device is used with: the lower of the version the physical device supports and the
+    // version the instance was created with. The latter is only known if slang-rhi created the instance, or if the
+    // application provides it for an imported device.
+    const auto majorMinor = [](uint32_t version)
     {
-        const uint32_t version = extendedDesc->existingDeviceApiVersion;
-        apiVersion = std::min(apiVersion, VK_MAKE_VERSION(VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), 0));
-    }
+        return VK_MAKE_VERSION(VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), 0);
+    };
+    uint32_t apiVersion = majorMinor(m_api.m_deviceProperties.apiVersion);
+    if (m_api.m_instanceApiVersion != 0)
+        apiVersion = std::min(apiVersion, majorMinor(m_api.m_instanceApiVersion));
+    if (importingDevice && extendedDesc && extendedDesc->existingDeviceApiVersion != 0)
+        apiVersion = std::min(apiVersion, majorMinor(extendedDesc->existingDeviceApiVersion));
 
     // When importing a device, Vulkan cannot tell which extensions and features were enabled on it.
     // If the application describes them, only use (and report) those. Otherwise assume that everything the
@@ -957,10 +958,8 @@ Result DeviceImpl::initVulkanDevice(
         }
     }
 
-    const uint32_t majorVersion = VK_VERSION_MAJOR(apiVersion);
-    const uint32_t minorVersion = VK_VERSION_MINOR(apiVersion);
-    m_hasSubgroupSizeControl = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
-                               extensionNames.count(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) != 0;
+    m_hasSubgroupSizeControl =
+        apiVersion >= VK_API_VERSION_1_3 || extensionNames.count(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) != 0;
 
     auto& extendedFeatures = m_api.m_extendedFeatures;
 
@@ -972,8 +971,7 @@ Result DeviceImpl::initVulkanDevice(
 
     // API version check, can't use vkGetPhysicalDeviceProperties2 yet since this device might not
     // support it
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1 && m_api.vkGetPhysicalDeviceProperties2 &&
-        m_api.vkGetPhysicalDeviceFeatures2)
+    if (apiVersion >= VK_API_VERSION_1_1 && m_api.vkGetPhysicalDeviceProperties2 && m_api.vkGetPhysicalDeviceFeatures2)
     {
         // Get device features
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
@@ -982,17 +980,17 @@ Result DeviceImpl::initVulkanDevice(
         VK_EXTENDED_FEATURE_STRUCTS(QUERY_FEATURES)
 #undef QUERY_FEATURES
 
-        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
+        if (apiVersion >= VK_API_VERSION_1_2)
         {
             EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan12Features);
         }
 
-        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
+        if (apiVersion >= VK_API_VERSION_1_3)
         {
             EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan13Features);
         }
 
-        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_4)
+        if (apiVersion >= VK_API_VERSION_1_4)
         {
             EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan14Features);
         }
@@ -1267,8 +1265,8 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             availableFeatures.push_back(Feature::AccelerationStructure);
 
-            const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
-                                             extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+            const bool hasSynchronization2 =
+                apiVersion >= VK_API_VERSION_1_3 || extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
             if (hasSynchronization2)
             {
                 SIMPLE_EXTENSION_FEATURE(
@@ -1276,7 +1274,7 @@ Result DeviceImpl::initVulkanDevice(
                     micromap,
                     VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
                     {
-                        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_3)
+                        if (apiVersion < VK_API_VERSION_1_3)
                             deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
                         availableFeatures.push_back(Feature::OpacityMicromap);
                     }
@@ -1830,18 +1828,18 @@ Result DeviceImpl::initVulkanDevice(
 
     // Detect SPIRV version
     availableCapabilities.push_back(Capability::_spirv_1_0);
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1)
+    if (apiVersion >= VK_API_VERSION_1_1)
     {
         availableCapabilities.push_back(Capability::_spirv_1_1);
         availableCapabilities.push_back(Capability::_spirv_1_2);
         availableCapabilities.push_back(Capability::_spirv_1_3);
     }
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
+    if (apiVersion >= VK_API_VERSION_1_2)
     {
         availableCapabilities.push_back(Capability::_spirv_1_4);
         availableCapabilities.push_back(Capability::_spirv_1_5);
     }
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
+    if (apiVersion >= VK_API_VERSION_1_3)
     {
         availableCapabilities.push_back(Capability::_spirv_1_6);
     }
@@ -1954,8 +1952,8 @@ Result DeviceImpl::initVulkanDevice(
 #if SLANG_PROCESSOR_ARM_64
     // Ray tracing pipelines are currently broken on ARM64 lavapipe. Keep feature detection and device
     // creation unchanged, but do not advertise the affected features or shader capabilities.
-    if (m_api.vkGetPhysicalDeviceProperties2 && (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2 ||
-                                                 extensionNames.count(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME)))
+    if (m_api.vkGetPhysicalDeviceProperties2 &&
+        (apiVersion >= VK_API_VERSION_1_2 || extensionNames.count(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME)))
     {
         VkPhysicalDeviceDriverProperties driverProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
         VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
