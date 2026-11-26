@@ -1572,6 +1572,10 @@ public:
             stream
         ));
 
+        const auto& desc = m_device->m_preLaunchCallbackDesc;
+        if (desc.callback)
+            desc.callback(stream, desc.userData);
+
         SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
             pipelineImpl->m_pipeline,
             stream,
