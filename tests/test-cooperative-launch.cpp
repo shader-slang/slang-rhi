@@ -77,6 +77,35 @@ ComPtr<ICommandBuffer> recordGridSum(IDevice* device, IComputePipeline* pipeline
     return commandEncoder->finish();
 }
 
+ComPtr<IComputePipeline> createEntryPointParamsPipeline(IDevice* device)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-cooperative-launch", "computeEntryPointParams", shaderProgram.writeRef()));
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    pipelineDesc.flags = ComputePipelineFlags::CooperativeLaunch;
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+    return pipeline;
+}
+
+// Records the grid sum of computeEntryPointParams, whose inputs are all entry-point parameters.
+void encodeEntryPointParamsSum(
+    IComputePassEncoder* passEncoder,
+    IComputePipeline* pipeline,
+    IBuffer* buffer,
+    uint32_t groupCount,
+    uint32_t scale
+)
+{
+    auto rootObject = passEncoder->bindPipeline(pipeline);
+    ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
+    entryPointCursor["scale"].setData(scale);
+    entryPointCursor["groupBuffer"].setBinding(buffer);
+    entryPointCursor["count"].setData(groupCount);
+    passEncoder->dispatchCompute(groupCount, 1, 1);
+}
+
 void dispatchGridSum(IDevice* device, IComputePipeline* pipeline, IBuffer* buffer, uint32_t groupCount)
 {
     auto queue = device->getQueue(QueueType::Graphics);
@@ -218,6 +247,29 @@ GPU_TEST_CASE("cooperative-launch-deferred", CUDA)
     CHECK_EQ(readUint(device, buffer, maxGroupCount), maxGroupCount * (maxGroupCount + 1) / 2);
 }
 
+// Entry-point parameters of mixed size reach a cooperative kernel intact.
+GPU_TEST_CASE("cooperative-launch-entry-point-params", CUDA)
+{
+    if (!device->hasFeature(Feature::CooperativeLaunch))
+        SKIP("cooperative launch not supported");
+    ComPtr<IComputePipeline> pipeline = createEntryPointParamsPipeline(device);
+    uint32_t maxGroupCount = 0;
+    REQUIRE_CALL(pipeline->getMaxCooperativeThreadGroupCount(nullptr, &maxGroupCount));
+    for (uint32_t groupCount : {1u, maxGroupCount})
+    {
+        CAPTURE(groupCount);
+        ComPtr<IBuffer> buffer = createGroupBuffer(device, groupCount + 1);
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        encodeEntryPointParamsSum(passEncoder, pipeline, buffer, groupCount, 5);
+        passEncoder->end();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        CHECK_EQ(readUint(device, buffer, groupCount), 5 * groupCount * (groupCount + 1) / 2);
+    }
+}
+
 GPU_TEST_CASE("cooperative-launch-specializable", CUDA)
 {
     if (!device->hasFeature(Feature::CooperativeLaunch))
@@ -347,7 +399,9 @@ struct CudaGraphApi
 } // namespace
 
 // A cooperative dispatch submitted to a capturing stream is recorded into a CUDA graph, and
-// launching the graph runs it with the grid-wide barrier intact.
+// launching the graph runs it with the grid-wide barrier intact. The driver rejects
+// CU_LAUNCH_PARAM_BUFFER_POINTER on a cooperative launch under capture, so the second dispatch
+// checks that entry-point parameters passed one by one survive capture and replay.
 GPU_TEST_CASE("cooperative-launch-graph-capture", CUDA)
 {
     if (!device->hasFeature(Feature::CooperativeLaunch))
@@ -360,9 +414,25 @@ GPU_TEST_CASE("cooperative-launch-graph-capture", CUDA)
     uint32_t groupCount = 0;
     REQUIRE_CALL(pipeline->getMaxCooperativeThreadGroupCount(nullptr, &groupCount));
     ComPtr<IBuffer> buffer = createGroupBuffer(device, groupCount + 1);
-    // The command buffer must outlive the graph.
-    ComPtr<ICommandBuffer> commandBuffer = recordGridSum(device, pipeline, buffer, groupCount);
+    ComPtr<IComputePipeline> paramsPipeline = createEntryPointParamsPipeline(device);
+    uint32_t paramsGroupCount = 0;
+    REQUIRE_CALL(paramsPipeline->getMaxCooperativeThreadGroupCount(nullptr, &paramsGroupCount));
+    ComPtr<IBuffer> paramsBuffer = createGroupBuffer(device, paramsGroupCount + 1);
     auto queue = device->getQueue(QueueType::Graphics);
+    // One command buffer with a dispatch of each kernel: global parameters only, and entry-point
+    // parameters only. The command buffer must outlive the graph.
+    ComPtr<ICommandBuffer> commandBuffer;
+    {
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        ShaderCursor cursor(passEncoder->bindPipeline(pipeline));
+        cursor["buffer"].setBinding(buffer);
+        cursor["groupCount"].setData(groupCount);
+        passEncoder->dispatchCompute(groupCount, 1, 1);
+        encodeEntryPointParamsSum(passEncoder, paramsPipeline, paramsBuffer, paramsGroupCount, 7);
+        passEncoder->end();
+        commandBuffer = commandEncoder->finish();
+    }
 
     rhi::cuda::DeviceImpl* cudaDevice = getCudaDeviceImpl(device);
     SLANG_CUDA_CTX_SCOPE(cudaDevice);
@@ -382,8 +452,9 @@ GPU_TEST_CASE("cooperative-launch-graph-capture", CUDA)
     REQUIRE_EQ(endResult, CUDA_SUCCESS);
     REQUIRE(graph);
 
-    // Capturing records the launch without running it.
+    // Capturing records the launches without running them.
     CHECK_EQ(readUint(device, buffer, groupCount), 0);
+    CHECK_EQ(readUint(device, paramsBuffer, paramsGroupCount), 0);
 
     CUgraphExec graphExec = nullptr;
     REQUIRE_EQ(graphApi.cuGraphInstantiateWithFlags(&graphExec, graph, 0), CUDA_SUCCESS);
@@ -393,10 +464,15 @@ GPU_TEST_CASE("cooperative-launch-graph-capture", CUDA)
         REQUIRE_EQ(graphApi.cuGraphLaunch(graphExec, stream), CUDA_SUCCESS);
         REQUIRE_EQ(cuStreamSynchronize(stream), CUDA_SUCCESS);
         CHECK_EQ(readUint(device, buffer, groupCount), groupCount * (groupCount + 1) / 2);
-        // Clear the sum, so that the next launch has to write it again.
+        CHECK_EQ(readUint(device, paramsBuffer, paramsGroupCount), 7 * paramsGroupCount * (paramsGroupCount + 1) / 2);
+        // Clear the sums, so that the next launch has to write them again.
         uint32_t zero = 0;
         REQUIRE_EQ(
             cuMemcpyHtoD(buffer->getDeviceAddress() + groupCount * sizeof(uint32_t), &zero, sizeof(zero)),
+            CUDA_SUCCESS
+        );
+        REQUIRE_EQ(
+            cuMemcpyHtoD(paramsBuffer->getDeviceAddress() + paramsGroupCount * sizeof(uint32_t), &zero, sizeof(zero)),
             CUDA_SUCCESS
         );
     }

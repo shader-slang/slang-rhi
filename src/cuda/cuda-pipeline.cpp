@@ -149,6 +149,15 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             cuDeviceGetAttribute(&smCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, m_ctx.device),
             this
         );
+        // Kernel parameter offsets, for passing the entry point data as kernelParams.
+        for (size_t paramIndex = 0;; ++paramIndex)
+        {
+            size_t paramOffset = 0;
+            size_t paramSize = 0;
+            if (cuFuncGetParamInfo(pipeline->m_function, paramIndex, &paramOffset, &paramSize) != CUDA_SUCCESS)
+                break;
+            pipeline->m_kernelParamOffsets.push_back(paramOffset);
+        }
         pipeline->m_cooperative = true;
         pipeline->m_maxCooperativeThreadGroupCount = uint32_t(blocksPerSM) * uint32_t(smCount);
     }

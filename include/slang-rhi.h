@@ -2205,6 +2205,8 @@ enum class ComputePipelineFlags : uint32_t
     /// otherwise), and pipeline creation fails if not even one thread group of the kernel fits on a
     /// multiprocessor. The group count of a dispatch must not exceed getMaxCooperativeThreadGroupCount();
     /// a larger dispatch reports an error (at the call site with the debug layer) and is skipped.
+    /// A cooperative dispatch submitted to a stream under CUDA stream capture is recorded into the graph
+    /// like any other dispatch. On CUDA, the feature needs a driver for CUDA 12.4 or later.
     CooperativeLaunch = (1 << 0),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(ComputePipelineFlags);

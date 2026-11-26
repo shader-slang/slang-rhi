@@ -23,6 +23,10 @@ public:
     uint32_t m_dynamicSharedMemorySize = 0;
     bool m_cooperative = false;
     uint32_t m_maxCooperativeThreadGroupCount = 0;
+    /// Offset of each kernel parameter in the entry point data, for a cooperative launch. The driver
+    /// rejects CU_LAUNCH_PARAM_BUFFER_POINTER on a cooperative launch during stream capture, so a
+    /// cooperative launch passes one pointer per parameter instead.
+    std::vector<size_t> m_kernelParamOffsets;
 
     ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc);
     ~ComputePipelineImpl();

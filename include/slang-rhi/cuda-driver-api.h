@@ -951,6 +951,8 @@ typedef struct CUlaunchConfig_st
 } CUlaunchConfig;
 CUDA_SYM(CUresult (*cuLaunchKernelEx)(const CUlaunchConfig*, CUfunction, void**, void**));
 CUDA_SYM(CUresult (*cuOccupancyMaxActiveBlocksPerMultiprocessor)(int*, CUfunction, int, size_t));
+// Kernel parameter layout (CUDA 12.4+). Loaded optionally: null on older drivers.
+CUDA_SYM(CUresult (*cuFuncGetParamInfo)(CUfunction, size_t, size_t*, size_t*));
 
 } // namespace rhi::cuda_driver
 

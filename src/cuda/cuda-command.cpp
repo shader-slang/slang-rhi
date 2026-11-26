@@ -739,7 +739,17 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         config.hStream = m_stream;
         config.attrs = &attribute;
         config.numAttrs = 1;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernelEx(&config, computePipeline->m_function, nullptr, extraOptions));
+        // Pass the parameters as kernelParams: the driver rejects CU_LAUNCH_PARAM_BUFFER_POINTER on a
+        // cooperative launch while the stream is being captured into a CUDA graph.
+        short_vector<void*, 16> kernelParams;
+        for (size_t paramOffset : computePipeline->m_kernelParamOffsets)
+            kernelParams.push_back((uint8_t*)entryPointData.data + paramOffset);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernelEx(
+            &config,
+            computePipeline->m_function,
+            kernelParams.empty() ? nullptr : kernelParams.data(),
+            nullptr
+        ));
         return;
     }
 

@@ -65,3 +65,27 @@ void computeSpecialized(
         buffer[groupCount] = sum;
     }
 }
+
+// As computeMain, but everything comes from entry-point parameters of mixed size and alignment, so
+// the kernel parameters sit at padded offsets (a cooperative launch passes them one by one).
+[shader("compute")]
+[numthreads(256, 1, 1)]
+void computeEntryPointParams(
+    uint3 tid: SV_DispatchThreadID,
+    uint3 gid: SV_GroupID,
+    uint3 gtid: SV_GroupThreadID,
+    uniform uint scale,
+    uniform RWStructuredBuffer<uint> groupBuffer,
+    uniform uint count)
+{
+    if (gtid.x == 0)
+        groupBuffer[gid.x] = (gid.x + 1) * scale;
+    gridSync();
+    if (tid.x == 0)
+    {
+        uint sum = 0;
+        for (uint i = 0; i < count; i++)
+            sum += groupBuffer[i];
+        groupBuffer[count] = sum;
+    }
+}
