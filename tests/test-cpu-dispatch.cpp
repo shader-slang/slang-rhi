@@ -36,6 +36,7 @@ GPU_TEST_CASE("cpu-dispatch-every-group-once", CPU)
     const uint32_t groupSize[3] = {4, 2, 1};
     const uint32_t dispatches[][3] = {
         {1, 1, 1},    // a single group
+        {2, 1, 1},    // two slices: the submitting thread and one pool task
         {1000, 1, 1}, // more slices than threads, split along x
         {3, 257, 2},  // split along y
         {2, 3, 131},  // split along z

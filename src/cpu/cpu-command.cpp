@@ -9,8 +9,8 @@
 #include "core/task-pool.h"
 
 #include <algorithm>
+#include <atomic>
 #include <thread>
-#include <vector>
 
 namespace rhi::cpu {
 
@@ -227,65 +227,77 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     if (cmd.x == 0 || cmd.y == 0 || cmd.z == 0)
         return;
 
-    // A slice of the dispatch: the kernel's group-range function runs every group in
-    // [startGroupID, endGroupID) itself.
-    struct Slice
+    // The whole dispatch, shared by every thread that runs part of it. The kernel's group-range
+    // function runs every group in [startGroupID, endGroupID) itself, so a slice only narrows
+    // that box along one axis. Threads claim slices from an atomic counter.
+    struct DispatchContext
     {
         slang_prelude::ComputeFunc func;
-        slang_prelude::ComputeVaryingInput varyingInput;
+        slang_prelude::ComputeVaryingInput whole;
         void* entryPointData;
         void* globalData;
+        int axis;
+        uint32_t extent;
+        uint32_t sliceCount;
+        std::atomic<uint32_t> nextSlice{0};
+
+        void runSlice(uint32_t i)
+        {
+            slang_prelude::ComputeVaryingInput input = whole;
+            uint32_t* start = &input.startGroupID.x;
+            uint32_t* end = &input.endGroupID.x;
+            start[axis] = uint32_t(uint64_t(extent) * i / sliceCount);
+            end[axis] = uint32_t(uint64_t(extent) * (i + 1) / sliceCount);
+            func(&input, entryPointData, globalData);
+        }
 
         static void run(void* payload)
         {
-            Slice* slice = static_cast<Slice*>(payload);
-            slice->func(&slice->varyingInput, slice->entryPointData, slice->globalData);
+            DispatchContext* ctx = static_cast<DispatchContext*>(payload);
+            for (uint32_t i; (i = ctx->nextSlice.fetch_add(1, std::memory_order_relaxed)) < ctx->sliceCount;)
+                ctx->runSlice(i);
         }
     };
 
-    Slice whole = {};
-    whole.func = m_computePipeline->m_func;
-    whole.varyingInput.startGroupID.x = 0;
-    whole.varyingInput.startGroupID.y = 0;
-    whole.varyingInput.startGroupID.z = 0;
-    whole.varyingInput.endGroupID.x = cmd.x;
-    whole.varyingInput.endGroupID.y = cmd.y;
-    whole.varyingInput.endGroupID.z = cmd.z;
-    whole.entryPointData = m_bindingData->entryPoints[0].data;
-    whole.globalData = m_bindingData->globalData;
+    DispatchContext ctx;
+    ctx.func = m_computePipeline->m_func;
+    ctx.whole.startGroupID.x = 0;
+    ctx.whole.startGroupID.y = 0;
+    ctx.whole.startGroupID.z = 0;
+    ctx.whole.endGroupID.x = cmd.x;
+    ctx.whole.endGroupID.y = cmd.y;
+    ctx.whole.endGroupID.z = cmd.z;
+    ctx.entryPointData = m_bindingData->entryPoints[0].data;
+    ctx.globalData = m_bindingData->globalData;
 
     // Thread groups are independent of each other, so the dispatch is split into slices that
     // run on the global task pool. The split is along the axis with the most groups, so that
-    // every slice is again a box of groups. A few slices per hardware thread let the pool
+    // every slice is again a box of groups. A few slices per hardware thread let the threads
     // balance groups of uneven cost.
     uint32_t groupCount[3] = {cmd.x, cmd.y, cmd.z};
-    int axis = 0;
+    ctx.axis = 0;
     for (int i = 1; i < 3; ++i)
     {
-        if (groupCount[i] > groupCount[axis])
-            axis = i;
+        if (groupCount[i] > groupCount[ctx.axis])
+            ctx.axis = i;
     }
-    uint32_t extent = groupCount[axis];
+    ctx.extent = groupCount[ctx.axis];
     uint32_t threadCount = std::max(1u, std::thread::hardware_concurrency());
-    uint32_t sliceCount = std::min(extent, 4 * threadCount);
-    if (sliceCount <= 1)
+    ctx.sliceCount = std::min(ctx.extent, 4 * threadCount);
+
+    // At most one pool task per hardware thread, minus the submitting thread, which runs slices
+    // too. The context lives on this stack frame, so wait for the tasks before returning.
+    uint32_t taskCount = std::min(ctx.sliceCount, threadCount);
+    if (taskCount <= 1)
     {
-        Slice::run(&whole);
+        DispatchContext::run(&ctx);
         return;
     }
-
-    std::vector<Slice> slices(sliceCount, whole);
     ITaskPool* taskPool = globalTaskPool();
     ITaskPool::TaskGroupHandle taskGroup = taskPool->createTaskGroup();
-    for (uint32_t i = 0; i < sliceCount; ++i)
-    {
-        slang_prelude::ComputeVaryingInput& input = slices[i].varyingInput;
-        uint32_t begin = uint32_t(uint64_t(extent) * i / sliceCount);
-        uint32_t end = uint32_t(uint64_t(extent) * (i + 1) / sliceCount);
-        (axis == 0 ? input.startGroupID.x : axis == 1 ? input.startGroupID.y : input.startGroupID.z) = begin;
-        (axis == 0 ? input.endGroupID.x : axis == 1 ? input.endGroupID.y : input.endGroupID.z) = end;
-        taskPool->releaseTask(taskPool->submitTask(Slice::run, &slices[i], nullptr, taskGroup));
-    }
+    for (uint32_t i = 1; i < taskCount; ++i)
+        taskPool->releaseTask(taskPool->submitTask(DispatchContext::run, &ctx, nullptr, taskGroup));
+    DispatchContext::run(&ctx);
     taskPool->waitAndReleaseTaskGroup(taskGroup);
 }
 
