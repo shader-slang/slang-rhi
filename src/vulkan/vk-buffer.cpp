@@ -25,7 +25,8 @@ Result allocateVkBuffer(
     VkBufferUsageFlags usage,
     const AllocationDesc& allocationDesc,
     VkBuffer* outBuffer,
-    VmaAllocation* outAllocation
+    VmaAllocation* outAllocation,
+    VkDeviceSize minAlignment
 )
 {
     VkBufferCreateInfo createInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -34,7 +35,7 @@ Result allocateVkBuffer(
     createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     // Buffers are sub-allocated from larger memory blocks, so they don't start at offset 0.
     // Buffers with a device address need an explicit alignment that covers all their uses.
-    const VkDeviceSize alignment = getBufferDeviceAddressAlignment(device->m_api, usage);
+    const VkDeviceSize alignment = max(minAlignment, getBufferDeviceAddressAlignment(device->m_api, usage));
     return device->m_memoryAllocator.createBuffer(createInfo, allocationDesc, alignment, outBuffer, outAllocation);
 }
 

@@ -28,11 +28,13 @@ Result HeapImpl::PageImpl::init()
 
     // Allocate the page through VMA. The page may be sub-allocated from a larger memory block,
     // so only access its memory through the buffer (shared heaps get dedicated, exportable memory).
+    // Allocations within the page are aligned relative to its start, so the page itself must be
+    // aligned to the requested alignment.
     HeapImpl* heapImpl = static_cast<HeapImpl*>(m_heap);
     AllocationDesc allocationDesc;
     allocationDesc.memoryType = heapImpl->m_desc.memoryType;
     allocationDesc.exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
-    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, &m_allocation);
+    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, &m_allocation, m_desc.alignment);
 }
 
 HeapImpl::PageImpl::~PageImpl()
@@ -123,11 +125,8 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
         return result;
     }
 
-    // Vulkan memory allocation guarantees an alignment suitable for
-    // any memory type, however if the user asks for an alignment
-    // higher than that, the page may end up misaligned. For now,
-    // treat this as an error, as the user should only ever be asking
-    // for alignments based on correct memory requirements.
+    // The page is allocated with the requested alignment (see PageImpl::init), so this only
+    // guards against an allocator that doesn't honor it.
     if (page->offsetToAddress(0) % desc.alignment != 0)
     {
         delete page;

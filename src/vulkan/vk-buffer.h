@@ -9,14 +9,16 @@ namespace rhi::vk {
 Result createVkBuffer(const VulkanApi& api, Size size, VkBufferUsageFlags usage, VkBuffer* outBuffer);
 
 /// Create a buffer and bind it to newly allocated memory.
-/// Buffers with a device address are aligned for all their uses (see getBufferDeviceAddressAlignment).
+/// Buffers with a device address are aligned for all their uses (see getBufferDeviceAddressAlignment),
+/// and to at least minAlignment.
 Result allocateVkBuffer(
     DeviceImpl* device,
     Size size,
     VkBufferUsageFlags usage,
     const AllocationDesc& allocationDesc,
     VkBuffer* outBuffer,
-    VmaAllocation* outAllocation
+    VmaAllocation* outAllocation,
+    VkDeviceSize minAlignment = 1
 );
 
 class BufferImpl : public Buffer

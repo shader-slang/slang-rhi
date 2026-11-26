@@ -457,7 +457,11 @@ GPU_TEST_CASE("buffer-device-address-alignment", Vulkan)
 
     // Every buffer with a device address is 64-byte aligned (cooperative vector matrix conversion).
     checkAlignment(BufferUsage::CopySource, 64);
-    checkAlignment(BufferUsage::UnorderedAccess, std::max<Size>(64, limits.minStorageBufferOffsetAlignment));
+    // UnorderedAccess maps to both storage buffer and storage texel buffer usage.
+    checkAlignment(
+        BufferUsage::UnorderedAccess,
+        std::max<Size>({64, limits.minStorageBufferOffsetAlignment, limits.minTexelBufferOffsetAlignment})
+    );
     checkAlignment(BufferUsage::ConstantBuffer, std::max<Size>(64, limits.minUniformBufferOffsetAlignment));
     if (hasAccelerationStructures)
     {

@@ -24,6 +24,21 @@ GPU_TEST_CASE("buffer-shared-host-visible", Vulkan)
         CHECK(handle);
         return buffer;
     };
+
+    // Shared buffers can't be created on devices that can't export memory. Any other failure,
+    // including on later shared buffers, still fails the test.
+    {
+        BufferDesc probeDesc = {};
+        probeDesc.size = sizeof(expected);
+        probeDesc.usage = BufferUsage::CopySource | BufferUsage::Shared;
+        probeDesc.memoryType = MemoryType::Upload;
+        ComPtr<IBuffer> probe;
+        Result result = device->createBuffer(probeDesc, nullptr, probe.writeRef());
+        if (result == SLANG_E_NOT_AVAILABLE)
+            SKIP("device can't export memory");
+        REQUIRE_CALL(result);
+    }
+
     ComPtr<IBuffer> upload = createSharedBuffer(MemoryType::Upload, BufferUsage::CopySource);
     ComPtr<IBuffer> readback = createSharedBuffer(MemoryType::ReadBack, BufferUsage::CopyDestination);
 
