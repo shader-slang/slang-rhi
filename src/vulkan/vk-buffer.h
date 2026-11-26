@@ -16,7 +16,7 @@ Result allocateVkBuffer(
     VkBufferUsageFlags usage,
     const AllocationDesc& allocationDesc,
     VkBuffer* outBuffer,
-    MemoryAllocation& outAllocation
+    VmaAllocation* outAllocation
 );
 
 class BufferImpl : public Buffer
@@ -49,7 +49,7 @@ public:
     bool m_ownsBuffer = true;
     /// Memory backing the buffer. Empty for placed buffers (bound to the resource heap's memory)
     /// and for buffers created from native handles.
-    MemoryAllocation m_allocation;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
     DeviceAddress m_deviceAddress = 0;
 
     struct ViewKey

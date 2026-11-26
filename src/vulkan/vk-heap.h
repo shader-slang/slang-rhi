@@ -30,7 +30,7 @@ public:
 
         DeviceImpl* m_device;
         VkBuffer m_buffer = VK_NULL_HANDLE;
-        MemoryAllocation m_allocation;
+        VmaAllocation m_allocation = VK_NULL_HANDLE;
     };
 
     HeapImpl(Device* device, const HeapDesc& desc);

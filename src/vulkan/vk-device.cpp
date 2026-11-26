@@ -2116,7 +2116,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Create a staging buffer (ReadBack memory prefers cached memory, as the CPU reads from it).
     VkBuffer staging = VK_NULL_HANDLE;
-    MemoryAllocation stagingAllocation;
+    VmaAllocation stagingAllocation = VK_NULL_HANDLE;
     AllocationDesc stagingAllocationDesc;
     stagingAllocationDesc.memoryType = MemoryType::ReadBack;
     SLANG_RETURN_ON_FAIL(allocateVkBuffer(
@@ -2125,10 +2125,9 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         stagingAllocationDesc,
         &staging,
-        stagingAllocation
+        &stagingAllocation
     ));
-    // The buffer must be destroyed before its memory (stagingAllocation) is freed.
-    SLANG_RHI_DEFERRED({ m_api.vkDestroyBuffer(m_device, staging, nullptr); });
+    SLANG_RHI_DEFERRED({ m_memoryAllocator.destroyBuffer(staging, stagingAllocation); });
 
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -2183,7 +2182,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     m_deviceQueue.flushAndWait();
 
     // Write out the data from the buffer
-    std::memcpy(outData, stagingAllocation.getMappedData(), size);
+    std::memcpy(outData, m_memoryAllocator.getAllocationInfo(stagingAllocation).pMappedData, size);
 
     return SLANG_OK;
 }

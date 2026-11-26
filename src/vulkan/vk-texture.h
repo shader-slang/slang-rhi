@@ -34,7 +34,7 @@ public:
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
     /// Memory backing the image. Empty for placed textures (bound to the resource heap's memory),
     /// swap chain textures and textures created from native handles.
-    MemoryAllocation m_allocation;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
     // False for swap chain or externally-owned native images.
     bool m_shouldDestroyImage = true;
     // True if this texture is created from a swap chain buffer.

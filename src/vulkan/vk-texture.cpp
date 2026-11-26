@@ -76,10 +76,9 @@ TextureImpl::~TextureImpl()
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
     }
-    // The image must be destroyed before its memory (m_allocation) is freed.
     if (m_shouldDestroyImage)
     {
-        api.vkDestroyImage(api.m_device, m_image, nullptr);
+        device->m_memoryAllocator.destroyImage(m_image, m_allocation);
     }
     if (m_sharedHandle)
     {
@@ -115,6 +114,8 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     // sub-allocated from memory blocks shared with unrelated resources (or placed in a resource heap).
     if (!m_sharedHandle)
     {
+        if (!is_set(m_desc.usage, TextureUsage::Shared) || !m_allocation)
+            return SLANG_E_INVALID_ARG;
         SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->m_memoryAllocator.exportHandle(m_allocation, &m_sharedHandle));
     }
     *outHandle = m_sharedHandle;
@@ -315,15 +316,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, desc.heap, desc.heapOffset, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(desc.heap);
-        if ((memRequirements.memoryTypeBits & (1u << heap->m_allocation.getMemoryTypeIndex())) == 0)
+        const VmaAllocationInfo heapInfo = m_memoryAllocator.getAllocationInfo(heap->m_allocation);
+        if ((memRequirements.memoryTypeBits & (1u << heapInfo.memoryType)) == 0)
             return SLANG_E_INVALID_ARG;
 
         SLANG_VK_RETURN_ON_FAIL_REPORT(
             m_api.vkBindImageMemory(
                 m_device,
                 texture->m_image,
-                heap->m_allocation.getDeviceMemory(),
-                heap->m_allocation.getOffset() + desc.heapOffset
+                heapInfo.deviceMemory,
+                heapInfo.offset + desc.heapOffset
             ),
             this
         );
@@ -336,7 +338,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         allocationDesc.memoryType = MemoryType::DeviceLocal;
         allocationDesc.exportable = is_set(desc.usage, TextureUsage::Shared);
         SLANG_RETURN_ON_FAIL(
-            m_memoryAllocator.createImage(imageInfo, allocationDesc, &texture->m_image, texture->m_allocation)
+            m_memoryAllocator.createImage(imageInfo, allocationDesc, &texture->m_image, &texture->m_allocation)
         );
     }
 

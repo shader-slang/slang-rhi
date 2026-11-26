@@ -32,14 +32,12 @@ Result HeapImpl::PageImpl::init()
     AllocationDesc allocationDesc;
     allocationDesc.memoryType = heapImpl->m_desc.memoryType;
     allocationDesc.exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
-    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, m_allocation);
+    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, &m_allocation);
 }
 
 HeapImpl::PageImpl::~PageImpl()
 {
-    // The buffer must be destroyed before its memory (m_allocation) is freed.
-    if (m_buffer != VK_NULL_HANDLE)
-        m_device->m_api.vkDestroyBuffer(m_device->m_api.m_device, m_buffer, nullptr);
+    m_device->m_memoryAllocator.destroyBuffer(m_buffer, m_allocation);
 }
 
 DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)

@@ -6,62 +6,8 @@
 #include <dxgi1_4.h>
 #endif
 
-#include <utility>
 
 namespace rhi::vk {
-
-// ----------------------------------------------------------------------------
-// MemoryAllocation
-// ----------------------------------------------------------------------------
-
-MemoryAllocation& MemoryAllocation::operator=(MemoryAllocation&& other) noexcept
-{
-    if (this != &other)
-    {
-        reset();
-        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
-        m_allocation = std::exchange(other.m_allocation, VK_NULL_HANDLE);
-        m_deviceMemory = std::exchange(other.m_deviceMemory, VK_NULL_HANDLE);
-        m_offset = std::exchange(other.m_offset, 0);
-        m_memoryTypeIndex = std::exchange(other.m_memoryTypeIndex, 0);
-        m_mappedData = std::exchange(other.m_mappedData, nullptr);
-        m_exportable = std::exchange(other.m_exportable, false);
-    }
-    return *this;
-}
-
-void MemoryAllocation::reset()
-{
-    if (m_allocation != VK_NULL_HANDLE)
-    {
-        // Persistently mapped allocations are implicitly unmapped.
-        vmaFreeMemory(m_allocator, m_allocation);
-    }
-    m_allocator = VK_NULL_HANDLE;
-    m_allocation = VK_NULL_HANDLE;
-    m_deviceMemory = VK_NULL_HANDLE;
-    m_offset = 0;
-    m_memoryTypeIndex = 0;
-    m_mappedData = nullptr;
-    m_exportable = false;
-}
-
-void MemoryAllocation::assign(
-    VmaAllocator allocator,
-    VmaAllocation allocation,
-    const VmaAllocationInfo& info,
-    bool exportable
-)
-{
-    reset();
-    m_allocator = allocator;
-    m_allocation = allocation;
-    m_deviceMemory = info.deviceMemory;
-    m_offset = info.offset;
-    m_memoryTypeIndex = info.memoryType;
-    m_mappedData = info.pMappedData;
-    m_exportable = exportable;
-}
 
 // ----------------------------------------------------------------------------
 // MemoryAllocator
@@ -244,7 +190,7 @@ Result MemoryAllocator::createBuffer(
     const AllocationDesc& desc,
     VkDeviceSize minAlignment,
     VkBuffer* outBuffer,
-    MemoryAllocation& outAllocation
+    VmaAllocation* outAllocation
 )
 {
     VkBufferCreateInfo createInfo = createInfo_;
@@ -258,7 +204,6 @@ Result MemoryAllocator::createBuffer(
 
     VkBuffer buffer = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
-    VmaAllocationInfo allocationInfo = {};
     SLANG_RETURN_ON_FAIL(allocate(
         desc,
         true,
@@ -275,14 +220,14 @@ Result MemoryAllocator::createBuffer(
                 minAlignment,
                 &buffer,
                 &allocation,
-                &allocationInfo
+                nullptr
             );
         },
         "vmaCreateBufferWithAlignment"
     ));
 
     *outBuffer = buffer;
-    outAllocation.assign(m_allocator, allocation, allocationInfo, desc.exportable);
+    *outAllocation = allocation;
     return SLANG_OK;
 }
 
@@ -290,7 +235,7 @@ Result MemoryAllocator::createImage(
     const VkImageCreateInfo& createInfo_,
     const AllocationDesc& desc,
     VkImage* outImage,
-    MemoryAllocation& outAllocation
+    VmaAllocation* outAllocation
 )
 {
     VkImageCreateInfo createInfo = createInfo_;
@@ -304,7 +249,6 @@ Result MemoryAllocator::createImage(
 
     VkImage image = VK_NULL_HANDLE;
     VmaAllocation allocation = VK_NULL_HANDLE;
-    VmaAllocationInfo allocationInfo = {};
     SLANG_RETURN_ON_FAIL(allocate(
         desc,
         true,
@@ -314,27 +258,26 @@ Result MemoryAllocator::createImage(
         },
         [&](const VmaAllocationCreateInfo& info)
         {
-            return vmaCreateImage(m_allocator, &createInfo, &info, &image, &allocation, &allocationInfo);
+            return vmaCreateImage(m_allocator, &createInfo, &info, &image, &allocation, nullptr);
         },
         "vmaCreateImage"
     ));
 
     *outImage = image;
-    outAllocation.assign(m_allocator, allocation, allocationInfo, desc.exportable);
+    *outAllocation = allocation;
     return SLANG_OK;
 }
 
 Result MemoryAllocator::allocateMemory(
     const VkMemoryRequirements& requirements,
     const AllocationDesc& desc,
-    MemoryAllocation& outAllocation
+    VmaAllocation* outAllocation
 )
 {
     if (desc.exportable)
         return SLANG_E_NOT_IMPLEMENTED;
 
     VmaAllocation allocation = VK_NULL_HANDLE;
-    VmaAllocationInfo allocationInfo = {};
     SLANG_RETURN_ON_FAIL(allocate(
         desc,
         false,
@@ -344,26 +287,48 @@ Result MemoryAllocator::allocateMemory(
         },
         [&](const VmaAllocationCreateInfo& info)
         {
-            return vmaAllocateMemory(m_allocator, &requirements, &info, &allocation, &allocationInfo);
+            return vmaAllocateMemory(m_allocator, &requirements, &info, &allocation, nullptr);
         },
         "vmaAllocateMemory"
     ));
 
-    outAllocation.assign(m_allocator, allocation, allocationInfo, desc.exportable);
+    *outAllocation = allocation;
     return SLANG_OK;
 }
 
-Result MemoryAllocator::exportHandle(const MemoryAllocation& allocation, NativeHandle* outHandle)
+void MemoryAllocator::destroyBuffer(VkBuffer buffer, VmaAllocation allocation)
 {
-    if (!allocation.isExportable())
-        return SLANG_E_INVALID_ARG;
+    vmaDestroyBuffer(m_allocator, buffer, allocation);
+}
 
+void MemoryAllocator::destroyImage(VkImage image, VmaAllocation allocation)
+{
+    vmaDestroyImage(m_allocator, image, allocation);
+}
+
+void MemoryAllocator::freeMemory(VmaAllocation allocation)
+{
+    vmaFreeMemory(m_allocator, allocation);
+}
+
+VmaAllocationInfo MemoryAllocator::getAllocationInfo(VmaAllocation allocation) const
+{
+    VmaAllocationInfo info = {};
+    if (allocation != VK_NULL_HANDLE)
+        vmaGetAllocationInfo(m_allocator, allocation, &info);
+    return info;
+}
+
+Result MemoryAllocator::exportHandle(VmaAllocation allocation, NativeHandle* outHandle)
+{
+    SLANG_RHI_ASSERT(allocation != VK_NULL_HANDLE);
+    const VkDeviceMemory memory = getAllocationInfo(allocation).deviceMemory;
     const VulkanApi& api = m_device->m_api;
 #if SLANG_WINDOWS_FAMILY
     if (!api.vkGetMemoryWin32HandleKHR)
         return SLANG_E_NOT_AVAILABLE;
     VkMemoryGetWin32HandleInfoKHR info = {VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR};
-    info.memory = allocation.getDeviceMemory();
+    info.memory = memory;
     info.handleType = kSharedMemoryHandleType;
     HANDLE handle = NULL;
     SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle), m_device);
@@ -372,7 +337,7 @@ Result MemoryAllocator::exportHandle(const MemoryAllocation& allocation, NativeH
     if (!api.vkGetMemoryFdKHR)
         return SLANG_E_NOT_AVAILABLE;
     VkMemoryGetFdInfoKHR info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR};
-    info.memory = allocation.getDeviceMemory();
+    info.memory = memory;
     info.handleType = kSharedMemoryHandleType;
     int handle = -1;
     SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryFdKHR(api.m_device, &info, &handle), m_device);

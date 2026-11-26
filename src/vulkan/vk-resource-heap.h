@@ -18,7 +18,7 @@ public:
     virtual bool isCompatible(const ResourceMemoryRequirements& requirements) const override;
 
     /// Dedicated memory backing the heap (persistently mapped for Upload and ReadBack heaps).
-    MemoryAllocation m_allocation;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
 };
 
 } // namespace rhi::vk

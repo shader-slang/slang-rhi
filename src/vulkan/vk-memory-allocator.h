@@ -30,49 +30,6 @@ struct AllocationDesc
     uint32_t memoryTypeBits = UINT32_MAX;
 };
 
-/// Owning handle to device memory allocated through MemoryAllocator.
-/// Unless allocated as dedicated, the memory is a sub-range of a VkDeviceMemory block that is
-/// shared with other allocations, so it must always be addressed with getOffset().
-/// Any resource bound to the memory must be destroyed before the allocation.
-class MemoryAllocation
-{
-public:
-    MemoryAllocation() = default;
-    ~MemoryAllocation() { reset(); }
-
-    MemoryAllocation(const MemoryAllocation&) = delete;
-    MemoryAllocation& operator=(const MemoryAllocation&) = delete;
-    MemoryAllocation(MemoryAllocation&& other) noexcept { *this = std::move(other); }
-    MemoryAllocation& operator=(MemoryAllocation&& other) noexcept;
-
-    explicit operator bool() const { return m_allocation != VK_NULL_HANDLE; }
-
-    VkDeviceMemory getDeviceMemory() const { return m_deviceMemory; }
-    VkDeviceSize getOffset() const { return m_offset; }
-    uint32_t getMemoryTypeIndex() const { return m_memoryTypeIndex; }
-    /// Persistently mapped pointer to the start of the allocation.
-    /// Null unless the allocation was created for Upload or ReadBack memory.
-    void* getMappedData() const { return m_mappedData; }
-    /// True if the allocation is dedicated memory that can be exported (see MemoryAllocator::exportHandle).
-    bool isExportable() const { return m_exportable; }
-
-    /// Free the memory.
-    void reset();
-
-private:
-    void assign(VmaAllocator allocator, VmaAllocation allocation, const VmaAllocationInfo& info, bool exportable);
-
-    VmaAllocator m_allocator = VK_NULL_HANDLE;
-    VmaAllocation m_allocation = VK_NULL_HANDLE;
-    VkDeviceMemory m_deviceMemory = VK_NULL_HANDLE;
-    VkDeviceSize m_offset = 0;
-    uint32_t m_memoryTypeIndex = 0;
-    void* m_mappedData = nullptr;
-    bool m_exportable = false;
-
-    friend class MemoryAllocator;
-};
-
 /// Allocates all device memory of a device (buffers, textures, heaps and resource heaps)
 /// through Vulkan Memory Allocator (VMA).
 class MemoryAllocator
@@ -94,34 +51,57 @@ public:
     /// True if exportable allocations are supported.
     bool canExport() const;
 
+    // Allocations are VmaAllocation handles. Unless allocated as dedicated, an allocation is a
+    // sub-range of a VkDeviceMemory block that is shared with other allocations, so it must always
+    // be addressed with VmaAllocationInfo::offset (see getAllocationInfo()).
+
     /// Create a buffer and bind it to newly allocated memory.
     /// The buffer's address is aligned to at least minAlignment.
+    /// Destroy the buffer and free the memory with destroyBuffer().
     Result createBuffer(
         const VkBufferCreateInfo& createInfo,
         const AllocationDesc& desc,
         VkDeviceSize minAlignment,
         VkBuffer* outBuffer,
-        MemoryAllocation& outAllocation
+        VmaAllocation* outAllocation
     );
 
     /// Create an image and bind it to newly allocated memory.
+    /// Destroy the image and free the memory with destroyImage().
     Result createImage(
         const VkImageCreateInfo& createInfo,
         const AllocationDesc& desc,
         VkImage* outImage,
-        MemoryAllocation& outAllocation
+        VmaAllocation* outAllocation
     );
 
     /// Allocate memory that is not tied to a resource. Exportable memory is not supported.
+    /// Free the memory with freeMemory(), after destroying all resources bound to it.
     Result allocateMemory(
         const VkMemoryRequirements& requirements,
         const AllocationDesc& desc,
-        MemoryAllocation& outAllocation
+        VmaAllocation* outAllocation
     );
 
-    /// Export an OS handle (Win32 handle or file descriptor) to an exportable allocation's memory.
+    /// Destroy a buffer, then free its memory. Either handle may be null.
+    void destroyBuffer(VkBuffer buffer, VmaAllocation allocation);
+
+    /// Destroy an image, then free its memory. Either handle may be null.
+    void destroyImage(VkImage image, VmaAllocation allocation);
+
+    /// Free memory. The allocation may be null.
+    void freeMemory(VmaAllocation allocation);
+
+    /// Query the allocation's current memory, offset, memory type and mapped pointer.
+    /// pMappedData is the persistently mapped pointer to the start of the allocation, and is
+    /// null unless the allocation was created for Upload or ReadBack memory.
+    /// Returns zeroed info for a null allocation.
+    VmaAllocationInfo getAllocationInfo(VmaAllocation allocation) const;
+
+    /// Export an OS handle (Win32 handle or file descriptor) to an allocation's memory.
+    /// The allocation must have been created as exportable (AllocationDesc::exportable).
     /// The caller owns the returned handle.
-    Result exportHandle(const MemoryAllocation& allocation, NativeHandle* outHandle);
+    Result exportHandle(VmaAllocation allocation, NativeHandle* outHandle);
 
 private:
     /// Returns the VMA pool used for exportable allocations of the given memory type.

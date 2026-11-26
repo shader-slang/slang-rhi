@@ -25,7 +25,7 @@ Result allocateVkBuffer(
     VkBufferUsageFlags usage,
     const AllocationDesc& allocationDesc,
     VkBuffer* outBuffer,
-    MemoryAllocation& outAllocation
+    VmaAllocation* outAllocation
 )
 {
     VkBufferCreateInfo createInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -60,10 +60,9 @@ BufferImpl::~BufferImpl()
         device->m_api.vkDestroyBufferView(device->m_api.m_device, view.second, nullptr);
     }
 
-    // The buffer must be destroyed before its memory (m_allocation) is freed.
-    if (m_ownsBuffer && m_buffer != VK_NULL_HANDLE)
+    if (m_ownsBuffer)
     {
-        device->m_api.vkDestroyBuffer(device->m_api.m_device, m_buffer, nullptr);
+        device->m_memoryAllocator.destroyBuffer(m_buffer, m_allocation);
     }
 
     if (m_sharedHandle)
@@ -94,6 +93,8 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     // sub-allocated from memory blocks shared with unrelated resources (or placed in a resource heap).
     if (!m_sharedHandle)
     {
+        if (!is_set(m_desc.usage, BufferUsage::Shared) || !m_allocation)
+            return SLANG_E_INVALID_ARG;
         SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->m_memoryAllocator.exportHandle(m_allocation, &m_sharedHandle));
     }
     *outHandle = m_sharedHandle;
@@ -102,13 +103,14 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 void* BufferImpl::getMappedData() const
 {
+    const MemoryAllocator& memoryAllocator = getDevice<DeviceImpl>()->m_memoryAllocator;
     if (isPlaced())
     {
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(m_placement->heap.get());
-        uint8_t* heapData = static_cast<uint8_t*>(heap->m_allocation.getMappedData());
+        uint8_t* heapData = static_cast<uint8_t*>(memoryAllocator.getAllocationInfo(heap->m_allocation).pMappedData);
         return heapData ? heapData + m_placement->offset : nullptr;
     }
-    return m_allocation.getMappedData();
+    return memoryAllocator.getAllocationInfo(m_allocation).pMappedData;
 }
 
 DeviceAddress BufferImpl::getDeviceAddress()
@@ -279,14 +281,15 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, &buffer->m_buffer));
         VkMemoryRequirements memoryRequirements = {};
         m_api.vkGetBufferMemoryRequirements(m_device, buffer->m_buffer, &memoryRequirements);
-        if ((memoryRequirements.memoryTypeBits & (1u << heap->m_allocation.getMemoryTypeIndex())) == 0)
+        const VmaAllocationInfo heapInfo = m_memoryAllocator.getAllocationInfo(heap->m_allocation);
+        if ((memoryRequirements.memoryTypeBits & (1u << heapInfo.memoryType)) == 0)
             return SLANG_E_INVALID_ARG;
         SLANG_VK_RETURN_ON_FAIL_REPORT(
             m_api.vkBindBufferMemory(
                 m_device,
                 buffer->m_buffer,
-                heap->m_allocation.getDeviceMemory(),
-                heap->m_allocation.getOffset() + desc.heapOffset
+                heapInfo.deviceMemory,
+                heapInfo.offset + desc.heapOffset
             ),
             this
         );
@@ -301,7 +304,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             allocationDesc.memoryType = MemoryType::Upload;
         allocationDesc.exportable = is_set(desc.usage, BufferUsage::Shared);
         SLANG_RETURN_ON_FAIL(
-            allocateVkBuffer(this, desc.size, usage, allocationDesc, &buffer->m_buffer, buffer->m_allocation)
+            allocateVkBuffer(this, desc.size, usage, allocationDesc, &buffer->m_buffer, &buffer->m_allocation)
         );
     }
 

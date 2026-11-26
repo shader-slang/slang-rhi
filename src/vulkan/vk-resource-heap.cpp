@@ -10,7 +10,11 @@ ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
 {
 }
 
-ResourceHeapImpl::~ResourceHeapImpl() {}
+ResourceHeapImpl::~ResourceHeapImpl()
+{
+    // Resources placed in the heap hold a reference to it, so they are already destroyed.
+    getDevice<DeviceImpl>()->m_memoryAllocator.freeMemory(m_allocation);
+}
 
 Result ResourceHeapImpl::init()
 {
@@ -37,11 +41,12 @@ Result ResourceHeapImpl::init()
     AllocationDesc allocationDesc;
     allocationDesc.memoryType = m_desc.memoryType;
     allocationDesc.dedicated = true;
-    SLANG_RETURN_ON_FAIL(device->m_memoryAllocator.allocateMemory(memoryRequirements, allocationDesc, m_allocation));
-    SLANG_RHI_ASSERT(m_allocation.getOffset() == 0);
+    SLANG_RETURN_ON_FAIL(device->m_memoryAllocator.allocateMemory(memoryRequirements, allocationDesc, &m_allocation));
+    const VmaAllocationInfo info = device->m_memoryAllocator.getAllocationInfo(m_allocation);
+    SLANG_RHI_ASSERT(info.offset == 0);
 
     if (m_desc.label)
-        device->_labelObject((uint64_t)m_allocation.getDeviceMemory(), VK_OBJECT_TYPE_DEVICE_MEMORY, m_desc.label);
+        device->_labelObject((uint64_t)info.deviceMemory, VK_OBJECT_TYPE_DEVICE_MEMORY, m_desc.label);
 
     return SLANG_OK;
 }
@@ -49,7 +54,8 @@ Result ResourceHeapImpl::init()
 Result ResourceHeapImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkDeviceMemory;
-    outHandle->value = (uint64_t)m_allocation.getDeviceMemory();
+    outHandle->value =
+        (uint64_t)getDevice<DeviceImpl>()->m_memoryAllocator.getAllocationInfo(m_allocation).deviceMemory;
     return SLANG_OK;
 }
 
@@ -58,7 +64,9 @@ bool ResourceHeapImpl::isCompatible(const ResourceMemoryRequirements& requiremen
     if (!ResourceHeap::isCompatible(requirements))
         return false;
     const uint64_t memoryTypeBits = getResourceHeapCompatibilityMask(requirements);
-    return (memoryTypeBits & (uint64_t(1) << m_allocation.getMemoryTypeIndex())) != 0;
+    const uint32_t memoryTypeIndex =
+        getDevice<DeviceImpl>()->m_memoryAllocator.getAllocationInfo(m_allocation).memoryType;
+    return (memoryTypeBits & (uint64_t(1) << memoryTypeIndex)) != 0;
 }
 
 } // namespace rhi::vk
