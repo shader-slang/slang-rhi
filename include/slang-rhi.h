@@ -4581,7 +4581,8 @@ struct VulkanDeviceExtendedDesc
     /// needed for slang-rhi to only use, and only report, the extensions listed in `ppEnabledExtensionNames` and
     /// the features enabled through `pEnabledFeatures` or the feature structures in the `pNext` chain.
     /// slang-rhi also uses queue 0 of the first queue family in `pQueueCreateInfos` that supports both graphics and
-    /// compute. The device must have been created with the `timelineSemaphore` feature enabled.
+    /// compute. The device must use Vulkan 1.2 or later and have been created with the `timelineSemaphore` feature
+    /// enabled.
     /// The structure only needs to stay valid for the duration of `IRHI::createDevice`.
     /// If not set, slang-rhi assumes that all extensions and features supported by the physical device are enabled.
     const void* existingDeviceCreateInfo = nullptr;

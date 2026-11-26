@@ -170,6 +170,8 @@ public:
 
         VulkanDeviceExtendedDesc extendedDesc = {};
         extendedDesc.existingDeviceCreateInfo = &createInfo;
+        // The VkDevice is created on slang-rhi's instance, which targets at most Vulkan 1.3.
+        extendedDesc.existingDeviceApiVersion = VK_API_VERSION_1_3;
 
         DeviceDesc desc = {};
         desc.next = &extendedDesc;

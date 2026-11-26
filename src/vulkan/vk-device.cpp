@@ -542,6 +542,28 @@ static VulkanExtendedFeatures getEnabledFeatures(
     return e;
 }
 
+// Returns the first queue family in the create info of an imported device that supports graphics and compute,
+// or -1 if there is none.
+static int findImportedQueueFamily(const VulkanApi& api, const VkDeviceCreateInfo& createInfo)
+{
+    uint32_t queueFamilyCount = 0;
+    api.vkGetPhysicalDeviceQueueFamilyProperties(api.m_physicalDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    api.vkGetPhysicalDeviceQueueFamilyProperties(api.m_physicalDevice, &queueFamilyCount, queueFamilies.data());
+    const VkQueueFlags requiredFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+    for (uint32_t i = 0; i < createInfo.queueCreateInfoCount; i++)
+    {
+        const VkDeviceQueueCreateInfo& queueCreateInfo = createInfo.pQueueCreateInfos[i];
+        if (queueCreateInfo.flags == 0 && queueCreateInfo.queueCount > 0 &&
+            queueCreateInfo.queueFamilyIndex < queueFamilyCount &&
+            (queueFamilies[queueCreateInfo.queueFamilyIndex].queueFlags & requiredFlags) == requiredFlags)
+        {
+            return int(queueCreateInfo.queueFamilyIndex);
+        }
+    }
+    return -1;
+}
+
 Result DeviceImpl::initVulkanInstance(
     const DeviceDesc& desc,
     const VulkanDeviceExtendedDesc* extendedDesc,
@@ -827,15 +849,24 @@ Result DeviceImpl::initVulkanDevice(
     const VkDeviceCreateInfo* existingCreateInfo = nullptr;
     VkPhysicalDeviceFeatures enabledFeatures = {};
     VulkanExtendedFeatures enabledExtendedFeatures;
+    int importedQueueFamilyIndex = -1;
     if (importingDevice)
     {
         if (extendedDesc)
             existingCreateInfo = static_cast<const VkDeviceCreateInfo*>(extendedDesc->existingDeviceCreateInfo);
         if (existingCreateInfo)
         {
+            // Validate everything about the imported device up front, before any features are detected.
             if (existingCreateInfo->sType != VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
             {
                 printError("VulkanDeviceExtendedDesc::existingDeviceCreateInfo must point to a VkDeviceCreateInfo.\n");
+                return SLANG_E_INVALID_ARG;
+            }
+            // slang-rhi relies on timeline semaphores, whose feature is only queried through
+            // VkPhysicalDeviceVulkan12Features.
+            if (apiVersion < VK_API_VERSION_1_2)
+            {
+                printError("Importing a VkDevice requires Vulkan 1.2.\n");
                 return SLANG_E_INVALID_ARG;
             }
 
@@ -854,6 +885,18 @@ Result DeviceImpl::initVulkanDevice(
             extensionNames = std::move(enabledExtensionNames);
 
             enabledExtendedFeatures = getEnabledFeatures(*existingCreateInfo, extensionNames, enabledFeatures);
+            if (!enabledExtendedFeatures.vulkan12Features.timelineSemaphore)
+            {
+                printError("The imported VkDevice must be created with the timelineSemaphore feature enabled.\n");
+                return SLANG_E_INVALID_ARG;
+            }
+            importedQueueFamilyIndex = findImportedQueueFamily(m_api, *existingCreateInfo);
+            if (importedQueueFamilyIndex < 0)
+            {
+                printError("The imported VkDevice has no queue that supports both graphics and compute.\n");
+                return SLANG_E_INVALID_ARG;
+            }
+
             restrictFeatureBits(m_api.m_deviceFeatures, enabledFeatures, 0);
         }
         else
@@ -881,14 +924,6 @@ Result DeviceImpl::initVulkanDevice(
     VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount = 1;
     deviceCreateInfo.pEnabledFeatures = &m_api.m_deviceFeatures;
-
-    // Get the device features (doesn't use, but useful when debugging)
-    if (m_api.vkGetPhysicalDeviceFeatures2)
-    {
-        VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
-        deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
-    }
 
     // Keep the enabled feature structure alive until vkCreateDevice consumes its pNext chain.
     VkPhysicalDevicePortabilitySubsetFeaturesKHR portabilitySubsetFeatures = {
@@ -965,9 +1000,9 @@ Result DeviceImpl::initVulkanDevice(
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
 
         // Only keep the features that were enabled on an imported device.
+        // The core features in m_api.m_deviceFeatures have already been restricted above.
         if (existingCreateInfo)
         {
-            restrictFeatureBits(deviceFeatures2.features, enabledFeatures, 0);
 #define RESTRICT_FEATURES(name) restrictFeatureBits(extendedFeatures.name, enabledExtendedFeatures.name);
             VK_EXTENDED_FEATURE_STRUCTS(RESTRICT_FEATURES)
             RESTRICT_FEATURES(vulkan12Features)
@@ -976,20 +1011,20 @@ Result DeviceImpl::initVulkanDevice(
 #undef RESTRICT_FEATURES
         }
 
-        if (deviceFeatures2.features.shaderResourceMinLod)
+        if (m_api.m_deviceFeatures.shaderResourceMinLod)
         {
             availableFeatures.push_back(Feature::ShaderResourceMinLod);
             availableCapabilities.push_back(Capability::spvMinLod);
         }
-        if (deviceFeatures2.features.shaderFloat64)
+        if (m_api.m_deviceFeatures.shaderFloat64)
         {
             availableFeatures.push_back(Feature::Double);
         }
-        if (deviceFeatures2.features.shaderInt64)
+        if (m_api.m_deviceFeatures.shaderInt64)
         {
             availableFeatures.push_back(Feature::Int64);
         }
-        if (deviceFeatures2.features.shaderInt16)
+        if (m_api.m_deviceFeatures.shaderInt16)
         {
             availableFeatures.push_back(Feature::Int16);
         }
@@ -1811,42 +1846,9 @@ Result DeviceImpl::initVulkanDevice(
         availableCapabilities.push_back(Capability::_spirv_1_6);
     }
 
-    if (existingCreateInfo && !extendedFeatures.vulkan12Features.timelineSemaphore)
-    {
-        printError("The imported VkDevice must be created with the timelineSemaphore feature enabled.\n");
-        return SLANG_E_INVALID_ARG;
-    }
-
-    int queueFamilyIndex = -1;
-    if (existingCreateInfo)
-    {
-        // Use a queue that was created on the imported device.
-        uint32_t queueFamilyCount = 0;
-        m_api.vkGetPhysicalDeviceQueueFamilyProperties(m_api.m_physicalDevice, &queueFamilyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        m_api.vkGetPhysicalDeviceQueueFamilyProperties(m_api.m_physicalDevice, &queueFamilyCount, queueFamilies.data());
-        const VkQueueFlags requiredFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
-        for (uint32_t i = 0; i < existingCreateInfo->queueCreateInfoCount; i++)
-        {
-            const VkDeviceQueueCreateInfo& queueCreateInfo = existingCreateInfo->pQueueCreateInfos[i];
-            if (queueCreateInfo.flags == 0 && queueCreateInfo.queueCount > 0 &&
-                queueCreateInfo.queueFamilyIndex < queueFamilyCount &&
-                (queueFamilies[queueCreateInfo.queueFamilyIndex].queueFlags & requiredFlags) == requiredFlags)
-            {
-                queueFamilyIndex = int(queueCreateInfo.queueFamilyIndex);
-                break;
-            }
-        }
-        if (queueFamilyIndex < 0)
-        {
-            printError("The imported VkDevice has no queue that supports both graphics and compute.\n");
-            return SLANG_E_INVALID_ARG;
-        }
-    }
-    else
-    {
-        queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
-    }
+    // Use a queue that was created on an imported device.
+    int queueFamilyIndex =
+        existingCreateInfo ? importedQueueFamilyIndex : m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
     SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
     m_queueFamilyIndex = queueFamilyIndex;
 
