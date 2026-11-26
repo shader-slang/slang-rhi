@@ -8,6 +8,8 @@
 
 namespace rhi::vk {
 
+struct VulkanFeatureSet;
+
 class AdapterImpl : public Adapter
 {
 public:
@@ -39,12 +41,18 @@ public:
         const VulkanDeviceExtendedDesc* extendedDesc,
         const DebugLayerOptions& debugLayerOptions
     );
+    Result initPhysicalDevice(const DeviceDesc& desc, BackendImpl* backend);
     Result initVulkanDevice(
         const DeviceDesc& desc,
         const VulkanDeviceExtendedDesc* extendedDesc,
         BackendImpl* backend,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
+    );
+    Result createVulkanDevice(
+        const DeviceDesc& desc,
+        const VulkanDeviceExtendedDesc* extendedDesc,
+        VulkanFeatureSet& enabled
     );
 
     Result initialize(const DeviceDesc& desc, BackendImpl* backend);

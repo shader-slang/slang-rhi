@@ -35,11 +35,6 @@
 
 namespace rhi::vk {
 
-static constexpr VkSubgroupFeatureFlags kWaveOpsSubgroupFeatureMask =
-    VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
-    VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT |
-    VK_SUBGROUP_FEATURE_CLUSTERED_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV;
-
 static Result queryCalibratedTimestampSupport(
     VulkanApi& api,
     const std::set<std::string>& extensionNames,
@@ -334,16 +329,6 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return SLANG_OK;
 }
 
-template<typename T>
-static bool _hasAnySetBits(const T& val, size_t offset)
-{
-    const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&val);
-    for (size_t i = offset; i < sizeof(val); i++)
-        if (ptr[i])
-            return true;
-    return false;
-}
-
 Result DeviceImpl::initVulkanInstance(
     const DeviceDesc& desc,
     const VulkanDeviceExtendedDesc* extendedDesc,
@@ -540,20 +525,8 @@ Result DeviceImpl::initVulkanInstance(
     return SLANG_OK;
 }
 
-Result DeviceImpl::initVulkanDevice(
-    const DeviceDesc& desc,
-    const VulkanDeviceExtendedDesc* extendedDesc,
-    BackendImpl* backend,
-    std::vector<Feature>& availableFeatures,
-    std::vector<Capability>& availableCapabilities
-)
+Result DeviceImpl::initPhysicalDevice(const DeviceDesc& desc, BackendImpl* backend)
 {
-    SLANG_RHI_ASSERT(m_api.m_instance != VK_NULL_HANDLE);
-
-    availableFeatures.clear();
-    availableCapabilities.clear();
-
-    // Initialize Vulkan physical device.
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     if (!desc.existingDeviceHandles.handles[1])
     {
@@ -597,7 +570,23 @@ Result DeviceImpl::initVulkanDevice(
     {
         return SLANG_FAIL;
     }
-    SLANG_RETURN_ON_FAIL(m_api.initPhysicalDevice(physicalDevice));
+    return m_api.initPhysicalDevice(physicalDevice);
+}
+
+Result DeviceImpl::initVulkanDevice(
+    const DeviceDesc& desc,
+    const VulkanDeviceExtendedDesc* extendedDesc,
+    BackendImpl* backend,
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
+)
+{
+    SLANG_RHI_ASSERT(m_api.m_instance != VK_NULL_HANDLE);
+
+    availableFeatures.clear();
+    availableCapabilities.clear();
+
+    SLANG_RETURN_ON_FAIL(initPhysicalDevice(desc, backend));
 
     const bool importingDevice = bool(desc.existingDeviceHandles.handles[2]);
 
@@ -663,889 +652,35 @@ Result DeviceImpl::initVulkanDevice(
                 "Importing a VkDevice without VulkanDeviceExtendedDesc::existingDeviceCreateInfo. Assuming that all "
                 "extensions and features supported by the physical device are enabled.\n"
             );
-            // Physical support does not establish which portability subset features an imported device enabled.
+            // Except for these, which are only used if they are known to be enabled.
+            available.extendedFeatures.extendedDynamicStateFeatures.extendedDynamicState = VK_FALSE;
             available.portabilitySubsetFeatures.imageView2DOn3DImage = VK_FALSE;
         }
     }
 
-    // The code below enables and reports features in one go, using m_api to hold them.
-    m_api.m_deviceFeatures = available.features;
-    m_api.m_extendedFeatures = available.extendedFeatures;
+    // Select the extensions and features to use.
+    VulkanFeatureSet enabled;
+    selectDeviceFeatures(available, desc, enabled);
+    if (desc.enableRayTracingValidation && !enabled.extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+    {
+        printWarning("Raytracing validation requested but not available.\n");
+    }
+    SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, available.extensions, m_calibratedTimestampSupport));
+    if (m_calibratedTimestampSupport.available)
+    {
+        enabled.extensions.insert(m_calibratedTimestampSupport.deviceExtensionName);
+    }
+
+    // From here on, m_api describes what is enabled.
+    m_api.m_deviceFeatures = enabled.features;
+    m_api.m_extendedFeatures = enabled.extendedFeatures;
     m_api.m_rayTracingPipelineProperties = deviceProperties.rayTracingPipelineProperties;
-    const std::set<std::string>& extensionNames = available.extensions;
-
-    std::vector<const char*> deviceExtensions;
-    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
-    if (!existingCreateInfo || extensionNames.count(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
-    {
-        availableFeatures.push_back(Feature::Surface);
-    }
-    if (!existingCreateInfo || extensionNames.count(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME))
-    {
-        availableCapabilities.push_back(Capability::SPV_KHR_non_semantic_info);
-        availableCapabilities.push_back(Capability::spvNonSemanticInfoKHR);
-    }
-
-    VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
-    deviceCreateInfo.queueCreateInfoCount = 1;
-    deviceCreateInfo.pEnabledFeatures = &m_api.m_deviceFeatures;
-
-    // Keep the enabled feature structure alive until vkCreateDevice consumes its pNext chain.
-    VkPhysicalDevicePortabilitySubsetFeaturesKHR portabilitySubsetFeatures = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_FEATURES_KHR
-    };
-    if (extensionNames.count(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
-    {
-        deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
-        m_supportsImageView2DOn3DImage = available.portabilitySubsetFeatures.imageView2DOn3DImage;
-        if (!importingDevice)
-        {
-            portabilitySubsetFeatures.imageView2DOn3DImage = available.portabilitySubsetFeatures.imageView2DOn3DImage;
-            portabilitySubsetFeatures.pNext = const_cast<void*>(deviceCreateInfo.pNext);
-            deviceCreateInfo.pNext = &portabilitySubsetFeatures;
-        }
-    }
-
     m_hasSubgroupSizeControl =
-        apiVersion >= VK_API_VERSION_1_3 || extensionNames.count(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) != 0;
-
-    auto& extendedFeatures = m_api.m_extendedFeatures;
-
-#define EXTEND_DESC_CHAIN(head_, desc_)                                                                                \
-    {                                                                                                                  \
-        desc_.pNext = head_.pNext;                                                                                     \
-        head_.pNext = &desc_;                                                                                          \
-    }
-
-    // API version check, can't use vkGetPhysicalDeviceProperties2 yet since this device might not
-    // support it
-    if (apiVersion >= VK_API_VERSION_1_1 && m_api.vkGetPhysicalDeviceProperties2 && m_api.vkGetPhysicalDeviceFeatures2)
-    {
-        if (m_api.m_deviceFeatures.shaderResourceMinLod)
-        {
-            availableFeatures.push_back(Feature::ShaderResourceMinLod);
-            availableCapabilities.push_back(Capability::spvMinLod);
-        }
-        if (m_api.m_deviceFeatures.shaderFloat64)
-        {
-            availableFeatures.push_back(Feature::Double);
-        }
-        if (m_api.m_deviceFeatures.shaderInt64)
-        {
-            availableFeatures.push_back(Feature::Int64);
-        }
-        if (m_api.m_deviceFeatures.shaderInt16)
-        {
-            availableFeatures.push_back(Feature::Int16);
-        }
-        // If we have float16 features then enable
-        if (extendedFeatures.vulkan12Features.shaderFloat16)
-        {
-            availableFeatures.push_back(Feature::Half);
-        }
-
-        const auto addFeatureExtension = [&](const bool feature, auto& featureStruct, const char* extension = nullptr)
-        {
-            if (!feature)
-                return false;
-            if (extension)
-            {
-                if (!extensionNames.count(extension))
-                    return false;
-                deviceExtensions.push_back(extension);
-            }
-            featureStruct.pNext = (void*)deviceCreateInfo.pNext;
-            deviceCreateInfo.pNext = &featureStruct;
-            return true;
-        };
-
-        // SIMPLE_EXTENSION_FEATURE(struct, feature member name, extension, code)
-        // will check for the presence of the boolean feature member in struct and the availability of the extensions.
-        // If they are both present then the extension is added, the struct linked into the deviceCreateInfo chain
-        // and the code block is executed.
-#define SIMPLE_EXTENSION_FEATURE(s, m, e, code)                                                                        \
-    {                                                                                                                  \
-        if (addFeatureExtension(s.m, s, e))                                                                            \
-        {                                                                                                              \
-            code                                                                                                       \
-        }                                                                                                              \
-    }
-
-        // VK_KHR_shader_abort lets a shader call abort() (lowered by Slang to OpAbortKHR). Executing
-        // it ceases the invocation and loses the device; the abort message is then retrievable only
-        // via VK_KHR_device_fault (vkGetDeviceFaultDebugInfoKHR + VkDeviceFaultShaderAbortMessageInfoKHR).
-        // VK_KHR_shader_abort hard-depends on both VK_KHR_device_fault and VK_KHR_shader_constant_data,
-        // so the three must be enabled together. Feature::ShaderAbort is reported only when the whole
-        // round-trip (abort + fault-message retrieval) is available, since that is what the dependent
-        // runtime test (shader-slang/slang#11790) needs.
-        if (extensionNames.count(VK_KHR_SHADER_ABORT_EXTENSION_NAME) &&
-            extensionNames.count(VK_KHR_DEVICE_FAULT_EXTENSION_NAME) &&
-            extensionNames.count(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME) &&
-            extendedFeatures.shaderAbortFeatures.shaderAbort && extendedFeatures.faultFeatures.deviceFault &&
-            extendedFeatures.shaderConstantDataFeatures.shaderConstantData)
-        {
-            // Enable all three extensions/features together (shader_abort hard-depends on the other
-            // two), chaining each queried feature struct into the device-create chain. The gate above
-            // has already verified each feature bit, so every call here succeeds.
-            addFeatureExtension(
-                extendedFeatures.shaderConstantDataFeatures.shaderConstantData,
-                extendedFeatures.shaderConstantDataFeatures,
-                VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME
-            );
-            addFeatureExtension(
-                extendedFeatures.faultFeatures.deviceFault,
-                extendedFeatures.faultFeatures,
-                VK_KHR_DEVICE_FAULT_EXTENSION_NAME
-            );
-            addFeatureExtension(
-                extendedFeatures.shaderAbortFeatures.shaderAbort,
-                extendedFeatures.shaderAbortFeatures,
-                VK_KHR_SHADER_ABORT_EXTENSION_NAME
-            );
-            availableFeatures.push_back(Feature::ShaderAbort);
-            availableCapabilities.push_back(Capability::SPV_KHR_abort);
-            availableCapabilities.push_back(Capability::spvAbort);
-        }
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderDrawParametersFeatures,
-            shaderDrawParameters,
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-            {}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.dynamicRenderingFeatures,
-            dynamicRendering,
-            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-            {/* "dynamic-rendering" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.dynamicRenderingLocalReadFeatures,
-            dynamicRenderingLocalRead,
-            VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME,
-            {/* "dynamic-rendering" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.formats4444Features,
-            formatA4R4G4B4,
-            VK_EXT_4444_FORMATS_EXTENSION_NAME,
-            {/* "b4g4r4a4-format" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.storage16BitFeatures,
-            storageBuffer16BitAccess,
-            VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
-            {/* "16-bit-storage" */}
-        );
-
-        // Enable each atomic extension when any of its features is supported. In particular, float32
-        // min/max does not depend on float16 atomics. Report shader capabilities for buffer operations;
-        // shared and image atomics still require their own storage-class-specific feature checks.
-        const auto reportAtomicCapability = [&](bool supported, Capability extension, Capability capability)
-        {
-            if (supported)
-            {
-                availableCapabilities.push_back(extension);
-                availableCapabilities.push_back(capability);
-            }
-        };
-        const auto& atomicFloat = extendedFeatures.atomicFloatFeatures;
-        const bool atomicFloatEnabled = addFeatureExtension(
-            _hasAnySetBits(
-                atomicFloat,
-                offsetof(VkPhysicalDeviceShaderAtomicFloatFeaturesEXT, shaderBufferFloat32Atomics)
-            ),
-            extendedFeatures.atomicFloatFeatures,
-            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
-        );
-        if (atomicFloatEnabled)
-        {
-            if (atomicFloat.shaderBufferFloat32Atomics)
-                availableFeatures.push_back(Feature::AtomicFloat);
-            reportAtomicCapability(
-                atomicFloat.shaderBufferFloat32AtomicAdd,
-                Capability::SPV_EXT_shader_atomic_float_add,
-                Capability::spvAtomicFloat32AddEXT
-            );
-            reportAtomicCapability(
-                atomicFloat.shaderBufferFloat64AtomicAdd,
-                Capability::SPV_EXT_shader_atomic_float_add,
-                Capability::spvAtomicFloat64AddEXT
-            );
-        }
-
-        const auto& atomicFloat2 = extendedFeatures.atomicFloat2Features;
-        if (addFeatureExtension(
-                extensionNames.count(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME) &&
-                    _hasAnySetBits(
-                        atomicFloat2,
-                        offsetof(VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT, shaderBufferFloat16Atomics)
-                    ),
-                extendedFeatures.atomicFloat2Features,
-                VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME
-            ))
-        {
-            // VK_EXT_shader_atomic_float2 depends on VK_EXT_shader_atomic_float even if none of
-            // the latter's optional feature bits is supported.
-            if (!atomicFloatEnabled)
-                deviceExtensions.push_back(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME);
-            if (atomicFloat2.shaderBufferFloat16Atomics)
-                availableFeatures.push_back(Feature::AtomicFloat);
-            reportAtomicCapability(
-                atomicFloat2.shaderBufferFloat16AtomicAdd,
-                Capability::SPV_EXT_shader_atomic_float16_add,
-                Capability::spvAtomicFloat16AddEXT
-            );
-            reportAtomicCapability(
-                atomicFloat2.shaderBufferFloat16AtomicMinMax,
-                Capability::SPV_EXT_shader_atomic_float_min_max,
-                Capability::spvAtomicFloat16MinMaxEXT
-            );
-            reportAtomicCapability(
-                atomicFloat2.shaderBufferFloat32AtomicMinMax,
-                Capability::SPV_EXT_shader_atomic_float_min_max,
-                Capability::spvAtomicFloat32MinMaxEXT
-            );
-            reportAtomicCapability(
-                atomicFloat2.shaderBufferFloat64AtomicMinMax,
-                Capability::SPV_EXT_shader_atomic_float_min_max,
-                Capability::spvAtomicFloat64MinMaxEXT
-            );
-        }
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.imageInt64AtomicFeatures,
-            shaderImageInt64Atomics,
-            VK_EXT_SHADER_IMAGE_ATOMIC_INT64_EXTENSION_NAME,
-            {/* "image-atomic-int64" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.extendedDynamicStateFeatures,
-            extendedDynamicState,
-            VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
-            {
-                // Physical support does not establish which extensions an imported device enabled,
-                // so only use extended dynamic state on an imported device if it is known to be enabled.
-                m_hasExtendedDynamicState = !importingDevice || existingCreateInfo;
-                if (m_hasExtendedDynamicState && m_api.m_deviceFeatures.multiViewport &&
-                    (extendedFeatures.vulkan12Features.shaderOutputViewportIndex ||
-                     extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME)))
-                    availableFeatures.push_back(Feature::ViewportArrayIndex);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.customBorderColorFeatures,
-            customBorderColors,
-            VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::CustomBorderColor); }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.vertexAttributeRobustnessFeatures,
-            vertexAttributeRobustness,
-            VK_EXT_VERTEX_ATTRIBUTE_ROBUSTNESS_EXTENSION_NAME,
-            {/* Enable vertex attribute robustness to avoid validation errors */}
-        );
-
-        // Instances currently target at most Vulkan 1.3, so rotation still requires the KHR
-        // extension even when the physical device supports Vulkan 1.4.
-        if (addFeatureExtension(
-                extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotate,
-                extendedFeatures.shaderSubgroupRotateFeatures,
-                VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME
-            ))
-        {
-            availableCapabilities.push_back(Capability::SPV_KHR_subgroup_rotate);
-            availableCapabilities.push_back(Capability::spvSubgroupRotateKHR);
-            availableCapabilities.push_back(Capability::spvGroupNonUniformRotateKHR);
-        }
-
-        // See DeviceDesc::enableRayTracing for rationale.
-        if (desc.enableRayTracing && extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
-            extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
-            extensionNames.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
-        {
-            extendedFeatures.accelerationStructureFeatures.pNext = (void*)deviceCreateInfo.pNext;
-            deviceCreateInfo.pNext = &extendedFeatures.accelerationStructureFeatures;
-            deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
-            deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-            availableFeatures.push_back(Feature::AccelerationStructure);
-
-            const bool hasSynchronization2 =
-                apiVersion >= VK_API_VERSION_1_3 || extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-            if (hasSynchronization2)
-            {
-                SIMPLE_EXTENSION_FEATURE(
-                    extendedFeatures.opacityMicromapFeatures,
-                    micromap,
-                    VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
-                    {
-                        if (apiVersion < VK_API_VERSION_1_3)
-                            deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-                        availableFeatures.push_back(Feature::OpacityMicromap);
-                    }
-                );
-            }
-
-            // These both depend on VK_KHR_acceleration_structure
-
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.rayTracingPipelineFeatures,
-                rayTracingPipeline,
-                VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-                {
-                    availableFeatures.push_back(Feature::RayTracing);
-                    availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing);
-                    availableCapabilities.push_back(Capability::spvRayTracingKHR);
-                }
-            );
-
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.rayTracingPositionFetchFeatures,
-                rayTracingPositionFetch,
-                VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME,
-                {
-                    availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing_position_fetch);
-                    availableCapabilities.push_back(Capability::spvRayTracingPositionFetchKHR);
-                    if (extendedFeatures.rayQueryFeatures.rayQuery)
-                    {
-                        availableCapabilities.push_back(Capability::spvRayQueryPositionFetchKHR);
-                    }
-                }
-            );
-
-            SIMPLE_EXTENSION_FEATURE(extendedFeatures.rayQueryFeatures, rayQuery, VK_KHR_RAY_QUERY_EXTENSION_NAME, {
-                availableFeatures.push_back(Feature::RayQuery);
-                availableCapabilities.push_back(Capability::SPV_KHR_ray_query);
-                availableCapabilities.push_back(Capability::spvRayQueryKHR);
-            });
-
-            if ((extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
-                 extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres) &&
-                extensionNames.count(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME))
-            {
-                extendedFeatures.rayTracingLinearSweptSpheresFeatures.pNext = (void*)deviceCreateInfo.pNext;
-                deviceCreateInfo.pNext = &extendedFeatures.rayTracingLinearSweptSpheresFeatures;
-                deviceExtensions.push_back(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME);
-                if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
-                {
-                    availableFeatures.push_back(Feature::AccelerationStructureSpheres);
-                    availableCapabilities.push_back(Capability::SPV_NV_linear_swept_spheres);
-                    availableCapabilities.push_back(Capability::spvRayTracingSpheresGeometryNV);
-                }
-                if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
-                {
-                    availableFeatures.push_back(Feature::AccelerationStructureLinearSweptSpheres);
-                    availableCapabilities.push_back(Capability::SPV_NV_linear_swept_spheres);
-                    availableCapabilities.push_back(Capability::spvRayTracingLinearSweptSpheresGeometryNV);
-                }
-            }
-
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.clusterAccelerationStructureFeatures,
-                clusterAccelerationStructure,
-                VK_NV_CLUSTER_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-                {
-                    availableFeatures.push_back(Feature::ClusterAccelerationStructure);
-                    availableCapabilities.push_back(Capability::SPV_NV_cluster_acceleration_structure);
-                    availableCapabilities.push_back(Capability::spvRayTracingClusterAccelerationStructureNV);
-                }
-            );
-        }
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.inlineUniformBlockFeatures,
-            inlineUniformBlock,
-            VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME,
-            {/* "inline-uniform-block" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.robustness2Features,
-            nullDescriptor,
-            VK_EXT_ROBUSTNESS_2_EXTENSION_NAME,
-            {/* "robustness2" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.clockFeatures,
-            shaderDeviceClock,
-            VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::RealtimeClock);
-                availableCapabilities.push_back(Capability::SPV_KHR_shader_clock);
-                availableCapabilities.push_back(Capability::spvShaderClockKHR);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(extendedFeatures.meshShaderFeatures, meshShader, VK_EXT_MESH_SHADER_EXTENSION_NAME, {
-            availableFeatures.push_back(Feature::MeshShader);
-            availableCapabilities.push_back(Capability::SPV_EXT_mesh_shader);
-            availableCapabilities.push_back(Capability::spvMeshShadingEXT);
-        });
-
-        SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
-            availableFeatures.push_back(Feature::MultiView);
-        });
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.fragmentShadingRateFeatures,
-            primitiveFragmentShadingRate,
-            VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::FragmentShadingRate); }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.rayTracingInvocationReorderFeatures,
-            rayTracingInvocationReorder,
-            VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::ShaderExecutionReordering);
-                availableCapabilities.push_back(Capability::SPV_NV_shader_invocation_reorder);
-                availableCapabilities.push_back(Capability::spvShaderInvocationReorderNV);
-                availableCapabilities.push_back(Capability::spirv_nv);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.variablePointersFeatures,
-            variablePointers,
-            VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
-            {
-                availableCapabilities.push_back(Capability::SPV_KHR_variable_pointers);
-                availableCapabilities.push_back(Capability::spvVariablePointersKHR);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.computeShaderDerivativesFeatures,
-            computeDerivativeGroupQuads,
-            VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
-            {
-                availableCapabilities.push_back(Capability::SPV_KHR_compute_shader_derivatives);
-                availableCapabilities.push_back(Capability::spvComputeShaderDerivativesKHR);
-            }
-        );
-        // Also enable VK_NV_compute_shader_derivatives even if VK_KHR_compute_shader_derivatives is available.
-        // This avoids warnings from the validation layer if the NV specific intrinsics are used.
-        if (extensionNames.count(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME);
-        }
-
-        if (desc.enableRayTracingValidation)
-        {
-            // If unsupported, fail
-            if (!extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
-            {
-                printWarning("Raytracing validation requested but not available.\n");
-            }
-            else
-            {
-                SIMPLE_EXTENSION_FEATURE(
-                    extendedFeatures.rayTracingValidationFeatures,
-                    rayTracingValidation,
-                    VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
-                    { availableFeatures.push_back(Feature::RayTracingValidation); }
-                );
-            }
-        }
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderMaximalReconvergenceFeatures,
-            shaderMaximalReconvergence,
-            VK_KHR_SHADER_MAXIMAL_RECONVERGENCE_EXTENSION_NAME,
-            {
-                availableCapabilities.push_back(Capability::SPV_KHR_maximal_reconvergence);
-                availableCapabilities.push_back(Capability::spvMaximalReconvergenceKHR);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderQuadControlFeatures,
-            shaderQuadControl,
-            VK_KHR_SHADER_QUAD_CONTROL_EXTENSION_NAME,
-            {
-                availableCapabilities.push_back(Capability::SPV_KHR_quad_control);
-                availableCapabilities.push_back(Capability::spvQuadControlKHR);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderIntegerDotProductFeatures,
-            shaderIntegerDotProduct,
-            VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME,
-            {/* "integer-dot-product" */}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.cooperativeVectorFeatures,
-            cooperativeVector,
-            VK_NV_COOPERATIVE_VECTOR_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::CooperativeVector);
-                availableCapabilities.push_back(Capability::SPV_NV_cooperative_vector);
-                availableCapabilities.push_back(Capability::spvCooperativeVectorNV);
-                if (extendedFeatures.cooperativeVectorFeatures.cooperativeVectorTraining)
-                {
-                    availableCapabilities.push_back(Capability::spvCooperativeVectorTrainingNV);
-                }
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.cooperativeMatrix1Features,
-            cooperativeMatrix,
-            VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::CooperativeMatrix);
-                availableCapabilities.push_back(Capability::SPV_KHR_cooperative_matrix);
-                availableCapabilities.push_back(Capability::spvCooperativeMatrixKHR);
-            }
-        );
-
-        // VK_EXT_shader_float8 is required for cooperative matrix types FloatE4M3 and FloatE5M2.
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderFloat8Features,
-            shaderFloat8,
-            VK_EXT_SHADER_FLOAT8_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::Float8);
-                availableCapabilities.push_back(Capability::SPV_EXT_float8);
-                availableCapabilities.push_back(Capability::spvFloat8EXT);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderBfloat16Features,
-            shaderBFloat16Type,
-            VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::Bfloat16);
-                availableCapabilities.push_back(Capability::SPV_KHR_bfloat16);
-                availableCapabilities.push_back(Capability::spvBFloat16KHR);
-            }
-        );
-
-        // VK_NV_cooperative_matrix2 has independent feature bits - one does not imply another - so
-        // each is reported on its own bit and the extension is enabled whenever any exposed bit is
-        // supported. The gate lists exactly the bits mapped to a Feature/Capability below (flexible
-        // dimensions has no SPIR-V capability and is not exposed, so it is not part of the gate). It
-        // also depends on VK_KHR_cooperative_matrix (its capabilities require SPV_KHR_cooperative_matrix),
-        // so it is enabled only when that dependency is also enabled - keeping the enabled-extension
-        // list valid. The queried struct is inserted into the device pNext chain exactly once; a
-        // second insertion would self-link its pNext.
-        {
-            const auto& coopMat2 = extendedFeatures.cooperativeMatrix2Features;
-            const bool anyCoopMat2Feature =
-                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixReductions ||
-                coopMat2.cooperativeMatrixConversions || coopMat2.cooperativeMatrixPerElementOperations ||
-                coopMat2.cooperativeMatrixTensorAddressing || coopMat2.cooperativeMatrixBlockLoads;
-            // The KHR block above enables VK_KHR_cooperative_matrix under exactly this condition.
-            const bool khrCoopMatrixEnabled = extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix &&
-                                              extensionNames.count(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME) > 0;
-            if (khrCoopMatrixEnabled && addFeatureExtension(
-                                            anyCoopMat2Feature,
-                                            extendedFeatures.cooperativeMatrix2Features,
-                                            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME
-                                        ))
-            {
-                if (coopMat2.cooperativeMatrixWorkgroupScope)
-                {
-                    availableFeatures.push_back(Feature::CooperativeMatrix2);
-                    availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
-                }
-                if (coopMat2.cooperativeMatrixReductions)
-                {
-                    availableFeatures.push_back(Feature::CooperativeMatrixReductions);
-                    availableCapabilities.push_back(Capability::spvCooperativeMatrixReductionsNV);
-                }
-                if (coopMat2.cooperativeMatrixConversions)
-                {
-                    availableFeatures.push_back(Feature::CooperativeMatrixConversions);
-                    availableCapabilities.push_back(Capability::spvCooperativeMatrixConversionsNV);
-                }
-                if (coopMat2.cooperativeMatrixPerElementOperations)
-                {
-                    availableFeatures.push_back(Feature::CooperativeMatrixPerElementOperations);
-                    availableCapabilities.push_back(Capability::spvCooperativeMatrixPerElementOperationsNV);
-                }
-                if (coopMat2.cooperativeMatrixTensorAddressing)
-                {
-                    availableFeatures.push_back(Feature::CooperativeMatrixTensorAddressing);
-                    // This bit enables both the CooperativeMatrixTensorAddressingNV and the standalone
-                    // TensorAddressingNV SPIR-V capability (TensorView/TensorLayout), so advertise both.
-                    availableCapabilities.push_back(Capability::spvCooperativeMatrixTensorAddressingNV);
-                    availableCapabilities.push_back(Capability::spvTensorAddressingNV);
-                }
-                if (coopMat2.cooperativeMatrixBlockLoads)
-                {
-                    availableFeatures.push_back(Feature::CooperativeMatrixBlockLoads);
-                    availableCapabilities.push_back(Capability::spvCooperativeMatrixBlockLoadsNV);
-                }
-            }
-        }
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.mutableDescriptorTypeFeatures,
-            mutableDescriptorType,
-            VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME,
-            {}
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.pipelineBinaryFeatures,
-            pipelineBinaries,
-            VK_KHR_PIPELINE_BINARY_EXTENSION_NAME,
-            { deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME); }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderReplicatedCompositesFeatures,
-            shaderReplicatedComposites,
-            VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME,
-            {
-                availableCapabilities.push_back(Capability::SPV_EXT_replicated_composites);
-                availableCapabilities.push_back(Capability::spvReplicatedCompositesEXT);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.fragmentShaderBarycentricFeatures,
-            fragmentShaderBarycentric,
-            VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::Barycentrics);
-                availableCapabilities.push_back(Capability::SPV_KHR_fragment_shader_barycentric);
-                availableCapabilities.push_back(Capability::spvFragmentBarycentricKHR);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderDemoteToHelperInvocationFeatures,
-            shaderDemoteToHelperInvocation,
-            VK_EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_EXTENSION_NAME,
-            {
-                availableCapabilities.push_back(Capability::SPV_EXT_demote_to_helper_invocation);
-                availableCapabilities.push_back(Capability::spvDemoteToHelperInvocationEXT);
-            }
-        );
-
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.rayTracingMotionBlurFeatures,
-            rayTracingMotionBlur,
-            VK_NV_RAY_TRACING_MOTION_BLUR_EXTENSION_NAME,
-            {
-                availableFeatures.push_back(Feature::RayTracingMotionBlur);
-                availableCapabilities.push_back(Capability::SPV_NV_ray_tracing_motion_blur);
-                availableCapabilities.push_back(Capability::spvRayTracingMotionBlurNV);
-            }
-        );
-
-        // The EXT version needs both the extension and the shaderSubgroupPartitioned feature. The NV version is
-        // enabled further below, because it reports its support through a subgroup property instead of a feature.
-        // Feature::SubgroupPartitionedEXT is the EXT version, which is the one that Slang uses by default.
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.shaderSubgroupPartitionedFeatures,
-            shaderSubgroupPartitioned,
-            VK_EXT_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::SubgroupPartitionedEXT); }
-        );
-
-#undef SIMPLE_EXTENSION_FEATURE
-
-        SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport));
-        if (m_calibratedTimestampSupport.available && !importingDevice)
-        {
-            deviceExtensions.push_back(m_calibratedTimestampSupport.deviceExtensionName);
-        }
-
-        if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
-        {
-            availableFeatures.push_back(Feature::AtomicInt64);
-            availableCapabilities.push_back(Capability::spvInt64Atomics);
-        }
-
-        if (extendedFeatures.vulkan12Features.bufferDeviceAddress)
-        {
-            availableCapabilities.push_back(Capability::SPV_EXT_physical_storage_buffer);
-            availableCapabilities.push_back(Capability::SPV_KHR_physical_storage_buffer);
-            availableCapabilities.push_back(Capability::spvPhysicalStorageBufferEXT);
-            availableCapabilities.push_back(Capability::spvPhysicalStorageBufferKHR);
-        }
-        if (extendedFeatures.vulkan12Features.vulkanMemoryModel)
-        {
-            availableCapabilities.push_back(Capability::SPV_KHR_vulkan_memory_model);
-            availableCapabilities.push_back(Capability::spvVulkanMemoryModelKHR);
-            if (extendedFeatures.vulkan12Features.vulkanMemoryModelDeviceScope)
-            {
-                availableCapabilities.push_back(Capability::spvVulkanMemoryModelDeviceScopeKHR);
-            }
-        }
-
-        if (_hasAnySetBits(
-                extendedFeatures.vulkan12Features,
-                offsetof(VkPhysicalDeviceVulkan12Features, pNext) + sizeof(void*)
-            ))
-        {
-            extendedFeatures.vulkan12Features.pNext = (void*)deviceCreateInfo.pNext;
-            deviceCreateInfo.pNext = &extendedFeatures.vulkan12Features;
-        }
-
-        const VkPhysicalDeviceSubgroupProperties& subgroupProps = deviceProperties.subgroupProperties;
-
-        // Report subgroup capabilities independently of the approximate WaveOps feature.
-        static constexpr std::pair<VkSubgroupFeatureFlagBits, Capability> subgroupCapabilities[] = {
-            {VK_SUBGROUP_FEATURE_BASIC_BIT, Capability::spvGroupNonUniform},
-            {VK_SUBGROUP_FEATURE_VOTE_BIT, Capability::spvGroupNonUniformVote},
-            {VK_SUBGROUP_FEATURE_ARITHMETIC_BIT, Capability::spvGroupNonUniformArithmetic},
-            {VK_SUBGROUP_FEATURE_BALLOT_BIT, Capability::spvGroupNonUniformBallot},
-            {VK_SUBGROUP_FEATURE_SHUFFLE_BIT, Capability::spvGroupNonUniformShuffle},
-            {VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT, Capability::spvGroupNonUniformShuffleRelative},
-            {VK_SUBGROUP_FEATURE_CLUSTERED_BIT, Capability::spvGroupNonUniformClustered},
-            {VK_SUBGROUP_FEATURE_QUAD_BIT, Capability::spvGroupNonUniformQuad},
-        };
-        for (const auto& [operation, capability] : subgroupCapabilities)
-        {
-            if (subgroupProps.supportedOperations & operation)
-            {
-                availableCapabilities.push_back(capability);
-            }
-        }
-
-        // Approximate DX12's WaveOps boolean
-        if (subgroupProps.supportedOperations & kWaveOpsSubgroupFeatureMask)
-        {
-            availableFeatures.push_back(Feature::WaveOps);
-        }
-
-        if (extensionNames.count("VK_KHR_external_memory"))
-        {
-            deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
-#if SLANG_WINDOWS_FAMILY
-            if (extensionNames.count("VK_KHR_external_memory_win32"))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
-            }
-#else
-            if (extensionNames.count("VK_KHR_external_memory_fd"))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
-            }
-#endif
-        }
-        if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
-#if SLANG_WINDOWS_FAMILY
-            if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
-            }
-#else
-            if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
-            }
-#endif
-        }
-        if (extensionNames.count(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
-            availableFeatures.push_back(Feature::ConservativeRasterization);
-            availableCapabilities.push_back(Capability::SPV_EXT_fragment_fully_covered);
-            availableCapabilities.push_back(Capability::spvFragmentFullyCoveredEXT);
-        }
-        if (extensionNames.count(VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME);
-            // availableFeatures.push_back(Feature::RasterizerOrderedViews); TODO should this be enabled?
-            availableCapabilities.push_back(Capability::SPV_EXT_fragment_shader_interlock);
-            if (extendedFeatures.fragmentShaderInterlockFeatures.fragmentShaderPixelInterlock)
-            {
-                availableCapabilities.push_back(Capability::spvFragmentShaderPixelInterlockEXT);
-            }
-        }
-        if (extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
-        }
-        // See DeviceDesc::enableCUDALaunchFromGfx for rationale.
-        if (desc.enableCUDALaunchFromGfx && extensionNames.count(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
-        }
-        if (extensionNames.count(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
-        }
-        if (extensionNames.count(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
-        }
-        if (extensionNames.count(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
-            if (subgroupProps.supportedOperations & VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV)
-            {
-                availableCapabilities.push_back(Capability::SPV_NV_shader_subgroup_partitioned);
-                availableCapabilities.push_back(Capability::spvGroupNonUniformPartitionedNV);
-            }
-        }
-    }
-
-    if (extendedFeatures.vulkan12Features.descriptorIndexing)
-    {
-        availableCapabilities.push_back(Capability::SPV_EXT_descriptor_indexing);
-    }
-
-    if (extendedFeatures.vulkan12Features.descriptorIndexing &&
-        extendedFeatures.descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing &&
-        extendedFeatures.descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing &&
-        extendedFeatures.descriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing &&
-        extendedFeatures.descriptorIndexingFeatures.shaderUniformTexelBufferArrayNonUniformIndexing &&
-        extendedFeatures.descriptorIndexingFeatures.shaderStorageTexelBufferArrayNonUniformIndexing &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageImageUpdateAfterBind &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingUpdateUnusedWhilePending &&
-        extendedFeatures.descriptorIndexingFeatures.descriptorBindingPartiallyBound &&
-        extendedFeatures.mutableDescriptorTypeFeatures.mutableDescriptorType)
-    {
-        availableFeatures.push_back(Feature::Bindless);
-    }
-
-    if (extendedFeatures.vulkan13Features.shaderDemoteToHelperInvocation)
-    {
-        availableCapabilities.push_back(Capability::spvDemoteToHelperInvocation);
-    }
-
-    // Detect SPIRV version
-    availableCapabilities.push_back(Capability::_spirv_1_0);
-    if (apiVersion >= VK_API_VERSION_1_1)
-    {
-        availableCapabilities.push_back(Capability::_spirv_1_1);
-        availableCapabilities.push_back(Capability::_spirv_1_2);
-        availableCapabilities.push_back(Capability::_spirv_1_3);
-    }
-    if (apiVersion >= VK_API_VERSION_1_2)
-    {
-        availableCapabilities.push_back(Capability::_spirv_1_4);
-        availableCapabilities.push_back(Capability::_spirv_1_5);
-    }
-    if (apiVersion >= VK_API_VERSION_1_3)
-    {
-        availableCapabilities.push_back(Capability::_spirv_1_6);
-    }
+        enabled.hasVersion(VK_API_VERSION_1_3) || available.hasExtension(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
+    m_hasExtendedDynamicState = enabled.extendedFeatures.extendedDynamicStateFeatures.extendedDynamicState;
+    m_supportsImageView2DOn3DImage = !enabled.hasExtension(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) ||
+                                     enabled.portabilitySubsetFeatures.imageView2DOn3DImage;
+    reportDeviceFeatures(enabled, deviceProperties, availableFeatures, availableCapabilities);
 
     // Use a queue that was created on an imported device.
     int queueFamilyIndex =
@@ -1554,8 +689,80 @@ Result DeviceImpl::initVulkanDevice(
     m_queueFamilyIndex = queueFamilyIndex;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
-    VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
+    if (desc.enableAftermath)
+    {
+        m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+    }
+#else
+    if (desc.enableAftermath)
+    {
+        printWarning("Aftermath requested but not enabled in build.\n");
+    }
+#endif
 
+    // Create the Vulkan device, or use the imported one.
+    if (!importingDevice)
+    {
+        SLANG_RETURN_ON_FAIL(createVulkanDevice(desc, extendedDesc, enabled));
+    }
+    else
+    {
+        if (desc.existingDeviceHandles.handles[2].type != NativeHandleType::VkDevice)
+        {
+            return SLANG_FAIL;
+        }
+        m_device = (VkDevice)desc.existingDeviceHandles.handles[2].value;
+    }
+    if (!m_device)
+    {
+        return SLANG_FAIL;
+    }
+    m_api.initDerivedDeviceProperties();
+    SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
+
+    // Report the features that also depend on device entry points.
+    if (m_calibratedTimestampSupport.available && m_api.vkGetCalibratedTimestampsKHR)
+    {
+        availableFeatures.push_back(Feature::TimestampCalibration);
+    }
+    else
+    {
+        m_calibratedTimestampSupport = {};
+    }
+
+    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries && m_api.vkGetPipelineKeyKHR &&
+        m_api.vkCreatePipelineBinariesKHR && m_api.vkGetPipelineBinaryDataKHR && m_api.vkDestroyPipelineBinaryKHR &&
+        m_api.vkReleaseCapturedPipelineDataKHR)
+    {
+        availableFeatures.push_back(Feature::PipelineCache);
+    }
+
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createVulkanDevice(
+    const DeviceDesc& desc,
+    const VulkanDeviceExtendedDesc* extendedDesc,
+    VulkanFeatureSet& enabled
+)
+{
+    VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    linkEnabledFeatures(enabled, deviceCreateInfo);
+
+    float queuePriority = 0.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+    queueCreateInfo.queueFamilyIndex = m_queueFamilyIndex;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    deviceCreateInfo.queueCreateInfoCount = 1;
+    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+
+    std::vector<const char*> deviceExtensions;
+    for (const std::string& extension : enabled.extensions)
+        deviceExtensions.push_back(extension.c_str());
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV};
     if (desc.enableAftermath)
     {
         // Enable NV_device_diagnostic_checkpoints extension to be able to use Aftermath event markers.
@@ -1573,135 +780,33 @@ Result DeviceImpl::initVulkanDevice(
             aftermathFlags |= VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV;
         if (is_set(desc.aftermathFlags, AftermathFlags::EnableShaderErrorReporting))
             aftermathFlags |= VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV;
-
-        aftermathInfo.sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV;
         aftermathInfo.flags = aftermathFlags;
-
-        aftermathInfo.pNext = deviceCreateInfo.pNext;
-        deviceCreateInfo.pNext = &aftermathInfo;
-
-        m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+        linkStruct(deviceCreateInfo, aftermathInfo);
     }
 #else
-    if (desc.enableAftermath)
-    {
-        printWarning("Aftermath requested but not enabled in build.\n");
-    }
+    SLANG_UNUSED(desc);
 #endif
 
-    // Create Vulkan device.
-    if (!desc.existingDeviceHandles.handles[2])
+    // Add user-provided device extensions, skipping duplicates.
+    if (extendedDesc && extendedDesc->deviceExtensionCount > 0)
     {
-        float queuePriority = 0.0f;
-        VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
-        queueCreateInfo.queueFamilyIndex = m_queueFamilyIndex;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-
-        deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
-
-        // Add user-provided device extensions, skipping duplicates.
-        if (extendedDesc && extendedDesc->deviceExtensionCount > 0)
+        std::set<std::string> existingExtensions(deviceExtensions.begin(), deviceExtensions.end());
+        for (uint32_t i = 0; i < extendedDesc->deviceExtensionCount; ++i)
         {
-            std::set<std::string> existingExtensions(deviceExtensions.begin(), deviceExtensions.end());
-            for (uint32_t i = 0; i < extendedDesc->deviceExtensionCount; ++i)
+            if (extendedDesc->deviceExtensions[i] &&
+                existingExtensions.find(extendedDesc->deviceExtensions[i]) == existingExtensions.end())
             {
-                if (extendedDesc->deviceExtensions[i] &&
-                    existingExtensions.find(extendedDesc->deviceExtensions[i]) == existingExtensions.end())
-                {
-                    deviceExtensions.push_back(extendedDesc->deviceExtensions[i]);
-                    existingExtensions.insert(extendedDesc->deviceExtensions[i]);
-                }
+                deviceExtensions.push_back(extendedDesc->deviceExtensions[i]);
+                existingExtensions.insert(extendedDesc->deviceExtensions[i]);
             }
         }
-
-        deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
-        deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-        if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
-            return SLANG_FAIL;
     }
-    else
-    {
-        if (desc.existingDeviceHandles.handles[2].type != NativeHandleType::VkDevice)
-        {
-            return SLANG_FAIL;
-        }
-        m_device = (VkDevice)desc.existingDeviceHandles.handles[2].value;
-    }
-    if (!m_device)
-    {
+
+    deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+    if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
         return SLANG_FAIL;
-    }
-    m_api.initDerivedDeviceProperties();
-    SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
-
-    if (m_calibratedTimestampSupport.available && m_api.vkGetCalibratedTimestampsKHR)
-    {
-        availableFeatures.push_back(Feature::TimestampCalibration);
-    }
-    else
-    {
-        m_calibratedTimestampSupport = {};
-    }
-
-    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries && m_api.vkGetPipelineKeyKHR &&
-        m_api.vkCreatePipelineBinariesKHR && m_api.vkGetPipelineBinaryDataKHR && m_api.vkDestroyPipelineBinaryKHR &&
-        m_api.vkReleaseCapturedPipelineDataKHR)
-    {
-        availableFeatures.push_back(Feature::PipelineCache);
-    }
-
-#if SLANG_PROCESSOR_ARM_64
-    // Ray tracing pipelines are currently broken on ARM64 lavapipe. Keep feature detection and device
-    // creation unchanged, but do not advertise the affected features or shader capabilities.
-    if (deviceProperties.driverID == VK_DRIVER_ID_MESA_LLVMPIPE)
-    {
-        auto remove = [](auto& values, auto value)
-        {
-            values.erase(std::remove(values.begin(), values.end(), value), values.end());
-        };
-
-        for (Feature feature : {
-                 Feature::AccelerationStructure,
-                 Feature::AccelerationStructureSpheres,
-                 Feature::AccelerationStructureLinearSweptSpheres,
-                 Feature::RayTracing,
-                 Feature::RayQuery,
-                 Feature::ShaderExecutionReordering,
-                 Feature::RayTracingMotionBlur,
-                 Feature::RayTracingValidation,
-                 Feature::ClusterAccelerationStructure,
-             })
-        {
-            remove(availableFeatures, feature);
-        }
-
-        for (Capability capability : {
-                 Capability::SPV_KHR_ray_tracing,
-                 Capability::SPV_KHR_ray_query,
-                 Capability::SPV_KHR_ray_tracing_position_fetch,
-                 Capability::SPV_NV_ray_tracing_motion_blur,
-                 Capability::SPV_NV_shader_invocation_reorder,
-                 Capability::SPV_NV_cluster_acceleration_structure,
-                 Capability::SPV_NV_linear_swept_spheres,
-                 Capability::spvRayTracingMotionBlurNV,
-                 Capability::spvRayTracingKHR,
-                 Capability::spvRayTracingPositionFetchKHR,
-                 Capability::spvRayQueryKHR,
-                 Capability::spvRayQueryPositionFetchKHR,
-                 Capability::spvShaderInvocationReorderNV,
-                 Capability::spirv_nv,
-                 Capability::spvRayTracingClusterAccelerationStructureNV,
-                 Capability::spvRayTracingLinearSweptSpheresGeometryNV,
-                 Capability::spvRayTracingSpheresGeometryNV,
-             })
-        {
-            remove(availableCapabilities, capability);
-        }
-    }
-#endif
-
     return SLANG_OK;
 }
 
@@ -1767,11 +872,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES
     };
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    EXTEND_DESC_CHAIN(props, idProps);
-    EXTEND_DESC_CHAIN(props, subgroupProps);
+    linkStruct(props, idProps);
+    linkStruct(props, subgroupProps);
     if (m_hasSubgroupSizeControl)
     {
-        EXTEND_DESC_CHAIN(props, subgroupSizeControlProps);
+        linkStruct(props, subgroupSizeControlProps);
     }
     m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
     const VkPhysicalDeviceProperties& basicProps = props.properties;
