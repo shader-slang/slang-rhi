@@ -30,8 +30,9 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
-Result ComputePipelineImpl::getMaxCooperativeThreadGroupCount(uint32_t* outCount)
+Result ComputePipelineImpl::getMaxCooperativeThreadGroupCount(IShaderObject* rootObject, uint32_t* outCount)
 {
+    SLANG_UNUSED(rootObject);
     *outCount = m_maxCooperativeThreadGroupCount;
     return m_cooperative ? SLANG_OK : SLANG_E_NOT_AVAILABLE;
 }
@@ -124,9 +125,26 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         uint32_t threads =
             pipeline->m_threadGroupSize[0] * pipeline->m_threadGroupSize[1] * pipeline->m_threadGroupSize[2];
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuOccupancyMaxActiveBlocksPerMultiprocessor(&blocksPerSM, pipeline->m_function, int(threads), 0),
+            cuOccupancyMaxActiveBlocksPerMultiprocessor(
+                &blocksPerSM,
+                pipeline->m_function,
+                int(threads),
+                pipeline->m_dynamicSharedMemorySize
+            ),
             this
         );
+        if (blocksPerSM == 0)
+        {
+            printError(
+                "Cooperative launch: no thread group of pipeline %s fits on a multiprocessor (%u threads, %d bytes "
+                "of shared memory), so every dispatch would fail. Reduce the thread group size, or the registers "
+                "or shared memory the kernel uses.",
+                pipeline->m_entryPointName.c_str(),
+                threads,
+                sharedSizeBytes + int(pipeline->m_dynamicSharedMemorySize)
+            );
+            return SLANG_FAIL;
+        }
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(
             cuDeviceGetAttribute(&smCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, m_ctx.device),
             this

@@ -735,7 +735,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         config.blockDimX = computePipeline->m_threadGroupSize[0];
         config.blockDimY = computePipeline->m_threadGroupSize[1];
         config.blockDimZ = computePipeline->m_threadGroupSize[2];
-        config.sharedMemBytes = 0;
+        config.sharedMemBytes = computePipeline->m_dynamicSharedMemorySize;
         config.hStream = m_stream;
         config.attrs = &attribute;
         config.numAttrs = 1;
@@ -752,7 +752,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         computePipeline->m_threadGroupSize[0],
         computePipeline->m_threadGroupSize[1],
         computePipeline->m_threadGroupSize[2],
-        0,
+        computePipeline->m_dynamicSharedMemorySize,
         m_stream,
         nullptr,
         extraOptions

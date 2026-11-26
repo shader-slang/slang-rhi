@@ -1,8 +1,12 @@
 #include "pipeline.h"
 
 #include "rhi-shared.h"
+#include "device.h"
+#include "shader-object.h"
+#include "debug-layer/debug-shader-object.h"
 
 #include <atomic>
+#include <mutex>
 
 namespace rhi {
 
@@ -90,12 +94,36 @@ Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result VirtualComputePipeline::getMaxCooperativeThreadGroupCount(uint32_t* outCount)
+Result VirtualComputePipeline::getMaxCooperativeThreadGroupCount(IShaderObject* rootObject, uint32_t* outCount)
 {
-    if (m_concretePipeline)
-        return checked_cast<ComputePipeline*>(m_concretePipeline.get())->getMaxCooperativeThreadGroupCount(outCount);
     *outCount = 0;
-    return SLANG_E_NOT_AVAILABLE;
+    if (!is_set(m_desc.flags, ComputePipelineFlags::CooperativeLaunch))
+        return SLANG_E_NOT_AVAILABLE;
+
+    // The debug layer does not wrap pipelines, so a root object of a debug device arrives here
+    // still wrapped.
+    if (auto debugObject = dynamic_cast<debug::DebugShaderObject*>(rootObject))
+        rootObject = debugObject->baseObject.get();
+
+    RefPtr<ExtendedShaderObjectTypeListObject> specializationArgs;
+    if (m_program->isSpecializable())
+    {
+        if (!rootObject)
+            return SLANG_E_INVALID_ARG;
+        specializationArgs = new ExtendedShaderObjectTypeListObject();
+        SLANG_RETURN_ON_FAIL(
+            checked_cast<RootShaderObject*>(rootObject)->collectSpecializationArgs(*specializationArgs)
+        );
+    }
+
+    // Resolve the concrete pipeline the same way a dispatch does. The lock also orders this with
+    // pipeline resolution on other threads, which writes m_concretePipeline.
+    Pipeline* concretePipeline = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(getDevice()->m_pipelineResolutionMutex);
+        SLANG_RETURN_ON_FAIL(getDevice()->getConcretePipeline(this, specializationArgs.get(), concretePipeline));
+    }
+    return checked_cast<ComputePipeline*>(concretePipeline)->getMaxCooperativeThreadGroupCount(rootObject, outCount);
 }
 
 // ----------------------------------------------------------------------------

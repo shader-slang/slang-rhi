@@ -375,6 +375,8 @@ IShaderObject* DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
     m_pipelineBound = true;
+    m_pipeline = pipeline;
+    m_innerRootObject = m_rootObject->baseObject;
 
     return m_rootObject;
 }
@@ -394,6 +396,8 @@ void DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline, IShaderOb
 
     baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
     m_pipelineBound = true;
+    m_pipeline = pipeline;
+    m_innerRootObject = getInnerObj(rootObject);
 }
 
 void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
@@ -411,6 +415,23 @@ void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z
     if (x == 0 || y == 0 || z == 0)
     {
         RHI_VALIDATION_WARNING("One or more group dimensions is 0.");
+    }
+    if (m_pipeline && is_set(m_pipeline->getDesc().flags, ComputePipelineFlags::CooperativeLaunch))
+    {
+        // The backend skips an over-limit cooperative dispatch at submit time; report it here instead.
+        uint64_t groupCount = uint64_t(x) * y * z;
+        uint32_t maxGroupCount = 0;
+        if (SLANG_SUCCEEDED(m_pipeline->getMaxCooperativeThreadGroupCount(m_innerRootObject, &maxGroupCount)) &&
+            groupCount > maxGroupCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "Cooperative dispatch of %llu thread groups exceeds the limit of %u from "
+                "getMaxCooperativeThreadGroupCount.",
+                (unsigned long long)groupCount,
+                maxGroupCount
+            );
+            return;
+        }
     }
 
     baseObject->dispatchCompute(x, y, z);
@@ -495,6 +516,8 @@ void DebugComputePassEncoder::end()
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
     m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+    m_pipeline = nullptr;
+    m_innerRootObject = nullptr;
 
     baseObject->end();
 }
@@ -837,6 +860,8 @@ IComputePassEncoder* DebugCommandEncoder::beginComputePass()
 
     m_passState = PassState::ComputePass;
     m_computePassEncoder.m_pipelineBound = false;
+    m_computePassEncoder.m_pipeline = nullptr;
+    m_computePassEncoder.m_innerRootObject = nullptr;
     m_computePassEncoder.baseObject = innerEncoder;
 
     return &m_computePassEncoder;

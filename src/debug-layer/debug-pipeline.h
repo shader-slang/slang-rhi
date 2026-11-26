@@ -37,10 +37,10 @@ public:
 public:
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(uint32_t* outCount) override
-    {
-        return baseObject->getMaxCooperativeThreadGroupCount(outCount);
-    }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
+        IShaderObject* rootObject,
+        uint32_t* outCount
+    ) override;
 };
 
 class DebugRayTracingPipeline : public DebugObject<IRayTracingPipeline>

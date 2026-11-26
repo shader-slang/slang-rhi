@@ -37,6 +37,19 @@ Result DebugComputePipeline::getNativeHandle(NativeHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
+Result DebugComputePipeline::getMaxCooperativeThreadGroupCount(IShaderObject* rootObject, uint32_t* outCount)
+{
+    SLANG_RHI_DEBUG_API(IComputePipeline, getMaxCooperativeThreadGroupCount);
+
+    if (!outCount)
+    {
+        RHI_VALIDATION_ERROR("'outCount' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->getMaxCooperativeThreadGroupCount(getInnerObj(rootObject), outCount);
+}
+
 // ----------------------------------------------------------------------------
 // DebugRayTracingPipeline
 // ----------------------------------------------------------------------------

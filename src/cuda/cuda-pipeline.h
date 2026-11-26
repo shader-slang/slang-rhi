@@ -18,6 +18,9 @@ public:
     // TODO: This is a temporary flag to warn about global parameter size mismatch once.
     bool m_warnedAboutGlobalParamsSizeMismatch = false;
     size_t m_sharedMemorySize = 0;
+    /// Dynamic shared memory per thread group, passed to every launch and to the occupancy query.
+    /// Kernels currently only use static shared memory.
+    uint32_t m_dynamicSharedMemorySize = 0;
     bool m_cooperative = false;
     uint32_t m_maxCooperativeThreadGroupCount = 0;
 
@@ -26,7 +29,10 @@ public:
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(uint32_t* outCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
+        IShaderObject* rootObject,
+        uint32_t* outCount
+    ) override;
 };
 
 class RayTracingPipelineImpl : public RayTracingPipeline

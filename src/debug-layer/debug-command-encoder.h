@@ -83,6 +83,9 @@ public:
     DebugCommandEncoder* m_commandEncoder;
     RefPtr<DebugRootShaderObject> m_rootObject;
     bool m_pipelineBound = false;
+    // The bound pipeline and the inner root object, to validate cooperative dispatches.
+    ComPtr<IComputePipeline> m_pipeline;
+    ComPtr<IShaderObject> m_innerRootObject;
 };
 
 class DebugRayTracingPassEncoder : public UnownedDebugObject<IRayTracingPassEncoder>

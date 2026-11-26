@@ -920,7 +920,7 @@ CUDA_SYM(CUresult (*cuSurfObjectDestroy)(CUsurfObject));
 CUDA_SYM(CUresult (*cuTexObjectCreate)(CUtexObject*, const CUDA_RESOURCE_DESC*, const CUDA_TEXTURE_DESC*, const CUDA_RESOURCE_VIEW_DESC*));
 CUDA_SYM(CUresult (*cuTexObjectDestroy)(CUtexObject));
 
-// Launch with attributes (CUDA 12.0+). Loaded optionally: null on older drivers.
+// Launch with attributes (CUDA 11.8+). Loaded optionally: null on older drivers.
 enum CUlaunchAttributeID
 {
     CU_LAUNCH_ATTRIBUTE_COOPERATIVE = 2,

@@ -2202,8 +2202,9 @@ enum class ComputePipelineFlags : uint32_t
     /// Launch every dispatch of this pipeline so that all its thread groups run concurrently
     /// (CUDA: cooperative launch), which makes a grid-wide barrier in the kernel legal.
     /// Requires Feature::CooperativeLaunch (createComputePipeline returns SLANG_E_NOT_AVAILABLE
-    /// otherwise). The group count of a dispatch must not exceed getMaxCooperativeThreadGroupCount();
-    /// a larger dispatch reports an error and is skipped.
+    /// otherwise), and pipeline creation fails if not even one thread group of the kernel fits on a
+    /// multiprocessor. The group count of a dispatch must not exceed getMaxCooperativeThreadGroupCount();
+    /// a larger dispatch reports an error (at the call site with the debug layer) and is skipped.
     CooperativeLaunch = (1 << 0),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(ComputePipelineFlags);
@@ -2358,9 +2359,14 @@ public:
 
     /// For a pipeline created with ComputePipelineFlags::CooperativeLaunch: the largest number of
     /// thread groups (x * y * z) one dispatch may use so that all groups are co-resident.
-    /// Returns SLANG_E_NOT_AVAILABLE for other pipelines, and for a pipeline whose compilation
-    /// is deferred or specializable until its concrete pipeline has been created.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(uint32_t* outCount) = 0;
+    /// Returns SLANG_E_NOT_AVAILABLE for other pipelines.
+    /// rootObject supplies specialization arguments; required if the program is specializable,
+    /// ignored otherwise. For deferred/specializable pipelines this compiles the concrete pipeline
+    /// synchronously; the result is cached and reused by later dispatches.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
+        IShaderObject* rootObject,
+        uint32_t* outCount
+    ) = 0;
 };
 
 class IRayTracingPipeline : public IPipeline
