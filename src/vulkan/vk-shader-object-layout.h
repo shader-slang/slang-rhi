@@ -224,7 +224,7 @@ public:
     /// Get the total number of descriptor sets that would need to be allocated and bound
     /// to represent this object and its children (transitively) as a parameter block.
     ///
-    uint32_t getTotalDescriptorSetCount() { return getOwnDescriptorSetCount() + getChildDescriptorSetCount(); }
+    virtual uint32_t getTotalDescriptorSetCount() { return getOwnDescriptorSetCount() + getChildDescriptorSetCount(); }
 
     /// Get the total number of `binding`s required to represent this type and its
     /// (transitive) children.
@@ -488,7 +488,9 @@ public:
     /// (transitive) sub-objects
     const std::vector<VkPushConstantRange>& getAllPushConstantRanges() { return m_allPushConstantRanges; }
 
-    uint32_t getTotalDescriptorSetCount()
+    /// Synthetic-resource programs bind sets at explicit locations, so the count
+    /// includes gaps and every set below the highest used location.
+    virtual uint32_t getTotalDescriptorSetCount() override
     {
         return m_explicitDescriptorSetCount ? m_explicitDescriptorSetCount : Super::getTotalDescriptorSetCount();
     }

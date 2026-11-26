@@ -39,6 +39,17 @@ Result RootShaderObjectLayoutImpl::Builder::collectChildDescriptorSets(
                     }
                     if (m_descriptorSetLayouts.size() <= setIndex)
                         m_descriptorSetLayouts.resize(size_t(setIndex) + 1);
+                    // Each set must have exactly one owner. A collision means the
+                    // reflected register-space offsets were misinterpreted.
+                    if (m_descriptorSetLayouts[size_t(setIndex)] != VK_NULL_HANDLE ||
+                        m_mapSpaceToDescriptorSetIndex.count(uint32_t(setIndex)))
+                    {
+                        m_device->printError(
+                            "Vulkan descriptor set %u is claimed by more than one shader object",
+                            uint32_t(setIndex)
+                        );
+                        return SLANG_E_INVALID_ARG;
+                    }
                     m_descriptorSetLayouts[size_t(setIndex)] = set.descriptorSetLayout;
                 }
             }
@@ -78,10 +89,9 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
             );
             return SLANG_E_INVALID_ARG;
         }
-        const auto& childLayouts = m_descriptorSetLayouts;
         bool reflectedSet = m_mapSpaceToDescriptorSetIndex.find(resource.space) != m_mapSpaceToDescriptorSetIndex.end();
-        reflectedSet |=
-            uint32_t(resource.space) < childLayouts.size() && childLayouts[resource.space] != VK_NULL_HANDLE;
+        reflectedSet |= uint32_t(resource.space) < m_descriptorSetLayouts.size() &&
+                        m_descriptorSetLayouts[resource.space] != VK_NULL_HANDLE;
         if (reflectedSet)
         {
             m_device->handleMessage(
@@ -100,11 +110,16 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
     }
 
     // Root-owned empty sets fill gaps through the normal layout/allocation
-    // path. Child-owned sets are left intact.
+    // path. Child-owned sets are left intact. Each gap costs one empty
+    // descriptor-set allocation per bind; gaps are expected to be rare since
+    // they only arise from explicit set numbers in the shader.
     for (const auto& set : m_descriptorSetBuildInfos)
     {
         if (set.space < 0 || uint32_t(set.space) >= kMaxDescriptorSets)
+        {
+            m_device->printError("Descriptor set space exceeds Vulkan layout limit");
             return SLANG_E_INVALID_ARG;
+        }
         if (m_descriptorSetLayouts.size() <= uint32_t(set.space))
             m_descriptorSetLayouts.resize(uint32_t(set.space) + 1);
     }
