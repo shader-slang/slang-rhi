@@ -23,6 +23,9 @@ public:
         PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* device);
         ~PageImpl();
 
+        /// Allocate the page's buffer. Must be called (and succeed) before the page is used.
+        Result init();
+
         DeviceAddress offsetToAddress(Size offset) override;
 
         VKBufferHandleRAII m_buffer;

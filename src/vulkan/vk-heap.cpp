@@ -10,8 +10,11 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
     : Heap::Page(heap, desc)
     , m_device(device)
 {
-    // Initialize buffer similar to BufferImpl::createBuffer logic
-    const VulkanApi& api = device->m_api;
+}
+
+Result HeapImpl::PageImpl::init()
+{
+    const VulkanApi& api = m_device->m_api;
 
     // Determine buffer usage flags for heap pages
     VkBufferUsageFlags usage =
@@ -25,11 +28,9 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
 
     // Allocate the page through VMA. The page may be sub-allocated from a larger memory block,
     // so only access its memory through the buffer (shared heaps get dedicated, exportable memory).
-    HeapImpl* heapImpl = static_cast<HeapImpl*>(heap);
+    HeapImpl* heapImpl = static_cast<HeapImpl*>(m_heap);
     const bool exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
-    Result result = m_buffer.init(device, desc.size, usage, heapImpl->m_desc.memoryType, exportable);
-    SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
-    SLANG_UNUSED(result);
+    return m_buffer.init(m_device, m_desc.size, usage, heapImpl->m_desc.memoryType, exportable);
 }
 
 HeapImpl::PageImpl::~PageImpl() {}
@@ -107,8 +108,15 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
 
-    // Create page - the constructor will handle all buffer creation logic
-    Page* page = new PageImpl(this, desc, deviceImpl);
+    // Create the page and allocate its buffer. Allocation can fail, e.g. when out of memory or
+    // when a shared heap is requested but the device can't export memory.
+    PageImpl* page = new PageImpl(this, desc, deviceImpl);
+    Result result = page->init();
+    if (SLANG_FAILED(result))
+    {
+        delete page;
+        return result;
+    }
 
     // Vulkan memory allocation guarantees an alignment suitable for
     // any memory type, however if the user asks for an alignment
