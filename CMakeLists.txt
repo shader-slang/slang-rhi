@@ -920,6 +920,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-command.cpp
         src/vulkan/vk-descriptor-set-composition.cpp
         src/vulkan/vk-descriptor-allocator.cpp
+        src/vulkan/vk-device-features.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
