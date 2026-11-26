@@ -29,11 +29,18 @@ Result HeapImpl::PageImpl::init()
     // Allocate the page through VMA. The page may be sub-allocated from a larger memory block,
     // so only access its memory through the buffer (shared heaps get dedicated, exportable memory).
     HeapImpl* heapImpl = static_cast<HeapImpl*>(m_heap);
-    const bool exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
-    return m_buffer.init(m_device, m_desc.size, usage, heapImpl->m_desc.memoryType, exportable);
+    AllocationDesc allocationDesc;
+    allocationDesc.memoryType = heapImpl->m_desc.memoryType;
+    allocationDesc.exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
+    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, m_allocation);
 }
 
-HeapImpl::PageImpl::~PageImpl() {}
+HeapImpl::PageImpl::~PageImpl()
+{
+    // The buffer must be destroyed before its memory (m_allocation) is freed.
+    if (m_buffer != VK_NULL_HANDLE)
+        m_device->m_api.vkDestroyBuffer(m_device->m_api.m_device, m_buffer, nullptr);
+}
 
 DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 {
@@ -42,7 +49,7 @@ DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer.m_buffer;
+    info.buffer = m_buffer;
     return (DeviceAddress)(m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info) + offset);
 }
 
@@ -137,7 +144,7 @@ Result HeapImpl::freePage(Page* page_)
 {
     PageImpl* page = static_cast<PageImpl*>(page_);
 
-    // VKBufferHandleRAII destructor will automatically clean up buffer and memory
+    // The page destructor releases the buffer and its memory.
     delete page;
     return SLANG_OK;
 }

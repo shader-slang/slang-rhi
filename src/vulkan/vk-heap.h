@@ -28,8 +28,9 @@ public:
 
         DeviceAddress offsetToAddress(Size offset) override;
 
-        VKBufferHandleRAII m_buffer;
         DeviceImpl* m_device;
+        VkBuffer m_buffer = VK_NULL_HANDLE;
+        MemoryAllocation m_allocation;
     };
 
     HeapImpl(Device* device, const HeapDesc& desc);

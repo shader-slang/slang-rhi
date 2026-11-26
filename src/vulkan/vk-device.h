@@ -2,8 +2,8 @@
 
 #include "vk-base.h"
 #include "vk-bindless-descriptor-set.h"
+#include "vk-memory-allocator.h"
 
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -320,31 +320,8 @@ public:
     /// Vulkan 1.1 core functions. A Vulkan 1.0 instance is not supported.
     uint32_t m_instanceApiVersion = VK_API_VERSION_1_1;
 
-    /// Handle type used for exporting memory of shared buffers/textures.
-#if SLANG_WINDOWS_FAMILY
-    static constexpr VkExternalMemoryHandleTypeFlagBits kSharedMemoryHandleType =
-        VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-    static constexpr VkExternalMemoryHandleTypeFlagBits kSharedMemoryHandleType =
-        VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
-
-    /// Allocator used for all device memory allocations (buffers, textures, resource heaps).
-    VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
-
-    /// Returns the VMA pool used for exportable (shared) allocations of the given memory type.
-    /// Pools are created on demand. Memory blocks of these pools are allocated with
-    /// VkExportMemoryAllocateInfo, and allocations must use VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT
-    /// so that each shared resource has its own exportable VkDeviceMemory.
-    Result getExportPool(uint32_t memoryTypeIndex, VmaPool* outPool);
-
-    std::mutex m_exportPoolMutex;
-    VmaPool m_exportPools[VK_MAX_MEMORY_TYPES] = {};
-    // pNext chain used by the export pools (must stay alive for the lifetime of the pools).
-    VkExportMemoryAllocateInfo m_exportMemoryAllocateInfo = {};
-#if SLANG_WINDOWS_FAMILY
-    VkExportMemoryWin32HandleInfoKHR m_exportMemoryWin32HandleInfo = {};
-#endif
+    /// Allocator used for all device memory allocations (buffers, textures, heaps, resource heaps).
+    MemoryAllocator m_memoryAllocator;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     /// Aftermath crash dumper (null if Aftermath is not enabled).

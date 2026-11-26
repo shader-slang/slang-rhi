@@ -1,87 +1,23 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-memory-allocator.h"
 
 namespace rhi::vk {
 
-Result createVkBuffer(
-    const VulkanApi& api,
-    Size bufferSize,
+/// Create a buffer without binding memory to it.
+Result createVkBuffer(const VulkanApi& api, Size size, VkBufferUsageFlags usage, VkBuffer* outBuffer);
+
+/// Create a buffer and bind it to newly allocated memory.
+/// Buffers with a device address are aligned for all their uses (see getBufferDeviceAddressAlignment).
+Result allocateVkBuffer(
+    DeviceImpl* device,
+    Size size,
     VkBufferUsageFlags usage,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkBuffer* outBuffer
+    const AllocationDesc& allocationDesc,
+    VkBuffer* outBuffer,
+    MemoryAllocation& outAllocation
 );
-
-// Combined buffer and memory class
-class VKBufferHandleRAII
-{
-public:
-    /// Initialize a buffer with memory allocated through VMA.
-    /// If exportable is true, the buffer gets its own VkDeviceMemory that can be
-    /// exported via OS handles (for shared buffers).
-    Result init(
-        DeviceImpl* device,
-        Size bufferSize,
-        VkBufferUsageFlags usage,
-        MemoryType memoryType,
-        bool exportable = false
-    );
-
-    /// Create a buffer and bind it to existing memory (not owned, not managed by VMA).
-    Result initPlaced(
-        const VulkanApi& api,
-        Size bufferSize,
-        VkBufferUsageFlags usage,
-        uint32_t memoryTypeIndex,
-        VkDeviceMemory memory,
-        Offset offset
-    );
-
-    /// Wrap a buffer without taking ownership of the buffer or its memory.
-    void initFromNativeHandle(const VulkanApi& api, VkBuffer buffer);
-
-    /// Returns true if has been initialized
-    bool isInitialized() const { return m_api != nullptr; }
-
-    VKBufferHandleRAII() = default;
-    VKBufferHandleRAII(const VKBufferHandleRAII&) = delete;
-    VKBufferHandleRAII& operator=(const VKBufferHandleRAII&) = delete;
-
-    ~VKBufferHandleRAII()
-    {
-        if (m_vmaAllocation != VK_NULL_HANDLE)
-        {
-            // Releasing a buffer that is still mapped is allowed (the memory is implicitly
-            // unmapped), but VMA requires the per-allocation map count to be zero when the
-            // allocation is destroyed, so drop any outstanding maps first.
-            VmaAllocationInfo allocInfo;
-            vmaGetAllocationInfo(m_vmaAllocator, m_vmaAllocation, &allocInfo);
-            while (allocInfo.pMappedData)
-            {
-                vmaUnmapMemory(m_vmaAllocator, m_vmaAllocation);
-                vmaGetAllocationInfo(m_vmaAllocator, m_vmaAllocation, &allocInfo);
-            }
-            vmaDestroyBuffer(m_vmaAllocator, m_buffer, m_vmaAllocation);
-        }
-        else if (m_ownsBuffer && m_buffer != VK_NULL_HANDLE)
-        {
-            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-        }
-    }
-
-    VkBuffer m_buffer = VK_NULL_HANDLE;
-    /// Backing device memory. For VMA allocations this may be a block shared with
-    /// other allocations; for placed buffers it is owned by the resource heap.
-    VkDeviceMemory m_memory = VK_NULL_HANDLE;
-    const VulkanApi* m_api = nullptr;
-    VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
-    VmaAllocation m_vmaAllocation = VK_NULL_HANDLE;
-    /// Memory type the VMA allocation was created for. Only Upload and ReadBack allocations are
-    /// created with host access, so only those can be mapped.
-    MemoryType m_memoryType = MemoryType::DeviceLocal;
-    /// True if m_buffer was created by initPlaced() and must be destroyed with vkDestroyBuffer.
-    bool m_ownsBuffer = false;
-};
 
 class BufferImpl : public Buffer
 {
@@ -104,8 +40,16 @@ public:
         DescriptorHandle* outHandle
     ) override;
 
+    /// Returns a pointer to the buffer's host visible memory, or nullptr if it is not host visible.
+    void* getMappedData() const;
+
 public:
-    VKBufferHandleRAII m_buffer;
+    VkBuffer m_buffer = VK_NULL_HANDLE;
+    /// False for buffers created from native handles.
+    bool m_ownsBuffer = true;
+    /// Memory backing the buffer. Empty for placed buffers (bound to the resource heap's memory)
+    /// and for buffers created from native handles.
+    MemoryAllocation m_allocation;
     DeviceAddress m_deviceAddress = 0;
 
     struct ViewKey
