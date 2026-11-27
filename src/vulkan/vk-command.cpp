@@ -250,7 +250,7 @@ void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
     copyRegion.srcOffset = cmd.srcOffset;
     copyRegion.size = cmd.size;
 
-    m_api.vkCmdCopyBuffer(m_cmdBuffer, src->m_buffer.m_buffer, dst->m_buffer.m_buffer, 1, &copyRegion);
+    m_api.vkCmdCopyBuffer(m_cmdBuffer, src->m_buffer, dst->m_buffer, 1, &copyRegion);
 }
 
 void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
@@ -397,7 +397,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         m_cmdBuffer,
         src->m_image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        dst->m_buffer.m_buffer,
+        dst->m_buffer,
         1,
         &region
     );
@@ -422,7 +422,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     if (offset == 0 && size == buffer->m_desc.size)
         size = VK_WHOLE_SIZE;
 
-    m_api.vkCmdFillBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, size, 0);
+    m_api.vkCmdFillBuffer(m_cmdBuffer, buffer->m_buffer, offset, size, 0);
 }
 
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
@@ -560,7 +560,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
 
             m_api.vkCmdCopyBufferToImage(
                 m_cmdBuffer,
-                buffer->m_buffer.m_buffer,
+                buffer->m_buffer,
                 dst->m_image,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 1,
@@ -586,7 +586,7 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
         queryPool->m_pool,
         cmd.index,
         cmd.count,
-        buffer->m_buffer.m_buffer,
+        buffer->m_buffer,
         cmd.offset,
         sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
@@ -845,7 +845,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         {
             BufferImpl* buffer = checked_cast<BufferImpl*>(state.vertexBuffers[i].buffer);
 
-            vertexBuffers[i] = buffer->m_buffer.m_buffer;
+            vertexBuffers[i] = buffer->m_buffer;
             offsets[i] = state.vertexBuffers[i].offset;
         }
         if (state.vertexBufferCount > 0)
@@ -863,7 +863,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             VkIndexType indexType =
                 state.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 
-            api.vkCmdBindIndexBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, indexType);
+            api.vkCmdBindIndexBuffer(m_cmdBuffer, buffer->m_buffer, offset, indexType);
         }
         else
         {
@@ -968,9 +968,9 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     {
         m_api.vkCmdDrawIndirectCount(
             m_cmdBuffer,
-            argBuffer->m_buffer.m_buffer,
+            argBuffer->m_buffer,
             cmd.argBuffer.offset,
-            countBuffer->m_buffer.m_buffer,
+            countBuffer->m_buffer,
             cmd.argBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndirectCommand)
@@ -980,7 +980,7 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     {
         m_api.vkCmdDrawIndirect(
             m_cmdBuffer,
-            argBuffer->m_buffer.m_buffer,
+            argBuffer->m_buffer,
             cmd.argBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndirectCommand)
@@ -1007,9 +1007,9 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     {
         m_api.vkCmdDrawIndexedIndirectCount(
             m_cmdBuffer,
-            argBuffer->m_buffer.m_buffer,
+            argBuffer->m_buffer,
             cmd.argBuffer.offset,
-            countBuffer->m_buffer.m_buffer,
+            countBuffer->m_buffer,
             cmd.countBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndexedIndirectCommand)
@@ -1019,7 +1019,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     {
         m_api.vkCmdDrawIndexedIndirect(
             m_cmdBuffer,
-            argBuffer->m_buffer.m_buffer,
+            argBuffer->m_buffer,
             cmd.argBuffer.offset,
             cmd.maxDrawCount,
             sizeof(VkDrawIndexedIndirectCommand)
@@ -1094,7 +1094,7 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     commitBarriers();
 
-    m_api.vkCmdDispatchIndirect(m_cmdBuffer, argBuffer->m_buffer.m_buffer, cmd.argBuffer.offset);
+    m_api.vkCmdDispatchIndirect(m_cmdBuffer, argBuffer->m_buffer, cmd.argBuffer.offset);
 }
 
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
@@ -1210,7 +1210,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
             VkDeviceSize copySize = std::min(entryPointData.size, raygenInfo.paramsSize);
             m_api.vkCmdUpdateBuffer(
                 m_cmdBuffer,
-                m_shaderTablePipelineData->buffer->m_buffer.m_buffer,
+                m_shaderTablePipelineData->buffer->m_buffer,
                 dstOffset,
                 copySize,
                 entryPointData.data
@@ -1840,7 +1840,7 @@ void CommandRecorder::commitBarriers()
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.srcAccessMask = calcAccessFlags(bufferBarrier.stateBefore);
         barrier.dstAccessMask = calcAccessFlags(bufferBarrier.stateAfter);
-        barrier.buffer = buffer->m_buffer.m_buffer;
+        barrier.buffer = buffer->m_buffer;
         barrier.offset = 0;
         barrier.size = buffer->m_desc.size;
 

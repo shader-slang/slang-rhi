@@ -10,8 +10,11 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
     : Heap::Page(heap, desc)
     , m_device(device)
 {
-    // Initialize buffer similar to BufferImpl::createBuffer logic
-    const VulkanApi& api = device->m_api;
+}
+
+Result HeapImpl::PageImpl::init()
+{
+    const VulkanApi& api = m_device->m_api;
 
     // Determine buffer usage flags for heap pages
     VkBufferUsageFlags usage =
@@ -23,44 +26,21 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
         usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     }
 
-    // Determine memory properties based on heap memory type
-    VkMemoryPropertyFlags reqMemoryProperties;
-    HeapImpl* heapImpl = static_cast<HeapImpl*>(heap);
-
-    switch (heapImpl->m_desc.memoryType)
-    {
-    case MemoryType::DeviceLocal:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        break;
-    case MemoryType::Upload:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        break;
-    case MemoryType::ReadBack:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                              VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-        break;
-    default:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        break;
-    }
-
-    // Check if external memory (shared) is needed
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0;
-    if (is_set(heapImpl->m_desc.usage, HeapUsage::Shared))
-    {
-#if SLANG_WINDOWS_FAMILY
-        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
-    }
-
-    // Initialize the buffer using the existing logic
-    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags);
-    SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
+    // Allocate the page through VMA. The page may be sub-allocated from a larger memory block,
+    // so only access its memory through the buffer (shared heaps get dedicated, exportable memory).
+    // Allocations within the page are aligned relative to its start, so the page itself must be
+    // aligned to the requested alignment.
+    HeapImpl* heapImpl = static_cast<HeapImpl*>(m_heap);
+    AllocationDesc allocationDesc;
+    allocationDesc.memoryType = heapImpl->m_desc.memoryType;
+    allocationDesc.exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
+    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, &m_allocation, m_desc.alignment);
 }
 
-HeapImpl::PageImpl::~PageImpl() {}
+HeapImpl::PageImpl::~PageImpl()
+{
+    m_device->m_memoryAllocator.destroyBuffer(m_buffer, m_allocation);
+}
 
 DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 {
@@ -69,7 +49,7 @@ DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer.m_buffer;
+    info.buffer = m_buffer;
     return (DeviceAddress)(m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info) + offset);
 }
 
@@ -135,14 +115,18 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
 
-    // Create page - the constructor will handle all buffer creation logic
-    Page* page = new PageImpl(this, desc, deviceImpl);
+    // Create the page and allocate its buffer. Allocation can fail, e.g. when out of memory or
+    // when a shared heap is requested but the device can't export memory.
+    PageImpl* page = new PageImpl(this, desc, deviceImpl);
+    Result result = page->init();
+    if (SLANG_FAILED(result))
+    {
+        delete page;
+        return result;
+    }
 
-    // Vulkan memory allocation guarantees an alignment suitable for
-    // any memory type, however if the user asks for an alignment
-    // higher than that, the page may end up misaligned. For now,
-    // treat this as an error, as the user should only ever be asking
-    // for alignments based on correct memory requirements.
+    // The page is allocated with the requested alignment (see PageImpl::init), so this only
+    // guards against an allocator that doesn't honor it.
     if (page->offsetToAddress(0) % desc.alignment != 0)
     {
         delete page;
@@ -157,7 +141,7 @@ Result HeapImpl::freePage(Page* page_)
 {
     PageImpl* page = static_cast<PageImpl*>(page_);
 
-    // VKBufferHandleRAII destructor will automatically clean up buffer and memory
+    // The page destructor releases the buffer and its memory.
     delete page;
     return SLANG_OK;
 }

@@ -362,7 +362,6 @@ Result SurfaceImpl::createSwapchain()
         textureDesc.defaultState = ResourceState::Present;
         RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
         texture->m_image = swapchainImages[i];
-        texture->m_imageMemory = 0;
         texture->m_vkformat = format;
         texture->m_shouldDestroyImage = false;
         texture->m_isSwapchainTexture = true;

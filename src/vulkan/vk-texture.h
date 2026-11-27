@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-memory-allocator.h"
 
 namespace rhi::vk {
 
@@ -31,10 +32,11 @@ public:
 
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
-    VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
+    /// Memory backing the image. Empty for placed textures (bound to the resource heap's memory),
+    /// swap chain textures and textures created from native handles.
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
     // False for swap chain or externally-owned native images.
     bool m_shouldDestroyImage = true;
-    bool m_ownsMemory = true;
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
     bool m_isSwapchainTexture = false;

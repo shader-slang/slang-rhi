@@ -180,6 +180,8 @@ DeviceImpl::~DeviceImpl()
 
     descriptorSetAllocator.close();
 
+    m_memoryAllocator.shutdown();
+
     if (m_device != VK_NULL_HANDLE)
     {
         if (!m_existingDeviceHandles.handles[2])
@@ -494,6 +496,7 @@ Result DeviceImpl::initVulkanInstance(
             const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
             if (r == VK_SUCCESS)
             {
+                m_instanceApiVersion = apiVersion;
                 break;
             }
         }
@@ -982,6 +985,7 @@ Result DeviceImpl::initVulkanDevice(
             availableCapabilities.push_back(Capability::spvGroupNonUniformRotateKHR);
         }
 
+        VkPhysicalDeviceProperties2 extendedProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         // See DeviceDesc::enableRayTracing for rationale.
         if (desc.enableRayTracing && extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
             extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
@@ -992,6 +996,7 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             availableFeatures.push_back(Feature::AccelerationStructure);
+            EXTEND_DESC_CHAIN(extendedProps, m_api.m_accelerationStructureProperties);
 
             const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
                                              extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
@@ -1069,6 +1074,7 @@ Result DeviceImpl::initVulkanDevice(
                 VK_NV_CLUSTER_ACCELERATION_STRUCTURE_EXTENSION_NAME,
                 {
                     availableFeatures.push_back(Feature::ClusterAccelerationStructure);
+                    EXTEND_DESC_CHAIN(extendedProps, m_api.m_clusterAccelerationStructureProperties);
                     availableCapabilities.push_back(Capability::SPV_NV_cluster_acceleration_structure);
                     availableCapabilities.push_back(Capability::spvRayTracingClusterAccelerationStructureNV);
                 }
@@ -1414,7 +1420,6 @@ Result DeviceImpl::initVulkanDevice(
             deviceCreateInfo.pNext = &extendedFeatures.vulkan12Features;
         }
 
-        VkPhysicalDeviceProperties2 extendedProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtpProps = {
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR
         };
@@ -2032,6 +2037,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_formatSupport[formatIndex] = formatSupport;
     }
 
+    // Initialize the memory allocator. VMA uses core functions up to the given version,
+    // so it must not exceed the version the instance was created with.
+    SLANG_RETURN_ON_FAIL(m_memoryAllocator.init(this, min(m_instanceApiVersion, basicProps.apiVersion)));
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
@@ -2105,17 +2114,20 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer (prefer cached memory, the CPU reads from it)
-    VKBufferHandleRAII staging;
-
-    SLANG_RETURN_ON_FAIL(staging.init(
-        m_api,
+    // Create a staging buffer (ReadBack memory prefers cached memory, as the CPU reads from it).
+    VkBuffer staging = VK_NULL_HANDLE;
+    VmaAllocation stagingAllocation = VK_NULL_HANDLE;
+    AllocationDesc stagingAllocationDesc;
+    stagingAllocationDesc.memoryType = MemoryType::ReadBack;
+    SLANG_RETURN_ON_FAIL(allocateVkBuffer(
+        this,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        0,
-        VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+        stagingAllocationDesc,
+        &staging,
+        &stagingAllocation
     ));
+    SLANG_RHI_DEFERRED({ m_memoryAllocator.destroyBuffer(staging, stagingAllocation); });
 
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -2124,7 +2136,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     barrier.srcAccessMask = calcAccessFlags(bufferImpl->m_desc.defaultState);
     barrier.dstAccessMask = calcAccessFlags(ResourceState::CopySource);
-    barrier.buffer = bufferImpl->m_buffer.m_buffer;
+    barrier.buffer = bufferImpl->m_buffer;
     barrier.offset = 0;
     barrier.size = bufferImpl->m_desc.size;
 
@@ -2149,7 +2161,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.srcOffset = offset;
-    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
+    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer, staging, 1, &copyInfo);
 
     std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
     std::swap(srcStageFlags, dstStageFlags);
@@ -2170,11 +2182,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     m_deviceQueue.flushAndWait();
 
     // Write out the data from the buffer
-    void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
-
-    std::memcpy(outData, mappedData, size);
-    m_api.vkUnmapMemory(m_device, staging.m_memory);
+    std::memcpy(outData, m_memoryAllocator.getAllocationInfo(stagingAllocation).pMappedData, size);
 
     return SLANG_OK;
 }
@@ -2263,7 +2271,7 @@ Result DeviceImpl::createAccelerationStructure(
     result->m_buffer = buffer;
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
-    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.buffer = result->m_buffer->m_buffer;
     createInfo.offset = 0;
     createInfo.size = desc.size;
     createInfo.type = translateAccelerationStructureKind(desc.kind);
@@ -2308,7 +2316,7 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)buffer.writeRef()));
     result->m_buffer = buffer;
     VkMicromapCreateInfoEXT createInfo = {VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT};
-    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.buffer = result->m_buffer->m_buffer;
     createInfo.size = desc.size;
     createInfo.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateMicromapEXT(m_device, &createInfo, nullptr, &result->m_vkHandle));
@@ -2400,7 +2408,7 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     BufferDesc desc = fixupBufferDesc(desc_);
     VkBufferUsageFlags usage = getBufferUsageFlags(m_api, desc);
     VkBuffer buffer = VK_NULL_HANDLE;
-    SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, 0, &buffer));
+    SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, &buffer));
     VkMemoryRequirements reqs = {};
     VkMemoryDedicatedRequirements dedicatedReqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
     if (m_api.vkGetBufferMemoryRequirements2)
@@ -2420,7 +2428,8 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
 
     const Size granularity = max<Size>(m_api.m_deviceProperties.limits.bufferImageGranularity, 1);
     outRequirements->size = math::calcAligned((Size)reqs.size, granularity);
-    outRequirements->alignment = max<Size>((Size)reqs.alignment, granularity);
+    outRequirements->alignment =
+        (Size)max<VkDeviceSize>({reqs.alignment, granularity, getBufferDeviceAddressAlignment(m_api, usage)});
     outRequirements->heapAlignment = 1;
     outRequirements->memoryType = desc.memoryType;
     outRequirements->usage = getResourceHeapUsage(desc);
@@ -2455,11 +2464,7 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
     };
     if (is_set(desc.usage, TextureUsage::Shared))
     {
-#if SLANG_WINDOWS_FAMILY
-        externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-#else
-        externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-#endif
+        externalMemoryImageCreateInfo.handleTypes = kSharedMemoryHandleType;
         imageInfo.pNext = &externalMemoryImageCreateInfo;
     }
 
