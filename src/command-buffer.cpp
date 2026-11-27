@@ -209,14 +209,58 @@ ComputePassEncoder::ComputePassEncoder(CommandEncoder* commandEncoder)
 {
 }
 
+bool ComputePassEncoder::canReuseRecordedComputeState() const
+{
+    // The recorded state can be reused when recording has not failed, and the
+    // pipeline, the root object, the command list, the command list's reset
+    // generation, and the root's folded version all match the state the cached data
+    // was recorded for. The folded version only stays put when the content stayed
+    // put, so matching versions imply the recorded binding data is still correct.
+    // Encoders are not pooled today (every recording gets a fresh encoder), so the
+    // generation clause is currently unreachable; it keeps the cached arena pointers
+    // from outliving a reset command list if encoder pooling is ever introduced.
+    return SLANG_SUCCEEDED(m_commandEncoder->m_recordingResult) && m_pipeline.get() == m_cachedBindingsPipeline.get() &&
+           m_rootObject == m_cachedBindingsRoot && m_commandList == m_cachedBindingsCommandList &&
+           m_commandList->getGeneration() == m_cachedBindingsGeneration &&
+           m_rootObject->getRecursiveVersion() == m_cachedBindingsVersion;
+}
+
 Result ComputePassEncoder::writeComputeState()
 {
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
+
+    // The command itself is emitted for every dispatch: executors make per-state-set
+    // decisions (for example Metal emits a memory barrier for each compute state set,
+    // and resource states are re-requested). Only preparing the state is skipped when
+    // the previously recorded state still holds.
+    if (canReuseRecordedComputeState())
+    {
+        cmd.specializationArgs = m_cachedSpecializationArgs;
+        cmd.bindingData = m_cachedBindingData;
+        m_commandList->write(std::move(cmd));
+        return SLANG_OK;
+    }
+
     SLANG_RETURN_ON_FAIL(
         m_commandEncoder->prepareBindings(m_pipeline, m_rootObject, cmd.specializationArgs, cmd.bindingData)
     );
+
+    // Capture the pointers before the command (and its members) are moved into
+    // the command list.
+    ExtendedShaderObjectTypeListObject* specializationArgs = cmd.specializationArgs;
+    BindingData* bindingData = cmd.bindingData;
+
     m_commandList->write(std::move(cmd));
+
+    m_cachedBindingsPipeline = m_pipeline;
+    m_cachedBindingsRoot = m_rootObject;
+    m_cachedBindingsCommandList = m_commandList;
+    m_cachedBindingsGeneration = m_commandList->getGeneration();
+    m_cachedBindingsVersion = m_rootObject->getRecursiveVersion();
+    m_cachedSpecializationArgs = specializationArgs;
+    m_cachedBindingData = bindingData;
+
     return SLANG_OK;
 }
 
@@ -224,10 +268,23 @@ IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
 {
     if (m_commandList)
     {
-        m_pipeline = pipeline;
-        ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
-            return nullptr;
+        // Re-binding the same pipeline returns the previously created root object
+        // instead of allocating a new one, so that its recorded binding data can be
+        // reused across the passes of this command encoder. Bindings that the caller
+        // does not re-set therefore keep their previous values; callers that need a
+        // fresh object must use a new command encoder or the explicit two-argument
+        // bindPipeline. If root object creation fails, the pass keeps the previously
+        // bound pipeline and root object (dispatch entry points cannot report
+        // errors, so the pass is left in its last consistent state).
+        if (m_pipeline.get() != pipeline)
+        {
+            RefPtr<RootShaderObject> rootObject;
+            ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
+            if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, rootObject.writeRef())))
+                return nullptr;
+            m_pipeline = pipeline;
+            m_rootObject = rootObject;
+        }
         return m_rootObject;
     }
     return nullptr;

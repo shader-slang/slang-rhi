@@ -1061,10 +1061,20 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline->m_pipeline);
     }
 
+    // Resource states are re-requested for every compute state set, not only when the
+    // binding data changed: recording reuses binding data across dispatches when the
+    // bound content is unchanged, so an equal pointer no longer implies the bindings
+    // were just (re)established. A command between two dispatches (e.g. a copy) can
+    // have transitioned a bound resource away from the state its binding requires.
+    m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+    requireBindingStates(m_bindingData);
+
+    // updateBindings is computed before m_bindingData is reassigned above: the
+    // comparison must see the previous state's binding data, so a dispatch whose
+    // binding data repeats the previous one keeps the already-bound descriptors
+    // without re-issuing the binds.
     if (updateBindings)
     {
-        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        requireBindingStates(m_bindingData);
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
 

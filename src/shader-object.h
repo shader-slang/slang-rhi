@@ -245,7 +245,13 @@ public:
     // Unique ID of the shader object (generated on construction).
     uint32_t m_uid;
 
-    // Version of the shader object. Incremented on every modification.
+    // Version of the shader object. Advanced by every content-changing modification,
+    // so an unchanged version implies unchanged content - the signal the command
+    // recording layer relies on when reusing recorded binding data. Some paths
+    // (setObject, reserveData, setSpecializationArgs) advance it conservatively
+    // without knowing whether the content changed, which costs only a missed reuse.
+    // Writes through a pointer handed out by reserveData are the one exception:
+    // they change content without advancing the version (see reserveData).
     uint32_t m_version = 0;
 
     // True if the shader object is finalized and no further modifications are allowed.
@@ -254,10 +260,27 @@ public:
     // The specialized shader object type.
     ExtendedShaderObjectType m_shaderObjectType = {nullptr, kInvalidComponentID};
 
+    // Hook called by setBinding with the fully formed slot. Implementations must be
+    // idempotent functions of (object, offset, slot, bindingType): the same slot must
+    // always produce the same derived state, because setBinding runs the hook even on
+    // a binding that does not change the stored slot. Hooks write derived bytes at
+    // most a pointer and a count within a 16-byte window at the binding's uniform
+    // offset, which is the window setBinding compares to detect a repair; a hook that
+    // writes beyond the window must extend it.
     ShaderObjectSetBindingHook m_setBindingHook = nullptr;
 
 public:
     ShaderComponentID getComponentID() { return m_shaderObjectType.componentID; }
+
+    /// Returns a version value that changes when the binding-relevant content of this
+    /// object, any of its sub-objects, or (for root objects) any of its entry-point
+    /// objects changes, so that consumers (e.g. command recording) can treat "folded
+    /// version unchanged" as "binding data can be reused". The fold walks the whole
+    /// sub-object tree, so its cost grows with the object hierarchy, not the data
+    /// size. It is a 64-bit hash, not an identity: distinct content states collide
+    /// only with hash-collision probability, and a single object's 32-bit version
+    /// wraps after 2^32 mutations - both theoretical within one recording session.
+    virtual uint64_t getRecursiveVersion() const;
 
 public:
     // IShaderObject implementation
@@ -355,6 +378,8 @@ public:
     // IShaderObject implementation
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
+
+    virtual uint64_t getRecursiveVersion() const override;
 
 public:
     static Result create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject);

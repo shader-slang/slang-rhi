@@ -76,6 +76,27 @@ Result ShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint
     return SLANG_OK;
 }
 
+uint64_t ShaderObject::getRecursiveVersion() const
+{
+    // Fold the versions of this object and all of its sub-objects into one value with
+    // FNV-1a, so that a change anywhere in the tree changes the folded result. A root
+    // object's own version alone would miss mutations made through a cursor into a
+    // nested parameter block, which only bumps the sub-object's version.
+    // Every component goes through both the XOR and the multiply step: mixing with XOR
+    // alone would cancel when version increments transfer between objects (for example
+    // one bump on this object paired with one bump on a sub-object), and consumers
+    // treat an unchanged fold as permission to reuse recorded binding data. The
+    // declaration doc states the hash-collision and version-wraparound bounds of
+    // that permission.
+    uint64_t hash = (14695981039346656037ULL ^ m_version) * 1099511628211ULL;
+    for (const auto& object : m_objects)
+    {
+        if (object)
+            hash = (hash ^ object->getRecursiveVersion()) * 1099511628211ULL;
+    }
+    return hash;
+}
+
 Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
     // TODO: Ideally we would use the following code here, but slang-test relies
@@ -94,10 +115,25 @@ Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size 
     uint8_t* dest = m_data.data();
     size_t availableSize = m_data.size();
 
-    // This should be an error, but slang-test relies on this behavior.
-    if ((dataOffset + dataSize) > availableSize)
+    // An offset past the end of the object's data can only be a caller error;
+    // clamping it would underflow and pass a bogus size to the comparison and
+    // the copy below.
+    if (dataOffset > availableSize)
+        return SLANG_E_INVALID_ARG;
+
+    // This should be an error, but slang-test relies on this behavior. The
+    // subtraction form cannot wrap, unlike adding the offset to the size.
+    if (dataSize > availableSize - dataOffset)
     {
         dataSize = availableSize - dataOffset;
+    }
+
+    // A write that does not change the stored bytes leaves the object's content
+    // unchanged, so the version must not advance either: the version is the signal
+    // consumers use to decide whether binding data needs to be rebuilt.
+    if (::memcmp(dest + dataOffset, data, dataSize) == 0)
+    {
+        return SLANG_OK;
     }
 
     ::memcpy(dest + dataOffset, data, dataSize);
@@ -304,6 +340,7 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
         return SLANG_E_INVALID_ARG;
 
     ResourceSlot& slot = m_slots[slotIndex];
+    ResourceSlot oldSlot = slot;
 
     switch (binding.type)
     {
@@ -388,8 +425,39 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
         return SLANG_E_INVALID_ARG;
     }
 
+    // Run the hook even when the slot is unchanged. The hook derives device-visible
+    // bytes (CUDA device pointers, texture object handles) from the slot and is
+    // idempotent, so re-running it on a redundant re-bind restores any derived bytes
+    // that a raw setData may have overwritten - and such a repair counts as a
+    // content change, so it must advance the version or recorded binding data would
+    // reuse the clobbered bytes. The current CUDA/CPU hooks write at most a pointer
+    // and a count in a 16-byte window at the binding's uniform offset (see the
+    // m_setBindingHook contract), so comparing that window around the hook call
+    // detects every repair; a hook that writes beyond the window must extend it.
+    size_t hookWindowOffset = offset.uniformOffset;
+    size_t hookWindowSize =
+        hookWindowOffset < m_data.size() ? std::min<size_t>(16, m_data.size() - hookWindowOffset) : 0;
+    uint8_t hookWindow[16];
+    if (hookWindowSize > 0)
+        ::memcpy(hookWindow, m_data.data() + hookWindowOffset, hookWindowSize);
+
     if (m_setBindingHook)
         m_setBindingHook(this, offset, slot, bindingRange.bindingType);
+
+    bool hookChangedBytes =
+        hookWindowSize > 0 && ::memcmp(hookWindow, m_data.data() + hookWindowOffset, hookWindowSize) != 0;
+
+    // A binding that does not change the stored slot leaves the object's content
+    // unchanged, so the version must not advance either - unless the hook repaired
+    // derived bytes (see setData). The comparison must cover every field of
+    // ResourceSlot: a gained field left out would silently skip the version bump.
+    if (slot.type == oldSlot.type && slot.resource == oldSlot.resource && slot.resource2 == oldSlot.resource2 &&
+        slot.format == oldSlot.format && slot.bufferRange == oldSlot.bufferRange)
+    {
+        if (hookChangedBytes)
+            incrementVersion();
+        return SLANG_OK;
+    }
 
     incrementVersion();
 
@@ -400,12 +468,20 @@ Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const Descr
 {
     SLANG_RETURN_ON_FAIL(checkFinalized());
 
-    if (offset.uniformOffset + 8 > m_data.size())
+    // The subtraction form cannot wrap, unlike adding the offset to the width.
+    if (m_data.size() < sizeof(handle.value) || offset.uniformOffset > m_data.size() - sizeof(handle.value))
     {
         return SLANG_E_INVALID_ARG;
     }
 
-    ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, 8);
+    // As in setData, a write that does not change the stored bytes must not advance
+    // the version.
+    if (::memcmp(m_data.data() + offset.uniformOffset, &handle.value, sizeof(handle.value)) == 0)
+    {
+        return SLANG_OK;
+    }
+
+    ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, sizeof(handle.value));
 
     incrementVersion();
 
@@ -418,6 +494,14 @@ Result ShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
+    // Specialization arguments feed both the specialization args and the
+    // layout that recorded binding data is built from, so they count as
+    // content. Bump unconditionally and before any validation: comparing
+    // against the stored list would cost more than the state re-preparation
+    // a redundant re-set triggers in command recording, and a call that
+    // fails validation only costs a missed reuse.
+    incrementVersion();
+
     // If the shader object is a container, delegate the processing to
     // `setSpecializationArgsForContainerElements`.
     if (m_layout->getContainerType() != ShaderObjectContainerType::None)
@@ -849,6 +933,20 @@ Result RootShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryP
         return SLANG_E_INVALID_ARG;
     returnComPtrCopy(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;
+}
+
+uint64_t RootShaderObject::getRecursiveVersion() const
+{
+    // Entry-point objects are not sub-objects of the root (they are not reachable
+    // through binding ranges), so the base fold misses their versions; fold them too,
+    // because a mutation of an entry-point parameter must invalidate recorded state.
+    uint64_t hash = ShaderObject::getRecursiveVersion();
+    for (const auto& entryPoint : m_entryPoints)
+    {
+        if (entryPoint)
+            hash = (hash ^ entryPoint->getRecursiveVersion()) * 1099511628211ULL;
+    }
+    return hash;
 }
 
 Result RootShaderObject::create(Device* device, ShaderProgram* program, RootShaderObject** outRootShaderObject)

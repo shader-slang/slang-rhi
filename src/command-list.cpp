@@ -20,6 +20,7 @@ void CommandList::reset()
     m_lastCommandSlot = nullptr;
     m_queryWrites.clear();
     m_writesTimestamp = false;
+    m_generation++;
 }
 
 void CommandList::write(commands::CopyBuffer&& cmd)

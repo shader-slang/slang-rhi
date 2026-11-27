@@ -258,6 +258,16 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
+    // Binding data of the last compute dispatch whose global parameters were copied
+    // to the pipeline's `SLANG_globalParams` symbol, and the pipeline it was copied to.
+    // Reset at the start of every execution and after callbacks: binding data
+    // pointers are only comparable within one command buffer's arena lifetime, and a
+    // later execution can allocate different content at the same arena address.
+    // This executor must also remain the only writer of the symbol between two
+    // dispatches for the memo to hold, which is why callbacks reset it.
+    BindingDataImpl* m_lastGlobalParamsBindingData = nullptr;
+    ComputePipelineImpl* m_lastGlobalParamsPipeline = nullptr;
+
     CommandExecutor(DeviceImpl* device, CUstream stream, uint64_t timestampAnchorGeneration)
         : m_device(device)
         , m_stream(stream)
@@ -317,6 +327,9 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 
     // Upload constant buffer data
     commandBuffer->m_constantBufferPool.upload(m_stream);
+
+    m_lastGlobalParamsBindingData = nullptr;
+    m_lastGlobalParamsPipeline = nullptr;
 
     const CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
@@ -693,12 +706,35 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
             );
             computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
-            computePipeline->m_globalParams,
-            bindingData->globalParams,
-            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
-            m_stream
-        ));
+        // Recording only reuses binding data across dispatches when the bound content
+        // is unchanged, and this executor is the only writer of the symbol between
+        // dispatches of one command buffer, so when this dispatch uses the same
+        // binding data as the previous one the symbol already holds the exact bytes
+        // this kernel reads.
+        if (computePipeline != m_lastGlobalParamsPipeline || bindingData != m_lastGlobalParamsBindingData)
+        {
+            // Match the assert macro's pre-call context check, which the unwrapped
+            // call below no longer runs.
+            SLANG_RHI_CHECK_CUDA_CTX();
+            CUresult copyResult = cuMemcpyAsync(
+                computePipeline->m_globalParams,
+                bindingData->globalParams,
+                min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
+                m_stream
+            );
+            if (copyResult == CUDA_SUCCESS)
+            {
+                // Only a successful copy makes the memo true: it claims the symbol
+                // holds this binding data's bytes, which a failed copy never wrote.
+                m_lastGlobalParamsPipeline = computePipeline;
+                m_lastGlobalParamsBindingData = bindingData;
+            }
+            else
+            {
+                ::rhi::cuda::reportCUDAError(copyResult, "cuMemcpyAsync", SLANG_RHI_SOURCE_LOCATION());
+                SLANG_RHI_ASSERT_FAILURE("CUDA call failed");
+            }
+        }
     }
 
     // The argument data for the entry-point parameters are already
@@ -928,6 +964,11 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     m_computeStateValid = false;
     m_rayTracingStateValid = false;
     m_bindingData = nullptr;
+    // The callback received the raw stream and may have submitted work that writes a
+    // pipeline's SLANG_globalParams symbol, so the memo no longer says what any
+    // symbol holds.
+    m_lastGlobalParamsPipeline = nullptr;
+    m_lastGlobalParamsBindingData = nullptr;
 }
 
 // CommandQueueImpl

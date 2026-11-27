@@ -120,6 +120,36 @@ public:
 
     Result writeComputeState();
 
+    // Cached result of the last successful state preparation, keyed on the pipeline,
+    // root object, the command list (and its generation, to survive command buffer
+    // reset/reuse) and the root object's folded version. Holding the root object by
+    // reference prevents its address from being recycled while the cache is live.
+    // The cached specialization args point into the encoder's
+    // m_pipelineSpecializationArgs list and the cached binding data into the cached
+    // command list's arena, so both outlive the cache exactly as long as the other
+    // key members match.
+    //
+    // The contract this cache rests on, stated once: recording reuses binding data
+    // exactly when the root's folded version is unchanged, and the folded version
+    // only stays put when the content stayed put. Every consumer of a repeated
+    // binding-data pointer must therefore treat it as "content unchanged", not as
+    // "bindings just established" - Vulkan re-requests the binding's resource
+    // states per state set, CUDA skips only the global-params copy while assuming
+    // it stayed this executor's only write, D3D12 sidesteps the question by
+    // re-binding fully per state set, and raw reserveData writes (invisible to the
+    // fold) are the caller's responsibility per the public reserveData doc.
+    ComPtr<IComputePipeline> m_cachedBindingsPipeline;
+    RefPtr<RootShaderObject> m_cachedBindingsRoot;
+    CommandList* m_cachedBindingsCommandList = nullptr;
+    uint64_t m_cachedBindingsGeneration = 0;
+    uint64_t m_cachedBindingsVersion = 0;
+    ExtendedShaderObjectTypeListObject* m_cachedSpecializationArgs = nullptr;
+    BindingData* m_cachedBindingData = nullptr;
+
+    // True while the cached state preparation is still valid for a new dispatch
+    // (see the member comment above for the key).
+    bool canReuseRecordedComputeState() const;
+
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(

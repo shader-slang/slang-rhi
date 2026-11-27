@@ -128,6 +128,7 @@ public:
     };
 
     void setBindings(BindingDataImpl* bindingData, BindMode bindMode);
+    void requireBindingStates(BindingDataImpl* bindingData);
 
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
@@ -1078,7 +1079,6 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         return;
 
     bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
-    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
 
     if (updatePipeline)
     {
@@ -1087,11 +1087,16 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         m_cmdList->SetPipelineState(m_computePipeline->m_pipelineState);
     }
 
-    if (updateBindings)
-    {
-        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        setBindings(m_bindingData, BindMode::Compute);
-    }
+    m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+
+    // D3D12 re-binds the root parameters for every compute state set, instead of
+    // reusing the bindings recorded for a previous state. Reusing recorded root
+    // bindings across an intervening copy on the same command list is legal in
+    // D3D12, but the debug layer (active whenever validation is enabled) rejects a
+    // dispatch submitted that way, so this backend keeps the full re-bind path. The
+    // re-binds cost far less than the recording-side work that the compute-state
+    // cache already avoids.
+    setBindings(m_bindingData, BindMode::Compute);
 
     commitBarriers();
 
@@ -1758,9 +1763,14 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
     m_bindingData = nullptr;
 }
 
-void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
 {
-    // First, we transition all resources to the required states.
+    // Transition all resources to the states their bindings require. This runs for
+    // every compute state set (setBindings is called for each one), keeping the
+    // state requests tied to the binding rather than to whether the binding data
+    // changed: recording reuses binding data across dispatches when the bound
+    // content is unchanged, and a command between two dispatches (e.g. a copy) can
+    // have transitioned a bound resource away.
     for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
     {
         const auto& bufferState = bindingData->bufferStates[i];
@@ -1775,6 +1785,14 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
             textureState.state
         );
     }
+}
+
+void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)
+{
+    // First, we transition all resources to the states their bindings require,
+    // keeping the state requests tied to the binding rather than to whether the
+    // binding data changed (see requireBindingStates).
+    requireBindingStates(bindingData);
 
     // We need barriers to be committed before setting root parameters.
     commitBarriers();

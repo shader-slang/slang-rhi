@@ -5,6 +5,7 @@
 #include "heap.h"
 #include "resource-heap.h"
 #include "debug-layer/debug-device.h"
+#include "debug-layer/debug-shader-object.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -26,6 +27,13 @@ Device* getUnderlyingDevice(IDevice* device)
 size_t getShaderObjectLayoutCacheSize(IDevice* device)
 {
     return getUnderlyingDevice(device)->m_shaderObjectLayoutCache.size();
+}
+
+RootShaderObject* getUnderlyingRootShaderObject(IShaderObject* object)
+{
+    if (auto debugObject = dynamic_cast<debug::DebugShaderObject*>(object))
+        object = debugObject->baseObject.get();
+    return checked_cast<RootShaderObject*>(object);
 }
 } // namespace testing
 
