@@ -3,14 +3,18 @@
 #include "rhi-shared.h"
 #include "device.h"
 
+#include <algorithm>
+
 namespace rhi {
 
-void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
+void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType, Size retainSize)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_device = device;
-    m_pageSize = pageSize;
+    // A page must hold at least one allocation granule (this also avoids dividing by a zero page size).
+    m_pageSize = std::max<Size>(alignAllocationSize(pageSize), m_allocationGranularity);
     m_memoryType = memoryType;
+    m_retainSize = retainSize;
 
     // Can safely keep pages mapped for all platforms other than WebGPU and Metal.
     // On WebGPU, mapped buffers cannot be used during dispatches.
@@ -92,30 +96,38 @@ Result StagingHeap::allocInternal(
     // so record the thread id to lock pages to.
     auto thread_id = m_keepPagesMapped ? std::thread::id() : std::this_thread::get_id();
 
-    // Attempt to allocate from page if size is less than page size.
-    if (alignedSize < m_pageSize)
+    // Allocations that fit in a page are sub-allocated from standard pages only.
+    // Larger allocations are served from (retained) oversized pages only. Keeping the two
+    // apart avoids small allocations fragmenting the large pages kept around for reuse.
+    bool isLarge = alignedSize > m_pageSize;
+
+    // Attempt to allocate from an existing page.
+    for (auto& page_pair : m_pages)
     {
-        for (auto& page_pair : m_pages)
+        Page* page = page_pair.second;
+        bool isStandardPage = page->getCapacity() == m_pageSize;
+        if (isLarge == isStandardPage)
+            continue;
+        if (page->getCapacity() - page->getUsed() < alignedSize)
+            continue;
+        if (page->getLockedToThread() == std::thread::id() || page->getLockedToThread() == thread_id)
         {
-            Page* page = page_pair.second;
-            if (page->getLockedToThread() == std::thread::id() || page->getLockedToThread() == thread_id)
+            std::list<Node>::iterator node;
+            if (page->allocNode(alignedSize, alignment, metadata, thread_id, node))
             {
-                std::list<Node>::iterator node;
-                if (page->allocNode(alignedSize, alignment, metadata, thread_id, node))
-                {
-                    Allocation res;
-                    res.page = page;
-                    res.node = node;
-                    m_totalUsed += alignedSize;
-                    *outAllocation = res;
-                    return SLANG_OK;
-                }
+                Allocation res;
+                res.page = page;
+                res.node = node;
+                m_totalUsed += alignedSize;
+                *outAllocation = res;
+                return SLANG_OK;
             }
         }
     }
 
-    // Can't fit in existing page, so allocate from new one
-    size_t pageSize = alignedSize < m_pageSize ? m_pageSize : alignedSize;
+    // Can't fit in existing page, so allocate from new one.
+    // Oversized pages are rounded up to a multiple of the page size to improve reuse.
+    size_t pageSize = isLarge ? (alignedSize + m_pageSize - 1) / m_pageSize * m_pageSize : m_pageSize;
     Page* page;
     SLANG_RETURN_ON_FAIL(allocPage(pageSize, &page));
     std::list<Node>::iterator node;
@@ -204,22 +216,44 @@ void StagingHeap::free(Allocation allocation)
     RefPtr<Page> page = m_pages[allocation.getPageId()];
     page->freeNode(allocation.node);
 
-    // Free page if now have more than 1 empty page or this is non-standard page size.
+    // If the page is now empty, keep it around for reuse, but release least recently
+    // used empty pages if the total empty capacity exceeds the retain budget.
     if (page->getUsed() == 0)
     {
-        if (page->getCapacity() == m_pageSize)
+        page->setLastFreedTick(++m_freeTick);
+        trimFreePages();
+    }
+}
+
+void StagingHeap::trimFreePages()
+{
+    std::vector<Page*> emptyPages;
+    Size emptyCapacity = 0;
+    for (auto& p : m_pages)
+    {
+        if (p.second->getUsed() == 0)
         {
-            int empty_pages = 0;
-            for (auto& p : m_pages)
-                if (p.second->getUsed() == 0)
-                    empty_pages++;
-            if (empty_pages > 1)
-                freePage(page);
+            emptyPages.push_back(p.second.get());
+            emptyCapacity += p.second->getCapacity();
         }
-        else
+    }
+    if (emptyCapacity <= m_retainSize)
+        return;
+
+    std::sort(
+        emptyPages.begin(),
+        emptyPages.end(),
+        [](const Page* a, const Page* b)
         {
-            freePage(page);
+            return a->getLastFreedTick() < b->getLastFreedTick();
         }
+    );
+    for (Page* page : emptyPages)
+    {
+        if (emptyCapacity <= m_retainSize)
+            break;
+        emptyCapacity -= page->getCapacity();
+        freePage(page);
     }
 }
 
@@ -238,15 +272,17 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
     // Create page and store buffer pointer.
-    StagingHeap::Page* page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
-    m_pages.insert({page->getId(), page});
-    m_totalCapacity += size;
+    RefPtr<Page> page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
 
-    // If always mapped, map page now
+    // If always mapped, map page now. Only add the page to the heap once mapping succeeded,
+    // so a failed map cannot leave an unmapped page behind for later allocations.
     if (m_keepPagesMapped)
         SLANG_RETURN_ON_FAIL(page->map(m_device));
 
-    *outPage = page;
+    m_pages.insert({page->getId(), page});
+    m_totalCapacity += size;
+
+    *outPage = page.get();
     return SLANG_OK;
 }
 

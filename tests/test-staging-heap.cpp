@@ -105,6 +105,115 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     heap.release();
 }
 
+GPU_TEST_CASE("staging-heap-exact-page-size", ALL)
+{
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
+
+    // An allocation of exactly the page size fits in a standard page.
+    StagingHeap::Allocation allocation;
+    REQUIRE_CALL(heap.alloc(heap.getPageSize(), {}, &allocation));
+    CHECK_EQ(allocation.getPage()->getCapacity(), heap.getPageSize());
+    heap.free(allocation);
+
+    // The (now empty) standard page is reused.
+    StagingHeap::Allocation allocation2;
+    REQUIRE_CALL(heap.alloc(heap.getPageSize(), {}, &allocation2));
+    CHECK_EQ(allocation2.getPageId(), allocation.getPageId());
+    CHECK_EQ(heap.getNumPages(), 1);
+    heap.free(allocation2);
+    heap.checkConsistency();
+
+    heap.release();
+}
+
+GPU_TEST_CASE("staging-heap-large-page-reuse", ALL)
+{
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
+
+    // Large pages are rounded up to a multiple of the page size.
+    StagingHeap::Allocation bigAllocation;
+    REQUIRE_CALL(heap.alloc(heap.getPageSize() * 3 + 1, {}, &bigAllocation));
+    CHECK_EQ(bigAllocation.getPage()->getCapacity(), heap.getPageSize() * 4);
+    int bigPageId = bigAllocation.getPageId();
+    heap.free(bigAllocation);
+
+    // The large page is retained after being freed ...
+    CHECK_EQ(heap.getNumPages(), 1);
+    CHECK_EQ(heap.getCapacity(), heap.getPageSize() * 4);
+
+    // ... and reused by subsequent large allocations that fit.
+    StagingHeap::Allocation bigAllocation2;
+    REQUIRE_CALL(heap.alloc(heap.getPageSize() * 2, {}, &bigAllocation2));
+    CHECK_EQ(bigAllocation2.getPageId(), bigPageId);
+    CHECK_EQ(heap.getNumPages(), 1);
+
+    // Small allocations never go into large pages.
+    StagingHeap::Allocation smallAllocation;
+    REQUIRE_CALL(heap.alloc(16, {}, &smallAllocation));
+    CHECK_NE(smallAllocation.getPageId(), bigPageId);
+    CHECK_EQ(smallAllocation.getPage()->getCapacity(), heap.getPageSize());
+    CHECK_EQ(heap.getNumPages(), 2);
+
+    heap.free(bigAllocation2);
+    heap.free(smallAllocation);
+    heap.checkConsistency();
+
+    heap.release();
+}
+
+GPU_TEST_CASE("staging-heap-zero-page-size", ALL)
+{
+    // A zero page size is clamped to the allocation granularity instead of dividing by zero.
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), 0, MemoryType::Upload);
+    CHECK_EQ(heap.getPageSize(), heap.getAllocationGranularity());
+
+    StagingHeap::Allocation small;
+    REQUIRE_CALL(heap.alloc(16, {}, &small));
+    StagingHeap::Allocation large;
+    REQUIRE_CALL(heap.alloc(heap.getAllocationGranularity() * 3 + 1, {}, &large));
+    CHECK_EQ(large.getPage()->getCapacity(), heap.getAllocationGranularity() * 4);
+
+    heap.free(small);
+    heap.free(large);
+    heap.checkConsistency();
+    heap.release();
+}
+
+GPU_TEST_CASE("staging-heap-retain-budget", ALL)
+{
+    // Retain at most two pages worth of empty capacity.
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload, kPageSize * 2);
+
+    StagingHeap::Allocation allocations[3];
+    for (auto& allocation : allocations)
+        REQUIRE_CALL(heap.alloc(heap.getPageSize() + 1, {}, &allocation));
+    CHECK_EQ(heap.getNumPages(), 3);
+    CHECK_EQ(heap.getCapacity(), heap.getPageSize() * 6);
+
+    // Only the most recently freed large page fits in the budget.
+    for (auto& allocation : allocations)
+        heap.free(allocation);
+    CHECK_EQ(heap.getNumPages(), 1);
+    CHECK_EQ(heap.getCapacity(), heap.getPageSize() * 2);
+    CHECK_EQ(heap.getUsed(), 0);
+    heap.checkConsistency();
+
+    // A zero budget releases empty pages immediately.
+    StagingHeap heap2;
+    heap2.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload, 0);
+    StagingHeap::Allocation allocation;
+    REQUIRE_CALL(heap2.alloc(16, {}, &allocation));
+    heap2.free(allocation);
+    CHECK_EQ(heap2.getNumPages(), 0);
+
+    heap.release();
+    heap2.release();
+}
+
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;

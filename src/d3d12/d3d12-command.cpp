@@ -112,6 +112,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdInitializeTexture(const commands::InitializeTexture& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -1673,6 +1674,11 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
             m_cmdList->DiscardResource(getResource(cmd.after[i]), nullptr);
         }
     }
+}
+
+void CommandRecorder::cmdInitializeTexture(const commands::InitializeTexture& cmd)
+{
+    SLANG_UNUSED(cmd);
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

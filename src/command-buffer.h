@@ -48,6 +48,11 @@ public:
         return SLANG_E_NOT_AVAILABLE;
     }
 
+    /// Submit internal work, such as resource initialization or readbacks, that is not part of the
+    /// application's frame. Unlike submit(), this must not consume state that the application set up
+    /// for its next submit (e.g. pending surface synchronization on Vulkan).
+    virtual Result submitInternal(ICommandBuffer* commandBuffer) { return submit(commandBuffer); }
+
 public:
     QueueType m_type;
     TransientBufferHeap m_constantBufferHeap;
@@ -379,6 +384,10 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
+
+    // Internal: record that a newly created texture starts out with undefined contents/layout.
+    // Backends that track layouts (Vulkan) transition it from an undefined layout on first use.
+    void initializeTexture(ITexture* texture);
 
     virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(
         ITexture* texture,

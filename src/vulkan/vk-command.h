@@ -70,6 +70,12 @@ public:
         ICommandEncoder** outEncoder
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
+
+    // Internal submits do not wait on, signal or clear the pending surface synchronization,
+    // which belongs to the application's next submit after acquiring a surface texture.
+    virtual Result submitInternal(ICommandBuffer* commandBuffer) override;
+
+    Result submitImpl(const SubmitDesc& desc, bool useSurfaceSync);
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override;

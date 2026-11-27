@@ -427,8 +427,8 @@ Result Device::initialize(const DeviceDesc& desc)
     m_persistentShaderCache = desc.persistentShaderCache;
     m_persistentPipelineCache = desc.persistentPipelineCache;
 
-    m_uploadHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::Upload);
-    m_readbackHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::ReadBack);
+    m_uploadHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::Upload, desc.stagingHeapRetainSize);
+    m_readbackHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::ReadBack, desc.stagingHeapRetainSize);
 
     return SLANG_OK;
 }
@@ -977,7 +977,7 @@ Result Device::readTexture(
         {layout.size.width, layout.size.height, layout.size.depth}
     );
 
-    SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+    SLANG_RETURN_ON_FAIL(checked_cast<CommandQueue*>(queue.get())->submitInternal(commandEncoder->finish()));
     SLANG_RETURN_ON_FAIL(queue->waitOnHost());
 
     void* mappedData;

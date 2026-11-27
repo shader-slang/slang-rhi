@@ -2324,41 +2324,6 @@ Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicro
     return SLANG_OK;
 }
 
-void DeviceImpl::_transitionImageLayout(
-    VkCommandBuffer commandBuffer,
-    VkImage image,
-    VkFormat format,
-    const TextureDesc& desc,
-    VkImageLayout oldLayout,
-    VkImageLayout newLayout
-)
-{
-    if (oldLayout == newLayout)
-        return;
-
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = newLayout;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = image;
-
-    barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(format);
-
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = desc.mipCount;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-    barrier.srcAccessMask = calcAccessFlagsFromImageLayout(oldLayout);
-    barrier.dstAccessMask = calcAccessFlagsFromImageLayout(newLayout);
-
-    VkPipelineStageFlags sourceStage = calcPipelineStageFlagsFromImageLayout(oldLayout);
-    VkPipelineStageFlags destinationStage = calcPipelineStageFlagsFromImageLayout(newLayout);
-
-    m_api.vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-}
-
 uint32_t DeviceImpl::getQueueFamilyIndex(QueueType queueType)
 {
     switch (queueType)
@@ -2367,18 +2332,6 @@ uint32_t DeviceImpl::getQueueFamilyIndex(QueueType queueType)
     default:
         return m_queueFamilyIndex;
     }
-}
-
-void DeviceImpl::_transitionImageLayout(
-    VkImage image,
-    VkFormat format,
-    const TextureDesc& desc,
-    VkImageLayout oldLayout,
-    VkImageLayout newLayout
-)
-{
-    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
-    _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
 void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const char* label)

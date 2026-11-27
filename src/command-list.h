@@ -46,6 +46,7 @@
     x(ConvertCooperativeVectorMatrix) \
     x(SetBufferState) \
     x(SetTextureState) \
+    x(InitializeTexture) \
     x(GlobalBarrier) \
     x(AliasResources) \
     x(PushDebugGroup) \
@@ -311,6 +312,13 @@ struct SetTextureState
     ResourceState state;
 };
 
+/// Internal command: marks the texture's contents and layout as undefined at this point,
+/// so the next transition starts from an undefined state. Used to initialize newly created textures.
+struct InitializeTexture
+{
+    ITexture* texture;
+};
+
 struct GlobalBarrier
 {};
 
@@ -465,6 +473,7 @@ public:
     void write(commands::ConvertCooperativeVectorMatrix&& cmd);
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);
+    void write(commands::InitializeTexture&& cmd);
     void write(commands::GlobalBarrier&& cmd);
     void write(commands::AliasResources&& cmd);
     void write(commands::PushDebugGroup&& cmd);

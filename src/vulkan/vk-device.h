@@ -254,23 +254,6 @@ public:
 
     void _labelObject(uint64_t object, VkObjectType objectType, const char* label);
 
-    void _transitionImageLayout(
-        VkImage image,
-        VkFormat format,
-        const TextureDesc& desc,
-        VkImageLayout oldLayout,
-        VkImageLayout newLayout
-    );
-
-    void _transitionImageLayout(
-        VkCommandBuffer commandBuffer,
-        VkImage image,
-        VkFormat format,
-        const TextureDesc& desc,
-        VkImageLayout oldLayout,
-        VkImageLayout newLayout
-    );
-
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
 public:

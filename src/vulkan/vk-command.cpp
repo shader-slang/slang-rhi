@@ -112,6 +112,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdInitializeTexture(const commands::InitializeTexture& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -1609,6 +1610,13 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     }
 }
 
+void CommandRecorder::cmdInitializeTexture(const commands::InitializeTexture& cmd)
+{
+    // The image starts out in VK_IMAGE_LAYOUT_UNDEFINED. Forget the tracked (default) state,
+    // so the next barrier transitions from the undefined layout.
+    m_stateTracking.resetTextureState(checked_cast<TextureImpl*>(cmd.texture));
+}
+
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
     // On vulkan the global barrier is a memory barrier that:
@@ -2118,6 +2126,21 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    return submitImpl(desc, true);
+}
+
+Result CommandQueueImpl::submitInternal(ICommandBuffer* commandBuffer)
+{
+    if (!commandBuffer)
+        return SLANG_E_INVALID_ARG;
+    SubmitDesc desc = {};
+    desc.commandBuffers = &commandBuffer;
+    desc.commandBufferCount = 1;
+    return submitImpl(desc, false);
+}
+
+Result CommandQueueImpl::submitImpl(const SubmitDesc& desc, bool useSurfaceSync)
+{
     // Commit this ID and resource tracking only after the driver accepts the submission.
     uint64_t submissionID = m_lastSubmittedID + 1;
 
@@ -2144,7 +2167,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         waitStages.push_back(stage);
     };
 
-    if (m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
+    if (useSurfaceSync && m_surfaceSync.imageAvailableSemaphore != VK_NULL_HANDLE)
     {
         addWaitSemaphore(m_surfaceSync.imageAvailableSemaphore, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
     }
@@ -2164,7 +2187,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         signalValues.push_back(value);
     };
 
-    if (m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
+    if (useSurfaceSync && m_surfaceSync.renderFinishedSemaphore != VK_NULL_HANDLE)
     {
         addSignalSemaphore(m_surfaceSync.renderFinishedSemaphore, 0);
     }
@@ -2201,7 +2224,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
     }
 
-    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
+    VkFence fence = useSurfaceSync ? m_surfaceSync.fence : VK_NULL_HANDLE;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, fence), m_device);
     m_lastSubmittedID = submissionID;
     for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
     {
@@ -2214,7 +2238,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
-    m_surfaceSync = {};
+    if (useSurfaceSync)
+        m_surfaceSync = {};
 
     retireCommandBuffers();
 

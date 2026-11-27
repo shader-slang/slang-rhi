@@ -1616,7 +1616,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             range.layerCount * desc.mipCount
         );
 
-        SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+        SLANG_RETURN_ON_FAIL(checked_cast<CommandQueue*>(queue.get())->submitInternal(commandEncoder->finish()));
     }
 
     returnComPtr(outTexture, texture);

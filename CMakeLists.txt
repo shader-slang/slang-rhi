@@ -1063,6 +1063,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-execute-callback.cpp
         tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
+        tests/test-benchmark-texture-upload.cpp
         tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp

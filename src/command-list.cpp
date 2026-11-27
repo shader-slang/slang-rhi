@@ -376,6 +376,12 @@ void CommandList::write(commands::SetTextureState&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::InitializeTexture&& cmd)
+{
+    retainResource<Texture>(cmd.texture);
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::GlobalBarrier&& cmd)
 {
     writeCommand(std::move(cmd));
