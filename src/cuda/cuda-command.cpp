@@ -711,6 +711,48 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         CU_LAUNCH_PARAM_END,
     };
 
+    if (computePipeline->m_cooperative)
+    {
+        // Cooperative launch: all groups co-resident, so the kernel may use a grid-wide barrier.
+        uint64_t groupCount = uint64_t(cmd.x) * cmd.y * cmd.z;
+        if (groupCount > computePipeline->m_maxCooperativeThreadGroupCount)
+        {
+            m_device->printError(
+                "Cooperative dispatch of %llu thread groups exceeds the limit of %u for pipeline %s; dispatch skipped.",
+                (unsigned long long)groupCount,
+                computePipeline->m_maxCooperativeThreadGroupCount,
+                computePipeline->m_entryPointName.c_str()
+            );
+            return;
+        }
+        CUlaunchAttribute attribute = {};
+        attribute.id = CU_LAUNCH_ATTRIBUTE_COOPERATIVE;
+        attribute.value.cooperative = 1;
+        CUlaunchConfig config = {};
+        config.gridDimX = cmd.x;
+        config.gridDimY = cmd.y;
+        config.gridDimZ = cmd.z;
+        config.blockDimX = computePipeline->m_threadGroupSize[0];
+        config.blockDimY = computePipeline->m_threadGroupSize[1];
+        config.blockDimZ = computePipeline->m_threadGroupSize[2];
+        config.sharedMemBytes = computePipeline->m_dynamicSharedMemorySize;
+        config.hStream = m_stream;
+        config.attrs = &attribute;
+        config.numAttrs = 1;
+        // Pass the parameters as kernelParams: the driver rejects CU_LAUNCH_PARAM_BUFFER_POINTER on a
+        // cooperative launch while the stream is being captured into a CUDA graph.
+        short_vector<void*, 16> kernelParams;
+        for (size_t paramOffset : computePipeline->m_kernelParamOffsets)
+            kernelParams.push_back((uint8_t*)entryPointData.data + paramOffset);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernelEx(
+            &config,
+            computePipeline->m_function,
+            kernelParams.empty() ? nullptr : kernelParams.data(),
+            nullptr
+        ));
+        return;
+    }
+
     // Once we have all the necessary data extracted and/or set up, we can launch the kernel.
     SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
         computePipeline->m_function,
@@ -720,7 +762,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         computePipeline->m_threadGroupSize[0],
         computePipeline->m_threadGroupSize[1],
         computePipeline->m_threadGroupSize[2],
-        0,
+        computePipeline->m_dynamicSharedMemorySize,
         m_stream,
         nullptr,
         extraOptions

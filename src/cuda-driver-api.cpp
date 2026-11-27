@@ -166,6 +166,15 @@ extern "C" SLANG_RHI_API bool SLANG_STDCALL rhiCudaDriverApiInit()
     while (false);
 #undef LOAD
 
+    // Optional symbols: a missing one leaves the pointer null and disables the feature that needs it.
+    if (!symbol)
+    {
+        cuLaunchKernelEx = decltype(cuLaunchKernelEx)(rhi::findSymbolAddressByName(sCudaModule, "cuLaunchKernelEx"));
+        cuOccupancyMaxActiveBlocksPerMultiprocessor = decltype(cuOccupancyMaxActiveBlocksPerMultiprocessor)(
+            rhi::findSymbolAddressByName(sCudaModule, "cuOccupancyMaxActiveBlocksPerMultiprocessor")
+        );
+    }
+
     if (symbol)
     {
         shutdownImpl();
@@ -282,6 +291,8 @@ static void shutdownImpl()
     UNLOAD(cuSurfObjectDestroy);
     UNLOAD(cuTexObjectCreate);
     UNLOAD(cuTexObjectDestroy);
+    UNLOAD(cuLaunchKernelEx);
+    UNLOAD(cuOccupancyMaxActiveBlocksPerMultiprocessor);
 #undef UNLOAD
 
     rhi::unloadSharedLibrary(sCudaModule);

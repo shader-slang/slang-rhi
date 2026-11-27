@@ -827,6 +827,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
     src/debug-layer/debug-heap.cpp
+    src/debug-layer/debug-pipeline.cpp
     src/debug-layer/debug-resource-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp
@@ -1087,6 +1088,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-compute-indirect.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
+        tests/test-cooperative-launch.cpp
         tests/test-cooperative-matrix.cpp
         tests/test-cooperative-vector.cpp
         tests/test-cuda-external-devices.cpp

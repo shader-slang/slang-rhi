@@ -6,6 +6,7 @@
 #include "debug-device.h"
 #include "debug-fence.h"
 #include "debug-heap.h"
+#include "debug-pipeline.h"
 #include "debug-resource-heap.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
@@ -123,6 +124,7 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RenderPassEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(ComputePassEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL_UNOWNED(RayTracingPassEncoder)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderObject)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(ComputePipeline)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Surface)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)

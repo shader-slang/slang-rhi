@@ -174,10 +174,11 @@ Entry-point-scoped descriptors return `SLANG_E_NOT_IMPLEMENTED` at program creat
 
 ## `IComputePipeline` interface
 
-| API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-------------------|-----|------|-------|-------|--------|-------|------|
-| `getDesc`         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getNativeHandle` | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
+| API                                 | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`                           | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getNativeHandle`                   | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
+| `getMaxCooperativeThreadGroupCount` | :x: | yes  | :x:   | :x:   | :x:    | :x:   | :x:  |
 
 ## `IRayTracingPipeline` interface
 

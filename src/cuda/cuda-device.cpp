@@ -224,6 +224,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::TimestampCalibration);
     addFeature(Feature::Pointer);
 
+    {
+        int cooperativeLaunch = 0;
+        cuDeviceGetAttribute(&cooperativeLaunch, CU_DEVICE_ATTRIBUTE_COOPERATIVE_LAUNCH, m_ctx.device);
+        if (cooperativeLaunch && cuLaunchKernelEx && cuOccupancyMaxActiveBlocksPerMultiprocessor)
+            addFeature(Feature::CooperativeLaunch);
+    }
+
     int computeCapabilityMajor = 0;
     int computeCapabilityMinor = 0;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(

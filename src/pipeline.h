@@ -92,6 +92,18 @@ public:
     // IPipeline interface
     virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
+        IShaderObject* rootObject,
+        uint32_t* outCount
+    ) override
+    {
+        SLANG_UNUSED(rootObject);
+        if (!outCount)
+            return SLANG_E_INVALID_ARG;
+        *outCount = 0;
+        return SLANG_E_NOT_AVAILABLE;
+    }
 };
 
 class VirtualComputePipeline : public ComputePipeline
@@ -107,6 +119,10 @@ public:
 
     // IComputePipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
+        IShaderObject* rootObject,
+        uint32_t* outCount
+    ) override;
 };
 
 class RayTracingPipeline : public IRayTracingPipeline, public Pipeline

@@ -198,7 +198,9 @@ enum class DeviceType
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
+    /* All thread groups of a dispatch are co-resident, so a grid-wide barrier is legal */        \
+    x(CooperativeLaunch,                        "cooperative-launch"                            )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -2194,6 +2196,21 @@ struct RenderPipelineDesc
     const char* label = nullptr;
 };
 
+enum class ComputePipelineFlags : uint32_t
+{
+    None = 0,
+    /// Launch every dispatch of this pipeline so that all its thread groups run concurrently
+    /// (CUDA: cooperative launch), which makes a grid-wide barrier in the kernel legal.
+    /// Requires Feature::CooperativeLaunch (createComputePipeline returns SLANG_E_NOT_AVAILABLE
+    /// otherwise), and pipeline creation fails if not even one thread group of the kernel fits on a
+    /// multiprocessor. The group count of a dispatch must not exceed getMaxCooperativeThreadGroupCount();
+    /// a larger dispatch reports an error (at the call site with the debug layer) and is skipped.
+    /// A cooperative dispatch submitted to a stream under CUDA stream capture is recorded into the graph
+    /// like any other dispatch. On CUDA, the feature needs a driver for CUDA 11.8 or later.
+    CooperativeLaunch = (1 << 0),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ComputePipelineFlags);
+
 struct ComputePipelineDesc
 {
     static constexpr StructType kStructType = StructType::ComputePipelineDesc;
@@ -2202,6 +2219,8 @@ struct ComputePipelineDesc
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
+
+    ComputePipelineFlags flags = ComputePipelineFlags::None;
 
     /// Controls when target code and the backend pipeline are compiled.
     PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
@@ -2339,6 +2358,17 @@ class IComputePipeline : public IPipeline
 
 public:
     virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() = 0;
+
+    /// For a pipeline created with ComputePipelineFlags::CooperativeLaunch: the largest number of
+    /// thread groups (x * y * z) one dispatch may use so that all groups are co-resident.
+    /// Returns SLANG_E_NOT_AVAILABLE for other pipelines, and SLANG_E_INVALID_ARG if outCount is null.
+    /// rootObject supplies specialization arguments; required if the program is specializable,
+    /// ignored otherwise. For deferred/specializable pipelines this compiles the concrete pipeline
+    /// synchronously; the result is cached and reused by later dispatches.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
+        IShaderObject* rootObject,
+        uint32_t* outCount
+    ) = 0;
 };
 
 class IRayTracingPipeline : public IPipeline
