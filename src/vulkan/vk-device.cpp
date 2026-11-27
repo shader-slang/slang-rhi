@@ -2007,7 +2007,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize the memory allocator. VMA uses core functions up to the given version,
     // so it must not exceed the version the instance was created with.
-    SLANG_RETURN_ON_FAIL(m_memoryAllocator.init(this, kMinVulkanApiVersion));
+    SLANG_RETURN_ON_FAIL(m_memoryAllocator.init(this));
 
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(

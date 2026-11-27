@@ -43,7 +43,7 @@ public:
 
     /// vulkanApiVersion must not exceed the version the instance and the device support,
     /// as VMA uses core functions up to that version.
-    Result init(DeviceImpl* device, uint32_t vulkanApiVersion);
+    Result init(DeviceImpl* device);
 
     /// Destroy the allocator. All allocations must have been freed.
     void shutdown();
@@ -122,8 +122,6 @@ private:
 
     DeviceImpl* m_device = nullptr;
     VmaAllocator m_allocator = VK_NULL_HANDLE;
-    /// VMA only allocates dedicated memory with VkMemoryDedicatedAllocateInfo on Vulkan 1.1+.
-    bool m_supportsDedicatedAllocation = false;
 
     std::mutex m_exportPoolMutex;
     VmaPool m_exportPools[VK_MAX_MEMORY_TYPES] = {};

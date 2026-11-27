@@ -54,24 +54,19 @@ bool isOutOfMemory(VkResult result)
 
 } // namespace
 
-Result MemoryAllocator::init(DeviceImpl* device, uint32_t vulkanApiVersion)
+Result MemoryAllocator::init(DeviceImpl* device)
 {
     SLANG_RHI_ASSERT(m_allocator == VK_NULL_HANDLE);
 
     m_device = device;
     const VulkanApi& api = device->m_api;
-    // VMA chains VkMemoryDedicatedAllocateInfo to dedicated allocations of buffers and images only
-    // on Vulkan 1.1+ (dedicated allocation is core there). On Vulkan 1.0, a dedicated allocation is
-    // just a separate VkDeviceMemory, which importers can't treat as dedicated, so exporting
-    // memory is disabled.
-    m_supportsDedicatedAllocation = vulkanApiVersion >= VK_API_VERSION_1_1;
 
     VmaVulkanFunctions vulkanFunctions = {};
     vulkanFunctions.vkGetInstanceProcAddr = api.vkGetInstanceProcAddr;
     vulkanFunctions.vkGetDeviceProcAddr = api.vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo createInfo = {};
-    createInfo.vulkanApiVersion = vulkanApiVersion;
+    createInfo.vulkanApiVersion = kMinVulkanApiVersion;
     createInfo.physicalDevice = api.m_physicalDevice;
     createInfo.device = api.m_device;
     createInfo.instance = api.m_instance;
@@ -108,9 +103,6 @@ void MemoryAllocator::shutdown()
 
 bool MemoryAllocator::canExport() const
 {
-    // Exportable memory must be a true dedicated allocation (see init()).
-    if (!m_supportsDedicatedAllocation)
-        return false;
     // Exporting memory requires the platform specific external memory extension.
 #if SLANG_WINDOWS_FAMILY
     return m_device->m_api.vkGetMemoryWin32HandleKHR != nullptr;
