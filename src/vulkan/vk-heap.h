@@ -31,6 +31,14 @@ public:
         DeviceImpl* m_device;
         VkBuffer m_buffer = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
+        /// Device address of the page's start (0 if buffer device addresses are not supported).
+        /// The page may start at an offset within the buffer, see init().
+        DeviceAddress m_baseAddress = 0;
+
+    private:
+        Result allocateBuffer(Size size);
+        void destroyBuffer();
+        DeviceAddress getBufferAddress() const;
     };
 
     HeapImpl(Device* device, const HeapDesc& desc);

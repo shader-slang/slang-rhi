@@ -14,6 +14,27 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
 
 Result HeapImpl::PageImpl::init()
 {
+    // Allocations within the page are aligned relative to its start, so the page's device address
+    // must be aligned to the requested alignment. VMA only aligns the offset of the allocation within
+    // its VkDeviceMemory block. On GPUs, memory blocks are aligned well beyond any page alignment, so
+    // this also aligns the device address. CPU implementations (e.g. lavapipe) can use host pointers as
+    // device addresses, whose alignment depends on the host allocator.
+    SLANG_RETURN_ON_FAIL(allocateBuffer(m_desc.size));
+    DeviceAddress address = getBufferAddress();
+    if (address % m_desc.alignment != 0)
+    {
+        // Over-allocate and start the page at the first aligned address within the buffer.
+        destroyBuffer();
+        SLANG_RETURN_ON_FAIL(allocateBuffer(m_desc.size + m_desc.alignment - 1));
+        const DeviceAddress alignment = m_desc.alignment;
+        address = (getBufferAddress() + alignment - 1) & ~(alignment - 1);
+    }
+    m_baseAddress = address;
+    return SLANG_OK;
+}
+
+Result HeapImpl::PageImpl::allocateBuffer(Size size)
+{
     const VulkanApi& api = m_device->m_api;
 
     // Determine buffer usage flags for heap pages
@@ -28,21 +49,24 @@ Result HeapImpl::PageImpl::init()
 
     // Allocate the page through VMA. The page may be sub-allocated from a larger memory block,
     // so only access its memory through the buffer (shared heaps get dedicated, exportable memory).
-    // Allocations within the page are aligned relative to its start, so the page itself must be
-    // aligned to the requested alignment.
     HeapImpl* heapImpl = static_cast<HeapImpl*>(m_heap);
     AllocationDesc allocationDesc;
     allocationDesc.memoryType = heapImpl->m_desc.memoryType;
     allocationDesc.exportable = is_set(heapImpl->m_desc.usage, HeapUsage::Shared);
-    return allocateVkBuffer(m_device, m_desc.size, usage, allocationDesc, &m_buffer, &m_allocation, m_desc.alignment);
+    return allocateVkBuffer(m_device, size, usage, allocationDesc, &m_buffer, &m_allocation, m_desc.alignment);
 }
 
-HeapImpl::PageImpl::~PageImpl()
+void HeapImpl::PageImpl::destroyBuffer()
 {
-    m_device->m_memoryAllocator.destroyBuffer(m_buffer, m_allocation);
+    if (m_buffer != VK_NULL_HANDLE)
+    {
+        m_device->m_memoryAllocator.destroyBuffer(m_buffer, m_allocation);
+        m_buffer = VK_NULL_HANDLE;
+        m_allocation = VK_NULL_HANDLE;
+    }
 }
 
-DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
+DeviceAddress HeapImpl::PageImpl::getBufferAddress() const
 {
     if (!m_device->m_api.vkGetBufferDeviceAddress)
         return 0;
@@ -50,7 +74,19 @@ DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
     info.buffer = m_buffer;
-    return (DeviceAddress)(m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info) + offset);
+    return (DeviceAddress)m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info);
+}
+
+HeapImpl::PageImpl::~PageImpl()
+{
+    destroyBuffer();
+}
+
+DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
+{
+    if (m_baseAddress == 0)
+        return 0;
+    return m_baseAddress + offset;
 }
 
 HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
@@ -125,8 +161,8 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
         return result;
     }
 
-    // The page is allocated with the requested alignment (see PageImpl::init), so this only
-    // guards against an allocator that doesn't honor it.
+    // PageImpl::init aligns the page's start address, so this only guards against an
+    // allocator that doesn't honor the requested alignment.
     if (page->offsetToAddress(0) % desc.alignment != 0)
     {
         delete page;
