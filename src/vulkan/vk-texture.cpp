@@ -377,7 +377,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             ));
         }
 
-        SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+        SLANG_RETURN_ON_FAIL(checked_cast<CommandQueue*>(queue.get())->submitInternal(commandEncoder->finish()));
 
         // Shared textures can be accessed by other APIs immediately after creation.
         if (is_set(desc.usage, TextureUsage::Shared))

@@ -40,6 +40,19 @@ bool benchmarksEnabled()
 
 using Clock = std::chrono::high_resolution_clock;
 
+// Compiler barrier: forces the memory pointed to by `p` to be treated as read and written.
+inline void doNotOptimizeAway(void* p)
+{
+#if defined(_MSC_VER) && !defined(__clang__)
+    // MSVC has no inline asm on x64/arm64. Storing the pointer to a volatile makes the memory
+    // escape, so the compiler must assume it is read elsewhere.
+    static void* volatile sink;
+    sink = p;
+#else
+    asm volatile("" : : "r"(p) : "memory");
+#endif
+}
+
 double msSince(Clock::time_point start, Clock::time_point end)
 {
     return std::chrono::duration<double, std::milli>(end - start).count();
@@ -318,6 +331,8 @@ GPU_TEST_CASE("benchmark-texture-upload", D3D12 | Vulkan | CUDA)
                     memcpy(dst.data() + offset, ht.data.data(), ht.byteCount);
                     offset += ht.byteCount;
                 }
+                // Make the copied data observable, so the copies cannot be optimized away.
+                doNotOptimizeAway(dst.data());
                 auto t1 = Clock::now();
                 if (it >= warmup)
                     memcpyTimes.push_back(msSince(t0, t1));

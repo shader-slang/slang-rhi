@@ -977,7 +977,7 @@ Result Device::readTexture(
         {layout.size.width, layout.size.height, layout.size.depth}
     );
 
-    SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+    SLANG_RETURN_ON_FAIL(checked_cast<CommandQueue*>(queue.get())->submitInternal(commandEncoder->finish()));
     SLANG_RETURN_ON_FAIL(queue->waitOnHost());
 
     void* mappedData;

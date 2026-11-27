@@ -163,6 +163,25 @@ GPU_TEST_CASE("staging-heap-large-page-reuse", ALL)
     heap.release();
 }
 
+GPU_TEST_CASE("staging-heap-zero-page-size", ALL)
+{
+    // A zero page size is clamped to the allocation granularity instead of dividing by zero.
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), 0, MemoryType::Upload);
+    CHECK_EQ(heap.getPageSize(), heap.getAllocationGranularity());
+
+    StagingHeap::Allocation small;
+    REQUIRE_CALL(heap.alloc(16, {}, &small));
+    StagingHeap::Allocation large;
+    REQUIRE_CALL(heap.alloc(heap.getAllocationGranularity() * 3 + 1, {}, &large));
+    CHECK_EQ(large.getPage()->getCapacity(), heap.getAllocationGranularity() * 4);
+
+    heap.free(small);
+    heap.free(large);
+    heap.checkConsistency();
+    heap.release();
+}
+
 GPU_TEST_CASE("staging-heap-retain-budget", ALL)
 {
     // Retain at most two pages worth of empty capacity.

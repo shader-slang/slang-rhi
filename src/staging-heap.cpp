@@ -11,7 +11,8 @@ void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryTyp
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_device = device;
-    m_pageSize = pageSize;
+    // A page must hold at least one allocation granule (this also avoids dividing by a zero page size).
+    m_pageSize = std::max<Size>(alignAllocationSize(pageSize), m_allocationGranularity);
     m_memoryType = memoryType;
     m_retainSize = retainSize;
 
@@ -271,15 +272,17 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
     // Create page and store buffer pointer.
-    StagingHeap::Page* page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
-    m_pages.insert({page->getId(), page});
-    m_totalCapacity += size;
+    RefPtr<Page> page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
 
-    // If always mapped, map page now
+    // If always mapped, map page now. Only add the page to the heap once mapping succeeded,
+    // so a failed map cannot leave an unmapped page behind for later allocations.
     if (m_keepPagesMapped)
         SLANG_RETURN_ON_FAIL(page->map(m_device));
 
-    *outPage = page;
+    m_pages.insert({page->getId(), page});
+    m_totalCapacity += size;
+
+    *outPage = page.get();
     return SLANG_OK;
 }
 

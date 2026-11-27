@@ -490,7 +490,14 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 copyParam.WidthInBytes = widthInBlocks(formatInfo, mipSize.width) * mapping.elementSize;
                 copyParam.Height = heightInBlocks(formatInfo, mipSize.height);
                 copyParam.Depth = mipSize.depth;
-                SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpy3DAsync(&copyParam, stream), this);
+                CUresult copyResult = cuMemcpy3DAsync(&copyParam, stream);
+                if (copyResult != CUDA_SUCCESS)
+                {
+                    // Copies queued so far may still read the caller's init data, which can be
+                    // released as soon as this returns. Wait for them before reporting the error.
+                    cuStreamSynchronize(stream);
+                    SLANG_CUDA_RETURN_ON_FAIL_REPORT(copyResult, this);
+                }
             }
         }
 

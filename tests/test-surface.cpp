@@ -17,6 +17,12 @@
 #undef None
 #endif
 
+#if SLANG_RHI_ENABLE_VULKAN
+#include "../src/device.h"
+#include "vulkan/vk-command.h"
+#include "vulkan/vk-device.h"
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -468,5 +474,68 @@ GPU_TEST_CASE("surface-resize-during-frame", Vulkan | CUDA)
     t.shutdown();
     glfwTerminate();
 }
+
+#if SLANG_RHI_ENABLE_VULKAN
+// Acquiring a surface texture sets up synchronization (wait on image available, signal render finished
+// and the frame fence) for the application's next submit. Internal submits made by the device in the
+// meantime, such as for texture creation or readback, must leave it for that submit.
+GPU_TEST_CASE("surface-internal-submits-preserve-sync", Vulkan)
+{
+    glfwInit();
+    if (!hasMonitor())
+        SKIP("No monitor attached");
+
+    NoRenderSurfaceTest t;
+    t.init(device);
+    int width, height;
+    glfwGetFramebufferSize(t.window, &width, &height);
+    t.configureSurface(width, height);
+
+    auto& surfaceSync = checked_cast<vk::DeviceImpl*>(getUnderlyingDevice(device))->m_queue->m_surfaceSync;
+
+    ComPtr<ITexture> surfaceTexture = t.surface->acquireNextImage();
+    REQUIRE(surfaceTexture);
+    const VkFence fence = surfaceSync.fence;
+    const VkSemaphore imageAvailableSemaphore = surfaceSync.imageAvailableSemaphore;
+    const VkSemaphore renderFinishedSemaphore = surfaceSync.renderFinishedSemaphore;
+    REQUIRE(fence != VK_NULL_HANDLE);
+    REQUIRE(imageAvailableSemaphore != VK_NULL_HANDLE);
+    REQUIRE(renderFinishedSemaphore != VK_NULL_HANDLE);
+
+    // Internal submits: texture creation without and with init data, and a texture readback.
+    {
+        TextureDesc desc = {};
+        desc.format = Format::RGBA8Unorm;
+        desc.size = {16, 16, 1};
+        desc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
+
+        ComPtr<ITexture> texture;
+        REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
+
+        std::vector<uint32_t> data(16 * 16, 0x12345678);
+        SubresourceData initData = {data.data(), 16 * 4, 16 * 16 * 4};
+        REQUIRE_CALL(device->createTexture(desc, &initData, texture.writeRef()));
+
+        ComPtr<ISlangBlob> blob;
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(texture, 0, 0, blob.writeRef(), &layout));
+    }
+
+    CHECK(surfaceSync.fence == fence);
+    CHECK(surfaceSync.imageAvailableSemaphore == imageAvailableSemaphore);
+    CHECK(surfaceSync.renderFinishedSemaphore == renderFinishedSemaphore);
+
+    // Without an application submit, present() falls back to its own submit, which consumes it.
+    REQUIRE_CALL(t.surface->present());
+    CHECK(surfaceSync.fence == VK_NULL_HANDLE);
+    CHECK(surfaceSync.imageAvailableSemaphore == VK_NULL_HANDLE);
+    CHECK(surfaceSync.renderFinishedSemaphore == VK_NULL_HANDLE);
+
+    surfaceTexture.setNull();
+    t.queue->waitOnHost();
+    t.shutdown();
+    glfwTerminate();
+}
+#endif // SLANG_RHI_ENABLE_VULKAN
 
 #endif // SLANG_RHI_BUILD_TESTS_WITH_GLFW
