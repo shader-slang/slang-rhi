@@ -2206,7 +2206,7 @@ enum class ComputePipelineFlags : uint32_t
     /// multiprocessor. The group count of a dispatch must not exceed getMaxCooperativeThreadGroupCount();
     /// a larger dispatch reports an error (at the call site with the debug layer) and is skipped.
     /// A cooperative dispatch submitted to a stream under CUDA stream capture is recorded into the graph
-    /// like any other dispatch. On CUDA, the feature needs a driver for CUDA 12.4 or later.
+    /// like any other dispatch. On CUDA, the feature needs a driver for CUDA 11.8 or later.
     CooperativeLaunch = (1 << 0),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(ComputePipelineFlags);
@@ -2361,7 +2361,7 @@ public:
 
     /// For a pipeline created with ComputePipelineFlags::CooperativeLaunch: the largest number of
     /// thread groups (x * y * z) one dispatch may use so that all groups are co-resident.
-    /// Returns SLANG_E_NOT_AVAILABLE for other pipelines.
+    /// Returns SLANG_E_NOT_AVAILABLE for other pipelines, and SLANG_E_INVALID_ARG if outCount is null.
     /// rootObject supplies specialization arguments; required if the program is specializable,
     /// ignored otherwise. For deferred/specializable pipelines this compiles the concrete pipeline
     /// synchronously; the result is cached and reused by later dispatches.

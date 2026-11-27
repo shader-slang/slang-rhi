@@ -35,7 +35,11 @@ public:
     SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugComputePipeline);
 
 public:
+    // IPipeline implementation
+    virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override;
+
     // IComputePipeline implementation
+    virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getMaxCooperativeThreadGroupCount(
         IShaderObject* rootObject,

@@ -3,7 +3,6 @@
 #include "rhi-shared.h"
 #include "device.h"
 #include "shader-object.h"
-#include "debug-layer/debug-shader-object.h"
 
 #include <atomic>
 #include <mutex>
@@ -96,14 +95,11 @@ Result VirtualComputePipeline::getNativeHandle(NativeHandle* outHandle)
 
 Result VirtualComputePipeline::getMaxCooperativeThreadGroupCount(IShaderObject* rootObject, uint32_t* outCount)
 {
+    if (!outCount)
+        return SLANG_E_INVALID_ARG;
     *outCount = 0;
     if (!is_set(m_desc.flags, ComputePipelineFlags::CooperativeLaunch))
         return SLANG_E_NOT_AVAILABLE;
-
-    // The debug layer does not wrap pipelines, so a root object of a debug device arrives here
-    // still wrapped.
-    if (auto debugObject = dynamic_cast<debug::DebugShaderObject*>(rootObject))
-        rootObject = debugObject->baseObject.get();
 
     RefPtr<ExtendedShaderObjectTypeListObject> specializationArgs;
     if (m_program->isSpecializable())

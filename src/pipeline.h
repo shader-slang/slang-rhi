@@ -99,6 +99,8 @@ public:
     ) override
     {
         SLANG_UNUSED(rootObject);
+        if (!outCount)
+            return SLANG_E_INVALID_ARG;
         *outCount = 0;
         return SLANG_E_NOT_AVAILABLE;
     }

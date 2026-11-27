@@ -1222,7 +1222,11 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
         patchedDesc.label = label.c_str();
     }
 
-    return baseObject->createComputePipeline(patchedDesc, outPipeline);
+    RefPtr<DebugComputePipeline> result = new DebugComputePipeline(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createComputePipeline(patchedDesc, result->baseObject.writeRef()));
+
+    returnComPtr(outPipeline, result);
+    return SLANG_OK;
 }
 
 Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)

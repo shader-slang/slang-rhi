@@ -98,6 +98,9 @@ public:
 
     int getEntryPointIndex(std::string_view entryPointName);
     void getEntryPointThreadGroupSize(int entryPointIndex, uint32_t* threadGroupSizes);
+    /// Offset of each kernel parameter in the entry point parameter buffer, from the entry point's
+    /// parameter layout. Fails if the parameters do not map to kernel parameters in a known way.
+    Result getEntryPointParamOffsets(int entryPointIndex, std::vector<size_t>& outOffsets);
 
     // ShaderObjectLayout interface
     virtual uint32_t getEntryPointCount() const override { return m_entryPoints.size(); }

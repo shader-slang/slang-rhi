@@ -373,9 +373,9 @@ IShaderObject* DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
     }
 
     m_rootObject->reset();
-    m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
+    m_rootObject->baseObject = baseObject->bindPipeline(getInnerObj(pipeline));
     m_pipelineBound = true;
-    m_pipeline = pipeline;
+    m_pipeline = getInnerObj(pipeline);
     m_innerRootObject = m_rootObject->baseObject;
 
     return m_rootObject;
@@ -394,9 +394,9 @@ void DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline, IShaderOb
         return;
     }
 
-    baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
+    baseObject->bindPipeline(getInnerObj(pipeline), getInnerObj(rootObject));
     m_pipelineBound = true;
-    m_pipeline = pipeline;
+    m_pipeline = getInnerObj(pipeline);
     m_innerRootObject = getInnerObj(rootObject);
 }
 

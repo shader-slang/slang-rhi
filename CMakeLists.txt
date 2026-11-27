@@ -827,6 +827,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
     src/debug-layer/debug-heap.cpp
+    src/debug-layer/debug-pipeline.cpp
     src/debug-layer/debug-resource-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp

@@ -33,6 +33,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result ComputePipelineImpl::getMaxCooperativeThreadGroupCount(IShaderObject* rootObject, uint32_t* outCount)
 {
     SLANG_UNUSED(rootObject);
+    if (!outCount)
+        return SLANG_E_INVALID_ARG;
     *outCount = m_maxCooperativeThreadGroupCount;
     return m_cooperative ? SLANG_OK : SLANG_E_NOT_AVAILABLE;
 }
@@ -149,14 +151,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             cuDeviceGetAttribute(&smCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, m_ctx.device),
             this
         );
-        // Kernel parameter offsets, for passing the entry point data as kernelParams.
-        for (size_t paramIndex = 0;; ++paramIndex)
+        // Kernel parameter offsets, for passing the entry point data as kernelParams. Without them the
+        // dispatch would pass the wrong parameters, so a pipeline whose offsets are unknown fails to create.
+        if (SLANG_FAILED(
+                pipeline->m_rootObjectLayout->getEntryPointParamOffsets(entryPointIndex, pipeline->m_kernelParamOffsets)
+            ))
         {
-            size_t paramOffset = 0;
-            size_t paramSize = 0;
-            if (cuFuncGetParamInfo(pipeline->m_function, paramIndex, &paramOffset, &paramSize) != CUDA_SUCCESS)
-                break;
-            pipeline->m_kernelParamOffsets.push_back(paramOffset);
+            printError(
+                "Cooperative launch: cannot determine the kernel parameter offsets of pipeline %s from its entry "
+                "point parameter layout.",
+                pipeline->m_entryPointName.c_str()
+            );
+            return SLANG_FAIL;
         }
         pipeline->m_cooperative = true;
         pipeline->m_maxCooperativeThreadGroupCount = uint32_t(blocksPerSM) * uint32_t(smCount);

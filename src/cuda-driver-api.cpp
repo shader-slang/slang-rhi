@@ -173,8 +173,6 @@ extern "C" bool rhiCudaDriverApiInit()
         cuOccupancyMaxActiveBlocksPerMultiprocessor = decltype(cuOccupancyMaxActiveBlocksPerMultiprocessor)(
             rhi::findSymbolAddressByName(sCudaModule, "cuOccupancyMaxActiveBlocksPerMultiprocessor")
         );
-        cuFuncGetParamInfo =
-            decltype(cuFuncGetParamInfo)(rhi::findSymbolAddressByName(sCudaModule, "cuFuncGetParamInfo"));
     }
 
     if (symbol)
@@ -295,7 +293,6 @@ static void shutdownImpl()
     UNLOAD(cuTexObjectDestroy);
     UNLOAD(cuLaunchKernelEx);
     UNLOAD(cuOccupancyMaxActiveBlocksPerMultiprocessor);
-    UNLOAD(cuFuncGetParamInfo);
 #undef UNLOAD
 
     rhi::unloadSharedLibrary(sCudaModule);

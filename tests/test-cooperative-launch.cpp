@@ -277,7 +277,7 @@ GPU_TEST_CASE("cooperative-launch-specializable", CUDA)
     testSpecializable(device);
 }
 
-// With the debug layer the root objects are wrapped; the query unwraps them.
+// With the debug layer the pipeline and root objects are wrapped; the debug pipeline unwraps the root object.
 GPU_TEST_CASE("cooperative-launch-specializable-debug-layer", CUDA | DontCreateDevice)
 {
     ErrorCapture callback;
@@ -306,6 +306,44 @@ GPU_TEST_CASE("cooperative-launch-limit-without-flag", CUDA)
         uint32_t maxGroupCount = 1;
         CHECK_EQ(pipeline->getMaxCooperativeThreadGroupCount(nullptr, &maxGroupCount), SLANG_E_NOT_AVAILABLE);
         CHECK_EQ(maxGroupCount, 0);
+    }
+}
+
+// A null outCount is rejected by every pipeline, with and without the debug layer.
+GPU_TEST_CASE("cooperative-launch-null-count", CUDA | DontCreateDevice)
+{
+    for (bool enableValidation : {false, true})
+    {
+        CAPTURE(enableValidation);
+        ErrorCapture callback;
+        ComPtr<IDevice> testDevice = createDeviceWithCallback(ctx, callback, enableValidation);
+        if (!testDevice->hasFeature(Feature::CooperativeLaunch))
+            SKIP("cooperative launch not supported");
+
+        ComPtr<IShaderProgram> trivialProgram;
+        REQUIRE_CALL(loadProgram(testDevice, "test-compute-trivial", "computeMain", trivialProgram.writeRef()));
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = trivialProgram.get();
+        ComPtr<IComputePipeline> withoutFlag;
+        REQUIRE_CALL(testDevice->createComputePipeline(pipelineDesc, withoutFlag.writeRef()));
+
+        ComPtr<IComputePipeline> pipelines[] = {
+            createCooperativePipeline(testDevice, PipelineCompilationPolicy::Immediate),
+            createCooperativePipeline(testDevice, PipelineCompilationPolicy::Deferred),
+            withoutFlag,
+        };
+        for (IComputePipeline* pipeline : pipelines)
+        {
+            CHECK_EQ(pipeline->getMaxCooperativeThreadGroupCount(nullptr, nullptr), SLANG_E_INVALID_ARG);
+        }
+        if (enableValidation)
+            CHECK(callback.errors.find("'outCount' must not be null") != std::string::npos);
+        else
+            CHECK(callback.errors.empty());
+
+        // The pipeline forwards its description and program, wrapped or not.
+        CHECK(is_set(pipelines[0]->getDesc().flags, ComputePipelineFlags::CooperativeLaunch));
+        CHECK(pipelines[0]->getProgram() != nullptr);
     }
 }
 

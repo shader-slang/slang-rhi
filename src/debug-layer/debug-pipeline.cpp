@@ -7,6 +7,14 @@ namespace rhi::debug {
 // DebugRenderPipeline
 // ----------------------------------------------------------------------------
 
+IRenderPipeline* DebugRenderPipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IRenderPipeline::getTypeGuid())
+        return static_cast<IRenderPipeline*>(this);
+    return nullptr;
+}
+
 Result DebugRenderPipeline::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(IRenderPipeline, getNativeHandle);
@@ -23,6 +31,28 @@ Result DebugRenderPipeline::getNativeHandle(NativeHandle* outHandle)
 // ----------------------------------------------------------------------------
 // DebugComputePipeline
 // ----------------------------------------------------------------------------
+
+IComputePipeline* DebugComputePipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IComputePipeline::getTypeGuid())
+        return static_cast<IComputePipeline*>(this);
+    return nullptr;
+}
+
+IShaderProgram* DebugComputePipeline::getProgram()
+{
+    SLANG_RHI_DEBUG_API(IComputePipeline, getProgram);
+
+    return baseObject->getProgram();
+}
+
+const ComputePipelineDesc& DebugComputePipeline::getDesc()
+{
+    SLANG_RHI_DEBUG_API(IComputePipeline, getDesc);
+
+    return baseObject->getDesc();
+}
 
 Result DebugComputePipeline::getNativeHandle(NativeHandle* outHandle)
 {
@@ -53,6 +83,14 @@ Result DebugComputePipeline::getMaxCooperativeThreadGroupCount(IShaderObject* ro
 // ----------------------------------------------------------------------------
 // DebugRayTracingPipeline
 // ----------------------------------------------------------------------------
+
+IRayTracingPipeline* DebugRayTracingPipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IRayTracingPipeline::getTypeGuid())
+        return static_cast<IRayTracingPipeline*>(this);
+    return nullptr;
+}
 
 Result DebugRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
 {

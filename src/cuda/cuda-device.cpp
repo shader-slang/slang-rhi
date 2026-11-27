@@ -227,7 +227,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         int cooperativeLaunch = 0;
         cuDeviceGetAttribute(&cooperativeLaunch, CU_DEVICE_ATTRIBUTE_COOPERATIVE_LAUNCH, m_ctx.device);
-        if (cooperativeLaunch && cuLaunchKernelEx && cuOccupancyMaxActiveBlocksPerMultiprocessor && cuFuncGetParamInfo)
+        if (cooperativeLaunch && cuLaunchKernelEx && cuOccupancyMaxActiveBlocksPerMultiprocessor)
             addFeature(Feature::CooperativeLaunch);
     }
 

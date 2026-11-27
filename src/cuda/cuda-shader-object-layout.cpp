@@ -256,6 +256,42 @@ int RootShaderObjectLayoutImpl::getEntryPointIndex(std::string_view kernelName)
     return -1;
 }
 
+Result RootShaderObjectLayoutImpl::getEntryPointParamOffsets(int entryPointIndex, std::vector<size_t>& outOffsets)
+{
+    outOffsets.clear();
+    slang::EntryPointReflection* entryPoint = m_programLayout->getEntryPointByIndex(entryPointIndex);
+    if (!entryPoint)
+        return SLANG_FAIL;
+    // Slang emits one kernel parameter per entry point parameter that has uniform data, in declaration
+    // order, at the offset the entry point layout gives it. Parameters without uniform data (system values
+    // such as SV_DispatchThreadID) are not kernel parameters.
+    size_t end = 0;
+    for (unsigned int i = 0; i < entryPoint->getParameterCount(); ++i)
+    {
+        slang::VariableLayoutReflection* variableLayout = entryPoint->getParameterByIndex(i);
+        slang::TypeLayoutReflection* typeLayout = variableLayout ? variableLayout->getTypeLayout() : nullptr;
+        if (!typeLayout)
+            return SLANG_FAIL;
+        size_t size = typeLayout->getSize(slang::ParameterCategory::Uniform);
+        if (size == 0)
+        {
+            slang::ParameterCategory category = variableLayout->getCategory();
+            if (category == slang::ParameterCategory::VaryingInput || category == slang::ParameterCategory::None)
+                continue;
+            // A parameter without uniform data that is not a system value: whether it becomes a kernel
+            // parameter is unknown.
+            return SLANG_FAIL;
+        }
+        size_t offset = variableLayout->getOffset(slang::ParameterCategory::Uniform);
+        // Each kernel parameter must start after the previous one ends.
+        if (offset < end)
+            return SLANG_FAIL;
+        outOffsets.push_back(offset);
+        end = offset + size;
+    }
+    return SLANG_OK;
+}
+
 void RootShaderObjectLayoutImpl::getEntryPointThreadGroupSize(int entryPointIndex, uint32_t* threadGroupSizes)
 {
     auto entryPoint = m_programLayout->getEntryPointByIndex(entryPointIndex);
