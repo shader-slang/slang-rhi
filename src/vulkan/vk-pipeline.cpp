@@ -139,6 +139,18 @@ static Result getRayTracingPipelineFallbackKey(
     return SLANG_OK;
 }
 
+// A key size reported by vkGetPipelineKeyKHR bounds the bytes hashed from the fixed-size key
+// array, so a size beyond the array must be rejected. The global key identifies the driver and
+// device configuration and must not be empty; an empty pipeline key selects the fallback key.
+Result checkPipelineKeySize(const VkPipelineBinaryKeyKHR& key, bool isGlobalKey)
+{
+    if (key.keySize > VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR)
+        return SLANG_FAIL;
+    if (isGlobalKey && key.keySize == 0)
+        return SLANG_FAIL;
+    return SLANG_OK;
+}
+
 static bool isAllZeroPipelineKey(const VkPipelineBinaryKeyKHR& key)
 {
     if (key.keySize == 0)
@@ -173,6 +185,11 @@ Result getPipelineCacheKey(
     {
         VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
         SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetPipelineKeyKHR(device->m_device, nullptr, &pipelineKey), device);
+        if (SLANG_FAILED(checkPipelineKeySize(pipelineKey, true)))
+        {
+            device->printWarning("vkGetPipelineKeyKHR returned an invalid global key size.");
+            return SLANG_FAIL;
+        }
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
     // Hash pipeline key.
@@ -184,6 +201,11 @@ Result getPipelineCacheKey(
             api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey),
             device
         );
+        if (SLANG_FAILED(checkPipelineKeySize(pipelineKey, false)))
+        {
+            device->printWarning("vkGetPipelineKeyKHR returned an oversized pipeline key.");
+            return SLANG_FAIL;
+        }
         if (isAllZeroPipelineKey(pipelineKey))
         {
             SHA1::Digest fallbackPipelineKey;
