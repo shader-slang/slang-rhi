@@ -6,6 +6,11 @@
 #include "../strings.h"
 
 #include "core/platform.h"
+#include "core/task-pool.h"
+
+#include <algorithm>
+#include <atomic>
+#include <thread>
 
 namespace rhi::cpu {
 
@@ -214,20 +219,112 @@ void CommandExecutor::cmdSetComputeState(const commands::SetComputeState& cmd)
     m_computeStateValid = m_computePipeline && m_bindingData;
 }
 
+// Fewest threads a dispatch slice gets. Running a slice on the pool costs a task submission and a
+// worker wake-up, so for a trivial kernel splitting only pays off from about 2 x 8192 threads.
+// Measured on a 12-core/24-thread CPU: smaller dispatches run inline at the serial speed, and
+// larger ones run 1.4-2x (32K threads) to 6-8x (1M threads) faster than serially.
+static constexpr uint64_t kMinThreadsPerSlice = 8192;
+
+// Worker threads of a task pool that can run dispatch slices next to the submitting thread: the
+// pool's worker count when slang-rhi created it (0 for a BlockingTaskPool, so every slice runs
+// inline). A pool set with setGlobalTaskPool does not report its size; assume one worker per
+// hardware thread, capped at kMaxAssumedWorkerCount so that an unknown pool on a large machine
+// (or in a container with few CPUs) is not flooded with tasks that only find the slices taken.
+static uint32_t getDispatchWorkerCount(ITaskPool* taskPool)
+{
+    static constexpr uint32_t kMaxAssumedWorkerCount = 8;
+    int workerCount = getTaskPoolWorkerCount(taskPool);
+    if (workerCount >= 0)
+        return uint32_t(workerCount);
+    return std::min(std::max(1u, std::thread::hardware_concurrency()), kMaxAssumedWorkerCount);
+}
+
 void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 {
     if (!m_computeStateValid)
         return;
 
-    slang_prelude::ComputeVaryingInput varyingInput;
-    varyingInput.startGroupID.x = 0;
-    varyingInput.startGroupID.y = 0;
-    varyingInput.startGroupID.z = 0;
-    varyingInput.endGroupID.x = cmd.x;
-    varyingInput.endGroupID.y = cmd.y;
-    varyingInput.endGroupID.z = cmd.z;
+    if (cmd.x == 0 || cmd.y == 0 || cmd.z == 0)
+        return;
 
-    m_computePipeline->m_func(&varyingInput, m_bindingData->entryPoints[0].data, m_bindingData->globalData);
+    // The whole dispatch, shared by every thread that runs part of it. The kernel's group-range
+    // function runs every group in [startGroupID, endGroupID) itself, so a slice only narrows
+    // that box along one axis. Threads claim slices from an atomic counter.
+    struct DispatchContext
+    {
+        slang_prelude::ComputeFunc func;
+        slang_prelude::ComputeVaryingInput whole;
+        void* entryPointData;
+        void* globalData;
+        int axis;
+        uint32_t extent;
+        uint32_t sliceCount;
+        std::atomic<uint32_t> nextSlice{0};
+
+        void runSlice(uint32_t i)
+        {
+            slang_prelude::ComputeVaryingInput input = whole;
+            uint32_t* start = &input.startGroupID.x;
+            uint32_t* end = &input.endGroupID.x;
+            start[axis] = uint32_t(uint64_t(extent) * i / sliceCount);
+            end[axis] = uint32_t(uint64_t(extent) * (i + 1) / sliceCount);
+            func(&input, entryPointData, globalData);
+        }
+
+        static void run(void* payload)
+        {
+            DispatchContext* ctx = static_cast<DispatchContext*>(payload);
+            for (uint32_t i; (i = ctx->nextSlice.fetch_add(1, std::memory_order_relaxed)) < ctx->sliceCount;)
+                ctx->runSlice(i);
+        }
+    };
+
+    DispatchContext ctx;
+    ctx.func = m_computePipeline->m_func;
+    ctx.whole.startGroupID.x = 0;
+    ctx.whole.startGroupID.y = 0;
+    ctx.whole.startGroupID.z = 0;
+    ctx.whole.endGroupID.x = cmd.x;
+    ctx.whole.endGroupID.y = cmd.y;
+    ctx.whole.endGroupID.z = cmd.z;
+    ctx.entryPointData = m_bindingData->entryPoints[0].data;
+    ctx.globalData = m_bindingData->globalData;
+
+    // Thread groups are independent of each other, so a large dispatch is split into slices that
+    // run on the global task pool. The split is along the axis with the most groups, so that
+    // every slice is again a box of groups. A few slices per runner let the threads balance
+    // groups of uneven cost.
+    uint32_t groupCount[3] = {cmd.x, cmd.y, cmd.z};
+    ctx.axis = 0;
+    for (int i = 1; i < 3; ++i)
+    {
+        if (groupCount[i] > groupCount[ctx.axis])
+            ctx.axis = i;
+    }
+    ctx.extent = groupCount[ctx.axis];
+
+    // Slices run on the pool's workers and on the submitting thread. Each slice gets at least
+    // kMinThreadsPerSlice threads, because submitting pool tasks and waiting for them costs more
+    // than a smaller slice saves. A small dispatch, or one without pool workers, runs inline.
+    uint64_t threadTotal = uint64_t(cmd.x) * cmd.y * cmd.z * m_computePipeline->m_threadGroupThreadCount;
+    uint64_t sliceCount = std::min<uint64_t>(ctx.extent, threadTotal / kMinThreadsPerSlice);
+    ITaskPool* taskPool = sliceCount > 1 ? globalTaskPool() : nullptr;
+    uint32_t workerCount = taskPool ? getDispatchWorkerCount(taskPool) : 0;
+    if (workerCount == 0)
+    {
+        ctx.func(&ctx.whole, ctx.entryPointData, ctx.globalData);
+        return;
+    }
+    ctx.sliceCount = uint32_t(std::min<uint64_t>(sliceCount, 4 * uint64_t(workerCount + 1)));
+
+    // At most one pool task per worker; the submitting thread runs slices too. The context lives
+    // on this stack frame, so wait for the tasks before returning.
+    uint32_t taskCount = std::min(ctx.sliceCount - 1, workerCount);
+    ITaskPool::TaskGroupHandle taskGroup = taskPool->createTaskGroup();
+    for (uint32_t i = 0; i < taskCount; ++i)
+        taskPool->releaseTask(taskPool->submitTask(DispatchContext::run, &ctx, nullptr, taskGroup));
+    DispatchContext::run(&ctx);
+    taskPool->waitAndReleaseTaskGroup(taskGroup);
 }
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)

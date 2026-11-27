@@ -2,6 +2,7 @@
 
 #include "core/task-pool.h"
 
+#include <algorithm>
 #include <thread>
 
 using namespace rhi;
@@ -223,6 +224,16 @@ TEST_CASE("task-pool-threaded-single-worker")
 {
     ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
     testTaskPool(pool, 1);
+}
+
+// slang-rhi's own pools report their worker count; any other pool reports -1 (unknown).
+TEST_CASE("task-pool-worker-count")
+{
+    CHECK_EQ(getTaskPoolWorkerCount(ComPtr<ITaskPool>(new BlockingTaskPool())), 0);
+    CHECK_EQ(getTaskPoolWorkerCount(ComPtr<ITaskPool>(new ThreadedTaskPool(3))), 3);
+    int defaultWorkerCount = std::max(1, int(std::thread::hardware_concurrency()));
+    CHECK_EQ(getTaskPoolWorkerCount(ComPtr<ITaskPool>(new ThreadedTaskPool())), defaultWorkerCount);
+    CHECK_EQ(getTaskPoolWorkerCount(nullptr), -1);
 }
 
 // Work-stealing tests use a single worker thread so the waiting caller also

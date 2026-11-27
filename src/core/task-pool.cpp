@@ -460,6 +460,11 @@ ThreadedTaskPool::~ThreadedTaskPool()
     delete m_pool;
 }
 
+uint32_t ThreadedTaskPool::getWorkerCount() const
+{
+    return uint32_t(m_pool->m_workerThreads.size());
+}
+
 ITaskPool::TaskHandle ThreadedTaskPool::submitTask(
     void (*func)(void*),
     void* payload,
@@ -544,6 +549,15 @@ ITaskPool* globalTaskPool()
         s_globalTaskPool->addRef();
     }
     return s_globalTaskPool;
+}
+
+int getTaskPoolWorkerCount(ITaskPool* taskPool)
+{
+    if (dynamic_cast<BlockingTaskPool*>(taskPool))
+        return 0;
+    if (ThreadedTaskPool* threadedTaskPool = dynamic_cast<ThreadedTaskPool*>(taskPool))
+        return int(threadedTaskPool->getWorkerCount());
+    return -1;
 }
 
 } // namespace rhi

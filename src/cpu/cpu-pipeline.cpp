@@ -2,6 +2,8 @@
 #include "cpu-device.h"
 #include "cpu-shader-program.h"
 
+#include <algorithm>
+
 namespace rhi::cpu {
 
 ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
@@ -65,6 +67,10 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_program = checked_cast<ShaderProgram*>(desc.program);
     pipeline->m_sharedLibrary = sharedLibrary;
     pipeline->m_func = func;
+    SlangUInt threadGroupSize[3] = {1, 1, 1};
+    entryPointLayout->getComputeThreadGroupSize(3, threadGroupSize);
+    pipeline->m_threadGroupThreadCount =
+        uint32_t(std::max<SlangUInt>(threadGroupSize[0] * threadGroupSize[1] * threadGroupSize[2], 1));
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
