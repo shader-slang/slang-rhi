@@ -3666,8 +3666,8 @@ struct DeviceDesc
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
     // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
-    // VkPhysicalDevice, and the third is the VkDevice.
-    // The VkInstance must be created with Vulkan 1.1 or newer.
+    // VkPhysicalDevice, and the third is the VkDevice. The Vulkan backend requires Vulkan 1.3: the VkInstance
+    // must be created with apiVersion 1.3 or newer, and the physical device must support Vulkan 1.3.
     // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
     // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;

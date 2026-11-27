@@ -54,7 +54,10 @@ Result BackendImpl::enumerateAdapters()
     SLANG_RETURN_ON_FAIL(m_adapterEnumerationModule.init());
     SLANG_RETURN_ON_FAIL(m_adapterEnumerationApi.initGlobalProcs(m_adapterEnumerationModule));
 
+    VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    applicationInfo.apiVersion = kMinVulkanApiVersion;
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    instanceCreateInfo.pApplicationInfo = &applicationInfo;
     const char* instanceExtensions[] = {
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 #if SLANG_APPLE_FAMILY
@@ -94,6 +97,11 @@ Result BackendImpl::enumerateAdapters()
         props.pNext = &idProps;
         SLANG_RHI_ASSERT(m_adapterEnumerationApi.vkGetPhysicalDeviceProperties2);
         m_adapterEnumerationApi.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
+
+        // Skip devices that don't support the minimum Vulkan version, as no device can be created for them.
+        const uint32_t apiVersion = props.properties.apiVersion;
+        if (VK_MAKE_VERSION(VK_VERSION_MAJOR(apiVersion), VK_VERSION_MINOR(apiVersion), 0) < kMinVulkanApiVersion)
+            continue;
 
         AdapterInfo info = {};
         info.deviceType = DeviceType::Vulkan;

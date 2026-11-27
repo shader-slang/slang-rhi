@@ -314,12 +314,6 @@ public:
 
     VkSampler m_defaultSampler;
 
-    /// API version the Vulkan instance was created with.
-    /// User-provided instances (DeviceDesc::existingDeviceHandles) are assumed to be created with
-    /// Vulkan 1.1 or newer: the actual version cannot be queried from a VkInstance, and VMA uses
-    /// Vulkan 1.1 core functions. A Vulkan 1.0 instance is not supported.
-    uint32_t m_instanceApiVersion = VK_API_VERSION_1_1;
-
     /// Allocator used for all device memory allocations (buffers, textures, heaps, resource heaps).
     MemoryAllocator m_memoryAllocator;
 

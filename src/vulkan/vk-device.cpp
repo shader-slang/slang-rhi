@@ -355,7 +355,7 @@ Result DeviceImpl::initVulkanInstance(
         VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
         applicationInfo.pApplicationName = "slang-rhi";
         applicationInfo.pEngineName = "slang-rhi";
-        applicationInfo.apiVersion = VK_API_VERSION_1_1;
+        applicationInfo.apiVersion = kMinVulkanApiVersion;
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
@@ -478,28 +478,14 @@ Result DeviceImpl::initVulkanInstance(
                 instanceCreateInfo.pNext = &validationFeatures;
             }
         }
-        uint32_t apiVersionsToTry[] = {
-            // VK_API_VERSION_1_4,
-            VK_API_VERSION_1_3,
-            VK_API_VERSION_1_2,
-            VK_API_VERSION_1_1,
-            VK_API_VERSION_1_0,
-        };
-        for (auto apiVersion : apiVersionsToTry)
-        {
-            applicationInfo.apiVersion = apiVersion;
-            // If r is VK_ERROR_LAYER_NOT_PRESENT, it's almost certainly
-            // because the layer shared library failed to load (we check that
-            // the layer is known earlier). It might, for example, be absent
-            // from the system library search path, and not referenced with an
-            // absolute path in VkLayer_khronos_validation.json.
-            const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
-            if (r == VK_SUCCESS)
-            {
-                m_instanceApiVersion = apiVersion;
-                break;
-            }
-        }
+        // If this fails with VK_ERROR_LAYER_NOT_PRESENT, it's almost certainly
+        // because the layer shared library failed to load (we check that
+        // the layer is known earlier). It might, for example, be absent
+        // from the system library search path, and not referenced with an
+        // absolute path in VkLayer_khronos_validation.json.
+        // VK_ERROR_INCOMPATIBLE_DRIVER means the Vulkan loader doesn't support kMinVulkanApiVersion.
+        if (m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance) != VK_SUCCESS)
+            instance = VK_NULL_HANDLE;
     }
     else
     {
@@ -655,8 +641,20 @@ Result DeviceImpl::initVulkanDevice(
     // Get the API version
     const uint32_t majorVersion = VK_VERSION_MAJOR(basicProps.apiVersion);
     const uint32_t minorVersion = VK_VERSION_MINOR(basicProps.apiVersion);
-    m_hasSubgroupSizeControl = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
-                               extensionNames.count(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) != 0;
+    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < kMinVulkanApiVersion)
+    {
+        printError(
+            "Vulkan device '%s' supports Vulkan %u.%u, but Vulkan %u.%u or newer is required.\n",
+            basicProps.deviceName,
+            majorVersion,
+            minorVersion,
+            VK_VERSION_MAJOR(kMinVulkanApiVersion),
+            VK_VERSION_MINOR(kMinVulkanApiVersion)
+        );
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    // Subgroup size control is core in Vulkan 1.3.
+    m_hasSubgroupSizeControl = true;
 
     auto& extendedFeatures = m_api.m_extendedFeatures;
 
@@ -666,10 +664,6 @@ Result DeviceImpl::initVulkanDevice(
         head_.pNext = &desc_;                                                                                          \
     }
 
-    // API version check, can't use vkGetPhysicalDeviceProperties2 yet since this device might not
-    // support it
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1 && m_api.vkGetPhysicalDeviceProperties2 &&
-        m_api.vkGetPhysicalDeviceFeatures2)
     {
         // Get device features
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
@@ -724,15 +718,8 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.faultFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderConstantDataFeatures);
 
-        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
-        {
-            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan12Features);
-        }
-
-        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
-        {
-            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan13Features);
-        }
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan12Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan13Features);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_4)
         {
@@ -998,21 +985,13 @@ Result DeviceImpl::initVulkanDevice(
             availableFeatures.push_back(Feature::AccelerationStructure);
             EXTEND_DESC_CHAIN(extendedProps, m_api.m_accelerationStructureProperties);
 
-            const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
-                                             extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-            if (hasSynchronization2)
-            {
-                SIMPLE_EXTENSION_FEATURE(
-                    extendedFeatures.opacityMicromapFeatures,
-                    micromap,
-                    VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
-                    {
-                        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_3)
-                            deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-                        availableFeatures.push_back(Feature::OpacityMicromap);
-                    }
-                );
-            }
+            // Opacity micromaps require synchronization2, which is core in Vulkan 1.3.
+            SIMPLE_EXTENSION_FEATURE(
+                extendedFeatures.opacityMicromapFeatures,
+                micromap,
+                VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
+                { availableFeatures.push_back(Feature::OpacityMicromap); }
+            );
 
             // These both depend on VK_KHR_acceleration_structure
 
@@ -1559,23 +1538,14 @@ Result DeviceImpl::initVulkanDevice(
         availableCapabilities.push_back(Capability::spvDemoteToHelperInvocation);
     }
 
-    // Detect SPIRV version
+    // SPIR-V versions up to 1.6 are supported by Vulkan 1.3.
     availableCapabilities.push_back(Capability::_spirv_1_0);
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1)
-    {
-        availableCapabilities.push_back(Capability::_spirv_1_1);
-        availableCapabilities.push_back(Capability::_spirv_1_2);
-        availableCapabilities.push_back(Capability::_spirv_1_3);
-    }
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
-    {
-        availableCapabilities.push_back(Capability::_spirv_1_4);
-        availableCapabilities.push_back(Capability::_spirv_1_5);
-    }
-    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
-    {
-        availableCapabilities.push_back(Capability::_spirv_1_6);
-    }
+    availableCapabilities.push_back(Capability::_spirv_1_1);
+    availableCapabilities.push_back(Capability::_spirv_1_2);
+    availableCapabilities.push_back(Capability::_spirv_1_3);
+    availableCapabilities.push_back(Capability::_spirv_1_4);
+    availableCapabilities.push_back(Capability::_spirv_1_5);
+    availableCapabilities.push_back(Capability::_spirv_1_6);
 
     int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
     SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
@@ -1683,8 +1653,6 @@ Result DeviceImpl::initVulkanDevice(
 #if SLANG_PROCESSOR_ARM_64
     // Ray tracing pipelines are currently broken on ARM64 lavapipe. Keep feature detection and device
     // creation unchanged, but do not advertise the affected features or shader capabilities.
-    if (m_api.vkGetPhysicalDeviceProperties2 && (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2 ||
-                                                 extensionNames.count(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME)))
     {
         VkPhysicalDeviceDriverProperties driverProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
         VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
@@ -2039,7 +2007,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize the memory allocator. VMA uses core functions up to the given version,
     // so it must not exceed the version the instance was created with.
-    SLANG_RETURN_ON_FAIL(m_memoryAllocator.init(this, min(m_instanceApiVersion, basicProps.apiVersion)));
+    SLANG_RETURN_ON_FAIL(m_memoryAllocator.init(this, kMinVulkanApiVersion));
 
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(

@@ -11,6 +11,9 @@
 
 namespace rhi::vk {
 
+/// Minimum Vulkan version required by the Vulkan backend (for both the instance and the device).
+inline constexpr uint32_t kMinVulkanApiVersion = VK_API_VERSION_1_3;
+
 class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
