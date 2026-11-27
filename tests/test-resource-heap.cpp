@@ -397,74 +397,95 @@ TEST_CASE("resource-heap-alias-state-retirement")
 }
 
 #if SLANG_RHI_ENABLE_VULKAN
-namespace {
-struct MockMemoryAllocator
+GPU_TEST_CASE("buffer-device-address-alignment", Vulkan)
 {
-    std::vector<uint32_t> attempts;
-    VkResult cachedResult = VK_SUCCESS;
+    const auto& api = checked_cast<vk::DeviceImpl*>(getUnderlyingDevice(device))->m_api;
+    if (!api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        SKIP("Requires buffer device addresses");
 
-    static VKAPI_ATTR VkResult VKAPI_CALL
-    allocate(VkDevice device, const VkMemoryAllocateInfo* info, const VkAllocationCallbacks*, VkDeviceMemory* memory)
+    // Query the limits directly from the driver rather than relying on the backend's cached copies.
+    const bool hasAccelerationStructures = device->hasFeature(Feature::AccelerationStructure);
+    const bool hasClusters = device->hasFeature(Feature::ClusterAccelerationStructure);
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR accelerationStructures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR
+    };
+    VkPhysicalDeviceClusterAccelerationStructurePropertiesNV clusters = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CLUSTER_ACCELERATION_STRUCTURE_PROPERTIES_NV
+    };
+    VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    if (hasAccelerationStructures)
     {
-        auto& self = *reinterpret_cast<MockMemoryAllocator*>(device);
-        self.attempts.push_back(info->memoryTypeIndex);
-        if (info->memoryTypeIndex == 2 && self.cachedResult != VK_SUCCESS)
-            return self.cachedResult;
-        *memory = (VkDeviceMemory)1;
-        return VK_SUCCESS;
+        accelerationStructures.pNext = props.pNext;
+        props.pNext = &accelerationStructures;
     }
-};
-} // namespace
-
-TEST_CASE("resource-heap-vulkan-memory-preference")
-{
-    MockMemoryAllocator allocator;
-    vk::VulkanApi api = {};
-    api.m_device = reinterpret_cast<VkDevice>(&allocator);
-    api.vkAllocateMemory = MockMemoryAllocator::allocate;
-    const VkMemoryPropertyFlags required = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    api.m_deviceMemoryProperties.memoryTypeCount = 3;
-    api.m_deviceMemoryProperties.memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    api.m_deviceMemoryProperties.memoryTypes[1].propertyFlags = required;
-    api.m_deviceMemoryProperties.memoryTypes[2].propertyFlags = required | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-    VkMemoryRequirements requirements = {};
-    requirements.size = 4096;
-    requirements.memoryTypeBits = 7;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
-    uint32_t chosenType = ~0u;
-    auto allocate = [&](VkMemoryPropertyFlags preferred)
+    if (hasClusters)
     {
-        allocator.attempts.clear();
-        chosenType = ~0u;
-        return vk::allocateVkMemory(api, requirements, required, preferred, false, 0, &memory, &chosenType);
+        clusters.pNext = props.pNext;
+        props.pNext = &clusters;
+    }
+    api.vkGetPhysicalDeviceProperties2(api.m_physicalDevice, &props);
+    const auto& limits = props.properties.limits;
+
+    auto checkAlignment = [&](BufferUsage usage, Size alignment)
+    {
+        CAPTURE(usage);
+        REQUIRE_GT(alignment, 0);
+        BufferDesc desc = {};
+        desc.usage = usage;
+        // A fresh block can satisfy the alignment by chance. Keep several odd-sized buffers alive.
+        desc.size = alignment + 1;
+        ComPtr<IBuffer> buffers[8];
+        for (auto& buffer : buffers)
+        {
+            REQUIRE_CALL(device->createBuffer(desc, nullptr, buffer.writeRef()));
+            const DeviceAddress address = buffer->getDeviceAddress();
+            REQUIRE_NE(address, 0);
+            CHECK_EQ(address % alignment, 0);
+        }
+
+        auto requirements = requireBufferMemoryRequirements(device, desc);
+        REQUIRE_GE(requirements.alignment, alignment);
+        if (!is_set(requirements.flags, ResourceMemoryRequirementFlags::RequiresDedicatedAllocation))
+        {
+            auto heap = createHeapForRequirements(device, requirements, requirements.alignment + requirements.size);
+            auto placed = createPlacedBuffer(device, desc, heap, requirements.alignment);
+            const DeviceAddress address = placed->getDeviceAddress();
+            REQUIRE_NE(address, 0);
+            CHECK_EQ(address % alignment, 0);
+        }
     };
 
-    REQUIRE_CALL(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT));
-    CHECK_EQ(chosenType, 2);
-    CHECK(allocator.attempts == std::vector<uint32_t>{2});
-
-    allocator.cachedResult = VK_ERROR_OUT_OF_DEVICE_MEMORY;
-    REQUIRE_CALL(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT));
-    CHECK_EQ(chosenType, 1);
-    CHECK(allocator.attempts == std::vector<uint32_t>{2, 1});
-
-    allocator.cachedResult = VK_ERROR_OUT_OF_HOST_MEMORY;
-    CHECK(SLANG_FAILED(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT)));
-    CHECK(allocator.attempts == std::vector<uint32_t>{2});
-
-    // The allocation's compatibility mask always takes precedence over preferences.
-    requirements.memoryTypeBits = 3;
-    REQUIRE_CALL(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT));
-    CHECK_EQ(chosenType, 1);
-    CHECK(allocator.attempts == std::vector<uint32_t>{1});
-
-    requirements.memoryTypeBits = 1;
-    CHECK_EQ(allocate(VK_MEMORY_PROPERTY_HOST_CACHED_BIT), SLANG_E_NOT_AVAILABLE);
-    CHECK(allocator.attempts.empty());
-
-    requirements.memoryTypeBits = 7;
-    REQUIRE_CALL(allocate(0)); // Upload allocations retain their required-only policy.
-    CHECK_EQ(chosenType, 1);
+    // Every buffer with a device address is 64-byte aligned (cooperative vector matrix conversion).
+    checkAlignment(BufferUsage::CopySource, 64);
+    // UnorderedAccess maps to both storage buffer and storage texel buffer usage.
+    checkAlignment(
+        BufferUsage::UnorderedAccess,
+        std::max<Size>({64, limits.minStorageBufferOffsetAlignment, limits.minTexelBufferOffsetAlignment})
+    );
+    checkAlignment(BufferUsage::ConstantBuffer, std::max<Size>(64, limits.minUniformBufferOffsetAlignment));
+    if (hasAccelerationStructures)
+    {
+        checkAlignment(BufferUsage::AccelerationStructure, 256);
+        checkAlignment(BufferUsage::AccelerationStructureBuildInput, 256);
+        checkAlignment(
+            BufferUsage::UnorderedAccess,
+            accelerationStructures.minAccelerationStructureScratchOffsetAlignment
+        );
+    }
+    if (device->hasFeature(Feature::OpacityMicromap))
+        checkAlignment(BufferUsage::MicromapBuildInput, 256);
+    if (hasClusters)
+    {
+        checkAlignment(BufferUsage::UnorderedAccess, clusters.clusterScratchByteAlignment);
+        checkAlignment(
+            BufferUsage::AccelerationStructure,
+            std::max(
+                {clusters.clusterByteAlignment,
+                 clusters.clusterTemplateByteAlignment,
+                 clusters.clusterBottomLevelByteAlignment}
+            )
+        );
+    }
 }
 
 GPU_TEST_CASE("resource-heap-vulkan-cached-readback", Vulkan)

@@ -1,80 +1,25 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-memory-allocator.h"
 
 namespace rhi::vk {
 
-// Prefer the requested properties when available, falling back to a required-only memory
-// type if the preferred heap is exhausted. Optionally return the type actually allocated.
-Result allocateVkMemory(
-    const VulkanApi& api,
-    const VkMemoryRequirements& memoryReqs,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkMemoryPropertyFlags preferredMemoryProperties,
-    bool needsDeviceAddress,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkDeviceMemory* outMemory,
-    uint32_t* outMemoryTypeIndex = nullptr
-);
+/// Create a buffer without binding memory to it.
+Result createVkBuffer(const VulkanApi& api, Size size, VkBufferUsageFlags usage, VkBuffer* outBuffer);
 
-Result createVkBuffer(
-    const VulkanApi& api,
-    Size bufferSize,
+/// Create a buffer and bind it to newly allocated memory.
+/// Buffers with a device address are aligned for all their uses (see getBufferDeviceAddressAlignment),
+/// and to at least minAlignment.
+Result allocateVkBuffer(
+    DeviceImpl* device,
+    Size size,
     VkBufferUsageFlags usage,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
-    VkBuffer* outBuffer
+    const AllocationDesc& allocationDesc,
+    VkBuffer* outBuffer,
+    VmaAllocation* outAllocation,
+    VkDeviceSize minAlignment = 1
 );
-
-// Combined buffer and memory class
-class VKBufferHandleRAII
-{
-public:
-    /// Initialize a buffer with specified size, and memory props.
-    /// The memory type must have all of reqMemoryProperties, and one that also has
-    /// preferredMemoryProperties is used if available.
-    Result init(
-        const VulkanApi& api,
-        Size bufferSize,
-        VkBufferUsageFlags usage,
-        VkMemoryPropertyFlags reqMemoryProperties,
-        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0,
-        VkMemoryPropertyFlags preferredMemoryProperties = 0
-    );
-
-    /// Create a buffer and bind it to existing memory.
-    Result initPlaced(
-        const VulkanApi& api,
-        Size bufferSize,
-        VkBufferUsageFlags usage,
-        uint32_t memoryTypeIndex,
-        VkDeviceMemory memory,
-        Offset offset
-    );
-
-    /// Wrap a buffer without taking ownership of the buffer or its memory.
-    void initFromNativeHandle(const VulkanApi& api, VkBuffer buffer);
-
-    /// Returns true if has been initialized
-    bool isInitialized() const { return m_api != nullptr; }
-
-    VKBufferHandleRAII() = default;
-    VKBufferHandleRAII(const VKBufferHandleRAII&) = delete;
-    VKBufferHandleRAII& operator=(const VKBufferHandleRAII&) = delete;
-
-    ~VKBufferHandleRAII()
-    {
-        if (m_ownsBuffer && m_buffer != VK_NULL_HANDLE)
-            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-        if (m_ownsMemory && m_memory != VK_NULL_HANDLE)
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
-    }
-
-    VkBuffer m_buffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_memory = VK_NULL_HANDLE;
-    const VulkanApi* m_api = nullptr;
-    bool m_ownsBuffer = false;
-    bool m_ownsMemory = false;
-};
 
 class BufferImpl : public Buffer
 {
@@ -97,8 +42,16 @@ public:
         DescriptorHandle* outHandle
     ) override;
 
+    /// Returns a pointer to the buffer's host visible memory, or nullptr if it is not host visible.
+    void* getMappedData() const;
+
 public:
-    VKBufferHandleRAII m_buffer;
+    VkBuffer m_buffer = VK_NULL_HANDLE;
+    /// False for buffers created from native handles.
+    bool m_ownsBuffer = true;
+    /// Memory backing the buffer. Empty for placed buffers (bound to the resource heap's memory)
+    /// and for buffers created from native handles.
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
     DeviceAddress m_deviceAddress = 0;
 
     struct ViewKey

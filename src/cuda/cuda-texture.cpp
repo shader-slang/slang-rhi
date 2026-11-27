@@ -500,7 +500,11 @@ Result DeviceImpl::createTextureFromSharedHandle(
     ITexture** outTexture
 )
 {
-    return createTextureFromSharedHandle(handle, desc, size, false, outTexture);
+    // The handle must refer to a dedicated allocation (see IDevice::createTextureFromSharedHandle).
+    // This holds for all handles exported by slang-rhi: Vulkan allocates shared textures as dedicated
+    // allocations (VkMemoryDedicatedAllocateInfo), and a D3D12 handle refers to a committed resource.
+    // createBufferFromSharedHandle() makes the same assumption.
+    return createTextureFromSharedHandle(handle, desc, size, true, outTexture);
 }
 
 Result DeviceImpl::createTextureFromSharedHandle(

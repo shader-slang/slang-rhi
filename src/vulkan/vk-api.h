@@ -27,6 +27,16 @@ typedef unsigned long VisualID;
 #include <vulkan/vulkan_wayland.h>
 #endif
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-extension"
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+#endif
+#include <vk_mem_alloc.h>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 // Undef xlib macros
 #ifdef Always
 #undef Always
@@ -626,6 +636,12 @@ struct VulkanApi
 
     VkPhysicalDeviceProperties m_deviceProperties;
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rayTracingPipelineProperties;
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR m_accelerationStructureProperties = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR
+    };
+    VkPhysicalDeviceClusterAccelerationStructurePropertiesNV m_clusterAccelerationStructureProperties = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CLUSTER_ACCELERATION_STRUCTURE_PROPERTIES_NV
+    };
     VkPhysicalDeviceFeatures m_deviceFeatures;
     VkPhysicalDeviceMemoryProperties m_deviceMemoryProperties;
     VulkanExtendedFeatures m_extendedFeatures;

@@ -514,6 +514,47 @@ GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA | Vulkan)
     }
 }
 
+GPU_TEST_CASE("heap-large-alignment", Vulkan)
+{
+    // Heap pages are sub-allocated from memory blocks shared with other resources, so a page only
+    // starts at a large alignment if it is allocated with it. Create a few odd-sized buffers first,
+    // so the next free offset in the block is unlikely to be aligned by chance.
+    std::vector<ComPtr<IBuffer>> buffers;
+    for (int i = 0; i < 4; ++i)
+    {
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = 1000 + i * 300;
+        bufferDesc.usage = BufferUsage::UnorderedAccess;
+        bufferDesc.memoryType = MemoryType::DeviceLocal;
+        ComPtr<IBuffer> buffer;
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        buffers.push_back(buffer);
+    }
+
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    std::vector<HeapAlloc> allocations;
+    for (size_t alignment : {size_t(512), size_t(4096), size_t(65536)})
+    {
+        CAPTURE(alignment);
+        HeapAllocDesc allocDesc;
+        allocDesc.size = 1000;
+        allocDesc.alignment = alignment;
+        HeapAlloc allocation;
+        REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
+        CHECK_EQ(allocation.getDeviceAddress() % alignment, 0);
+        allocations.push_back(allocation);
+    }
+
+    for (auto& alloc : allocations)
+    {
+        REQUIRE_CALL(heap->free(alloc));
+    }
+}
+
 GPU_TEST_CASE("heap-alignment-sizes", CUDA | Vulkan)
 {
     HeapDesc desc;

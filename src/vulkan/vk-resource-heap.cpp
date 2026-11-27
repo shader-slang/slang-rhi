@@ -5,19 +5,6 @@
 
 namespace rhi::vk {
 
-static VkMemoryPropertyFlags getMemoryProperties(MemoryType memoryType)
-{
-    switch (memoryType)
-    {
-    case MemoryType::Upload:
-        return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    case MemoryType::ReadBack:
-        return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    default:
-        return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    }
-}
-
 ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
     : ResourceHeap(device, desc)
 {
@@ -25,17 +12,13 @@ ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
 
 ResourceHeapImpl::~ResourceHeapImpl()
 {
-    DeviceImpl* device = getDevice<DeviceImpl>();
-    if (m_mapped)
-        device->m_api.vkUnmapMemory(device->m_api.m_device, m_memory);
-    if (m_memory)
-        device->m_api.vkFreeMemory(device->m_api.m_device, m_memory, nullptr);
+    // Resources placed in the heap hold a reference to it, so they are already destroyed.
+    getDevice<DeviceImpl>()->m_memoryAllocator.freeMemory(m_allocation);
 }
 
 Result ResourceHeapImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    const VulkanApi& api = device->m_api;
 
     uint32_t memoryTypeBits = ~0u;
     for (uint32_t i = 0; i < m_desc.requirementCount; ++i)
@@ -44,34 +27,26 @@ Result ResourceHeapImpl::init()
     if (memoryTypeBits == 0)
         return SLANG_E_NOT_AVAILABLE;
 
-    const VkMemoryPropertyFlags properties = getMemoryProperties(m_desc.memoryType);
     if (m_desc.alignment > 1)
         return SLANG_E_INVALID_ARG;
     m_desc.alignment = max<Size>(m_desc.alignment, 1);
 
+    // Resources are bound to the heap's memory at explicit offsets, so the heap needs its own
+    // VkDeviceMemory that is not shared with other allocations.
     VkMemoryRequirements memoryRequirements = {};
     memoryRequirements.size = m_desc.size;
+    memoryRequirements.alignment = 1;
     memoryRequirements.memoryTypeBits = memoryTypeBits;
-    const VkMemoryPropertyFlags preferredProperties =
-        m_desc.memoryType == MemoryType::ReadBack ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 0;
-    SLANG_RETURN_ON_FAIL(allocateVkMemory(
-        api,
-        memoryRequirements,
-        properties,
-        preferredProperties,
-        api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress,
-        0,
-        &m_memory,
-        &m_memoryTypeIndex
-    ));
 
-    if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-    {
-        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkMapMemory(api.m_device, m_memory, 0, m_desc.size, 0, &m_mapped), device);
-    }
+    AllocationDesc allocationDesc;
+    allocationDesc.memoryType = m_desc.memoryType;
+    allocationDesc.dedicated = true;
+    SLANG_RETURN_ON_FAIL(device->m_memoryAllocator.allocateMemory(memoryRequirements, allocationDesc, &m_allocation));
+    const VmaAllocationInfo info = device->m_memoryAllocator.getAllocationInfo(m_allocation);
+    SLANG_RHI_ASSERT(info.offset == 0);
 
     if (m_desc.label)
-        device->_labelObject((uint64_t)m_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, m_desc.label);
+        device->_labelObject((uint64_t)info.deviceMemory, VK_OBJECT_TYPE_DEVICE_MEMORY, m_desc.label);
 
     return SLANG_OK;
 }
@@ -79,7 +54,8 @@ Result ResourceHeapImpl::init()
 Result ResourceHeapImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkDeviceMemory;
-    outHandle->value = (uint64_t)m_memory;
+    outHandle->value =
+        (uint64_t)getDevice<DeviceImpl>()->m_memoryAllocator.getAllocationInfo(m_allocation).deviceMemory;
     return SLANG_OK;
 }
 
@@ -88,7 +64,9 @@ bool ResourceHeapImpl::isCompatible(const ResourceMemoryRequirements& requiremen
     if (!ResourceHeap::isCompatible(requirements))
         return false;
     const uint64_t memoryTypeBits = getResourceHeapCompatibilityMask(requirements);
-    return (memoryTypeBits & (uint64_t(1) << m_memoryTypeIndex)) != 0;
+    const uint32_t memoryTypeIndex =
+        getDevice<DeviceImpl>()->m_memoryAllocator.getAllocationInfo(m_allocation).memoryType;
+    return (memoryTypeBits & (uint64_t(1) << memoryTypeIndex)) != 0;
 }
 
 } // namespace rhi::vk

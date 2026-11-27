@@ -506,7 +506,8 @@ endif()
 
 # Setup VulkanMemoryAllocator
 if(SLANG_RHI_ENABLE_VULKAN)
-    add_library(slang-rhi-vma STATIC)
+    add_library(slang-rhi-vma OBJECT)
+    set_target_properties(slang-rhi-vma PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_sources(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/vma/vk_mem_alloc.cpp)
     target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
     target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
@@ -924,6 +925,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
         src/vulkan/vk-heap.cpp
+        src/vulkan/vk-memory-allocator.cpp
         src/vulkan/vk-resource-heap.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
@@ -1184,6 +1186,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_VULKAN)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
+        target_include_directories(slang-rhi-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
     endif()
     if(SLANG_RHI_ENABLE_WGPU)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-dawn)
