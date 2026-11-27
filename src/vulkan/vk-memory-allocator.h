@@ -49,6 +49,8 @@ public:
     void shutdown();
 
     /// True if exportable allocations are supported.
+    /// Exportable allocations are always dedicated allocations (allocated with
+    /// VkMemoryDedicatedAllocateInfo), which importers such as CUDA rely on.
     bool canExport() const;
 
     // Allocations are VmaAllocation handles. Unless allocated as dedicated, an allocation is a
@@ -120,6 +122,8 @@ private:
 
     DeviceImpl* m_device = nullptr;
     VmaAllocator m_allocator = VK_NULL_HANDLE;
+    /// VMA only allocates dedicated memory with VkMemoryDedicatedAllocateInfo on Vulkan 1.1+.
+    bool m_supportsDedicatedAllocation = false;
 
     std::mutex m_exportPoolMutex;
     VmaPool m_exportPools[VK_MAX_MEMORY_TYPES] = {};

@@ -3857,6 +3857,10 @@ public:
         ITexture** outTexture
     ) = 0;
 
+    /// Create a texture from a shared handle exported by another device (see ITexture::getSharedHandle).
+    /// The handle must refer to memory that was allocated for this texture alone (on Vulkan, a
+    /// dedicated allocation using VkMemoryDedicatedAllocateInfo; on D3D12, a committed resource).
+    /// Textures exported by slang-rhi always meet this requirement.
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
         const TextureDesc& desc,
@@ -3884,6 +3888,8 @@ public:
         IBuffer** outBuffer
     ) = 0;
 
+    /// Create a buffer from a shared handle exported by another device (see IBuffer::getSharedHandle).
+    /// The same dedicated memory requirement as for createTextureFromSharedHandle() applies.
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
         NativeHandle handle,
         const BufferDesc& desc,
