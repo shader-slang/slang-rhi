@@ -20,7 +20,7 @@ static rhi::SharedLibraryHandle sCudaModule;
 
 static void shutdownImpl();
 
-extern "C" bool rhiCudaDriverApiInit()
+extern "C" SLANG_RHI_API bool SLANG_STDCALL rhiCudaDriverApiInit()
 {
     std::lock_guard<std::mutex> lock(sCudaModuleMutex);
 
@@ -288,13 +288,13 @@ static void shutdownImpl()
     sCudaModule = nullptr;
 }
 
-extern "C" void rhiCudaDriverApiShutdown()
+extern "C" SLANG_RHI_API void SLANG_STDCALL rhiCudaDriverApiShutdown()
 {
     std::lock_guard<std::mutex> lock(sCudaModuleMutex);
     shutdownImpl();
 }
 
-extern "C" void* rhiCudaDriverApiGetProcAddress(const char* name)
+extern "C" SLANG_RHI_API void* SLANG_STDCALL rhiCudaDriverApiGetProcAddress(const char* name)
 {
     std::lock_guard<std::mutex> lock(sCudaModuleMutex);
     if (!sCudaModule || !name || !name[0])
@@ -304,14 +304,14 @@ extern "C" void* rhiCudaDriverApiGetProcAddress(const char* name)
 
 #else // SLANG_RHI_USE_DYNAMIC_CUDA
 
-extern "C" bool rhiCudaDriverApiInit()
+extern "C" SLANG_RHI_API bool SLANG_STDCALL rhiCudaDriverApiInit()
 {
     return true;
 }
 
-extern "C" void rhiCudaDriverApiShutdown() {}
+extern "C" SLANG_RHI_API void SLANG_STDCALL rhiCudaDriverApiShutdown() {}
 
-extern "C" void* rhiCudaDriverApiGetProcAddress(const char*)
+extern "C" SLANG_RHI_API void* SLANG_STDCALL rhiCudaDriverApiGetProcAddress(const char*)
 {
     return nullptr;
 }

@@ -1,15 +1,17 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #define SLANG_RHI_USE_DYNAMIC_CUDA 1
 
-extern "C" bool rhiCudaDriverApiInit();
-extern "C" void rhiCudaDriverApiShutdown();
+extern "C" SLANG_RHI_API bool SLANG_STDCALL rhiCudaDriverApiInit();
+extern "C" SLANG_RHI_API void SLANG_STDCALL rhiCudaDriverApiShutdown();
 
 /// Look up a symbol in the dynamically loaded CUDA driver by its exact exported name.
 /// Returns nullptr if the driver is not loaded (rhiCudaDriverApiInit() has not succeeded), the symbol does not exist,
 /// or CUDA is not loaded dynamically. The caller must cast the result to the correct function signature and must keep
 /// the driver loaded (i.e. not call rhiCudaDriverApiShutdown()) for as long as the address is in use.
-extern "C" void* rhiCudaDriverApiGetProcAddress(const char* name);
+extern "C" SLANG_RHI_API void* SLANG_STDCALL rhiCudaDriverApiGetProcAddress(const char* name);
 
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
