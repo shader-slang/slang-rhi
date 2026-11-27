@@ -42,6 +42,9 @@ public:
     ThreadedTaskPool(int workerCount = -1);
     ~ThreadedTaskPool() override;
 
+    /// Number of worker threads, fixed at construction.
+    uint32_t getWorkerCount() const;
+
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
@@ -77,5 +80,10 @@ Result initGlobalTaskPool(int workerCount);
 
 /// Returns the global task pool.
 ITaskPool* globalTaskPool();
+
+/// Returns the number of worker threads that run the tasks of `taskPool`: 0 for a BlockingTaskPool,
+/// the worker count for a ThreadedTaskPool, and -1 for any other pool (one set with setGlobalTaskPool),
+/// whose thread count is unknown.
+int getTaskPoolWorkerCount(ITaskPool* taskPool);
 
 } // namespace rhi

@@ -14,21 +14,27 @@ void writeIds(uint3 tid: SV_DispatchThreadID)
     threadCount[0].add(1);
 }
 
-// Every group checks in, then waits until all groups have checked in. This only completes when
-// the groups run concurrently; run one after another, the first group gives up after
-// `spinBudget` polls and reports 0.
-uniform RWStructuredBuffer<Atomic<uint>> arrived;
-uniform RWStructuredBuffer<uint> sawAll;
-uniform uint groupCount;
-uniform uint spinBudget;
+// The first group waits until the last group of the dispatch has started. This only completes
+// when the two run concurrently; run one after another, the first group waits until the test
+// gives up and sets `flags[1]`, and reports 0.
+uniform RWStructuredBuffer<Atomic<uint>> flags; // [0]: the last group has started, [1]: give up
+uniform RWStructuredBuffer<uint> sawLastGroup;
+uniform uint lastGroup;
 
 [shader("compute")]
-[numthreads(1, 1, 1)]
-void waitForAllGroups(uint3 groupID: SV_GroupID)
+[numthreads(64, 1, 1)]
+void firstGroupWaitsForLast(uint3 groupID: SV_GroupID, uint3 groupThreadID: SV_GroupThreadID)
 {
-    arrived[0].add(1);
-    uint budget = spinBudget;
-    while (arrived[0].add(0) < groupCount && budget != 0)
-        budget--;
-    sawAll[groupID.x] = arrived[0].add(0) >= groupCount ? 1 : 0;
+    if (groupThreadID.x != 0)
+        return;
+    if (groupID.x == lastGroup)
+        flags[0].add(1);
+    if (groupID.x == 0)
+    {
+        // add(0) is an atomic read.
+        while (flags[0].add(0) == 0 && flags[1].add(0) == 0)
+        {
+        }
+        sawLastGroup[0] = flags[0].add(0);
+    }
 }
