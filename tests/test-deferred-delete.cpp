@@ -58,28 +58,14 @@ GPU_TEST_CASE("deferred-delete", ALL)
     }
 
     auto queue = device->getQueue(QueueType::Graphics);
+    // Drain deferred deletes from earlier work, so they cannot be retired during this test.
+    REQUIRE_CALL(queue->waitOnHost());
     uint64_t countBegin = gResourceCount;
     uint64_t countBefore = gResourceCount;
 
-    // Create and release a buffer.
-    {
-        BufferDesc bufferDesc = {};
-        bufferDesc.size = 256;
-        bufferDesc.memoryType = MemoryType::DeviceLocal;
-        bufferDesc.usage = BufferUsage::ShaderResource;
-
-        ComPtr<IBuffer> buffer;
-        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-        buffer = nullptr;
-    }
-
-    // Check buffer is still alive due to deferred delete.
-    if (deferredBuffer)
-    {
-        CHECK_GT(gResourceCount, countBefore);
-    }
-    countBefore = gResourceCount;
-
+    // Texture creation may submit internal work (e.g. the initial layout transition on Vulkan), which
+    // also retires earlier deferred deletes. Create the texture first, so this cannot affect the
+    // counts checked for the other resources.
     // Create and release a texture.
     {
         TextureDesc textureDesc = {};
@@ -96,6 +82,26 @@ GPU_TEST_CASE("deferred-delete", ALL)
 
     // Check texture is still alive due to deferred delete.
     if (deferredTexture)
+    {
+        CHECK_GT(gResourceCount, countBefore);
+    }
+    countBefore = gResourceCount;
+
+
+    // Create and release a buffer.
+    {
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = 256;
+        bufferDesc.memoryType = MemoryType::DeviceLocal;
+        bufferDesc.usage = BufferUsage::ShaderResource;
+
+        ComPtr<IBuffer> buffer;
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+        buffer = nullptr;
+    }
+
+    // Check buffer is still alive due to deferred delete.
+    if (deferredBuffer)
     {
         CHECK_GT(gResourceCount, countBefore);
     }
@@ -170,6 +176,10 @@ GPU_TEST_CASE("deferred-delete-dependencies", D3D12 | Vulkan | Metal)
         REQUIRE_CALL(device->createTexture(desc, nullptr, texture.writeRef()));
         // Exercise the cached view without retaining a consumer reference.
         REQUIRE(texture->getDefaultView());
+        // Texture creation may submit internal work (e.g. the initial layout transition on Vulkan)
+        // that keeps the texture alive until it completes. Wait for it, so this test only checks
+        // the release of the texture and its dependencies through deferred deletion.
+        REQUIRE_CALL(queue->waitOnHost());
         sampler.setNull();
         texture.setNull();
     }
@@ -304,4 +314,39 @@ GPU_TEST_CASE("deferred-delete-stress", ALL)
     uint32_t expected = iterations * (iterations - 1) / 2;
     for (size_t i = 0; i < kEntryCount; ++i)
         CHECK_EQ(resultData[i], expected);
+}
+
+// Textures that are created (with or without init data) but never used in a command buffer
+// must still be released. Texture creation may submit internal work (e.g. initial layout
+// transitions on Vulkan) that keeps the texture alive until that work has completed.
+GPU_TEST_CASE("deferred-delete-unused-texture", D3D12 | Vulkan | Metal | CUDA | WGPU)
+{
+    auto queue = device->getQueue(QueueType::Graphics);
+
+    TextureDesc desc = {};
+    desc.format = Format::RGBA8Unorm;
+    desc.size = {64, 64, 1};
+    desc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
+
+    std::vector<uint32_t> data(64 * 64, 0x12345678);
+    SubresourceData initData = {data.data(), 64 * 4, 64 * 64 * 4};
+
+    // Warm up: uploading init data allocates a staging heap page (a buffer resource) that is
+    // retained for reuse. Make sure it exists before taking the baseline resource count.
+    {
+        ComPtr<ITexture> texture;
+        REQUIRE_CALL(device->createTexture(desc, &initData, texture.writeRef()));
+    }
+    REQUIRE_CALL(queue->waitOnHost());
+    const uint64_t countBegin = gResourceCount.load();
+
+    for (int i = 0; i < 16; ++i)
+    {
+        ComPtr<ITexture> texture;
+        REQUIRE_CALL(device->createTexture(desc, (i & 1) ? &initData : nullptr, texture.writeRef()));
+    }
+
+    // A single wait must be enough to release all of them.
+    REQUIRE_CALL(queue->waitOnHost());
+    CHECK_EQ(gResourceCount.load(), countBegin);
 }

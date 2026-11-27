@@ -112,6 +112,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdInitializeTexture(const commands::InitializeTexture& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -1607,6 +1608,13 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
         if (Texture* texture = asTexture(cmd.after[i]))
             m_stateTracking.resetTextureState(texture);
     }
+}
+
+void CommandRecorder::cmdInitializeTexture(const commands::InitializeTexture& cmd)
+{
+    // The image starts out in VK_IMAGE_LAYOUT_UNDEFINED. Forget the tracked (default) state,
+    // so the next barrier transitions from the undefined layout.
+    m_stateTracking.resetTextureState(checked_cast<TextureImpl*>(cmd.texture));
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

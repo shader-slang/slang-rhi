@@ -301,6 +301,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdInitializeTexture(const commands::InitializeTexture& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -575,7 +576,9 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             copyParam.WidthInBytes = widthInBlocks(formatInfo, srLayout->size.width) * formatInfo.blockSizeInBytes;
             copyParam.Height = heightInBlocks(formatInfo, srLayout->size.height);
             copyParam.Depth = srLayout->size.depth;
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+            // The staging buffer is retained by the command buffer until it completes,
+            // so the copy can be issued asynchronously on the queue's stream.
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3DAsync(&copyParam, m_stream));
 
             bufferOffset += srLayout->sizeInBytes;
             srLayout++;
@@ -878,6 +881,11 @@ void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)
 }
 
 void CommandExecutor::cmdSetTextureState(const commands::SetTextureState& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandExecutor::cmdInitializeTexture(const commands::InitializeTexture& cmd)
 {
     SLANG_UNUSED(cmd);
 }

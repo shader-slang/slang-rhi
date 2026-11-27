@@ -344,18 +344,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
+    // Transition the image out of VK_IMAGE_LAYOUT_UNDEFINED and upload init data (if any) using a regular
+    // command buffer, like D3D12 does for init data. The command buffer keeps the texture alive until it
+    // has executed. Placed textures without init data are initialized when activated via aliasResources().
     if (!desc.heap || initData)
-    {
-        auto defaultLayout = getImageLayoutFromState(desc.defaultState);
-        if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
-        {
-            _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
-        }
-        m_deviceQueue.flushAndWait();
-    }
-
-    // Upload init data if we have some
-    if (initData)
     {
         ComPtr<ICommandQueue> queue;
         SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
@@ -363,22 +355,35 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         ComPtr<ICommandEncoder> commandEncoder;
         SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
-        SubresourceRange range;
-        range.layer = 0;
-        range.layerCount = layerCount;
-        range.mip = 0;
-        range.mipCount = desc.mipCount;
+        // The next barrier (to copy destination for init data, otherwise to the default state at the end
+        // of the command buffer) transitions from the undefined layout.
+        checked_cast<CommandEncoder*>(commandEncoder.get())->initializeTexture(texture);
 
-        commandEncoder->uploadTextureData(
-            texture,
-            range,
-            {0, 0, 0},
-            Extent3D::kWholeTexture,
-            initData,
-            layerCount * desc.mipCount
-        );
+        if (initData)
+        {
+            SubresourceRange range;
+            range.layer = 0;
+            range.layerCount = layerCount;
+            range.mip = 0;
+            range.mipCount = desc.mipCount;
+
+            SLANG_RETURN_ON_FAIL(commandEncoder->uploadTextureData(
+                texture,
+                range,
+                {0, 0, 0},
+                Extent3D::kWholeTexture,
+                initData,
+                layerCount * desc.mipCount
+            ));
+        }
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+
+        // Shared textures can be accessed by other APIs immediately after creation.
+        if (is_set(desc.usage, TextureUsage::Shared))
+        {
+            SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+        }
     }
 
     returnComPtr(outTexture, texture);

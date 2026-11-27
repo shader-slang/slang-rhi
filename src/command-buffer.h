@@ -380,6 +380,10 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
+    // Internal: record that a newly created texture starts out with undefined contents/layout.
+    // Backends that track layouts (Vulkan) transition it from an undefined layout on first use.
+    void initializeTexture(ITexture* texture);
+
     virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(
         ITexture* texture,
         SubresourceRange subresourceRange,

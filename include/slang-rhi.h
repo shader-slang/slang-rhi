@@ -3741,7 +3741,13 @@ struct DeviceDesc
     bool enableRayTracing = true;
 
     /// Size of a page in staging heap.
+    /// Allocations larger than a page get a dedicated page (rounded up to a multiple of the page size).
     Size stagingHeapPageSize = 16 * 1024 * 1024;
+
+    /// Maximum amount of empty staging memory (in bytes) each staging heap keeps around for reuse.
+    /// Empty pages beyond this budget are released, least recently used first.
+    /// Retaining pages avoids re-creating staging buffers for repeated large uploads/readbacks.
+    Size stagingHeapRetainSize = 256 * 1024 * 1024;
 
     // Configuration for bindless resources.
     BindlessDesc bindless = {};

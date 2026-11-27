@@ -92,6 +92,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdInitializeTexture(const commands::InitializeTexture& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
@@ -879,6 +880,11 @@ void CommandExecutor::cmdSetTextureState(const commands::SetTextureState& cmd)
 }
 
 void CommandExecutor::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandExecutor::cmdInitializeTexture(const commands::InitializeTexture& cmd)
 {
     SLANG_UNUSED(cmd);
 }

@@ -69,6 +69,10 @@ public:
         // Get thread id page is locked to (if any)
         std::thread::id getLockedToThread() const { return m_locked_to_thread; }
 
+        // Tick at which the page last became empty (used to release least recently used pages first).
+        uint64_t getLastFreedTick() const { return m_lastFreedTick; }
+        void setLastFreedTick(uint64_t tick) { m_lastFreedTick = tick; }
+
         // Map page
         Result map(Device* device);
 
@@ -86,6 +90,7 @@ public:
         size_t m_totalUsed = 0;
         void* m_mapped = nullptr;
         std::thread::id m_locked_to_thread;
+        uint64_t m_lastFreedTick = 0;
     };
 
     // Memory allocation within heap.
@@ -129,8 +134,14 @@ public:
         Allocation m_allocation;
     };
 
+    // Default maximum amount of empty page capacity retained for reuse.
+    static constexpr Size kDefaultRetainSize = 256 * 1024 * 1024;
+
     // Initialize with device pointer.
-    void initialize(Device* device, Size pageSize, MemoryType memoryType);
+    // Allocations up to `pageSize` are sub-allocated from standard pages. Larger allocations get a
+    // dedicated page (rounded up to a multiple of `pageSize`) that can be reused by later large allocations.
+    // Empty pages are retained for reuse as long as their total capacity does not exceed `retainSize`.
+    void initialize(Device* device, Size pageSize, MemoryType memoryType, Size retainSize = kDefaultRetainSize);
 
     // Attempt to cleanup and check no allocations remain
     void release();
@@ -225,6 +236,8 @@ private:
     Size m_defaultAlignment = 1024;
     Size m_allocationGranularity = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
+    Size m_retainSize = kDefaultRetainSize;
+    uint64_t m_freeTick = 0;
     bool m_keepPagesMapped = true;
     std::unordered_map<int, RefPtr<Page>> m_pages;
     MemoryType m_memoryType;
@@ -239,6 +252,9 @@ private:
     void freePage(StagingHeap::Page* page);
 
     void releaseAllFreePages();
+
+    // Release least recently used empty pages until the empty capacity fits within the retain budget.
+    void trimFreePages();
 };
 
 } // namespace rhi

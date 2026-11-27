@@ -1,5 +1,6 @@
 #include "cuda-texture.h"
 #include "cuda-device.h"
+#include "cuda-command.h"
 #include "cuda-resource-heap.h"
 #include "cuda-utils.h"
 
@@ -452,6 +453,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
+        // Copy directly from the (pageable) host memory using async copies on the queue's stream,
+        // then synchronize once at the end. For pageable memory, the driver returns from each copy
+        // once the source has been staged, so copies of consecutive subresources overlap instead of
+        // each one blocking until its DMA transfer has completed.
+        CUstream stream = m_queue->m_stream;
         uint32_t mipCount = desc.mipCount;
         uint32_t layerCount = desc.getLayerCount();
         uint32_t subresourceIndex = 0;
@@ -484,9 +490,13 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 copyParam.WidthInBytes = widthInBlocks(formatInfo, mipSize.width) * mapping.elementSize;
                 copyParam.Height = heightInBlocks(formatInfo, mipSize.height);
                 copyParam.Depth = mipSize.depth;
-                SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpy3D(&copyParam), this);
+                SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpy3DAsync(&copyParam, stream), this);
             }
         }
+
+        // Texture creation with init data is synchronous on CUDA: the source data may be freed
+        // and the texture used on other streams as soon as this returns.
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(stream), this);
     }
 
     returnComPtr(outTexture, tex);

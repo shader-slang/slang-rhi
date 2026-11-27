@@ -887,6 +887,13 @@ void CommandEncoder::setTextureState(ITexture* texture, SubresourceRange subreso
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::initializeTexture(ITexture* texture)
+{
+    commands::InitializeTexture cmd;
+    cmd.texture = checked_cast<Texture*>(texture);
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::globalBarrier()
 {
     commands::GlobalBarrier cmd;
