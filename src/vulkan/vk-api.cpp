@@ -133,26 +133,6 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
 
     // Get optional
     VK_API_INSTANCE_PROCS_OPT(VK_API_GET_INSTANCE_PROC)
-    if (!vkGetPhysicalDeviceFeatures2)
-    {
-        vkGetPhysicalDeviceFeatures2 =
-            (PFN_vkGetPhysicalDeviceFeatures2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR");
-    }
-    if (!vkGetPhysicalDeviceProperties2)
-    {
-        vkGetPhysicalDeviceProperties2 =
-            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
-    }
-    if (!vkGetPhysicalDeviceFormatProperties2)
-    {
-        vkGetPhysicalDeviceFormatProperties2 = (PFN_vkGetPhysicalDeviceFormatProperties2)
-            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFormatProperties2KHR");
-    }
-    if (!vkGetPhysicalDeviceImageFormatProperties2)
-    {
-        vkGetPhysicalDeviceImageFormatProperties2 = (PFN_vkGetPhysicalDeviceImageFormatProperties2)
-            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceImageFormatProperties2KHR");
-    }
     if (!vkGetPhysicalDeviceCalibrateableTimeDomainsKHR && vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)
         vkGetPhysicalDeviceCalibrateableTimeDomainsKHR = vkGetPhysicalDeviceCalibrateableTimeDomainsEXT;
     if (!vkGetPhysicalDeviceCalibrateableTimeDomainsEXT && vkGetPhysicalDeviceCalibrateableTimeDomainsKHR)
@@ -210,30 +190,11 @@ Result VulkanApi::initDeviceProcs(VkDevice device)
 
     VK_API_ALL_DEVICE_PROCS(VK_API_GET_DEVICE_PROC)
 
-    if (!vkGetBufferMemoryRequirements2)
-    {
-        vkGetBufferMemoryRequirements2 =
-            (PFN_vkGetBufferMemoryRequirements2)vkGetDeviceProcAddr(device, "vkGetBufferMemoryRequirements2KHR");
-    }
-    if (!vkGetImageMemoryRequirements2)
-    {
-        vkGetImageMemoryRequirements2 =
-            (PFN_vkGetImageMemoryRequirements2)vkGetDeviceProcAddr(device, "vkGetImageMemoryRequirements2KHR");
-    }
-
     if (!areDefined(ProcType::Device))
     {
         return SLANG_FAIL;
     }
 
-    if (!vkGetBufferDeviceAddressKHR && vkGetBufferDeviceAddressEXT)
-        vkGetBufferDeviceAddressKHR = vkGetBufferDeviceAddressEXT;
-    if (!vkGetBufferDeviceAddress && vkGetBufferDeviceAddressKHR)
-        vkGetBufferDeviceAddress = vkGetBufferDeviceAddressKHR;
-    if (!vkGetSemaphoreCounterValue && vkGetSemaphoreCounterValueKHR)
-        vkGetSemaphoreCounterValue = vkGetSemaphoreCounterValueKHR;
-    if (!vkSignalSemaphore && vkSignalSemaphoreKHR)
-        vkSignalSemaphore = vkSignalSemaphoreKHR;
     if (!vkGetCalibratedTimestampsKHR && vkGetCalibratedTimestampsEXT)
         vkGetCalibratedTimestampsKHR = vkGetCalibratedTimestampsEXT;
     if (!vkGetCalibratedTimestampsEXT && vkGetCalibratedTimestampsKHR)

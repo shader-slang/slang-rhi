@@ -44,9 +44,6 @@ HeapImpl::PageImpl::~PageImpl()
 
 DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 {
-    if (!m_device->m_api.vkGetBufferDeviceAddress)
-        return 0;
-
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
     info.buffer = m_buffer;

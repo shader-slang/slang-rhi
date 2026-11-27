@@ -79,8 +79,6 @@ protected:
     /* */
 
 #define VK_API_INSTANCE_PROCS_OPT(x) \
-    x(vkGetPhysicalDeviceFeatures2) \
-    x(vkGetPhysicalDeviceProperties2) \
     VK_API_INSTANCE_KHR_PROCS(x) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
@@ -101,6 +99,8 @@ protected:
     x(vkGetPhysicalDeviceMemoryProperties) \
     x(vkGetPhysicalDeviceQueueFamilyProperties) \
     x(vkGetPhysicalDeviceFormatProperties) \
+    x(vkGetPhysicalDeviceFeatures2) \
+    x(vkGetPhysicalDeviceProperties2) \
     x(vkGetPhysicalDeviceFormatProperties2) \
     x(vkGetPhysicalDeviceImageFormatProperties2) \
     x(vkGetDeviceProcAddr) \
@@ -150,6 +150,17 @@ protected:
     \
     x(vkGetBufferMemoryRequirements) \
     x(vkGetImageMemoryRequirements) \
+    x(vkGetBufferMemoryRequirements2) \
+    x(vkGetImageMemoryRequirements2) \
+    x(vkGetBufferDeviceAddress) \
+    x(vkGetDescriptorSetLayoutSupport) \
+    x(vkGetSemaphoreCounterValue) \
+    x(vkSignalSemaphore) \
+    x(vkWaitSemaphores) \
+    x(vkCmdSetViewportWithCount) \
+    x(vkCmdSetScissorWithCount) \
+    x(vkCmdBeginRendering) \
+    x(vkCmdEndRendering) \
     \
     x(vkCmdBindPipeline) \
     x(vkCmdClearAttachments) \
@@ -254,8 +265,6 @@ protected:
     x(vkGetSwapchainImagesKHR) \
     x(vkDestroySwapchainKHR) \
     x(vkAcquireNextImageKHR) \
-    x(vkCmdBeginRenderingKHR) \
-    x(vkCmdEndRenderingKHR) \
     x(vkCreateRayTracingPipelinesKHR) \
     x(vkCmdTraceRaysKHR) \
     x(vkGetRayTracingShaderGroupHandlesKHR) \
@@ -275,14 +284,7 @@ protected:
 
 #define VK_API_DEVICE_OPT_PROCS(x) \
     VK_API_DEVICE_PLATFORM_OPT_PROCS(x) \
-    x(vkGetBufferMemoryRequirements2) \
-    x(vkGetImageMemoryRequirements2) \
     x(vkCmdSetPrimitiveTopologyEXT) \
-    x(vkCmdSetViewportWithCountEXT) \
-    x(vkCmdSetScissorWithCountEXT) \
-    x(vkGetBufferDeviceAddress) \
-    x(vkGetBufferDeviceAddressKHR) \
-    x(vkGetBufferDeviceAddressEXT) \
     x(vkCmdBuildAccelerationStructuresKHR) \
     x(vkCmdCopyAccelerationStructureKHR) \
     x(vkCmdCopyAccelerationStructureToMemoryKHR) \
@@ -298,12 +300,6 @@ protected:
     x(vkGetMicromapBuildSizesEXT) \
     x(vkCmdBuildClusterAccelerationStructureIndirectNV) \
     x(vkGetClusterAccelerationStructureBuildSizesNV) \
-    x(vkGetSemaphoreCounterValue) \
-    x(vkGetSemaphoreCounterValueKHR) \
-    x(vkSignalSemaphore) \
-    x(vkSignalSemaphoreKHR) \
-    x(vkWaitSemaphores) \
-    x(vkWaitSemaphoresKHR) \
     x(vkCmdSetSampleLocationsEXT) \
     x(vkCmdBeginDebugUtilsLabelEXT) \
     x(vkCmdEndDebugUtilsLabelEXT) \
@@ -312,7 +308,6 @@ protected:
     x(vkCmdDrawMeshTasksEXT) \
     x(vkConvertCooperativeVectorMatrixNV) \
     x(vkCmdConvertCooperativeVectorMatrixNV) \
-    x(vkGetDescriptorSetLayoutSupport) \
     x(vkCreatePipelineBinariesKHR) \
     x(vkDestroyPipelineBinaryKHR) \
     x(vkGetPipelineBinaryDataKHR) \

@@ -124,11 +124,6 @@ DeviceAddress BufferImpl::getDeviceAddress()
     DeviceImpl* device = getDevice<DeviceImpl>();
     const auto& api = device->m_api;
 
-    if (!api.vkGetBufferDeviceAddress)
-    {
-        return 0;
-    }
-
     if (!m_deviceAddress)
     {
         VkBufferDeviceAddressInfo info = {};

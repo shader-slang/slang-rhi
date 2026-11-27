@@ -58,15 +58,10 @@ Result BackendImpl::enumerateAdapters()
     applicationInfo.apiVersion = kMinVulkanApiVersion;
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     instanceCreateInfo.pApplicationInfo = &applicationInfo;
-    const char* instanceExtensions[] = {
-        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 #if SLANG_APPLE_FAMILY
-        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
-#endif
-    };
+    const char* instanceExtensions[] = {VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
     instanceCreateInfo.enabledExtensionCount = SLANG_COUNT_OF(instanceExtensions);
     instanceCreateInfo.ppEnabledExtensionNames = &instanceExtensions[0];
-#if SLANG_APPLE_FAMILY
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
     SLANG_VK_RETURN_ON_FAIL(

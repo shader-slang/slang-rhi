@@ -374,8 +374,6 @@ Result DeviceImpl::initVulkanInstance(
 #if SLANG_APPLE_FAMILY
         instanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
-        instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-        instanceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
         instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
         // Note: this extension is not yet supported by nvidia drivers, disable for now.
         // instanceExtensions.push_back("VK_GOOGLE_surfaceless_query");
@@ -595,7 +593,6 @@ Result DeviceImpl::initVulkanDevice(
 
     std::vector<const char*> deviceExtensions;
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
     availableCapabilities.push_back(Capability::SPV_KHR_non_semantic_info);
     availableCapabilities.push_back(Capability::spvNonSemanticInfoKHR);
 
@@ -653,8 +650,6 @@ Result DeviceImpl::initVulkanDevice(
         );
         return SLANG_E_NOT_AVAILABLE;
     }
-    // Subgroup size control is core in Vulkan 1.3.
-    m_hasSubgroupSizeControl = true;
 
     auto& extendedFeatures = m_api.m_extendedFeatures;
 
@@ -678,7 +673,6 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.opacityMicromapFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.computeShaderDerivativesFeatures);
-        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.extendedDynamicStateFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.storage16BitFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.robustness2Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clockFeatures);
@@ -770,6 +764,10 @@ Result DeviceImpl::initVulkanDevice(
         // will check for the presence of the boolean feature member in struct and the availability of the extensions.
         // If they are both present then the extension is added, the struct linked into the deviceCreateInfo chain
         // and the code block is executed.
+// SIMPLE_CORE_FEATURE(struct, feature member name, code) is the same for features that are part of core Vulkan 1.3
+// and therefore don't need an extension to be enabled.
+#define SIMPLE_CORE_FEATURE(s, m, code)                                                                                    {                                                                                                                          if (addFeatureExtension(s.m, s))                                                                                       {                                                                                                                          code                                                                                                               }                                                                                                                  }
+
 #define SIMPLE_EXTENSION_FEATURE(s, m, e, code)                                                                        \
     {                                                                                                                  \
         if (addFeatureExtension(s.m, s, e))                                                                            \
@@ -814,17 +812,15 @@ Result DeviceImpl::initVulkanDevice(
             availableCapabilities.push_back(Capability::spvAbort);
         }
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.shaderDrawParametersFeatures,
             shaderDrawParameters,
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
             {}
         );
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.dynamicRenderingFeatures,
             dynamicRendering,
-            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
             {/* "dynamic-rendering" */}
         );
 
@@ -842,10 +838,9 @@ Result DeviceImpl::initVulkanDevice(
             {/* "b4g4r4a4-format" */}
         );
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.storage16BitFeatures,
             storageBuffer16BitAccess,
-            VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
             {/* "16-bit-storage" */}
         );
 
@@ -931,19 +926,11 @@ Result DeviceImpl::initVulkanDevice(
             {/* "image-atomic-int64" */}
         );
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.extendedDynamicStateFeatures,
-            extendedDynamicState,
-            VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
-            {
-                // Physical support does not establish which extensions an imported device enabled.
-                m_hasExtendedDynamicState = !desc.existingDeviceHandles.handles[2];
-                if (m_hasExtendedDynamicState && m_api.m_deviceFeatures.multiViewport &&
-                    (extendedFeatures.vulkan12Features.shaderOutputViewportIndex ||
-                     extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME)))
-                    availableFeatures.push_back(Feature::ViewportArrayIndex);
-            }
-        );
+        // Multiple viewports use the core (Vulkan 1.3) dynamic viewport/scissor state with count.
+        if (m_api.m_deviceFeatures.multiViewport &&
+            (extendedFeatures.vulkan12Features.shaderOutputViewportIndex ||
+             extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME)))
+            availableFeatures.push_back(Feature::ViewportArrayIndex);
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.customBorderColorFeatures,
@@ -1060,10 +1047,9 @@ Result DeviceImpl::initVulkanDevice(
             );
         }
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.inlineUniformBlockFeatures,
             inlineUniformBlock,
-            VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME,
             {/* "inline-uniform-block" */}
         );
 
@@ -1091,7 +1077,7 @@ Result DeviceImpl::initVulkanDevice(
             availableCapabilities.push_back(Capability::spvMeshShadingEXT);
         });
 
-        SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
+        SIMPLE_CORE_FEATURE(extendedFeatures.multiviewFeatures, multiview, {
             availableFeatures.push_back(Feature::MultiView);
         });
 
@@ -1114,10 +1100,9 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.variablePointersFeatures,
             variablePointers,
-            VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
             {
                 availableCapabilities.push_back(Capability::SPV_KHR_variable_pointers);
                 availableCapabilities.push_back(Capability::spvVariablePointersKHR);
@@ -1178,10 +1163,9 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.shaderIntegerDotProductFeatures,
             shaderIntegerDotProduct,
-            VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME,
             {/* "integer-dot-product" */}
         );
 
@@ -1328,10 +1312,9 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
+        SIMPLE_CORE_FEATURE(
             extendedFeatures.shaderDemoteToHelperInvocationFeatures,
             shaderDemoteToHelperInvocation,
-            VK_EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_EXTENSION_NAME,
             {
                 availableCapabilities.push_back(Capability::SPV_EXT_demote_to_helper_invocation);
                 availableCapabilities.push_back(Capability::spvDemoteToHelperInvocationEXT);
@@ -1360,6 +1343,7 @@ Result DeviceImpl::initVulkanDevice(
         );
 
 #undef SIMPLE_EXTENSION_FEATURE
+#undef SIMPLE_CORE_FEATURE
 
         SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport));
         if (m_calibratedTimestampSupport.available && !desc.existingDeviceHandles.handles[2])
@@ -1435,36 +1419,27 @@ Result DeviceImpl::initVulkanDevice(
             availableFeatures.push_back(Feature::WaveOps);
         }
 
-        if (extensionNames.count("VK_KHR_external_memory"))
-        {
-            deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+        // External memory and semaphores are core in Vulkan 1.1, only the platform specific handle types
+        // need extensions.
 #if SLANG_WINDOWS_FAMILY
-            if (extensionNames.count("VK_KHR_external_memory_win32"))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
-            }
-#else
-            if (extensionNames.count("VK_KHR_external_memory_fd"))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
-            }
-#endif
-        }
-        if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME))
+        if (extensionNames.count(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME))
         {
-            deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
-#if SLANG_WINDOWS_FAMILY
-            if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
-            }
-#else
-            if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME))
-            {
-                deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
-            }
-#endif
+            deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
         }
+        if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
+        }
+#else
+        if (extensionNames.count(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+        }
+        if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+        }
+#endif
         if (extensionNames.count(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
@@ -1773,10 +1748,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     EXTEND_DESC_CHAIN(props, idProps);
     EXTEND_DESC_CHAIN(props, subgroupProps);
-    if (m_hasSubgroupSizeControl)
-    {
-        EXTEND_DESC_CHAIN(props, subgroupSizeControlProps);
-    }
+    EXTEND_DESC_CHAIN(props, subgroupSizeControlProps);
     m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
     const VkPhysicalDeviceProperties& basicProps = props.properties;
 
@@ -1828,7 +1800,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
         if (subgroupProps.subgroupSize > 0 && (subgroupProps.supportedOperations & kWaveOpsSubgroupFeatureMask))
         {
-            if (m_hasSubgroupSizeControl && subgroupSizeControlProps.minSubgroupSize > 0 &&
+            if (subgroupSizeControlProps.minSubgroupSize > 0 &&
                 subgroupSizeControlProps.maxSubgroupSize >= subgroupSizeControlProps.minSubgroupSize)
             {
                 limits.minWaveSize = subgroupSizeControlProps.minSubgroupSize;
@@ -2379,19 +2351,12 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
     SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, &buffer));
     VkMemoryRequirements reqs = {};
     VkMemoryDedicatedRequirements dedicatedReqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
-    if (m_api.vkGetBufferMemoryRequirements2)
-    {
-        VkBufferMemoryRequirementsInfo2 info = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
-        info.buffer = buffer;
-        VkMemoryRequirements2 reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-        reqs2.pNext = &dedicatedReqs;
-        m_api.vkGetBufferMemoryRequirements2(m_device, &info, &reqs2);
-        reqs = reqs2.memoryRequirements;
-    }
-    else
-    {
-        m_api.vkGetBufferMemoryRequirements(m_device, buffer, &reqs);
-    }
+    VkBufferMemoryRequirementsInfo2 info = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2};
+    info.buffer = buffer;
+    VkMemoryRequirements2 reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+    reqs2.pNext = &dedicatedReqs;
+    m_api.vkGetBufferMemoryRequirements2(m_device, &info, &reqs2);
+    reqs = reqs2.memoryRequirements;
     m_api.vkDestroyBuffer(m_device, buffer, nullptr);
 
     const Size granularity = max<Size>(m_api.m_deviceProperties.limits.bufferImageGranularity, 1);
@@ -2440,19 +2405,12 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
     SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image), this);
     VkMemoryRequirements reqs = {};
     VkMemoryDedicatedRequirements dedicatedReqs = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS};
-    if (m_api.vkGetImageMemoryRequirements2)
-    {
-        VkImageMemoryRequirementsInfo2 info = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2};
-        info.image = image;
-        VkMemoryRequirements2 reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-        reqs2.pNext = &dedicatedReqs;
-        m_api.vkGetImageMemoryRequirements2(m_device, &info, &reqs2);
-        reqs = reqs2.memoryRequirements;
-    }
-    else
-    {
-        m_api.vkGetImageMemoryRequirements(m_device, image, &reqs);
-    }
+    VkImageMemoryRequirementsInfo2 info = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2};
+    info.image = image;
+    VkMemoryRequirements2 reqs2 = {VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+    reqs2.pNext = &dedicatedReqs;
+    m_api.vkGetImageMemoryRequirements2(m_device, &info, &reqs2);
+    reqs = reqs2.memoryRequirements;
     m_api.vkDestroyImage(m_device, image, nullptr);
 
     const Size granularity = max<Size>(m_api.m_deviceProperties.limits.bufferImageGranularity, 1);

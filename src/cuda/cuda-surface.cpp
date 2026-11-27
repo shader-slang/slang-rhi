@@ -6,6 +6,7 @@
 #include "cuda-command.h"
 #include "cuda-utils.h"
 
+#include "vulkan/vk-base.h"
 #include "vulkan/vk-api.h"
 #include "vulkan/vk-utils.h"
 
@@ -242,7 +243,7 @@ Result SurfaceImpl::createVulkanInstance()
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
 
     VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-    applicationInfo.apiVersion = VK_API_VERSION_1_2;
+    applicationInfo.apiVersion = vk::kMinVulkanApiVersion;
 
     // Query the available instance extensions
     uint32_t extensionCount = 0;

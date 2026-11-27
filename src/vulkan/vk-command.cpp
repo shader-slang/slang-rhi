@@ -716,14 +716,14 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     renderingInfo.pDepthAttachment = hasDepthAttachment ? &depthAttachmentInfo : nullptr;
     renderingInfo.pStencilAttachment = hasStencilAttachment ? &stencilAttachmentInfo : nullptr;
 
-    m_api.vkCmdBeginRenderingKHR(m_cmdBuffer, &renderingInfo);
+    m_api.vkCmdBeginRendering(m_cmdBuffer, &renderingInfo);
 
     m_renderPassActive = true;
 }
 
 void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
 {
-    m_api.vkCmdEndRenderingKHR(m_cmdBuffer);
+    m_api.vkCmdEndRendering(m_cmdBuffer);
 
     m_renderTargetViews.clear();
     m_resolveTargetViews.clear();
@@ -885,10 +885,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.minDepth = src.minZ;
             dst.maxDepth = src.maxZ;
         }
-        if (m_device->m_hasExtendedDynamicState)
-            api.vkCmdSetViewportWithCountEXT(m_cmdBuffer, state.viewportCount, viewports);
-        else
-            api.vkCmdSetViewport(m_cmdBuffer, 0, state.viewportCount, viewports);
+        api.vkCmdSetViewportWithCount(m_cmdBuffer, state.viewportCount, viewports);
     }
 
     if (updateScissorRects)
@@ -903,10 +900,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.extent.width = src.maxX - src.minX;
             dst.extent.height = src.maxY - src.minY;
         }
-        if (m_device->m_hasExtendedDynamicState)
-            api.vkCmdSetScissorWithCountEXT(m_cmdBuffer, state.scissorRectCount, scissorRects);
-        else
-            api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
+        api.vkCmdSetScissorWithCount(m_cmdBuffer, state.scissorRectCount, scissorRects);
     }
 
     m_renderStateValid = true;
