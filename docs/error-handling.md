@@ -108,8 +108,6 @@ if (SLANG_FAILED(result))
 
 These options are global to the RHI instance and must be changed before any devices are alive. If `required` is true, device creation fails when requested downstream debug layers cannot be enabled. If `required` is false, Slang RHI reports a warning and attempts to continue without the unavailable layer.
 
-The legacy `IRHI::enableDebugLayers()` only requests core validation and is less precise than `setDebugLayerOptions()`.
-
 `DeviceDesc::enableRayTracingValidation` requests downstream ray tracing validation for supported backends, currently CUDA/OptiX, D3D12 through NVAPI, and Vulkan through `VK_NV_ray_tracing_validation`. This is a per-device option and is separate from both the Slang RHI validation layer and `DebugLayerOptions`. If the requested validation mode is unavailable, backends report a warning or error through the callback and may continue without it.
 
 `DeviceDesc::enableAftermath` enables NVIDIA Aftermath diagnostics for supported D3D11, D3D12, and Vulkan devices when Slang RHI is built with Aftermath support. `DeviceDesc::aftermathFlags` controls markers, resource tracking, call-stack capture, shader debug information, and shader error reporting. Aftermath is a crash-diagnostic facility, not a general validation layer, and some backends place additional constraints on when it can be combined with downstream debug layers.

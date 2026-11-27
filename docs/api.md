@@ -1,5 +1,20 @@
 # API implementation status
 
+## Migrating removed legacy APIs
+
+The following previously deprecated APIs have been removed:
+
+| Removed API | Replacement |
+|-------------|-------------|
+| `AdapterList` and both `IRHI::getAdapters()` overloads | Enumerate with `IRHI::getAdapter(type, index)` until it returns null; read adapter properties with `IAdapter::getInfo()`. |
+| `DeviceDesc::adapterLUID` | Set `DeviceDesc::adapter`. To select by LUID, enumerate adapters and compare `IAdapter::getInfo().luid`. |
+| `IRHI::enableDebugLayers()` | Call `IRHI::setDebugLayerOptions()` with `coreValidation = true` before creating devices, and check the result. |
+| `SLANG_DEVICE_SCOPE` | Use `SLANG_RHI_DEVICE_SCOPE`. |
+
+`AdapterLUID` and `DeviceInfo::adapterLUID` remain available. These removals change
+public interface and descriptor layouts; rebuild dependent code against matching
+headers and binaries.
+
 ## `IDevice` interface
 
 | API                                | CPU     | CUDA | D3D11 | D3D12 | Vulkan | Metal   | WGPU |

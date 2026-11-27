@@ -3460,26 +3460,6 @@ struct AdapterInfo
     AdapterLUID luid;
 };
 
-// Deprecated
-class AdapterList
-{
-public:
-    AdapterList(ISlangBlob* blob)
-        : m_blob(blob)
-    {
-    }
-
-    const AdapterInfo* getAdapters() const
-    {
-        return reinterpret_cast<const AdapterInfo*>(m_blob ? m_blob->getBufferPointer() : nullptr);
-    }
-
-    uint32_t getCount() const { return (uint32_t)(m_blob ? m_blob->getBufferSize() / sizeof(AdapterInfo) : 0); }
-
-private:
-    ComPtr<ISlangBlob> m_blob;
-};
-
 class IAdapter
 {
 public:
@@ -3673,8 +3653,6 @@ struct DeviceDesc
     DeviceNativeHandles existingDeviceHandles;
     // Adapter to use.
     IAdapter* adapter = nullptr;
-    // LUID of the adapter to use (deprecated).
-    const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
     // Array of required features, whose size is `requiredFeatureCount`.
@@ -4326,9 +4304,6 @@ private:
 /// Helper macro for creating a DeviceScope with a unique name. Usage: SLANG_RHI_DEVICE_SCOPE(device);
 #define SLANG_RHI_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
 
-/// Deprecated alias for SLANG_RHI_DEVICE_SCOPE
-#define SLANG_DEVICE_SCOPE(device) SLANG_RHI_DEVICE_SCOPE(device)
-
 /// \brief Interface for asynchronous task execution.
 ///
 /// Tasks are submitted with `submitTask()`, which returns an opaque `TaskHandle`.
@@ -4471,12 +4446,6 @@ public:
     /// Check is downstream debug layer is enabled
     inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
 
-    /// Deprecated. Enable core-validation debug layers, if available.
-    /// This function may or may-not actually enable debug layers
-    /// when called. Even if layers are enabled, it may do so in
-    /// an incorrect way. It is highly advised to not use this function.
-    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
-
     /// Change downstream debug layer options.
     /// Fails if any devices are currently alive.
     virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions options) = 0;
@@ -4494,16 +4463,6 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
     virtual SLANG_NO_THROW IAdapter* SLANG_MCALL getAdapter(DeviceType type, uint32_t index) = 0;
-
-    /// Deprecated. Gets a list of available adapters for a given device type.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
-
-    inline AdapterList getAdapters(DeviceType type)
-    {
-        ComPtr<ISlangBlob> blob;
-        SLANG_RETURN_NULL_ON_FAIL(getAdapters(type, blob.writeRef()));
-        return AdapterList(blob);
-    }
 
     /// Creates a device.
     virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice) = 0;
